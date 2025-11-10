@@ -1,0 +1,75 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\quickgrid01.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\quickgrid01.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\quickgridtest01.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\quickgridtest01.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\shared\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{1B1C6596-FEF6-497E-AD3E-39204CD2AB2C}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\shared\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{c6f34f0d-7ae5-4f3a-be61-fe0c21ae9eb8}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "NavMenu.razor",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Shared\\NavMenu.razor",
+              "RelativeDocumentMoniker": "QuickGridTest01\\Shared\\NavMenu.razor",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Shared\\NavMenu.razor",
+              "RelativeToolTip": "QuickGridTest01\\Shared\\NavMenu.razor",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAABwAAABSAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-10T20:37:23.069Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "QuickGridTest01",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\QuickGridTest01.csproj",
+              "RelativeDocumentMoniker": "QuickGridTest01\\QuickGridTest01.csproj",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\QuickGridTest01.csproj",
+              "RelativeToolTip": "QuickGridTest01\\QuickGridTest01.csproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2025-11-10T20:35:44.95Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "QuickGrid01.razor",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\QuickGrid01.razor",
+              "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\QuickGrid01.razor",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\QuickGrid01.razor",
+              "RelativeToolTip": "QuickGridTest01\\Pages\\QuickGrid01.razor",
+              "ViewState": "AgIAAGAAAAAAAAAAAAAAAHQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-10T20:27:38.77Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

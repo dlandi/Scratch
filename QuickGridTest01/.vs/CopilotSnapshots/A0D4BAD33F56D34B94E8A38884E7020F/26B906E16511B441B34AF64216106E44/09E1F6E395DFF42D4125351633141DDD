@@ -1,0 +1,72 @@
+﻿@page "/quickgrid"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Products with Validation</PageTitle>
+
+<h3>Product Management (With Validation)</h3>
+
+<QuickGrid Items="@products.AsQueryable()" Class="table table-striped">
+    <PropertyColumn Property="@(p => p.Id)" Sortable="true" />
+    
+    <TemplateColumn Title="Name">
+        @if (editingProductId == context.Id)
+        {
+            <EditForm Model="editModel">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="editModel.Name" class="form-control" />
+                <ValidationMessage For="@(() => editModel.Name)" />
+            </EditForm>
+        }
+        else
+        {
+            @context.Name
+        }
+    </TemplateColumn>
+    
+    <TemplateColumn Title="Price">
+        @if (editingProductId == context.Id)
+        {
+            <InputNumber @bind-Value="editModel.Price" class="form-control" />
+            <ValidationMessage For="@(() => editModel.Price)" />
+        }
+        else
+        {
+            @context.Price.ToString("C")
+        }
+    </TemplateColumn>
+    
+    <TemplateColumn Title="Actions">
+        @if (editingProductId == context.Id)
+        {
+            <button class="btn btn-success btn-sm me-1" @onclick="SaveEdit">Save</button>
+            <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+        }
+        else
+        {
+            <button class="btn btn-primary btn-sm" @onclick="() => StartEdit(context)">Edit</button>
+        }
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    // Model with validation
+    public class ValidatedProduct
+    {
+        public int Id { get; set; }
+        
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+        
+        [Required]
+        [Range(0.01, 999999.99, ErrorMessage = "Price must be between 0.01 and 999999.99")]
+        public decimal Price { get; set; }
+        
+        [Required]
+        [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]
+        public int Stock { get; set; }
+    }
+    
+    // Rest of code similar to above...
+}

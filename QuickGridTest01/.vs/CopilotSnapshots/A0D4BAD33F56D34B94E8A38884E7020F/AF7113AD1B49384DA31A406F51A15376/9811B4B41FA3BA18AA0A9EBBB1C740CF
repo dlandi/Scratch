@@ -1,0 +1,130 @@
+﻿@page "/quickgrid"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+
+<PageTitle>Products with Validation</PageTitle>
+
+<h3>Product Management (With Validation)</h3>
+
+<QuickGrid Items="@products.AsQueryable()" Class="table table-striped">
+    <PropertyColumn Property="@(p => p.Id)" Title="Id" Sortable="true" />
+
+    <TemplateColumn Title="Name" Context="row">
+        @if (editingProductId == row.Id && editModel is not null)
+        {
+            <EditForm Model="editModel">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="editModel.Name" class="form-control" />
+                <ValidationMessage For="@(() => editModel.Name)" />
+            </EditForm>
+        }
+        else
+        {
+            @row.Name
+        }
+    </TemplateColumn>
+
+    <TemplateColumn Title="Price" Context="row">
+        @if (editingProductId == row.Id && editModel is not null)
+        {
+            <InputNumber @bind-Value="editModel.Price" class="form-control" />
+            <ValidationMessage For="@(() => editModel.Price)" />
+        }
+        else
+        {
+            @row.Price.ToString("C")
+        }
+    </TemplateColumn>
+
+    <TemplateColumn Title="Stock" Context="row">
+        @if (editingProductId == row.Id && editModel is not null)
+        {
+            <InputNumber @bind-Value="editModel.Stock" class="form-control" />
+            <ValidationMessage For="@(() => editModel.Stock)" />
+        }
+        else
+        {
+            @row.Stock
+        }
+    </TemplateColumn>
+
+    <TemplateColumn Title="Actions" Context="row">
+        @if (editingProductId == row.Id)
+        {
+            <button class="btn btn-success btn-sm me-1" @onclick="SaveEdit">Save</button>
+            <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Cancel</button>
+        }
+        else
+        {
+            <button class="btn btn-primary btn-sm" @onclick="() => StartEdit(row)">Edit</button>
+        }
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    // Model with validation
+    public class ValidatedProduct
+    {
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0.01, 999999.99, ErrorMessage = "Price must be between 0.01 and 999999.99")]
+        public decimal Price { get; set; }
+
+        [Required]
+        [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]
+        public int Stock { get; set; }
+    }
+
+    // Data set
+    private List<ValidatedProduct> products = new()
+    {
+        new() { Id = 1, Name = "Keyboard", Price = 29.99m, Stock = 50 },
+        new() { Id = 2, Name = "Mouse", Price = 19.99m, Stock = 120 },
+        new() { Id = 3, Name = "Monitor", Price = 199.99m, Stock = 15 },
+        new() { Id = 4, Name = "USB Hub", Price = 14.99m, Stock = 75 },
+    };
+
+    private int? editingProductId;
+    private ValidatedProduct? editModel;
+
+    private void StartEdit(ValidatedProduct product)
+    {
+        editingProductId = product.Id;
+        editModel = new ValidatedProduct
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Price = product.Price,
+            Stock = product.Stock
+        };
+    }
+
+    private void CancelEdit()
+    {
+        editingProductId = null;
+        editModel = null;
+    }
+
+    private void SaveEdit()
+    {
+        if (editingProductId is null || editModel is null)
+        {
+            return;
+        }
+        var existing = products.FirstOrDefault(p => p.Id == editingProductId);
+        if (existing is not null)
+        {
+            existing.Name = editModel.Name;
+            existing.Price = editModel.Price;
+            existing.Stock = editModel.Stock;
+        }
+        editingProductId = null;
+        editModel = null;
+    }
+}
