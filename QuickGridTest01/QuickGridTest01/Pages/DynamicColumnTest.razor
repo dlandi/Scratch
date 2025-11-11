@@ -1,0 +1,51 @@
+@page "/dynamic-test"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+
+<PageTitle>Dynamic Column Test</PageTitle>
+
+<h3>Minimal Dynamic Column Test</h3>
+
+<h4>Test 1: Hardcoded DynamicColumns (No Loop)</h4>
+<QuickGrid Items="@employees">
+    <DynamicColumn TGridItem="Employee" PropertyPath="Id" Title="ID" />
+    <DynamicColumn TGridItem="Employee" PropertyPath="FirstName" Title="First Name" />
+    <DynamicColumn TGridItem="Employee" PropertyPath="LastName" Title="Last Name" />
+</QuickGrid>
+
+<h4>Test 2: PropertyColumn for Comparison</h4>
+<QuickGrid Items="@employees">
+    <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+    <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" />
+    <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" />
+</QuickGrid>
+
+<h4>Test 3: DynamicColumns in foreach Loop</h4>
+<QuickGrid Items="@employees">
+    @foreach (var prop in new[] { "Id", "FirstName", "LastName" })
+    {
+        <DynamicColumn @key="prop" TGridItem="Employee" PropertyPath="@prop" Title="@prop" />
+    }
+</QuickGrid>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+
+    protected override void OnInitialized()
+    {
+        var employeeList = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith" },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson" },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown" }
+        };
+        employees = employeeList.AsQueryable();
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+    }
+}

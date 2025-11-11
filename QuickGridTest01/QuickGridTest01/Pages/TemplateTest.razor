@@ -1,0 +1,48 @@
+@page "/template-test"
+@using Microsoft.AspNetCore.Components.QuickGrid
+
+<PageTitle>Template Column Test</PageTitle>
+
+<h3>Template Column Test (Alternative Approach)</h3>
+
+<h4>Using TemplateColumn to dynamically render properties</h4>
+<QuickGrid Items="@employees">
+    <TemplateColumn Title="ID">
+        @(GetPropertyValue(context, "Id"))
+    </TemplateColumn>
+    <TemplateColumn Title="First Name">
+        @(GetPropertyValue(context, "FirstName"))
+    </TemplateColumn>
+    <TemplateColumn Title="Last Name">
+        @(GetPropertyValue(context, "LastName"))
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+
+    protected override void OnInitialized()
+    {
+        var employeeList = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith" },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson" },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown" }
+        };
+        employees = employeeList.AsQueryable();
+    }
+
+    private string GetPropertyValue(Employee employee, string propertyName)
+    {
+        var property = typeof(Employee).GetProperty(propertyName);
+        var value = property?.GetValue(employee);
+        return value?.ToString() ?? string.Empty;
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+    }
+}

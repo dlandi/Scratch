@@ -1,0 +1,356 @@
+﻿@page "/dynamic-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+
+<PageTitle>Dynamic Column Demo</PageTitle>
+
+<h3>Dynamic Column Generator</h3>
+
+<p>Demonstrates runtime column generation with property path traversal and compiled expression accessors.</p>
+
+<div class="demo-section">
+    <h4>Test Grid with PropertyColumn (Control)</h4>
+    <p><strong>Debug:</strong> Employee count: @employees?.Count()</p>
+    
+    @if (employees != null)
+    {
+        <QuickGrid Items="@employees" Class="demo-grid">
+            <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+            <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" />
+            <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" />
+        </QuickGrid>
+    }
+</div>
+
+<div class="demo-section">
+    <h4>Employee Grid with DynamicColumn (Nested Properties)</h4>
+    <p class="info-text">
+        Columns: Id, FirstName, LastName, <code>Address.City</code>, <code>Address.ZipCode</code>, 
+        <code>Department.Name</code>, Salary, HireDate
+    </p>
+    
+    <p><strong>Debug:</strong> Employee count: @employees?.Count() | Column count: @employeeColumns?.Count</p>
+    
+    @if (employees != null && employeeColumns != null)
+    {
+        <QuickGrid Items="@employees" Class="demo-grid">
+            @foreach (var column in employeeColumns)
+            {
+                <DynamicColumn TGridItem="Employee"
+                               PropertyPath="@column.PropertyPath"
+                               Title="@column.Title"
+                               Format="@column.Format"
+                               Sortable="@column.Sortable"
+                               CustomFormatter="@column.CustomFormatter" />
+            }
+        </QuickGrid>
+    }
+    else
+    {
+        <p style="color: red;">Data not initialized</p>
+    }
+</div>
+
+<div class="demo-section">
+    <h4>Product Grid (Custom Formatters)</h4>
+    <p class="info-text">
+        Demonstrates custom formatters for complex value transformations.
+    </p>
+    
+    @if (products != null && productColumns != null)
+    {
+        <QuickGrid Items="@products" Class="demo-grid">
+            @foreach (var column in productColumns)
+            {
+                <DynamicColumn TGridItem="Product"
+                               PropertyPath="@column.PropertyPath"
+                               Title="@column.Title"
+                               Format="@column.Format"
+                               Sortable="@column.Sortable"
+                               CustomFormatter="@column.CustomFormatter" />
+            }
+        </QuickGrid>
+    }
+</div>
+
+<div class="demo-section">
+    <h4>Column Configuration Builder</h4>
+    <div class="config-display">
+        <h5>Employee Columns:</h5>
+        <pre>@employeeConfigCode</pre>
+        
+        <h5>Product Columns:</h5>
+        <pre>@productConfigCode</pre>
+    </div>
+</div>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+    private IQueryable<Product> products = default!;
+    private List<ColumnMetadata> employeeColumns = default!;
+    private List<ColumnMetadata> productColumns = default!;
+    
+    private string employeeConfigCode = string.Empty;
+    private string productConfigCode = string.Empty;
+
+    protected override void OnInitialized()
+    {
+        InitializeEmployeeData();
+        InitializeProductData();
+        ConfigureEmployeeColumns();
+        ConfigureProductColumns();
+    }
+
+    private void InitializeEmployeeData()
+    {
+        var employeeList = new List<Employee>
+        {
+            new()
+            {
+                Id = 1,
+                FirstName = "John",
+                LastName = "Smith",
+                Address = new Address { Street = "123 Main St", City = "New York", State = "NY", ZipCode = "10001" },
+                Department = new Department { Id = 1, Name = "Engineering", Budget = 500000 },
+                Salary = 95000,
+                HireDate = new DateTime(2020, 3, 15)
+            },
+            new()
+            {
+                Id = 2,
+                FirstName = "Sarah",
+                LastName = "Johnson",
+                Address = new Address { Street = "456 Oak Ave", City = "Los Angeles", State = "CA", ZipCode = "90001" },
+                Department = new Department { Id = 2, Name = "Marketing", Budget = 350000 },
+                Salary = 82000,
+                HireDate = new DateTime(2021, 7, 22)
+            },
+            new()
+            {
+                Id = 3,
+                FirstName = "Michael",
+                LastName = "Brown",
+                Address = new Address { Street = "789 Pine Rd", City = "Chicago", State = "IL", ZipCode = "60601" },
+                Department = new Department { Id = 1, Name = "Engineering", Budget = 500000 },
+                Salary = 103000,
+                HireDate = new DateTime(2019, 1, 10)
+            },
+            new()
+            {
+                Id = 4,
+                FirstName = "Emily",
+                LastName = "Davis",
+                Address = new Address { Street = "321 Elm St", City = "Houston", State = "TX", ZipCode = "77001" },
+                Department = new Department { Id = 3, Name = "Sales", Budget = 280000 },
+                Salary = 78000,
+                HireDate = new DateTime(2022, 4, 5)
+            },
+            new()
+            {
+                Id = 5,
+                FirstName = "David",
+                LastName = "Wilson",
+                Address = new Address { Street = "654 Maple Dr", City = "Phoenix", State = "AZ", ZipCode = "85001" },
+                Department = new Department { Id = 2, Name = "Marketing", Budget = 350000 },
+                Salary = 88000,
+                HireDate = new DateTime(2020, 11, 30)
+            }
+        };
+        employees = employeeList.AsQueryable();
+    }
+
+    private void InitializeProductData()
+    {
+        var productList = new List<Product>
+        {
+            new()
+            {
+                Id = 1,
+                Name = "Laptop Pro",
+                Category = new Category { Id = 1, Name = "Electronics", Description = "Electronic devices" },
+                Price = 1299.99m,
+                Stock = 45,
+                IsActive = true,
+                Rating = 4.5,
+                LastRestocked = DateTime.Now.AddDays(-5)
+            },
+            new()
+            {
+                Id = 2,
+                Name = "Office Chair",
+                Category = new Category { Id = 2, Name = "Furniture", Description = "Office furniture" },
+                Price = 399.99m,
+                Stock = 23,
+                IsActive = true,
+                Rating = 4.2,
+                LastRestocked = DateTime.Now.AddDays(-12)
+            },
+            new()
+            {
+                Id = 3,
+                Name = "Wireless Mouse",
+                Category = new Category { Id = 1, Name = "Electronics", Description = "Electronic devices" },
+                Price = 49.99m,
+                Stock = 150,
+                IsActive = true,
+                Rating = 4.7,
+                LastRestocked = DateTime.Now.AddDays(-2)
+            },
+            new()
+            {
+                Id = 4,
+                Name = "Desk Lamp",
+                Category = new Category { Id = 2, Name = "Furniture", Description = "Office furniture" },
+                Price = 79.99m,
+                Stock = 0,
+                IsActive = false,
+                Rating = 4.0,
+                LastRestocked = DateTime.Now.AddDays(-30)
+            },
+            new()
+            {
+                Id = 5,
+                Name = "USB-C Hub",
+                Category = new Category { Id = 1, Name = "Electronics", Description = "Electronic devices" },
+                Price = 89.99m,
+                Stock = 67,
+                IsActive = true,
+                Rating = 4.6,
+                LastRestocked = DateTime.Now.AddDays(-8)
+            }
+        };
+        products = productList.AsQueryable();
+    }
+
+    private void ConfigureEmployeeColumns()
+    {
+        employeeColumns = new ColumnMetadataBuilder()
+            .AddProperty("Id", "ID")
+            .AddProperty("FirstName", "First Name")
+            .AddProperty("LastName", "Last Name")
+            .Add("Address.City", m => m.Title = "City")
+            .Add("Address.ZipCode", m => m.Title = "Zip Code")
+            .Add("Department.Name", m => m.Title = "Department")
+            .AddFormatted("Salary", "C0", "Salary")
+            .AddFormatted("HireDate", "yyyy-MM-dd", "Hire Date")
+            .Build();
+
+        employeeConfigCode = @"new ColumnMetadataBuilder()
+    .AddProperty(""Id"", ""ID"")
+    .AddProperty(""FirstName"", ""First Name"")
+    .AddProperty(""LastName"", ""Last Name"")
+    .Add(""Address.City"", m => m.Title = ""City"")
+    .Add(""Address.ZipCode"", m => m.Title = ""Zip Code"")
+    .Add(""Department.Name"", m => m.Title = ""Department"")
+    .AddFormatted(""Salary"", ""C0"", ""Salary"")
+    .AddFormatted(""HireDate"", ""yyyy-MM-dd"", ""Hire Date"")
+    .Build();";
+    }
+
+    private void ConfigureProductColumns()
+    {
+        productColumns = new ColumnMetadataBuilder()
+            .AddProperty("Id", "ID")
+            .AddProperty("Name", "Product")
+            .Add("Category.Name", m => m.Title = "Category")
+            .AddFormatted("Price", "C2", "Price")
+            .AddCustom("Stock", FormatStock, "Stock")
+            .AddCustom("IsActive", FormatStatus, "Status")
+            .AddCustom("Rating", FormatRating, "Rating")
+            .AddFormatted("LastRestocked", "yyyy-MM-dd", "Last Restocked")
+            .Build();
+
+        productConfigCode = @"new ColumnMetadataBuilder()
+    .AddProperty(""Id"", ""ID"")
+    .AddProperty(""Name"", ""Product"")
+    .Add(""Category.Name"", m => m.Title = ""Category"")
+    .AddFormatted(""Price"", ""C2"", ""Price"")
+    .AddCustom(""Stock"", FormatStock, ""Stock"")
+    .AddCustom(""IsActive"", FormatStatus, ""Status"")
+    .AddCustom(""Rating"", FormatRating, ""Rating"")
+    .AddFormatted(""LastRestocked"", ""yyyy-MM-dd"", ""Last Restocked"")
+    .Build();";
+    }
+
+    // Custom formatters
+    private string FormatStock(object? value)
+    {
+        if (value is int stock)
+        {
+            return stock switch
+            {
+                0 => "Out of Stock",
+                < 25 => $"Low ({stock})",
+                < 100 => $"{stock} units",
+                _ => $"{stock} units (High)"
+            };
+        }
+        return string.Empty;
+    }
+
+    private string FormatStatus(object? value)
+    {
+        if (value is bool isActive)
+        {
+            return isActive ? "✓ Active" : "✗ Inactive";
+        }
+        return string.Empty;
+    }
+
+    private string FormatRating(object? value)
+    {
+        if (value is double rating)
+        {
+            var stars = new string('★', (int)Math.Round(rating));
+            var empty = new string('☆', 5 - stars.Length);
+            return $"{stars}{empty} ({rating:F1})";
+        }
+        return string.Empty;
+    }
+
+    // Data models
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public Address Address { get; set; } = default!;
+        public Department Department { get; set; } = default!;
+        public decimal Salary { get; set; }
+        public DateTime HireDate { get; set; }
+    }
+
+    public class Address
+    {
+        public string Street { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string ZipCode { get; set; } = string.Empty;
+    }
+
+    public class Department
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal Budget { get; set; }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public Category Category { get; set; } = default!;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public bool IsActive { get; set; }
+        public double Rating { get; set; }
+        public DateTime LastRestocked { get; set; }
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+}
