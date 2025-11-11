@@ -54,6 +54,71 @@ else if (lastSaveTime.HasValue)
             <ValidationMessage For="@(() => row.Stock)" />
         </EditForm>
     </TemplateColumn>
+
+    <TemplateColumn Title="Location" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputSelect @bind-Value="row.Location" 
+                         @bind-Value:after="@(() => OnFieldChanged(row, row.Location))" 
+                         class="form-select form-select-sm seamless-input">
+                <option value="LA">LA</option>
+                <option value="NYC">NYC</option>
+                <option value="Wash DC">Wash DC</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => row.Location)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="In Stock" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputCheckbox @bind-Value="row.IsInStock" 
+                           @bind-Value:after="@(() => OnFieldChanged(row, row.IsInStock))" 
+                           class="form-check-input seamless-checkbox" />
+            <ValidationMessage For="@(() => row.IsInStock)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Release Date" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputDate @bind-Value="row.ReleaseDate" 
+                       @bind-Value:after="@(() => OnFieldChanged(row, row.ReleaseDate))" 
+                       class="form-control form-control-sm seamless-input" />
+            <ValidationMessage For="@(() => row.ReleaseDate)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Priority" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputRadioGroup @bind-Value="row.Priority" 
+                             @bind-Value:after="@(() => OnFieldChanged(row, row.Priority))" 
+                             class="d-flex gap-2">
+                <label class="form-check-label">
+                    <InputRadio Value="Priority.Low" class="form-check-input" /> Low
+                </label>
+                <label class="form-check-label">
+                    <InputRadio Value="Priority.Medium" class="form-check-input" /> Med
+                </label>
+                <label class="form-check-label">
+                    <InputRadio Value="Priority.High" class="form-check-input" /> High
+                </label>
+            </InputRadioGroup>
+            <ValidationMessage For="@(() => row.Priority)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Description" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputTextArea @bind-Value="row.Description" 
+                           @oninput="@((e) => OnFieldChanged(row, e.Value?.ToString()))" 
+                           class="form-control form-control-sm seamless-input" 
+                           rows="2" />
+            <ValidationMessage For="@(() => row.Description)" />
+        </EditForm>
+    </TemplateColumn>
 </QuickGrid>
 
 <style>
@@ -62,6 +127,7 @@ else if (lastSaveTime.HasValue)
         background-color: transparent;
         transition: all 0.2s ease-in-out;
         box-shadow: none;
+        outline: none !important;
     }
 
     .seamless-input:hover {
@@ -70,19 +136,77 @@ else if (lastSaveTime.HasValue)
     }
 
     .seamless-input:focus {
-        border-color: #86b7fe;
-        background-color: #fff;
-        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        outline: 0;
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa;
+        box-shadow: none !important;
+        outline: none !important;
     }
 
-    .seamless-input:focus:invalid {
-        border-color: #dc3545;
-        box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+    /* Override Bootstrap validation styling */
+    .seamless-input.valid,
+    .seamless-input.is-valid,
+    .seamless-input:valid {
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid:hover,
+    .seamless-input.is-valid:hover,
+    .seamless-input:valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    .seamless-input.valid:focus,
+    .seamless-input.is-valid:focus,
+    .seamless-input:valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Override site.css .valid.modified rule */
+    .seamless-input.valid.modified,
+    .seamless-input.modified.valid {
+        outline: none !important;
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+    }
+
+    .seamless-input.valid.modified:hover,
+    .seamless-input.modified.valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid.modified:focus,
+    .seamless-input.modified.valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+
+    /* Checkbox styling */
+    .seamless-checkbox {
+        cursor: pointer;
+        width: 1.2em;
+        height: 1.2em;
     }
 </style>
 
 @code {
+    // Enum for Priority
+    public enum Priority
+    {
+        Low,
+        Medium,
+        High
+    }
+
     // Model with validation
     public class ValidatedProduct
     {
@@ -99,15 +223,29 @@ else if (lastSaveTime.HasValue)
         [Required]
         [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]
         public int Stock { get; set; }
+
+        [Required(ErrorMessage = "Location is required")]
+        public string Location { get; set; } = "LA";
+
+        public bool IsInStock { get; set; } = true;
+
+        [Required(ErrorMessage = "Release date is required")]
+        public DateOnly ReleaseDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
+
+        [Required(ErrorMessage = "Priority is required")]
+        public Priority Priority { get; set; } = Priority.Medium;
+
+        [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string? Description { get; set; }
     }
 
     // Data set
     private List<ValidatedProduct> products = new()
     {
-        new() { Id = 1, Name = "Keyboard", Price = 29.99m, Stock = 50 },
-        new() { Id = 2, Name = "Mouse", Price = 19.99m, Stock = 120 },
-        new() { Id = 3, Name = "Monitor", Price = 199.99m, Stock = 15 },
-        new() { Id = 4, Name = "USB Hub", Price = 14.99m, Stock = 75 },
+        new() { Id = 1, Name = "Keyboard", Price = 29.99m, Stock = 50, Location = "LA", IsInStock = true, ReleaseDate = new DateOnly(2024, 1, 15), Priority = Priority.High, Description = "Mechanical gaming keyboard with RGB" },
+        new() { Id = 2, Name = "Mouse", Price = 19.99m, Stock = 120, Location = "NYC", IsInStock = true, ReleaseDate = new DateOnly(2024, 2, 20), Priority = Priority.Medium, Description = "Wireless optical mouse" },
+        new() { Id = 3, Name = "Monitor", Price = 199.99m, Stock = 15, Location = "Wash DC", IsInStock = false, ReleaseDate = new DateOnly(2023, 11, 5), Priority = Priority.Low, Description = "27-inch 4K display" },
+        new() { Id = 4, Name = "USB Hub", Price = 14.99m, Stock = 75, Location = "LA", IsInStock = true, ReleaseDate = new DateOnly(2024, 3, 10), Priority = Priority.Medium, Description = "7-port USB 3.0 hub" },
     };
 
     private bool hasUnsavedChanges = false;
