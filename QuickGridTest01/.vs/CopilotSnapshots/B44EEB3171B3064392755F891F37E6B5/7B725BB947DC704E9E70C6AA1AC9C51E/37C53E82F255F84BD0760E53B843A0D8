@@ -1,0 +1,249 @@
+﻿@page "/quickgrid"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+@implements IDisposable
+
+<PageTitle>Products with Auto-Save</PageTitle>
+
+<h3>Product Management (Auto-Save)</h3>
+
+@if (hasUnsavedChanges)
+{
+    <div class="alert alert-info">
+        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+        Unsaved changes detected. Will auto-save in @secondsUntilSave seconds...
+    </div>
+}
+else if (lastSaveTime.HasValue)
+{
+    <div class="alert alert-success">
+        Last saved at @lastSaveTime.Value.ToString("HH:mm:ss")
+    </div>
+}
+
+<QuickGrid Items="@products.AsQueryable()" Class="table table-striped">
+    <PropertyColumn Property="@(p => p.Id)" Title="Id" Sortable="true" />
+
+    <TemplateColumn Title="Name" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputText @bind-Value="row.Name" 
+                       @oninput="@((e) => OnFieldChanged(row, e.Value?.ToString()))" 
+                       class="form-control form-control-sm seamless-input" />
+            <ValidationMessage For="@(() => row.Name)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Price" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputNumber @bind-Value="row.Price" 
+                         @oninput="@((e) => OnFieldChanged(row, e.Value))" 
+                         class="form-control form-control-sm seamless-input" />
+            <ValidationMessage For="@(() => row.Price)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Stock" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputNumber @bind-Value="row.Stock" 
+                         @oninput="@((e) => OnFieldChanged(row, e.Value))" 
+                         class="form-control form-control-sm seamless-input" />
+            <ValidationMessage For="@(() => row.Stock)" />
+        </EditForm>
+    </TemplateColumn>
+
+    <TemplateColumn Title="Location" Context="row">
+        <EditForm Model="row" class="d-inline">
+            <DataAnnotationsValidator />
+            <InputSelect @bind-Value="row.Location" 
+                         @onchange="@((e) => OnFieldChanged(row, e.Value))" 
+                         class="form-select form-select-sm seamless-input">
+                <option value="LA">LA</option>
+                <option value="NYC">NYC</option>
+                <option value="Wash DC">Wash DC</option>
+            </InputSelect>
+            <ValidationMessage For="@(() => row.Location)" />
+        </EditForm>
+    </TemplateColumn>
+</QuickGrid>
+
+<style>
+    .seamless-input {
+        border: 1px solid transparent;
+        background-color: transparent;
+        transition: all 0.2s ease-in-out;
+        box-shadow: none;
+        outline: none !important;
+    }
+
+    .seamless-input:hover {
+        border-color: #dee2e6;
+        background-color: #f8f9fa;
+    }
+
+    .seamless-input:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Override Bootstrap validation styling */
+    .seamless-input.valid,
+    .seamless-input.is-valid,
+    .seamless-input:valid {
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid:hover,
+    .seamless-input.is-valid:hover,
+    .seamless-input:valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    .seamless-input.valid:focus,
+    .seamless-input.is-valid:focus,
+    .seamless-input:valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Override site.css .valid.modified rule */
+    .seamless-input.valid.modified,
+    .seamless-input.modified.valid {
+        outline: none !important;
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+    }
+
+    .seamless-input.valid.modified:hover,
+    .seamless-input.modified.valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid.modified:focus,
+    .seamless-input.modified.valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+</style>
+
+@code {
+    // Model with validation
+    public class ValidatedProduct
+    {
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [Range(0.01, 999999.99, ErrorMessage = "Price must be between 0.01 and 999999.99")]
+        public decimal Price { get; set; }
+
+        [Required]
+        [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]
+        public int Stock { get; set; }
+
+        [Required(ErrorMessage = "Location is required")]
+        public string Location { get; set; } = "LA";
+    }
+
+    // Data set
+    private List<ValidatedProduct> products = new()
+    {
+        new() { Id = 1, Name = "Keyboard", Price = 29.99m, Stock = 50, Location = "LA" },
+        new() { Id = 2, Name = "Mouse", Price = 19.99m, Stock = 120, Location = "NYC" },
+        new() { Id = 3, Name = "Monitor", Price = 199.99m, Stock = 15, Location = "Wash DC" },
+        new() { Id = 4, Name = "USB Hub", Price = 14.99m, Stock = 75, Location = "LA" },
+    };
+
+    private bool hasUnsavedChanges = false;
+    private DateTime? lastSaveTime;
+    private int secondsUntilSave = 5;
+    private System.Threading.Timer? autoSaveTimer;
+    private System.Threading.Timer? countdownTimer;
+
+    protected override void OnInitialized()
+    {
+        // Timer that checks every second for countdown display
+        countdownTimer = new System.Threading.Timer(async _ =>
+        {
+            if (hasUnsavedChanges && secondsUntilSave > 0)
+            {
+                secondsUntilSave--;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void OnFieldChanged(ValidatedProduct product, object? value)
+    {
+        if (!hasUnsavedChanges)
+        {
+            hasUnsavedChanges = true;
+            secondsUntilSave = 5;
+            
+            // Schedule auto-save after 5 seconds
+            autoSaveTimer?.Dispose();
+            autoSaveTimer = new System.Threading.Timer(async _ =>
+            {
+                await AutoSave();
+            }, null, TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
+        }
+        else
+        {
+            // Reset the timer if already running
+            secondsUntilSave = 5;
+            autoSaveTimer?.Dispose();
+            autoSaveTimer = new System.Threading.Timer(async _ =>
+            {
+                await AutoSave();
+            }, null, TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private async Task AutoSave()
+    {
+        // Validate all products
+        bool allValid = true;
+        foreach (var product in products)
+        {
+            var editContext = new EditContext(product);
+            if (!editContext.Validate())
+            {
+                allValid = false;
+                break;
+            }
+        }
+
+        if (allValid)
+        {
+            // Here you would normally save to a database
+            // For now, we just mark as saved
+            hasUnsavedChanges = false;
+            lastSaveTime = DateTime.Now;
+            secondsUntilSave = 5;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        autoSaveTimer?.Dispose();
+        countdownTimer?.Dispose();
+    }
+}
