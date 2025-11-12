@@ -1,0 +1,394 @@
+.formatted-column-demo {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.formatted-column-demo h1 {
+    color: #1a202c;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 3px solid #4299e1;
+    padding-bottom: 0.5rem;
+}
+
+.demo-description {
+    background: #f7fafc;
+    border-left: 4px solid #4299e1;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 4px;
+}
+
+.demo-description p {
+    margin: 0;
+    color: #2d3748;
+    line-height: 1.6;
+}
+
+.demo-description code {
+    background: #edf2f7;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    color: #d6336c;
+}
+
+/* Culture Selector */
+.culture-selector {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.culture-selector label {
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.culture-selector select {
+    padding: 0.5rem 1rem;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    background: white;
+    cursor: pointer;
+    min-width: 280px;
+}
+
+.culture-selector select:focus {
+    outline: none;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.culture-note {
+    color: #718096;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
+/* Demo Sections */
+.demo-section {
+    margin-bottom: 3rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.demo-section h2 {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    margin: 0;
+    padding: 1rem 1.5rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.section-description {
+    padding: 1rem 1.5rem;
+    margin: 0;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+/* QuickGrid Styling */
+.demo-grid {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.demo-grid thead {
+    background: #edf2f7;
+}
+
+.demo-grid th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #2d3748;
+    border-bottom: 2px solid #cbd5e0;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.demo-grid td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    color: #4a5568;
+}
+
+.demo-grid tbody tr:hover {
+    background: #f7fafc;
+}
+
+.demo-grid tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Conditional Formatting - Amounts */
+.amount-positive {
+    color: #38a169;
+    font-weight: 600;
+}
+
+.amount-negative {
+    color: #e53e3e;
+    font-weight: 600;
+}
+
+.amount-negative::before {
+    content: "-";
+}
+
+/* Conditional Formatting - Balance */
+.balance-positive {
+    color: #2d3748;
+}
+
+.balance-negative {
+    color: #e53e3e;
+    font-weight: 600;
+}
+
+/* Stock Levels */
+.stock-low {
+    color: #e53e3e;
+    font-weight: 600;
+    background: #fff5f5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.stock-high {
+    color: #38a169;
+    font-weight: 600;
+    background: #f0fff4;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Employee Display */
+.employee-name {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.employee-name strong {
+    color: #2d3748;
+}
+
+.employee-name small {
+    color: #718096;
+    font-size: 0.8rem;
+}
+
+/* Status Indicators */
+.status-active {
+    color: #38a169;
+    font-weight: 600;
+    background: #f0fff4;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.status-inactive {
+    color: #718096;
+    font-weight: 600;
+    background: #edf2f7;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+/* Performance Classes */
+.performance-excellent {
+    color: #38a169;
+    font-weight: 700;
+    background: #f0fff4;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.performance-good {
+    color: #4299e1;
+    font-weight: 600;
+    background: #ebf8ff;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.performance-fair {
+    color: #d69e2e;
+    font-weight: 600;
+    background: #fffaf0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.performance-poor {
+    color: #e53e3e;
+    font-weight: 600;
+    background: #fff5f5;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Change Indicators */
+.change-positive {
+    color: #38a169;
+    font-weight: 600;
+}
+
+.change-positive::before {
+    content: "▲ ";
+}
+
+.change-negative {
+    color: #e53e3e;
+    font-weight: 600;
+}
+
+.change-negative::before {
+    content: "▼ ";
+}
+
+/* Log Levels */
+.log-level {
+    padding: 0.25rem 0.625rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.log-info {
+    background: #ebf8ff;
+    color: #2c5282;
+}
+
+.log-warning {
+    background: #fffaf0;
+    color: #b7791f;
+}
+
+.log-error {
+    background: #fff5f5;
+    color: #c53030;
+}
+
+.log-debug {
+    background: #f7fafc;
+    color: #4a5568;
+}
+
+/* Financial Report Specific */
+.financial-report .total-column {
+    font-weight: 700;
+    background: #f7fafc;
+    border-left: 2px solid #cbd5e0;
+}
+
+/* Performance Notes */
+.performance-notes {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.performance-notes h2 {
+    background: transparent;
+    color: white;
+}
+
+.performance-notes ul {
+    padding: 0 1.5rem 1.5rem 3rem;
+    margin: 0;
+    line-height: 1.8;
+}
+
+.performance-notes li {
+    margin-bottom: 0.75rem;
+}
+
+.performance-notes strong {
+    color: #ffd700;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .formatted-column-demo {
+        padding: 1rem;
+    }
+
+    .demo-grid {
+        font-size: 0.875rem;
+    }
+
+    .demo-grid th,
+    .demo-grid td {
+        padding: 0.625rem 0.75rem;
+    }
+
+    .culture-selector {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .culture-selector select {
+        width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .formatted-column-demo h1 {
+        font-size: 1.875rem;
+    }
+
+    .demo-section h2 {
+        font-size: 1.25rem;
+    }
+
+    .demo-grid {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .culture-selector {
+        display: none;
+    }
+
+    .demo-section {
+        page-break-inside: avoid;
+    }
+
+    .demo-grid {
+        font-size: 0.75rem;
+    }
+
+    .demo-grid th,
+    .demo-grid td {
+        padding: 0.5rem;
+    }
+}

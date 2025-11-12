@@ -1,0 +1,277 @@
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.Linq.Expressions
+@using System.Globalization
+@typeparam TGridItem
+
+<TemplateColumn TGridItem="TGridItem" 
+                Title="@Title" 
+                SortBy="@(Sortable ? GridSort<TGridItem>.ByAscending(Property!).ThenDescending(Property!) : null)"
+                InitialSortDirection="@InitialSortDirection"
+                Align="@Align">
+    <ChildContent>
+        @{
+            var formattedValue = FormatValue(context);
+            var cellClass = GetCellClass(context);
+            var cellAttributes = new Dictionary<string, object>();
+
+            if (!string.IsNullOrEmpty(cellClass))
+            {
+                cellAttributes["class"] = cellClass;
+            }
+
+            if (ShowTooltip)
+            {
+                cellAttributes["title"] = formattedValue;
+            }
+
+            if (AdditionalAttributes != null)
+            {
+                foreach (var attr in AdditionalAttributes)
+                {
+                    cellAttributes[attr.Key] = attr.Value;
+                }
+            }
+        }
+        
+        <div @attributes="cellAttributes">@formattedValue</div>
+    </ChildContent>
+</TemplateColumn>
+
+@*
+    FormattedValueColumn - Advanced QuickGrid Column with Flexible Formatting
+    
+    This column provides sophisticated value formatting capabilities through multiple
+    formatting strategies that can be combined and chained:
+    
+    1. Custom Formatter Functions: Func<TValue, string> for complete control
+    2. Format Strings: Standard and custom format strings for IFormattable types
+    3. Value Converters: Transform values before formatting (e.g., enum to string)
+    4. Conditional Formatting: Apply different formats based on value conditions
+    5. Culture-Specific Formatting: Support for IFormatProvider
+    
+    Features:
+    - Multiple formatting strategies with fallback chain
+    - Support for nullable types with custom null display text
+    - Conditional formatting based on value predicates
+    - Culture-aware formatting for numbers, dates, and currencies
+    - Value transformation pipeline (convert ? format ? display)
+    - Performance-optimized with compiled expressions
+    - Full QuickGrid integration (sorting, title, alignment, etc.)
+    
+    Usage Examples:
+    
+    1. Simple Format String:
+       <FormattedValueColumn Property="@(e => e.Price)" Format="C2" Title="Price" />
+    
+    2. Custom Formatter:
+       <FormattedValueColumn Property="@(e => e.Status)" 
+                           Formatter="@(status => status.ToString().ToUpper())" 
+                           Title="Status" />
+    
+    3. Conditional Formatting:
+       <FormattedValueColumn Property="@(e => e.Balance)" 
+                           Format="C2"
+                           ConditionalFormat="@(val => val < 0 ? "negative" : "positive")"
+                           Title="Balance" />
+    
+    4. Value Converter with Formatting:
+       <FormattedValueColumn Property="@(e => e.StatusCode)" 
+                           Converter="@(code => GetStatusName(code))"
+                           Title="Status" />
+    
+    5. Culture-Specific Formatting:
+       <FormattedValueColumn Property="@(e => e.Date)" 
+                           Format="D"
+                           FormatProvider="@frenchCulture"
+                           Title="Date" />
+*@
+
+@code {
+    /// <summary>
+    /// Expression to access the property value from the grid item
+    /// </summary>
+    [Parameter, EditorRequired]
+    public Expression<Func<TGridItem, object?>>? Property { get; set; }
+
+    /// <summary>
+    /// Format string to apply (e.g., "C2", "N0", "yyyy-MM-dd")
+    /// Only applicable when the value implements IFormattable
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Custom formatter function for complete control over formatting
+    /// Takes precedence over Format string if both are specified
+    /// </summary>
+    [Parameter]
+    public Func<object?, string>? Formatter { get; set; }
+
+    /// <summary>
+    /// Value converter to transform the value before formatting
+    /// Useful for enum conversions, lookups, or calculations
+    /// </summary>
+    [Parameter]
+    public Func<object?, object?>? Converter { get; set; }
+
+    /// <summary>
+    /// Conditional formatter that returns a CSS class or format based on value
+    /// Can be used with CssClass parameter to apply conditional styling
+    /// </summary>
+    [Parameter]
+    public Func<object?, string>? ConditionalFormat { get; set; }
+
+    /// <summary>
+    /// Format provider for culture-specific formatting
+    /// </summary>
+    [Parameter]
+    public IFormatProvider? FormatProvider { get; set; }
+
+    /// <summary>
+    /// Text to display when the value is null
+    /// Default is empty string
+    /// </summary>
+    [Parameter]
+    public string NullDisplayText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// CSS class to apply to the cell
+    /// Can be combined with ConditionalFormat for dynamic styling
+    /// </summary>
+    [Parameter]
+    public string? CssClass { get; set; }
+
+    /// <summary>
+    /// Column title to display in the header
+    /// </summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Whether this column is sortable
+    /// </summary>
+    [Parameter]
+    public bool Sortable { get; set; } = true;
+
+    /// <summary>
+    /// Initial sort direction (if this column is the default sort)
+    /// </summary>
+    [Parameter]
+    public SortDirection InitialSortDirection { get; set; } = SortDirection.Auto;
+
+    /// <summary>
+    /// Text alignment for the column
+    /// </summary>
+    [Parameter]
+    public Align Align { get; set; } = Align.Start;
+
+    /// <summary>
+    /// Whether to display the value as a tooltip
+    /// </summary>
+    [Parameter]
+    public bool ShowTooltip { get; set; }
+
+    /// <summary>
+    /// Additional attributes to apply to the cell
+    /// </summary>
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    // Cached compiled accessor and format string for performance
+    private Func<TGridItem, object?>? _compiledAccessor;
+    private string? _cachedFormatString;
+    private IFormatProvider? _cachedFormatProvider;
+
+    protected override void OnParametersSet()
+    {
+        if (Property == null)
+        {
+            throw new InvalidOperationException($"{nameof(FormattedValueColumn<TGridItem>)} requires a non-null {nameof(Property)} parameter.");
+        }
+
+        // Compile the property accessor for better performance
+        _compiledAccessor = Property.Compile();
+
+        // Cache the format string to avoid repeated string operations
+        _cachedFormatString = Format;
+        _cachedFormatProvider = FormatProvider ?? CultureInfo.CurrentCulture;
+    }
+
+    /// <summary>
+    /// Formats the value using the configured formatting strategy
+    /// </summary>
+    private string FormatValue(TGridItem item)
+    {
+        if (_compiledAccessor == null)
+        {
+            return string.Empty;
+        }
+
+        // Get the raw value
+        var rawValue = _compiledAccessor(item);
+
+        // Handle null
+        if (rawValue == null)
+        {
+            return NullDisplayText;
+        }
+
+        // Apply converter if specified (transforms the value)
+        var convertedValue = Converter != null ? Converter(rawValue) : rawValue;
+
+        if (convertedValue == null)
+        {
+            return NullDisplayText;
+        }
+
+        // Apply custom formatter if specified (highest priority)
+        if (Formatter != null)
+        {
+            return Formatter(convertedValue);
+        }
+
+        // Apply format string if value is IFormattable
+        if (!string.IsNullOrEmpty(_cachedFormatString) && convertedValue is IFormattable formattable)
+        {
+            return formattable.ToString(_cachedFormatString, _cachedFormatProvider);
+        }
+
+        // Fallback to ToString()
+        return convertedValue.ToString() ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Gets the CSS class for the cell, including conditional formatting
+    /// </summary>
+    private string GetCellClass(TGridItem item)
+    {
+        var classes = new List<string>();
+
+        // Add base CSS class if specified
+        if (!string.IsNullOrEmpty(CssClass))
+        {
+            classes.Add(CssClass);
+        }
+
+        // Add conditional format class if specified
+        if (ConditionalFormat != null && _compiledAccessor != null)
+        {
+            var value = _compiledAccessor(item);
+            var conditionalClass = ConditionalFormat(value);
+            if (!string.IsNullOrEmpty(conditionalClass))
+            {
+                classes.Add(conditionalClass);
+            }
+        }
+
+        return classes.Count > 0 ? string.Join(" ", classes) : string.Empty;
+    }
+
+    /// <summary>
+    /// Gets the sort expression for the column
+    /// </summary>
+    private Expression<Func<TGridItem, object?>>? GetSortExpression()
+    {
+        return Sortable ? Property : null;
+    }
+}
