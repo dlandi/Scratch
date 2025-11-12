@@ -1,0 +1,187 @@
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.QuickGrid;
+using Microsoft.AspNetCore.Components.Rendering;
+using System.Linq.Expressions;
+
+namespace QuickGridTest01.CustomColumns;
+
+/// <summary>
+/// Optimized column demonstrating:
+/// 1. Proper sequence number management
+/// 2. Cached class computation
+/// 3. Minimal DOM manipulation
+/// 4. Compiled expression accessors
+/// </summary>
+public class OptimizedColumn<TGridItem, TValue> : ColumnBase<TGridItem>
+{
+    // Configuration
+    [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+    [Parameter] public string? Format { get; set; }
+    [Parameter] public Func<TValue, bool>? HighlightCondition { get; set; }
+    [Parameter] public Func<TValue, bool>? WarningCondition { get; set; }
+    [Parameter] public Func<TValue, bool>? ErrorCondition { get; set; }
+    [Parameter] public bool ShowTooltip { get; set; } = false;
+
+    // Performance: Compiled expression accessors (Technique #4)
+    private Expression<Func<TGridItem, TValue>>? _lastProperty;
+    private Func<TGridItem, TValue>? _compiledPropertyAccessor;
+    private Func<TGridItem, string?>? _compiledFormattedAccessor;
+    
+    // Performance: Cached class strings (Technique #2)
+    private readonly Dictionary<(bool highlight, bool warning, bool error), string> _classCache = new();
+    private const string BaseClass = "optimized-cell";
+    
+    // Sorting
+    private GridSort<TGridItem>? _sortBuilder;
+
+    public override GridSort<TGridItem>? SortBy
+    {
+        get => _sortBuilder;
+        set => _sortBuilder = value;
+    }
+
+    protected override void OnInitialized()
+    {
+        if (Property is null)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(OptimizedColumn<TGridItem, TValue>)} requires a {nameof(Property)} parameter.");
+        }
+
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Infer title from property if not set
+        if (Title is null && Property.Body is MemberExpression memberExpression)
+        {
+            Title = memberExpression.Member.Name;
+        }
+
+        // Performance: Only recompile if property changed (Technique #4)
+        if (_lastProperty != Property)
+        {
+            _lastProperty = Property;
+            
+            // Compile property accessor once
+            _compiledPropertyAccessor = Property.Compile();
+            
+            // Build formatted accessor
+            _compiledFormattedAccessor = BuildFormattedAccessor();
+
+            // Build sort
+            if (Sortable ?? false)
+            {
+                _sortBuilder = GridSort<TGridItem>.ByAscending(Property);
+            }
+        }
+
+        base.OnParametersSet();
+    }
+
+    /// <summary>
+    /// Technique #4: Expression Compilation
+    /// Compiles formatting logic once instead of using reflection every time.
+    /// </summary>
+    private Func<TGridItem, string?> BuildFormattedAccessor()
+    {
+        // Pre-compile the formatting function
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return item =>
+            {
+                var value = _compiledPropertyAccessor!(item);
+                if (value is IFormattable formattable)
+                {
+                    return formattable.ToString(Format, null);
+                }
+                return value?.ToString();
+            };
+        }
+        else
+        {
+            return item => _compiledPropertyAccessor!(item)?.ToString();
+        }
+    }
+
+    /// <summary>
+    /// Technique #1: Proper Sequence Number Management
+    /// Technique #3: Minimal DOM Manipulation
+    /// </summary>
+    protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
+    {
+        // Early exit if no accessor compiled
+        if (_compiledPropertyAccessor is null || _compiledFormattedAccessor is null)
+            return;
+
+        // Get value using compiled accessor (Technique #4)
+        var value = _compiledPropertyAccessor(item);
+        var formattedValue = _compiledFormattedAccessor(item);
+
+        // Evaluate conditions
+        var isHighlight = HighlightCondition?.Invoke(value) ?? false;
+        var isWarning = WarningCondition?.Invoke(value) ?? false;
+        var isError = ErrorCondition?.Invoke(value) ?? false;
+
+        // Technique #1: Proper sequence management with sequential numbering
+        int sequence = 0;
+
+        // Technique #3: Minimal DOM - single wrapper element
+        builder.OpenElement(sequence++, "div");
+        
+        // Technique #2: Use cached class string
+        var cssClass = GetCachedCssClass(isHighlight, isWarning, isError);
+        builder.AddAttribute(sequence++, "class", cssClass);
+
+        // Technique #3: Conditional rendering - only add tooltip if needed
+        if (ShowTooltip)
+        {
+            builder.AddAttribute(sequence++, "title", formattedValue ?? string.Empty);
+        }
+
+        // Technique #3: Direct content, no nested elements
+        builder.AddContent(sequence++, formattedValue ?? string.Empty);
+
+        builder.CloseElement(); // div
+    }
+
+    /// <summary>
+    /// Technique #2: Cached Class Computation
+    /// Computes class string once per unique state combination and caches it.
+    /// For 3 boolean states, maximum 8 unique combinations instead of computing on every render.
+    /// </summary>
+    private string GetCachedCssClass(bool isHighlight, bool isWarning, bool isError)
+    {
+        var key = (isHighlight, isWarning, isError);
+        
+        if (!_classCache.TryGetValue(key, out var cssClass))
+        {
+            // Build class string only once per unique combination
+            cssClass = BaseClass;
+            
+            if (isHighlight)
+                cssClass += " cell-highlight";
+            
+            if (isWarning)
+                cssClass += " cell-warning";
+            
+            if (isError)
+                cssClass += " cell-error";
+            
+            // Cache for future use
+            _classCache[key] = cssClass;
+        }
+        
+        return cssClass;
+    }
+
+    /// <summary>
+    /// Gets cache statistics for performance analysis.
+    /// </summary>
+    public (int CacheSize, int MaxCacheSize) GetCacheStats()
+    {
+        var maxSize = 8; // 2^3 for 3 boolean flags
+        return (_classCache.Count, maxSize);
+    }
+}
