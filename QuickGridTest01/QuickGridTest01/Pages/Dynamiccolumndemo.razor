@@ -36,12 +36,13 @@
         <QuickGrid Items="@employees" Class="demo-grid">
             @foreach (var column in employeeColumns)
             {
-                <DynamicColumn TGridItem="Employee"
+                <DynamicColumn @key="column.PropertyPath"
+                               TGridItem="Employee"
+                               TValue="object"
                                PropertyPath="@column.PropertyPath"
                                Title="@column.Title"
                                Format="@column.Format"
-                               Sortable="@column.Sortable"
-                               CustomFormatter="@column.CustomFormatter" />
+                               Sortable="@column.Sortable" />
             }
         </QuickGrid>
     }
@@ -62,7 +63,9 @@
         <QuickGrid Items="@products" Class="demo-grid">
             @foreach (var column in productColumns)
             {
-                <DynamicColumn TGridItem="Product"
+                <DynamicColumn @key="column.PropertyPath"
+                               TGridItem="Product"
+                               TValue="object"
                                PropertyPath="@column.PropertyPath"
                                Title="@column.Title"
                                Format="@column.Format"

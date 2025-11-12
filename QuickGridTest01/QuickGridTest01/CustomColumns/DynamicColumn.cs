@@ -7,22 +7,26 @@ using System.Reflection;
 namespace QuickGridTest01.CustomColumns;
 
 /// <summary>
-/// Dynamic column that can be configured at runtime with property path support.
-/// Supports nested properties like "Address.City" or "Company.Department.Name".
+/// Dynamic column with runtime property path resolution (including nested paths).
+/// Pattern mirrors IconColumn: exposes a strongly typed Property delegate so QuickGrid can register the column.
+/// Usage example:
+/// <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="Address.City" Title="City" />
 /// </summary>
-public class DynamicColumn<TGridItem> : ColumnBase<TGridItem>
+public class DynamicColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
-    // Column configuration
-    [Parameter] public string PropertyPath { get; set; } = default!;
-    [Parameter] public Type? PropertyType { get; set; }
+    // Configuration parameters
+    [Parameter] public string? PropertyPath { get; set; }   // Alternative to supplying Property directly
+    [Parameter] public Func<TGridItem, TValue>? Property { get; set; } // Strongly typed accessor (preferred)
     [Parameter] public string? Format { get; set; }
-    [Parameter] public Func<object?, string>? CustomFormatter { get; set; }
+    [Parameter] public Func<TValue, string>? CustomFormatter { get; set; }
+    [Parameter] public bool ShowValue { get; set; } = true;
 
-    // State management
-    private Func<TGridItem, object?>? _valueAccessor;
-    private Func<TGridItem, string?>? _formattedValueAccessor;
-    private string? _lastPropertyPath;
+    // Internal state
+    private Func<TGridItem, TValue>? _accessor; // Current effective accessor
+    private string? _lastPath;
+    private Func<TGridItem, string?>? _formattedAccessor;
     private GridSort<TGridItem>? _sortBuilder;
+    private bool _isInitialized;
 
     public override GridSort<TGridItem>? SortBy
     {
@@ -32,155 +36,179 @@ public class DynamicColumn<TGridItem> : ColumnBase<TGridItem>
 
     protected override void OnInitialized()
     {
-        if (string.IsNullOrWhiteSpace(PropertyPath))
-        {
-            throw new InvalidOperationException(
-                $"{nameof(DynamicColumn<TGridItem>)} requires a {nameof(PropertyPath)} parameter.");
-        }
+        _isInitialized = true;
 
-        // Build accessors BEFORE calling base.OnInitialized()
-        // This ensures they're ready when QuickGrid needs them
-        BuildAccessors();
+        if (Property is null && string.IsNullOrWhiteSpace(PropertyPath))
+        {
+            throw new InvalidOperationException($"{nameof(DynamicColumn<TGridItem, TValue>)} requires either {nameof(Property)} or {nameof(PropertyPath)}.");
+        }
 
         base.OnInitialized();
     }
 
     protected override void OnParametersSet()
     {
-        // Rebuild accessor if property path changed
-        if (_lastPropertyPath != PropertyPath)
+        if (!_isInitialized)
         {
-            BuildAccessors();
+            return;
+        }
+
+        // Decide whether we need to rebuild accessor
+        bool rebuild = false;
+        if (Property is not null && _accessor != Property)
+        {
+            _accessor = Property;
+            rebuild = true;
+        }
+        else if (Property is null && _lastPath != PropertyPath)
+        {
+            _lastPath = PropertyPath;
+            _accessor = BuildAccessorFromPath(PropertyPath!);
+            rebuild = true;
+        }
+
+        if (rebuild)
+        {
+            _formattedAccessor = BuildFormattedAccessor();
+            if (Sortable ?? false)
+            {
+                _sortBuilder = BuildSort();
+            }
+            if (string.IsNullOrEmpty(Title))
+            {
+                Title = GetDisplayName(PropertyPath ?? "");
+            }
         }
 
         base.OnParametersSet();
     }
 
-    private void BuildAccessors()
-    {
-        _lastPropertyPath = PropertyPath;
-
-        try
-        {
-            _valueAccessor = BuildPropertyAccessor(PropertyPath);
-            _formattedValueAccessor = BuildFormattedAccessor();
-
-            if (Sortable ?? false)
-            {
-                _sortBuilder = BuildSort();
-            }
-
-            // Infer title from property path if not set
-            if (string.IsNullOrEmpty(Title))
-            {
-                Title = GetDisplayName(PropertyPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"Failed to build accessor for property path '{PropertyPath}': {ex.Message}", ex);
-        }
-    }
-
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
-        if (_formattedValueAccessor is null)
+        if (_accessor is null)
         {
             builder.AddContent(0, "[No Accessor]");
             return;
         }
 
-        try
+        var formatted = _formattedAccessor?.Invoke(item) ?? string.Empty;
+
+        if (!ShowValue)
         {
-            var formattedValue = _formattedValueAccessor(item);
-            builder.AddContent(0, formattedValue ?? string.Empty);
+            // If value should be hidden, render empty container (could style later)
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "dynamic-column-empty");
+            builder.CloseElement();
+            return;
         }
-        catch (Exception ex)
-        {
-            builder.AddContent(0, $"[Error: {ex.Message}]");
-        }
+
+        builder.OpenElement(0, "span");
+        builder.AddAttribute(1, "class", "dynamic-column-value");
+        builder.AddContent(2, formatted);
+        builder.CloseElement();
     }
 
-    /// <summary>
-    /// Builds a compiled expression accessor for the property path.
-    /// Supports nested properties like "Address.City".
-    /// </summary>
-    private Func<TGridItem, object?> BuildPropertyAccessor(string path)
+    // Build strongly typed accessor from a dotted path (supports nested properties)
+    private Func<TGridItem, TValue> BuildAccessorFromPath(string path)
     {
         var parameter = Expression.Parameter(typeof(TGridItem), "item");
-        Expression expression = parameter;
-
-        var properties = path.Split('.');
+        Expression current = parameter;
         Type currentType = typeof(TGridItem);
 
-        foreach (var propName in properties)
+        foreach (var segment in path.Split('.'))
         {
-            var property = currentType.GetProperty(propName,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-            if (property is null)
+            var prop = currentType.GetProperty(segment, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (prop is null)
             {
-                throw new InvalidOperationException(
-                    $"Property '{propName}' not found on type '{currentType.Name}'");
+                throw new InvalidOperationException($"Property '{segment}' not found on type '{currentType.Name}'.");
+            }
+            current = Expression.Property(current, prop);
+            currentType = prop.PropertyType;
+        }
+
+        // Handle common flexible cases
+        if (typeof(TValue) == typeof(object))
+        {
+            // Box any value type; pass-through reference types
+            if (current.Type.IsValueType)
+            {
+                current = Expression.Convert(current, typeof(object));
+            }
+            else if (current.Type != typeof(object))
+            {
+                current = Expression.Convert(current, typeof(object));
             }
 
-            expression = Expression.Property(expression, property);
-            currentType = property.PropertyType;
-
-            // Store discovered property type if not explicitly set
-            PropertyType ??= currentType;
+            var lambdaObj = Expression.Lambda<Func<TGridItem, object>>(current, parameter);
+            var compiledObj = lambdaObj.Compile();
+            // Wrap to match Func<TGridItem, TValue>
+            return (TGridItem item) => (TValue)(object?)compiledObj(item)!;
         }
 
-        // Convert to object to handle any type
-        if (expression.Type.IsValueType)
+        if (typeof(TValue) == typeof(string))
         {
-            expression = Expression.Convert(expression, typeof(object));
-        }
-        else if (expression.Type != typeof(object))
-        {
-            // For reference types, convert to object
-            expression = Expression.Convert(expression, typeof(object));
+            // Build ToString with null safety for reference types
+            Expression toStringExpr;
+            if (!current.Type.IsValueType)
+            {
+                var nullConst = Expression.Constant(null, current.Type);
+                var isNull = Expression.Equal(current, nullConst);
+                var whenNull = Expression.Constant(string.Empty);
+                var toStringCall = Expression.Call(current, typeof(object).GetMethod(nameof(object.ToString))!);
+                toStringExpr = Expression.Condition(isNull, whenNull, toStringCall);
+            }
+            else
+            {
+                // Value types are non-nullable here; direct ToString
+                toStringExpr = Expression.Call(current, current.Type.GetMethod(nameof(object.ToString), Type.EmptyTypes)!);
+            }
+
+            var lambdaStr = Expression.Lambda<Func<TGridItem, string>>(toStringExpr, parameter);
+            var compiledStr = lambdaStr.Compile();
+            return (TGridItem item) => (TValue)(object)compiledStr(item);
         }
 
-        var lambda = Expression.Lambda<Func<TGridItem, object?>>(expression, parameter);
-        return lambda.Compile();
+        // If destination type is assignable, cast/box if necessary
+        if (typeof(TValue).IsAssignableFrom(currentType))
+        {
+            if (current.Type != typeof(TValue))
+            {
+                current = Expression.Convert(current, typeof(TValue));
+            }
+            var lambda = Expression.Lambda<Func<TGridItem, TValue>>(current, parameter);
+            return lambda.Compile();
+        }
+
+        // Try runtime conversion using Convert.ChangeType for other convertible pairs
+        var boxed = Expression.Convert(current, typeof(object));
+        var changeType = typeof(Convert).GetMethod(nameof(Convert.ChangeType), new[] { typeof(object), typeof(Type) })!;
+        var targetTypeExpr = Expression.Constant(typeof(TValue), typeof(Type));
+        var changed = Expression.Call(changeType, boxed, targetTypeExpr);
+        var casted = Expression.Convert(changed, typeof(TValue));
+        var lambdaFallback = Expression.Lambda<Func<TGridItem, TValue>>(casted, parameter);
+        return lambdaFallback.Compile();
     }
 
-    /// <summary>
-    /// Builds formatted accessor that applies formatting logic with null-safety.
-    /// </summary>
     private Func<TGridItem, string?> BuildFormattedAccessor()
     {
         return item =>
         {
             try
             {
-                var value = _valueAccessor!(item);
-
+                var value = _accessor!(item);
                 if (value is null)
                 {
                     return string.Empty;
                 }
-
-                // Use custom formatter if provided
                 if (CustomFormatter is not null)
                 {
                     return CustomFormatter(value);
                 }
-
-                // Use format string if provided and value is IFormattable
                 if (!string.IsNullOrEmpty(Format) && value is IFormattable formattable)
                 {
                     return formattable.ToString(Format, null);
                 }
-
                 return value.ToString();
-            }
-            catch (NullReferenceException)
-            {
-                // Handle null reference in nested property path
-                return string.Empty;
             }
             catch (Exception ex)
             {
@@ -189,56 +217,20 @@ public class DynamicColumn<TGridItem> : ColumnBase<TGridItem>
         };
     }
 
-    /// <summary>
-    /// Builds sort expression for the property path.
-    /// </summary>
     private GridSort<TGridItem> BuildSort()
     {
-        var parameter = Expression.Parameter(typeof(TGridItem), "item");
-        Expression expression = parameter;
-
-        var properties = PropertyPath.Split('.');
-        var currentType = typeof(TGridItem);
-
-        foreach (var propName in properties)
-        {
-            var property = currentType.GetProperty(propName,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-
-            if (property is null)
-            {
-                throw new InvalidOperationException(
-                    $"Property '{propName}' not found on type '{currentType.Name}'");
-            }
-
-            expression = Expression.Property(expression, property);
-            currentType = property.PropertyType;
-        }
-
-        // Create lambda expression
-        var lambdaType = typeof(Func<,>).MakeGenericType(typeof(TGridItem), currentType);
-        var lambda = Expression.Lambda(lambdaType, expression, parameter);
-
-        // Build sort using reflection to call generic method
-        var sortMethod = typeof(GridSort<TGridItem>)
-            .GetMethod(nameof(GridSort<TGridItem>.ByAscending),
-                BindingFlags.Public | BindingFlags.Static)!
-            .MakeGenericMethod(currentType);
-
-        return (GridSort<TGridItem>)sortMethod.Invoke(null, new object[] { lambda })!;
+        // Simple stable ascending sort based on the underlying value
+        return GridSort<TGridItem>.ByAscending(item => _accessor!(item))
+                                   .ThenAscending(item => item); // stable fallback
     }
 
-    /// <summary>
-    /// Gets display name from property path.
-    /// "Address.City" -> "City"
-    /// "CompanyName" -> "Company Name"
-    /// </summary>
     private static string GetDisplayName(string path)
     {
-        var lastPart = path.Split('.').Last();
-
-        // Add spaces before capital letters
-        return string.Concat(lastPart.Select((c, i) =>
-            i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
+        if (string.IsNullOrEmpty(path))
+        {
+            return string.Empty;
+        }
+        var last = path.Split('.').Last();
+        return string.Concat(last.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
     }
 }
