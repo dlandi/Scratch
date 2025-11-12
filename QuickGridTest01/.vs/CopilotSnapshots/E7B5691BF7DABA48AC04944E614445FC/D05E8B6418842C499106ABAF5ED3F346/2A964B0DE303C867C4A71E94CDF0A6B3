@@ -1,0 +1,479 @@
+﻿@page "/formatted-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridExamples.Models
+@using QuickGridExamples.Formatters
+@using System.Globalization
+@using QuickGridTest01.Formatted
+
+<PageTitle>Formatted Value Column Examples</PageTitle>
+
+<div class="formatted-column-demo">
+    <h1>Formatted Value Column Examples</h1>
+    
+    <div class="demo-description">
+        <p>
+            The <code>FormattedValueColumn</code> provides sophisticated value formatting through multiple
+            strategies: format strings, custom formatters, value converters, conditional formatting, and
+            culture-specific formatting. This page demonstrates real-world scenarios.
+        </p>
+    </div>
+
+    <!-- Culture Selector -->
+    <div class="culture-selector">
+        <label>
+            Display Culture:
+            <select @bind="SelectedCulture" @bind:after="OnCultureChanged">
+                <option value="en-US">English (US) - $1,234.56</option>
+                <option value="en-GB">English (UK) - £1,234.56</option>
+                <option value="de-DE">German (Germany) - 1.234,56 €</option>
+                <option value="fr-FR">French (France) - 1 234,56 €</option>
+                <option value="ja-JP">Japanese (Japan) - ¥1,235</option>
+                <option value="es-ES">Spanish (Spain) - 1.234,56 €</option>
+            </select>
+        </label>
+        <span class="culture-note">Culture affects currency, number, and date formatting</span>
+    </div>
+
+    <!-- Example 1: Financial Transactions -->
+    <section class="demo-section">
+        <h2>1. Financial Transactions - Currency Formatting</h2>
+        <p class="section-description">
+            Demonstrates currency formatting with different cultures, accounting format for negatives,
+            and conditional styling based on transaction type.
+        </p>
+        
+        <QuickGrid Items="@Transactions" Class="demo-grid">
+            <PropertyColumn Property="@(t => t.Id)" Title="ID" />
+            
+            <FormattedValueColumn TGridItem="Transaction"
+                                Property="@(t => (object?)t.Date)" 
+                                Format="d"
+                                FormatProvider="@CurrentCulture"
+                                Title="Date" />
+            
+            <PropertyColumn Property="@(t => t.Description)" Title="Description" />
+            
+            <FormattedValueColumn TGridItem="Transaction"
+                                Property="@(t => (object?)t.Amount)" 
+                                Format="C2"
+                                FormatProvider="@CurrentCulture"
+                                ConditionalFormat="@(val => (decimal?)val < 0 ? "amount-negative" : "amount-positive")"
+                                Title="Amount"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Transaction"
+                                Property="@(t => (object?)t.Balance)" 
+                                Formatter="@ValueFormatters.CurrencyAccounting(2)"
+                                ConditionalFormat="@(val => (decimal?)val < 0 ? "balance-negative" : "balance-positive")"
+                                Title="Balance"
+                                Align="Align.End" />
+            
+            <PropertyColumn Property="@(t => t.Type)" Title="Type" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 2: Product Inventory -->
+    <section class="demo-section">
+        <h2>2. Product Inventory - Multiple Format Types</h2>
+        <p class="section-description">
+            Shows currency, percentages, file sizes, weights, dates, and boolean formatting in a single grid.
+        </p>
+        
+        <QuickGrid Items="@Products" Class="demo-grid">
+            <PropertyColumn Property="@(p => p.Name)" Title="Product" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.Price)" 
+                                Format="C2"
+                                FormatProvider="@CurrentCulture"
+                                Title="Price"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.Stock)" 
+                                Format="N0"
+                                ConditionalFormat="@(val => (int?)val < 10 ? "stock-low" : (int?)val > 100 ? "stock-high" : "")"
+                                Title="Stock"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.DiscountPercent)" 
+                                Formatter="@ValueFormatters.Percentage(1)"
+                                Title="Discount"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.Weight)" 
+                                Formatter="@(val => $"{val:F2} kg")"
+                                Title="Weight"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.SizeBytes)" 
+                                Formatter="@ValueFormatters.FileSize(1)"
+                                Title="Size"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.LastRestocked)" 
+                                Formatter="@ValueFormatters.RelativeDate()"
+                                Title="Last Restocked" />
+            
+            <FormattedValueColumn TGridItem="Product"
+                                Property="@(p => (object?)p.InStock)" 
+                                Formatter="@ValueFormatters.CheckMark()"
+                                Title="Available"
+                                Align="Align.Center" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 3: Employee Directory -->
+    <section class="demo-section">
+        <h2>3. Employee Directory - Contact & Date Formatting</h2>
+        <p class="section-description">
+            Demonstrates phone number formatting, date formatting, currency, and status indicators.
+        </p>
+        
+        <QuickGrid Items="@Employees" Class="demo-grid">
+            <TemplateColumn Title="Name">
+                <div class="employee-name">
+                    <strong>@context.FirstName @context.LastName</strong>
+                    <small>@context.Department</small>
+                </div>
+            </TemplateColumn>
+            
+            <FormattedValueColumn TGridItem="Employee"
+                                Property="@(e => (object?)e.Phone)" 
+                                Formatter="@ValueFormatters.PhoneNumberUs()"
+                                Title="Phone" />
+            
+            <FormattedValueColumn TGridItem="Employee"
+                                Property="@(e => (object?)e.HireDate)" 
+                                Format="MMM d, yyyy"
+                                Title="Hire Date" />
+            
+            <FormattedValueColumn TGridItem="Employee"
+                                Property="@(e => (object?)e.Salary)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Salary"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="Employee"
+                                Property="@(e => (object?)e.IsActive)" 
+                                Formatter="@ValueFormatters.ActiveInactive()"
+                                ConditionalFormat="@(val => (bool?)val == true ? "status-active" : "status-inactive")"
+                                Title="Status"
+                                Align="Align.Center" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 4: Performance Metrics -->
+    <section class="demo-section">
+        <h2>4. Performance Metrics - Conditional & Calculated Formatting</h2>
+        <p class="section-description">
+            Shows calculated properties, conditional styling based on thresholds, and progress indicators.
+        </p>
+        
+        <QuickGrid Items="@Metrics" Class="demo-grid">
+            <PropertyColumn Property="@(m => m.MetricName)" Title="Metric" />
+            
+            <FormattedValueColumn TGridItem="PerformanceMetric"
+                                Property="@(m => (object?)m.CurrentValue)" 
+                                Formatter="@ValueFormatters.CompactNumber(1)"
+                                Title="Current"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="PerformanceMetric"
+                                Property="@(m => (object?)m.TargetValue)" 
+                                Formatter="@ValueFormatters.CompactNumber(1)"
+                                Title="Target"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="PerformanceMetric"
+                                Property="@(m => (object?)m.PercentOfTarget)" 
+                                Formatter="@ValueFormatters.Percentage(1)"
+                                ConditionalFormat="@(val => GetPerformanceClass((double?)val))"
+                                Title="% of Target"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="PerformanceMetric"
+                                Property="@(m => (object?)m.ChangePercent)" 
+                                Formatter="@(val => FormatChangePercent((double?)val))"
+                                ConditionalFormat="@(val => (double?)val >= 0 ? "change-positive" : "change-negative")"
+                                Title="Change"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="PerformanceMetric"
+                                Property="@(m => (object?)m.MeasuredDate)" 
+                                Formatter="@ValueFormatters.RelativeDate()"
+                                Title="Measured" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 5: Log Entries -->
+    <section class="demo-section">
+        <h2>5. System Logs - Time & Duration Formatting</h2>
+        <p class="section-description">
+            Demonstrates timestamp formatting, duration/elapsed time, and file size formatting.
+        </p>
+        
+        <QuickGrid Items="@Logs" Class="demo-grid">
+            <FormattedValueColumn TGridItem="LogEntry"
+                                Property="@(l => (object?)l.Timestamp)" 
+                                Format="HH:mm:ss.fff"
+                                Title="Time" />
+            
+            <TemplateColumn Title="Level">
+                <span class="log-level log-@context.Level.ToLower()">@context.Level</span>
+            </TemplateColumn>
+            
+            <PropertyColumn Property="@(l => l.Message)" Title="Message" />
+            
+            <FormattedValueColumn TGridItem="LogEntry"
+                                Property="@(l => (object?)l.Source)" 
+                                Title="Source" />
+            
+            <FormattedValueColumn TGridItem="LogEntry"
+                                Property="@(l => (object?)l.Duration)" 
+                                Formatter="@ValueFormatters.HumanDuration()"
+                                Title="Duration"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="LogEntry"
+                                Property="@(l => (object?)l.MemoryBytes)" 
+                                Formatter="@ValueFormatters.FileSize()"
+                                Title="Memory"
+                                Align="Align.End" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 6: Financial Report -->
+    <section class="demo-section">
+        <h2>6. Quarterly Financial Report - Multi-Currency</h2>
+        <p class="section-description">
+            Corporate financial data with quarterly values and year-over-year comparisons.
+        </p>
+        
+        <QuickGrid Items="@FinancialData" Class="demo-grid financial-report">
+            <PropertyColumn Property="@(f => f.Category)" Title="Category" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.Q1)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Q1"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.Q2)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Q2"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.Q3)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Q3"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.Q4)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Q4"
+                                Align="Align.End" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.Total)" 
+                                Formatter="@ValueFormatters.CurrencyAccounting(0)"
+                                Title="Total"
+                                Align="Align.End"
+                                CssClass="total-column" />
+            
+            <FormattedValueColumn TGridItem="FinancialReport"
+                                Property="@(f => (object?)f.YoYChange)" 
+                                Formatter="@ValueFormatters.Percentage(1)"
+                                ConditionalFormat="@(val => (decimal?)val >= 0 ? "change-positive" : "change-negative")"
+                                Title="YoY Change"
+                                Align="Align.End" />
+        </QuickGrid>
+    </section>
+
+    <!-- Example 7: Customer Data with Masking -->
+    <section class="demo-section">
+        <h2>7. Customer Data - Sensitive Information Masking</h2>
+        <p class="section-description">
+            Shows proper masking of sensitive data like credit cards and SSNs.
+        </p>
+        
+        <QuickGrid Items="@Customers" Class="demo-grid">
+            <PropertyColumn Property="@(c => c.Name)" Title="Name" />
+            
+            <PropertyColumn Property="@(c => c.Email)" Title="Email" />
+            
+            <FormattedValueColumn TGridItem="Customer"
+                                Property="@(c => (object?)c.Phone)" 
+                                Formatter="@ValueFormatters.PhoneNumberUs()"
+                                Title="Phone" />
+            
+            <FormattedValueColumn TGridItem="Customer"
+                                Property="@(c => (object?)c.CreditCard)" 
+                                Formatter="@ValueFormatters.CreditCardMasked()"
+                                Title="Payment Method" />
+            
+            <FormattedValueColumn TGridItem="Customer"
+                                Property="@(c => (object?)c.SSN)" 
+                                Formatter="@ValueFormatters.SocialSecurityNumberMasked()"
+                                Title="SSN" />
+            
+            <FormattedValueColumn TGridItem="Customer"
+                                Property="@(c => (object?)c.MemberSince)" 
+                                Formatter="@ValueFormatters.RelativeDate()"
+                                Title="Member Since" />
+            
+            <FormattedValueColumn TGridItem="Customer"
+                                Property="@(c => (object?)c.TotalPurchases)" 
+                                Format="C0"
+                                FormatProvider="@CurrentCulture"
+                                Title="Total Purchases"
+                                Align="Align.End" />
+        </QuickGrid>
+    </section>
+
+    <!-- Performance Notes -->
+    <section class="demo-section performance-notes">
+        <h2>Performance Optimizations</h2>
+        <ul>
+            <li><strong>Format String Caching:</strong> Format strings are cached during parameter setup to avoid repeated allocations</li>
+            <li><strong>Compiled Accessors:</strong> Property expressions are compiled once for fast repeated access</li>
+            <li><strong>Culture Reuse:</strong> CultureInfo objects are reused instead of being recreated</li>
+            <li><strong>Formatter Delegation:</strong> Custom formatters are invoked directly without reflection</li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    private string SelectedCulture { get; set; } = "en-US";
+    private CultureInfo CurrentCulture { get; set; } = new CultureInfo("en-US");
+
+    private IQueryable<Transaction> Transactions { get; set; } = null!;
+    private IQueryable<Product> Products { get; set; } = null!;
+    private IQueryable<Employee> Employees { get; set; } = null!;
+    private IQueryable<PerformanceMetric> Metrics { get; set; } = null!;
+    private IQueryable<LogEntry> Logs { get; set; } = null!;
+    private IQueryable<FinancialReport> FinancialData { get; set; } = null!;
+    private IQueryable<Customer> Customers { get; set; } = null!;
+
+    protected override void OnInitialized()
+    {
+        GenerateData();
+    }
+
+    private void OnCultureChanged()
+    {
+        CurrentCulture = new CultureInfo(SelectedCulture);
+    }
+
+    private string GetPerformanceClass(double? value)
+    {
+        if (!value.HasValue) return "";
+        
+        if (value.Value >= 1.0)
+            return "performance-excellent";
+        if (value.Value >= 0.9)
+            return "performance-good";
+        if (value.Value >= 0.75)
+            return "performance-fair";
+        
+        return "performance-poor";
+    }
+
+    private string FormatChangePercent(double? value)
+    {
+        if (!value.HasValue) return "";
+        
+        var sign = value.Value >= 0 ? "+" : "";
+        return $"{sign}{value.Value:P1}";
+    }
+
+    private void GenerateData()
+    {
+        // Financial Transactions
+        var transactions = new List<Transaction>
+        {
+            new() { Id = 1, Date = DateTime.Now.AddDays(-5), Description = "Payroll Deposit", Amount = 5420.00m, Balance = 8650.45m, Type = TransactionType.Deposit },
+            new() { Id = 2, Date = DateTime.Now.AddDays(-4), Description = "Rent Payment", Amount = -1850.00m, Balance = 6800.45m, Type = TransactionType.Withdrawal },
+            new() { Id = 3, Date = DateTime.Now.AddDays(-3), Description = "Grocery Store", Amount = -156.78m, Balance = 6643.67m, Type = TransactionType.Withdrawal },
+            new() { Id = 4, Date = DateTime.Now.AddDays(-2), Description = "Wire Transfer In", Amount = 2500.00m, Balance = 9143.67m, Type = TransactionType.Transfer },
+            new() { Id = 5, Date = DateTime.Now.AddDays(-1), Description = "ATM Withdrawal", Amount = -200.00m, Balance = 8943.67m, Type = TransactionType.Withdrawal },
+            new() { Id = 6, Date = DateTime.Now, Description = "Monthly Fee", Amount = -15.00m, Balance = 8928.67m, Type = TransactionType.Fee }
+        };
+        Transactions = transactions.AsQueryable();
+
+        // Products
+        var products = new List<Product>
+        {
+            new() { Id = 1, Name = "Premium Laptop", Price = 1299.99m, Stock = 45, DiscountPercent = 0.15, Weight = 1.8m, SizeBytes = 0, LastRestocked = DateTime.Now.AddDays(-2), InStock = true },
+            new() { Id = 2, Name = "Wireless Mouse", Price = 29.99m, Stock = 250, DiscountPercent = 0.10, Weight = 0.085m, SizeBytes = 0, LastRestocked = DateTime.Now.AddDays(-7), InStock = true },
+            new() { Id = 3, Name = "4K Monitor", Price = 449.00m, Stock = 8, DiscountPercent = 0.20, Weight = 5.2m, SizeBytes = 0, LastRestocked = DateTime.Now.AddDays(-15), InStock = true },
+            new() { Id = 4, Name = "Software Suite", Price = 199.99m, Stock = 0, DiscountPercent = 0.0, Weight = 0m, SizeBytes = 2_147_483_648, LastRestocked = DateTime.Now.AddDays(-30), InStock = false },
+            new() { Id = 5, Name = "USB-C Cable", Price = 12.99m, Stock = 500, DiscountPercent = 0.05, Weight = 0.025m, SizeBytes = 0, LastRestocked = DateTime.Now, InStock = true }
+        };
+        Products = products.AsQueryable();
+
+        // Employees
+        var employees = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "Sarah", LastName = "Johnson", Email = "sarah.johnson@company.com", Phone = "15551234567", HireDate = new DateTime(2020, 3, 15), Salary = 95000m, IsActive = true, Department = "Engineering" },
+            new() { Id = 2, FirstName = "Michael", LastName = "Chen", Email = "michael.chen@company.com", Phone = "15559876543", HireDate = new DateTime(2019, 7, 22), Salary = 110000m, IsActive = true, Department = "Engineering" },
+            new() { Id = 3, FirstName = "Emily", LastName = "Rodriguez", Email = "emily.r@company.com", Phone = "15555551234", HireDate = new DateTime(2021, 1, 10), Salary = 75000m, IsActive = true, Department = "Marketing" },
+            new() { Id = 4, FirstName = "David", LastName = "Kim", Email = "david.kim@company.com", Phone = "15558887777", HireDate = new DateTime(2018, 5, 1), Salary = 125000m, IsActive = true, Department = "Management" },
+            new() { Id = 5, FirstName = "Jessica", LastName = "Martinez", Email = "j.martinez@company.com", Phone = "15554443333", HireDate = new DateTime(2022, 9, 1), TerminationDate = new DateTime(2024, 8, 15), Salary = 68000m, IsActive = false, Department = "Sales" }
+        };
+        Employees = employees.AsQueryable();
+
+        // Performance Metrics
+        var metrics = new List<PerformanceMetric>
+        {
+            new() { MetricName = "Customer Satisfaction", CurrentValue = 4.7, TargetValue = 4.5, PreviousValue = 4.3, MeasuredDate = DateTime.Now.AddDays(-1) },
+            new() { MetricName = "Response Time (ms)", CurrentValue = 185, TargetValue = 200, PreviousValue = 220, MeasuredDate = DateTime.Now.AddHours(-6) },
+            new() { MetricName = "Conversion Rate", CurrentValue = 0.0342, TargetValue = 0.035, PreviousValue = 0.0315, MeasuredDate = DateTime.Now.AddHours(-12) },
+            new() { MetricName = "Monthly Active Users", CurrentValue = 125000, TargetValue = 150000, PreviousValue = 118000, MeasuredDate = DateTime.Now.AddDays(-2) },
+            new() { MetricName = "Revenue per User", CurrentValue = 47.50, TargetValue = 50.00, PreviousValue = 45.20, MeasuredDate = DateTime.Now }
+        };
+        Metrics = metrics.AsQueryable();
+
+        // Log Entries
+        var logs = new List<LogEntry>
+        {
+            new() { Id = 1, Timestamp = DateTime.Now.AddMinutes(-45), Level = "INFO", Message = "Application started successfully", Source = "Main", Duration = TimeSpan.FromMilliseconds(1250), MemoryBytes = 52428800 },
+            new() { Id = 2, Timestamp = DateTime.Now.AddMinutes(-30), Level = "WARNING", Message = "High memory usage detected", Source = "Monitor", Duration = TimeSpan.FromMilliseconds(150), MemoryBytes = 524288000 },
+            new() { Id = 3, Timestamp = DateTime.Now.AddMinutes(-15), Level = "ERROR", Message = "Database connection timeout", Source = "DataLayer", Duration = TimeSpan.FromSeconds(30), MemoryBytes = 104857600 },
+            new() { Id = 4, Timestamp = DateTime.Now.AddMinutes(-5), Level = "INFO", Message = "Cache cleared successfully", Source = "CacheService", Duration = TimeSpan.FromMilliseconds(500), MemoryBytes = 26214400 },
+            new() { Id = 5, Timestamp = DateTime.Now.AddMinutes(-1), Level = "DEBUG", Message = "Request processed", Source = "API", Duration = TimeSpan.FromMilliseconds(85), MemoryBytes = 10485760 }
+        };
+        Logs = logs.AsQueryable();
+
+        // Financial Report
+        var financialData = new List<FinancialReport>
+        {
+            new() { Category = "Revenue", Q1 = 2_450_000m, Q2 = 2_780_000m, Q3 = 3_100_000m, Q4 = 3_850_000m, YoYChange = 0.18m },
+            new() { Category = "Cost of Goods Sold", Q1 = -980_000m, Q2 = -1_120_000m, Q3 = -1_240_000m, Q4 = -1_540_000m, YoYChange = 0.12m },
+            new() { Category = "Operating Expenses", Q1 = -650_000m, Q2 = -720_000m, Q3 = -780_000m, Q4 = -890_000m, YoYChange = 0.08m },
+            new() { Category = "Net Income", Q1 = 820_000m, Q2 = 940_000m, Q3 = 1_080_000m, Q4 = 1_420_000m, YoYChange = 0.25m }
+        };
+        FinancialData = financialData.AsQueryable();
+
+        // Customers
+        var customers = new List<Customer>
+        {
+            new() { Id = 1, Name = "Alice Thompson", Email = "alice.t@email.com", Phone = "15551234567", CreditCard = "4532123456789012", SSN = "123456789", MemberSince = DateTime.Now.AddYears(-3), TotalPurchases = 4567.89m },
+            new() { Id = 2, Name = "Bob Williams", Email = "bob.w@email.com", Phone = "15559876543", CreditCard = "5425233430109903", SSN = "987654321", MemberSince = DateTime.Now.AddYears(-1), TotalPurchases = 1234.50m },
+            new() { Id = 3, Name = "Carol Davis", Email = "carol.d@email.com", Phone = "15555551111", CreditCard = "3782822463100050", SSN = "456789123", MemberSince = DateTime.Now.AddMonths(-6), TotalPurchases = 789.99m }
+        };
+        Customers = customers.AsQueryable();
+    }
+}
