@@ -53,3 +53,9 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 *.vsidx
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/CodeChunks.db
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/CodeChunks.db-shm
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/CodeChunks.db-wal
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/SemanticSymbols.db
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/SemanticSymbols.db-shm
+/QuickGridTest01/.vs/QuickGridTest01/CopilotIndices/18.0.923.20550/SemanticSymbols.db-wal
