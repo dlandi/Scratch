@@ -1,4 +1,4 @@
-namespace QuickGridExamples.Models;
+namespace QuickGridTest01.Models;
 
 /// <summary>
 /// Financial transaction model demonstrating currency formatting

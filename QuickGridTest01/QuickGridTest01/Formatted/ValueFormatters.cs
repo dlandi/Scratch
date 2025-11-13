@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace QuickGridExamples.Formatters;
+namespace QuickGridTest01.Formatters;
 
 /// <summary>
 /// Common value formatters for use with FormattedValueColumn
