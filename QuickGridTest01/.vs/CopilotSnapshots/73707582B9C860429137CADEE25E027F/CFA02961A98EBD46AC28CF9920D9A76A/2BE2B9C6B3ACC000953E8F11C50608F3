@@ -1,0 +1,227 @@
+﻿@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.Linq.Expressions
+@using Microsoft.AspNetCore.Components.Rendering
+@using QuickGridTest01.ConditionalStyling
+@typeparam TGridItem
+@typeparam TValue
+@inherits ColumnBase<TGridItem>
+
+@code {
+    /// <summary>
+    /// Expression to extract the value from the grid item
+    /// </summary>
+    [Parameter, EditorRequired]
+    public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+
+    /// <summary>
+    /// Style rules to apply based on the cell value
+    /// Rules are evaluated in priority order (highest first)
+    /// </summary>
+    [Parameter]
+    public List<StyleRule<TValue>> Rules { get; set; } = new();
+
+    /// <summary>
+    /// Optional format string for displaying the value (for IFormattable types)
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Whether to show icons from matching rules
+    /// </summary>
+    [Parameter]
+    public bool ShowIcons { get; set; } = true;
+
+    /// <summary>
+    /// Whether to show tooltips from matching rules
+    /// </summary>
+    [Parameter]
+    public bool ShowTooltips { get; set; } = true;
+
+    /// <summary>
+    /// Custom value formatter function (overrides Format parameter)
+    /// </summary>
+    [Parameter]
+    public Func<TValue, string>? ValueFormatter { get; set; }
+
+    /// <summary>
+    /// Whether to evaluate all matching rules (combine classes) or just the first match
+    /// Default: false (first match only)
+    /// </summary>
+    [Parameter]
+    public bool CombineMultipleMatches { get; set; } = false;
+
+    /// <summary>
+    /// Base CSS class to always apply (in addition to conditional classes)
+    /// </summary>
+    [Parameter]
+    public string? BaseCssClass { get; set; }
+
+    /// <summary>
+    /// Custom render fragment for the cell content
+    /// If provided, this overrides the default rendering
+    /// </summary>
+    [Parameter]
+    public RenderFragment<(TGridItem Item, TValue Value, StyleRuleResult Style)>? CellTemplate { get; set; }
+
+    // Cached compiled expression for performance
+    private Func<TGridItem, TValue>? _compiledPropertyExpression;
+    private Expression<Func<TGridItem, TValue>>? _lastAssignedProperty;
+    private Func<TGridItem, string>? _cellTextFunc;
+
+    /// <summary>
+    /// Sorting support based on the property expression
+    /// </summary>
+    public override GridSort<TGridItem>? SortBy { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+
+        // Auto-infer title from property expression if not explicitly set
+        if (Title is null && Property.Body is MemberExpression memberExpression)
+        {
+            Title = memberExpression.Member.Name;
+        }
+
+        // Compile the property expression if it changed
+        if (_lastAssignedProperty != Property)
+        {
+            _lastAssignedProperty = Property;
+            _compiledPropertyExpression = Property.Compile();
+
+            // Set up sorting
+            SortBy = GridSort<TGridItem>.ByAscending(Property);
+
+            // Create cell text function based on format and formatter
+            if (ValueFormatter != null)
+            {
+                _cellTextFunc = item => ValueFormatter(_compiledPropertyExpression!(item));
+            }
+            else if (!string.IsNullOrEmpty(Format))
+            {
+                var nullableUnderlyingType = Nullable.GetUnderlyingType(typeof(TValue));
+                var targetType = nullableUnderlyingType ?? typeof(TValue);
+
+                if (!typeof(IFormattable).IsAssignableFrom(targetType))
+                {
+                    throw new InvalidOperationException(
+                        $"Format parameter requires IFormattable type. Type '{typeof(TValue)}' does not implement IFormattable.");
+                }
+
+                _cellTextFunc = item =>
+                {
+                    var value = _compiledPropertyExpression!(item);
+                    return ((IFormattable?)(object?)value)?.ToString(Format, null) ?? string.Empty;
+                };
+            }
+            else
+            {
+                _cellTextFunc = item => _compiledPropertyExpression!(item)?.ToString() ?? string.Empty;
+            }
+        }
+
+        // Validate that we have rules
+        if (!Rules.Any())
+        {
+            // No rules is valid - just renders the value without conditional styling
+        }
+    }
+
+    protected internal override void CellContent(RenderTreeBuilder builder, TGridItem item)
+    {
+        // Extract the value
+        var value = _compiledPropertyExpression!(item);
+
+        // Evaluate styling rules
+        var styleResult = CombineMultipleMatches
+            ? StyleRuleEvaluator.EvaluateAll(value, Rules)
+            : StyleRuleEvaluator.Evaluate(value, Rules);
+
+        // Build CSS class string
+        var cssClass = BuildCssClass(styleResult);
+
+        // Render cell with custom template or default rendering
+        if (CellTemplate != null)
+        {
+            RenderCustomTemplate(builder, item, value, styleResult);
+        }
+        else
+        {
+            RenderDefaultCell(builder, item, value, styleResult, cssClass);
+        }
+    }
+
+    private string BuildCssClass(StyleRuleResult styleResult)
+    {
+        var classes = new List<string>();
+
+        // Add base class if specified
+        if (!string.IsNullOrEmpty(BaseCssClass))
+        {
+            classes.Add(BaseCssClass);
+        }
+
+        // Add conditional classes from rules
+        if (styleResult.HasMatch && !string.IsNullOrEmpty(styleResult.CssClass))
+        {
+            classes.Add(styleResult.CssClass);
+        }
+
+        // Add default styling class for the column
+        classes.Add("conditional-cell");
+
+        return string.Join(" ", classes);
+    }
+
+    private void RenderDefaultCell(
+        RenderTreeBuilder builder,
+        TGridItem item,
+        TValue value,
+        StyleRuleResult styleResult,
+        string cssClass)
+    {
+        var sequence = 0;
+
+        // Wrapper div
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", cssClass);
+
+        // Add tooltip if enabled and available
+        if (ShowTooltips && !string.IsNullOrEmpty(styleResult.Tooltip))
+        {
+            builder.AddAttribute(sequence++, "title", styleResult.Tooltip);
+        }
+
+        // Add icon if enabled and available
+        if (ShowIcons && !string.IsNullOrEmpty(styleResult.IconClass))
+        {
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", $"cell-icon {styleResult.IconClass}");
+            builder.AddAttribute(sequence++, "aria-hidden", "true");
+            builder.CloseElement();
+        }
+
+        // Add the value content
+        builder.OpenElement(sequence++, "span");
+        builder.AddAttribute(sequence++, "class", "cell-value");
+        builder.AddContent(sequence++, _cellTextFunc!(item));
+        builder.CloseElement();
+
+        builder.CloseElement(); // Close wrapper div
+    }
+
+    private void RenderCustomTemplate(
+        RenderTreeBuilder builder,
+        TGridItem item,
+        TValue value,
+        StyleRuleResult styleResult)
+    {
+        builder.AddContent(0, CellTemplate!((item, value, styleResult)));
+    }
+
+    protected override bool IsSortableByDefault()
+    {
+        return SortBy is not null;
+    }
+}

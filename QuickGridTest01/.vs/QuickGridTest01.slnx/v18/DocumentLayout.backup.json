@@ -3,16 +3,40 @@
   "WorkspaceRootPath": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\virtualscrollingdemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\virtualscrollingdemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\shared\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\shared\\navmenu.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\formattedcolumndemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\formattedcolumndemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\conditionalstyle\\stylerule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\conditionalstyle\\stylerule.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\virtualscrollingdemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\virtualscrollingdemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\conditionalstyle\\stylepresets.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\conditionalstyle\\stylepresets.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\conditionalstyle\\conditionalstylemodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\conditionalstyle\\conditionalstylemodels.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\conditionalstyle\\conditionalstylecolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\conditionalstyle\\conditionalstylecolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\conditionalstyledemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\conditionalstyledemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\virtualization\\virtualcolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\virtualization\\virtualcolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\formattedcolumndemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\pages\\formattedcolumndemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\pages\\optimizedcolumndemo.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
@@ -123,10 +147,6 @@
       "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\optimized\\optimizedcolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\virtualization\\virtualcolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\virtualization\\virtualcolumn.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|e:\\archive\\github\\dlandi\\scratch\\quickgridtest01\\quickgridtest01\\formatted\\formattedvaluecolumn.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{AE53A31F-9A7D-FAE6-DD86-A50A2141B8C1}|QuickGridTest01\\QuickGridTest01.csproj|solutionrelative:quickgridtest01\\formatted\\formattedvaluecolumn.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
@@ -145,17 +165,17 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "NavMenu.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Shared\\NavMenu.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Shared\\NavMenu.razor",
               "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Shared\\NavMenu.razor",
               "RelativeToolTip": "QuickGridTest01\\Shared\\NavMenu.razor",
-              "ViewState": "AgIAADAAAAAAAAAAAAAAAEgAAAAKAAAAAAAAAA==",
+              "ViewState": "AgIAADkAAAAAAAAAAAAowD4AAAAsAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-11-10T20:37:23.069Z",
               "IsPinned": true,
@@ -163,31 +183,79 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 33,
+              "DocumentIndex": 0,
+              "Title": "VirtualScrollingDemo.razor",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
+              "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
+              "RelativeToolTip": "QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
+              "ViewState": "AgIAACABAAAAAAAAAAAewAAAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-12T18:49:36.178Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "ConditionalStyleDemo.razor",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\ConditionalStyleDemo.razor",
+              "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\ConditionalStyleDemo.razor",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\ConditionalStyleDemo.razor",
+              "RelativeToolTip": "QuickGridTest01\\Pages\\ConditionalStyleDemo.razor",
+              "ViewState": "AgIAABwCAAAAAAAAAIA0wAAAAAAIAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2025-11-12T23:45:34.584Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "StyleRule.cs",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\StyleRule.cs",
+              "RelativeDocumentMoniker": "QuickGridTest01\\ConditionalStyle\\StyleRule.cs",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\StyleRule.cs",
+              "RelativeToolTip": "QuickGridTest01\\ConditionalStyle\\StyleRule.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAABKAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-12T23:41:39.184Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "ConditionalStyleModels.cs",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\ConditionalStyleModels.cs",
+              "RelativeDocumentMoniker": "QuickGridTest01\\ConditionalStyle\\ConditionalStyleModels.cs",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\ConditionalStyleModels.cs",
+              "RelativeToolTip": "QuickGridTest01\\ConditionalStyle\\ConditionalStyleModels.cs",
+              "ViewState": "AgIAAAkAAAAAAAAAAAAAAAQAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-12T23:40:32.457Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 38,
               "Title": "_Imports.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\_Imports.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\_Imports.razor",
               "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\_Imports.razor",
               "RelativeToolTip": "QuickGridTest01\\_Imports.razor",
-              "ViewState": "AgIAAAsAAAAAAAAAAMBYwAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAA0AAAAAAAAAAMBYwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T19:38:37.743Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T19:38:37.743Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 32,
+              "DocumentIndex": 37,
               "Title": "FormattedValueColumn.razor",
               "DocumentMoniker": "C:\\Users\\dland\\AppData\\Local\\Temp\\CopilotBaseline\\Deleted\\-117774232\\FormattedValueColumn.razor",
               "ToolTip": "C:\\Users\\dland\\AppData\\Local\\Temp\\CopilotBaseline\\Deleted\\-117774232\\FormattedValueColumn.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T19:38:29.999Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T19:38:29.999Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 31,
+              "DocumentIndex": 36,
               "Title": "FormattedValueColumn.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Formatted\\FormattedValueColumn.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Formatted\\FormattedValueColumn.razor",
@@ -195,12 +263,35 @@
               "RelativeToolTip": "QuickGridTest01\\Formatted\\FormattedValueColumn.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABUBAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T19:38:22.841Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T19:38:22.841Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 5,
+              "Title": "ConditionalStyleColumn.cs",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\ConditionalStyleColumn.cs",
+              "RelativeDocumentMoniker": "QuickGridTest01\\ConditionalStyle\\ConditionalStyleColumn.cs",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\ConditionalStyleColumn.cs",
+              "RelativeToolTip": "QuickGridTest01\\ConditionalStyle\\ConditionalStyleColumn.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAFoAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-12T23:57:45.721Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "StylePresets.cs",
+              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\StylePresets.cs",
+              "RelativeDocumentMoniker": "QuickGridTest01\\ConditionalStyle\\StylePresets.cs",
+              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\ConditionalStyle\\StylePresets.cs",
+              "RelativeToolTip": "QuickGridTest01\\ConditionalStyle\\StylePresets.cs",
+              "ViewState": "AgIAAEoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2025-11-13T00:05:03.489Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
               "Title": "FormattedColumnDemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\FormattedColumnDemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\FormattedColumnDemo.razor",
@@ -208,38 +299,23 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\FormattedColumnDemo.razor",
               "ViewState": "AgIAAMIBAAAAAAAAAAA1wAAAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T19:30:58.072Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T19:30:58.072Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "VirtualScrollingDemo.razor",
-              "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
-              "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
-              "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
-              "RelativeToolTip": "QuickGridTest01\\Pages\\VirtualScrollingDemo.razor",
-              "ViewState": "AgIAAIUBAAAAAAAAAAAwwAAAAAAIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T18:49:36.178Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 30,
+              "DocumentIndex": 7,
               "Title": "VirtualColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Virtualization\\VirtualColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Virtualization\\VirtualColumn.cs",
               "ToolTip": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Virtualization\\VirtualColumn.cs",
               "RelativeToolTip": "QuickGridTest01\\Virtualization\\VirtualColumn.cs",
-              "ViewState": "AgIAAIkAAAAAAAAAAMBYwAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAZAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T18:46:47.219Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T18:46:47.219Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 29,
+              "DocumentIndex": 35,
               "Title": "OptimizedColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Optimized\\OptimizedColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Optimized\\OptimizedColumn.cs",
@@ -247,12 +323,11 @@
               "RelativeToolTip": "QuickGridTest01\\Optimized\\OptimizedColumn.cs",
               "ViewState": "AgIAALkAAAAAAAAAAMBYwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T16:50:47.842Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T16:50:47.842Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 28,
+              "DocumentIndex": 34,
               "Title": "NaiveColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Optimized\\NaiveColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Optimized\\NaiveColumn.cs",
@@ -260,12 +335,11 @@
               "RelativeToolTip": "QuickGridTest01\\Optimized\\NaiveColumn.cs",
               "ViewState": "AgIAAJAAAAAAAAAAAMBYwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T16:50:39.042Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T16:50:39.042Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 9,
               "Title": "OptimizedColumnDemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\OptimizedColumnDemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\OptimizedColumnDemo.razor",
@@ -273,12 +347,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\OptimizedColumnDemo.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T16:48:16.127Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T16:48:16.127Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 12,
               "Title": "EditableColumnDemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\EditableColumnDemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\EditableColumnDemo.razor",
@@ -286,12 +359,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\EditableColumnDemo.razor",
               "ViewState": "AgIAAG8BAAAAAAAAAAAmwAAAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T15:43:52.133Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T15:43:52.133Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 11,
               "Title": "EditableColumnDemo.razor.css",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\EditableColumnDemo.razor.css",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\EditableColumnDemo.razor.css",
@@ -299,12 +371,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\EditableColumnDemo.razor.css",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAHoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003000|",
-              "WhenOpened": "2025-11-12T16:01:32.032Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T16:01:32.032Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 18,
               "Title": "FilterableTemplateColumn.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\FilterableTemplateColumn.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\FilterableTemplateColumn.razor",
@@ -312,12 +383,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\FilterableTemplateColumn.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T14:42:09.347Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T14:42:09.347Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 17,
               "Title": "FilterableColumnDemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\FilterableColumnDemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\FilterableColumnDemo.razor",
@@ -325,12 +395,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\FilterableColumnDemo.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-12T14:41:52.276Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T14:41:52.276Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 16,
               "Title": "FilterOperators.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Filterable\\FilterOperators.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Filterable\\FilterOperators.cs",
@@ -338,12 +407,11 @@
               "RelativeToolTip": "QuickGridTest01\\Filterable\\FilterOperators.cs",
               "ViewState": "AgIAAAkAAAAAAAAAAAAAAAMAAAAZAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T14:40:27.958Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T14:40:27.958Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 27,
+              "DocumentIndex": 33,
               "Title": "FilterableGrid.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Filterable\\FilterableGrid.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Filterable\\FilterableGrid.cs",
@@ -351,12 +419,11 @@
               "RelativeToolTip": "QuickGridTest01\\Filterable\\FilterableGrid.cs",
               "ViewState": "AgIAAFAAAAAAAAAAAIBgwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T14:39:30.459Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T14:39:30.459Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 10,
               "Title": "InilineEditor.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\InilineEditor.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\InilineEditor.razor",
@@ -364,12 +431,11 @@
               "RelativeToolTip": "QuickGridTest01\\Pages\\InilineEditor.razor",
               "ViewState": "AgIAAHUAAAAAAAAAAAAAAH8AAAApAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-11-11T16:23:03.784Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-11T16:23:03.784Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 15,
               "Title": "Validators.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Editable\\Validators.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Editable\\Validators.cs",
@@ -377,12 +443,11 @@
               "RelativeToolTip": "QuickGridTest01\\Editable\\Validators.cs",
               "ViewState": "AgIAALMAAAAAAAAAAAA4wAAAAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T15:26:50.864Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T15:26:50.864Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 14,
               "Title": "EditableColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Editable\\EditableColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Editable\\EditableColumn.cs",
@@ -390,12 +455,11 @@
               "RelativeToolTip": "QuickGridTest01\\Editable\\EditableColumn.cs",
               "ViewState": "AgIAAFgBAAAAAAAAAAAiwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T15:27:09.175Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T15:27:09.175Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 13,
               "Title": "FilterableColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Filterable\\FilterableColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\Filterable\\FilterableColumn.cs",
@@ -403,12 +467,11 @@
               "RelativeToolTip": "QuickGridTest01\\Filterable\\FilterableColumn.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAABLAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-12T14:31:04.583Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-12T14:31:04.583Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 14,
+              "DocumentIndex": 20,
               "Title": "DynamicColumnTest.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\DynamicColumnTest.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\DynamicColumnTest.razor",
@@ -420,7 +483,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 17,
+              "DocumentIndex": 23,
               "Title": "Dynamiccolumndemo.razor.css",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\Dynamiccolumndemo.razor.css",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\Dynamiccolumndemo.razor.css",
@@ -432,7 +495,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 19,
+              "DocumentIndex": 25,
               "Title": "ColumnMetadata.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\CustomColumns\\ColumnMetadata.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\CustomColumns\\ColumnMetadata.cs",
@@ -444,7 +507,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 15,
+              "DocumentIndex": 21,
               "Title": "IconColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\CustomColumns\\IconColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\CustomColumns\\IconColumn.cs",
@@ -456,7 +519,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 19,
               "Title": "DynamicColumn.cs",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\CustomColumns\\DynamicColumn.cs",
               "RelativeDocumentMoniker": "QuickGridTest01\\CustomColumns\\DynamicColumn.cs",
@@ -464,12 +527,11 @@
               "RelativeToolTip": "QuickGridTest01\\CustomColumns\\DynamicColumn.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-11-11T19:30:31.526Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-11-11T19:30:31.526Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 16,
+              "DocumentIndex": 22,
               "Title": "_Layout.cshtml",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\_Layout.cshtml",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\_Layout.cshtml",
@@ -481,7 +543,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 18,
+              "DocumentIndex": 24,
               "Title": "Dynamiccolumndemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\Dynamiccolumndemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\Dynamiccolumndemo.razor",
@@ -493,7 +555,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 26,
+              "DocumentIndex": 32,
               "Title": "TemplateTest.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\TemplateTest.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\TemplateTest.razor",
@@ -505,7 +567,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 20,
+              "DocumentIndex": 26,
               "Title": "IconColumnDemo.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\IconColumnDemo.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\IconColumnDemo.razor",
@@ -517,7 +579,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 21,
+              "DocumentIndex": 27,
               "Title": "StyledEmployeeGrid.razor.css",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\StyledEmployeeGrid.razor.css",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\StyledEmployeeGrid.razor.css",
@@ -529,7 +591,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 23,
+              "DocumentIndex": 29,
               "Title": "StyledEmployeeGrid.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\StyledEmployeeGrid.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\StyledEmployeeGrid.razor",
@@ -541,7 +603,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 22,
+              "DocumentIndex": 28,
               "Title": "StyledEmpGrid.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\StyledEmpGrid.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\StyledEmpGrid.razor",
@@ -553,7 +615,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 25,
+              "DocumentIndex": 31,
               "Title": "QuickGridTest01.csproj",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\QuickGridTest01.csproj",
               "RelativeDocumentMoniker": "QuickGridTest01\\QuickGridTest01.csproj",
@@ -565,7 +627,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 24,
+              "DocumentIndex": 30,
               "Title": "InilineEditor.razor",
               "DocumentMoniker": "E:\\Archive\\GitHub\\dlandi\\Scratch\\QuickGridTest01\\QuickGridTest01\\Pages\\InilineEditor.razor",
               "RelativeDocumentMoniker": "QuickGridTest01\\Pages\\InilineEditor.razor",

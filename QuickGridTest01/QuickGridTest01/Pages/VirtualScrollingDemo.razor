@@ -284,6 +284,66 @@
     </div>
 </div>
 
+<!-- New explanatory section -->
+<div class="demo-section">
+    <h4>Performance Esimates Explained</h4>
+    <p>
+        The cards above use a lightweight heuristic from <code>VirtualizationEstimator.EstimatePerformance</code>
+        (see <code>QuickGridTest01/Virtualization/VirtualizationPerformance.cs</code>). It does not measure the DOM; it
+        projects costs based on row/column counts and a few constants.
+    </p>
+
+    <h5>Inputs and constants</h5>
+    <ul>
+        <li><strong>rowCount</strong>: selected dataset size</li>
+        <li><strong>columnCount</strong>: 5</li>
+        <li><strong>visibleRows</strong>: 20, <strong>bufferRows</strong>: 5 → <strong>renderedRows</strong> = 20 + 2×5 = 30</li>
+        <li><strong>msPerCell</strong>: 0.05 ms (heuristic CPU/render cost per cell)</li>
+        <li><strong>bytesPerCell</strong>: 2,048 bytes (≈2 KB per cell)</li>
+    </ul>
+
+    <h5>Formulas</h5>
+    <ul>
+        <li><strong>totalCells</strong> = rowCount × columnCount</li>
+        <li><strong>renderedCells</strong> = renderedRows × columnCount</li>
+        <li><strong>Non‑virtual</strong>:
+            <ul>
+                <li>Render time = totalCells × msPerCell</li>
+                <li>DOM elements = totalCells</li>
+                <li>Memory = totalCells × bytesPerCell</li>
+            </ul>
+        </li>
+        <li><strong>Virtualized</strong>:
+            <ul>
+                <li>Render time = renderedCells × msPerCell</li>
+                <li>DOM elements = renderedCells</li>
+                <li>Memory = renderedCells × bytesPerCell</li>
+            </ul>
+        </li>
+        <li><strong>Improvements</strong>:
+            <ul>
+                <li>Speedup = NonVirtualTime / VirtualTime</li>
+                <li>DOM reduction = (1 − VirtualDom / NonVirtualDom) × 100</li>
+                <li>Memory savings = (1 − VirtualMem / NonVirtualMem) × 100</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h5>Example (1,000 rows)</h5>
+    <ul>
+        <li>totalCells = 1,000 × 5 = 5,000</li>
+        <li>Non‑virtual: time ≈ 5,000 × 0.05 = 250 ms, DOM = 5,000, memory ≈ 10 MB</li>
+        <li>Virtualized: renderedCells = 30 × 5 = 150 → time ≈ 7.5 ms, DOM = 150, memory ≈ 0.3 MB</li>
+        <li>Improvements: ~33× faster, ~97% fewer DOM nodes, ~97% less memory</li>
+    </ul>
+
+    <p>
+        Note: Scenario 2‘s “Render Time” uses a <code>Stopwatch</code> to measure that specific render,
+        but the top cards always use the estimator. Tune <code>msPerCell</code> or <code>bytesPerCell</code>
+        in the estimator to calibrate for your environment.
+    </p>
+</div>
+
 @code {
     private IQueryable<DataRow> _smallDataset = default!;
     private IQueryable<DataRow> _largeDataset = default!;

@@ -1,0 +1,13 @@
+﻿@using System.Net.Http
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using QuickGridTest01
+@using QuickGridTest01.Shared
+@using QuickGridTest01.Formatted
+@using QuickGridTest01.Models
+@using QuickGridTest01.Formatters
