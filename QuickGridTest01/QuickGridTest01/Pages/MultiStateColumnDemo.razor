@@ -1,0 +1,457 @@
+@page "/multistate-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.MultiState.Core
+@using QuickGridTest01.MultiState.Validation
+@using QuickGridTest01.MultiState.Component
+@using QuickGridTest01.MultiState.Demo
+
+<PageTitle>Multi-State Column Demo</PageTitle>
+
+<div class="demo-container">
+    <h1>🎯 Multi-State Column Demo</h1>
+    <p class="subtitle">Comprehensive demonstration of the Multi-State Column architecture for Blazor QuickGrid</p>
+
+    <!-- Statistics Dashboard -->
+    <div class="stats-dashboard">
+        <div class="stat-card">
+            <div class="stat-value">@_eventLog.Count</div>
+            <div class="stat-label">Total Events</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_saveCount</div>
+            <div class="stat-label">Successful Saves</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_validationErrorCount</div>
+            <div class="stat-label">Validation Errors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">@_cancelCount</div>
+            <div class="stat-label">Cancelled Edits</div>
+        </div>
+    </div>
+
+    <!-- Demo Section 1: Contact Directory -->
+    <section class="demo-section">
+        <h2>📇 Contact Directory</h2>
+        <p>Edit contacts with comprehensive validation (required, min/max length, email format, uniqueness).</p>
+
+        @if (_contacts == null)
+        {
+            <p><em>Loading contacts...</em></p>
+        }
+        else
+        {
+            <div class="grid-container">
+                <QuickGrid Items="@_contacts.AsQueryable()" Class="demo-grid">
+                    <PropertyColumn Property="@(c => c.Id)" Title="ID" Sortable="true" />
+                    
+                    <MultiStateColumn 
+                        Property="@(c => c.Name)" 
+                        Title="Name"
+                        Validators="@_nameValidators"
+                        OnSaveAsync="@SaveNameAsync"
+                        OnBeforeEdit="@_onBeforeEditCallback"
+                        OnValueChanging="@_onValueChangingCallback"
+                        OnSaveResult="@_onSaveResultCallback"
+                        OnStateChanged="@_onStateChangedCallback"
+                        OnCancelEdit="@_onCancelEditCallback"
+                        Placeholder="Enter name..." />
+                    
+                    <MultiStateColumn 
+                        Property="@(c => c.Email)" 
+                        Title="Email"
+                        Validators="@_emailValidators"
+                        OnSaveAsync="@SaveEmailAsync"
+                        OnSaveResult="@_onSaveResultCallback"
+                        Placeholder="user@example.com" />
+                    
+                    <MultiStateColumn 
+                        Property="@(c => c.Phone)" 
+                        Title="Phone"
+                        Validators="@_phoneValidators"
+                        OnSaveAsync="@SavePhoneAsync"
+                        OnSaveResult="@_onSaveResultCallback"
+                        Placeholder="555-123-4567" />
+                    
+                    <MultiStateColumn 
+                        Property="@(c => c.Company)" 
+                        Title="Company"
+                        Validators="@_companyValidators"
+                        OnSaveAsync="@SaveCompanyAsync"
+                        OnSaveResult="@_onSaveResultCallback"
+                        Placeholder="Company name..." />
+                    
+                    <PropertyColumn Property="@(c => c.IsActive)" Title="Active" />
+                    <PropertyColumn Property="@(c => c.CreatedDate)" Title="Created" Format="yyyy-MM-dd" />
+                </QuickGrid>
+            </div>
+        }
+    </section>
+
+    <!-- Demo Section 2: Event Log -->
+    <section class="demo-section">
+        <h2>📋 Event Log</h2>
+        <p>Real-time tracking of all lifecycle events.</p>
+
+        <div class="event-log-controls">
+            <button class="btn btn-secondary" @onclick="ClearEventLog">Clear Log</button>
+            <button class="btn btn-secondary" @onclick="() => _autoScroll = !_autoScroll">
+                Auto-scroll: @(_autoScroll ? "ON" : "OFF")
+            </button>
+        </div>
+
+        <div class="event-log" @ref="_eventLogElement">
+            @if (!_eventLog.Any())
+            {
+                <p class="text-muted">No events yet. Start editing to see events appear here.</p>
+            }
+            else
+            {
+                foreach (var evt in _eventLog.TakeLast(50))
+                {
+                    <div class="event-entry @evt.Type.ToLower()">
+                        <span class="event-time">[@evt.Timestamp.ToString("HH:mm:ss.fff")]</span>
+                        <span class="event-type">@evt.Type</span>
+                        <span class="event-details">@evt.Details</span>
+                    </div>
+                }
+                @if (_eventLog.Count > 50)
+                {
+                    <p class="text-muted">Showing last 50 of @_eventLog.Count events</p>
+                }
+            }
+        </div>
+    </section>
+
+    <!-- Demo Section 3: Validation Showcase -->
+    <section class="demo-section">
+        <h2>✅ Validation Showcase</h2>
+        <p>Examples of different validation rules and error handling.</p>
+
+        <div class="validation-examples">
+            <div class="validation-example">
+                <h3>Name Validation</h3>
+                <ul>
+                    <li>✓ Required</li>
+                    <li>✓ Minimum 2 characters</li>
+                    <li>✓ Maximum 100 characters</li>
+                    <li>✓ Letters and spaces only</li>
+                </ul>
+            </div>
+
+            <div class="validation-example">
+                <h3>Email Validation</h3>
+                <ul>
+                    <li>✓ Required</li>
+                    <li>✓ Valid format (user@domain.com)</li>
+                    <li>✓ Must be unique</li>
+                </ul>
+            </div>
+
+            <div class="validation-example">
+                <h3>Phone Validation</h3>
+                <ul>
+                    <li>✓ Required</li>
+                    <li>✓ Format: 555-123-4567</li>
+                    <li>✓ US phone number format</li>
+                </ul>
+            </div>
+
+            <div class="validation-example">
+                <h3>Company Validation</h3>
+                <ul>
+                    <li>✓ Required</li>
+                    <li>✓ Minimum 2 characters</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section 4: State Machine Diagram -->
+    <section class="demo-section">
+        <h2>🔄 State Machine</h2>
+        <p>Visual representation of cell state transitions.</p>
+
+        <div class="state-diagram">
+            <div class="state-box reading">
+                <div class="state-name">Reading</div>
+                <div class="state-desc">Display-only mode</div>
+            </div>
+            <div class="arrow">→ Edit Click →</div>
+            <div class="state-box editing">
+                <div class="state-name">Editing</div>
+                <div class="state-desc">User input mode</div>
+            </div>
+            <div class="arrow">→ Save Click →</div>
+            <div class="state-box loading">
+                <div class="state-name">Loading</div>
+                <div class="state-desc">Save in progress</div>
+            </div>
+            <div class="arrow">→ Complete →</div>
+            <div class="state-box reading">
+                <div class="state-name">Reading</div>
+                <div class="state-desc">Back to display</div>
+            </div>
+        </div>
+
+        <div class="state-actions">
+            <div class="action-item">
+                <strong>Escape Key / Cancel Button:</strong> Returns to Reading from Editing
+            </div>
+            <div class="action-item">
+                <strong>Enter Key / Save Button:</strong> Transitions to Loading then Reading (if valid)
+            </div>
+            <div class="action-item">
+                <strong>Validation Failure:</strong> Stays in Editing with error messages
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section 5: Architecture Overview -->
+    <section class="demo-section">
+        <h2>🏗️ Architecture Layers</h2>
+        <p>The Multi-State Column is built on a layered architecture.</p>
+
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Core State</div>
+                <div class="layer-content">
+                    <code>MultiState&lt;TValue&gt;</code>, <code>CellState</code> enum
+                </div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Validation</div>
+                <div class="layer-content">
+                    <code>IValidator&lt;TValue&gt;</code>, <code>ValidationResult</code>
+                </div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Component Infrastructure</div>
+                <div class="layer-content">
+                    <code>CellStateCoordinator</code>, <code>EventArgs</code>, <code>ValidationOrchestrator</code>
+                </div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Column Component</div>
+                <div class="layer-content">
+                    <code>MultiStateColumn&lt;TGridItem, TValue&gt;</code>
+                </div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demo (You are here!)</div>
+                <div class="layer-content">
+                    <code>Contact</code>, <code>ContactService</code>, <code>ContactValidators</code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section 6: Features Summary -->
+    <section class="demo-section">
+        <h2>✨ Key Features</h2>
+        
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <div class="feature-title">Thread-Safe</div>
+                <div class="feature-desc">SemaphoreSlim ensures safe concurrent access</div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <div class="feature-title">Memory-Efficient</div>
+                <div class="feature-desc">ConditionalWeakTable prevents memory leaks</div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-title">Async/Await</div>
+                <div class="feature-desc">Non-blocking async operations throughout</div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">✅</div>
+                <div class="feature-title">Flexible Validation</div>
+                <div class="feature-desc">Multiple validators with error aggregation</div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <div class="feature-title">Type-Safe</div>
+                <div class="feature-desc">Generic types ensure compile-time safety</div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-icon">📢</div>
+                <div class="feature-title">Event-Driven</div>
+                <div class="feature-desc">5 lifecycle events for extensibility</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private ContactService _contactService = new();
+    private List<Contact>? _contacts;
+    private ElementReference _eventLogElement;
+    private bool _autoScroll = true;
+
+    // Statistics
+    private int _saveCount;
+    private int _validationErrorCount;
+    private int _cancelCount;
+
+    // Event log
+    private List<EventLogEntry> _eventLog = new();
+
+    // EventCallback fields for event handlers
+    private EventCallback<BeforeEditEventArgs<Contact, string>> _onBeforeEditCallback;
+    private EventCallback<ValueChangingEventArgs<Contact, string>> _onValueChangingCallback;
+    private EventCallback<SaveResultEventArgs<Contact, string>> _onSaveResultCallback;
+    private EventCallback<StateTransitionEventArgs<Contact>> _onStateChangedCallback;
+    private EventCallback<CancelEditEventArgs<Contact, string>> _onCancelEditCallback;
+
+    // Validators for Name field
+    private List<QuickGridTest01.MultiState.Validation.IValidator<string>> _nameValidators = new()
+    {
+        new ContactValidators.Required("Name"),
+        new ContactValidators.MinLength(2, "Name"),
+        new ContactValidators.MaxLength(100, "Name"),
+        new ContactValidators.LettersOnly("Name")
+    };
+
+    // Validators for Email field
+    private List<QuickGridTest01.MultiState.Validation.IValidator<string>> _emailValidators = null!;
+
+    // Validators for Phone field
+    private List<QuickGridTest01.MultiState.Validation.IValidator<string>> _phoneValidators = new()
+    {
+        new ContactValidators.Required("Phone"),
+        new ContactValidators.PhoneFormat()
+    };
+
+    // Validators for Company field
+    private List<QuickGridTest01.MultiState.Validation.IValidator<string>> _companyValidators = new()
+    {
+        new ContactValidators.Required("Company"),
+        new ContactValidators.MinLength(2, "Company")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Initialize EventCallbacks
+        _onBeforeEditCallback = EventCallback.Factory.Create<BeforeEditEventArgs<Contact, string>>(this, OnBeforeEdit);
+        _onValueChangingCallback = EventCallback.Factory.Create<ValueChangingEventArgs<Contact, string>>(this, OnValueChanging);
+        _onSaveResultCallback = EventCallback.Factory.Create<SaveResultEventArgs<Contact, string>>(this, OnSaveResult);
+        _onStateChangedCallback = EventCallback.Factory.Create<StateTransitionEventArgs<Contact>>(this, OnStateChanged);
+        _onCancelEditCallback = EventCallback.Factory.Create<CancelEditEventArgs<Contact, string>>(this, OnCancelEdit);
+
+        // Initialize email validators (needs service instance)
+        _emailValidators = new()
+        {
+            new ContactValidators.Required("Email"),
+            new ContactValidators.EmailFormat(),
+            new ContactValidators.EmailUnique(_contactService)
+        };
+
+        // Seed data
+        await _contactService.SeedDataAsync();
+        
+        // Load contacts
+        _contacts = await _contactService.GetAllAsync();
+
+        LogEvent("INFO", "Demo initialized with sample data");
+    }
+
+    // Save handlers
+    private async Task<(bool, string?)> SaveNameAsync(Contact contact, string name)
+    {
+        return await _contactService.UpdateNameAsync(contact.Id, name);
+    }
+
+    private async Task<(bool, string?)> SaveEmailAsync(Contact contact, string email)
+    {
+        return await _contactService.UpdateEmailAsync(contact.Id, email);
+    }
+
+    private async Task<(bool, string?)> SavePhoneAsync(Contact contact, string phone)
+    {
+        return await _contactService.UpdatePhoneAsync(contact.Id, phone);
+    }
+
+    private async Task<(bool, string?)> SaveCompanyAsync(Contact contact, string company)
+    {
+        return await _contactService.UpdateCompanyAsync(contact.Id, company);
+    }
+
+    // Event handlers
+    private Task OnBeforeEdit(BeforeEditEventArgs<Contact, string> args)
+    {
+        LogEvent("BEFORE_EDIT", $"Contact {args.Item.Id}: Entering edit mode for value '{args.Value}'");
+        return Task.CompletedTask;
+    }
+
+    private Task OnValueChanging(ValueChangingEventArgs<Contact, string> args)
+    {
+        LogEvent("VALUE_CHANGING", $"Contact {args.Item.Id}: '{args.OldValue}' → '{args.NewValue}'");
+        return Task.CompletedTask;
+    }
+
+    private Task OnSaveResult(SaveResultEventArgs<Contact, string> args)
+    {
+        if (args.Success)
+        {
+            _saveCount++;
+            LogEvent("SAVE_SUCCESS", $"Contact {args.Item.Id}: Saved value '{args.Value}'");
+        }
+        else
+        {
+            _validationErrorCount++;
+            LogEvent("SAVE_ERROR", $"Contact {args.Item.Id}: Failed - {args.ErrorMessage}");
+        }
+        return Task.CompletedTask;
+    }
+
+    private Task OnStateChanged(StateTransitionEventArgs<Contact> args)
+    {
+        LogEvent("STATE_CHANGE", $"Contact {args.Item.Id}: {args.OldState} → {args.NewState}");
+        return Task.CompletedTask;
+    }
+
+    private Task OnCancelEdit(CancelEditEventArgs<Contact, string> args)
+    {
+        _cancelCount++;
+        LogEvent("CANCEL_EDIT", $"Contact {args.Item.Id}: Cancelled (restored '{args.OriginalValue}')");
+        return Task.CompletedTask;
+    }
+
+    // Event log helpers
+    private void LogEvent(string type, string details)
+    {
+        _eventLog.Add(new EventLogEntry
+        {
+            Timestamp = DateTime.Now,
+            Type = type,
+            Details = details
+        });
+
+        StateHasChanged();
+    }
+
+    private void ClearEventLog()
+    {
+        _eventLog.Clear();
+        _saveCount = 0;
+        _validationErrorCount = 0;
+        _cancelCount = 0;
+        StateHasChanged();
+    }
+
+    private class EventLogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string Details { get; set; } = string.Empty;
+    }
+}
