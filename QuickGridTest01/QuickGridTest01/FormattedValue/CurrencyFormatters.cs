@@ -59,12 +59,16 @@ public static class CurrencyFormatters
                 return string.Empty;
 
             var absValue = Math.Abs(decimalValue.Value);
-            var formatted = absValue.ToString($"N{decimals}", CultureInfo.CurrentCulture);
-            
+            // Use current culture for numeric formatting
+            var formattedNumber = absValue.ToString($"N{decimals}", CultureInfo.CurrentCulture);
+            var symbol = CultureInfo.CurrentCulture.NumberFormat.CurrencySymbol;
+
             if (decimalValue.Value < 0)
-                return $"(${formatted})";
-            
-            return $"${formatted}";
+            {
+                // Accounting format: parentheses, symbol before number
+                return $"({symbol}{formattedNumber})";
+            }
+            return $"{symbol}{formattedNumber}";
         };
     }
 

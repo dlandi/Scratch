@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using System.Linq.Expressions;
+using System.Globalization;
 
 namespace QuickGridTest01.FormattedValue.Component;
 
 /// <summary>
 /// A QuickGrid column that formats values using a provided formatter function.
 /// Provides strongly-typed property access with efficient expression compilation.
+/// Supports culture-aware formatting that responds to culture changes.
 /// </summary>
 /// <typeparam name="TGridItem">The type of data represented by each row in the grid</typeparam>
 /// <typeparam name="TValue">The type of the property being formatted</typeparam>
@@ -21,9 +23,17 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     /// <summary>
     /// Gets or sets the formatter function that converts the property value to a display string.
+    /// This can be a property that returns a new formatter on each access for culture-aware formatting.
     /// </summary>
     [Parameter, EditorRequired]
     public Func<object?, string> Formatter { get; set; } = default!;
+    
+    /// <summary>
+    /// Gets or sets the culture name for formatting. When this changes, the component will re-render.
+    /// This enables culture-aware formatting to work correctly.
+    /// </summary>
+    [Parameter]
+    public string? CultureName { get; set; }
 
     // Cached compiled property accessor for performance
     private Expression<Func<TGridItem, TValue>>? _lastAssignedProperty;
@@ -84,6 +94,8 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         var value = _compiledPropertyGetter(item);
 
         // Format the value using the provided formatter
+        // The Formatter parameter should be a property that creates a new formatter
+        // with CultureInfo.CurrentCulture on each access
         var formattedValue = Formatter(value);
 
         // Render the formatted value
