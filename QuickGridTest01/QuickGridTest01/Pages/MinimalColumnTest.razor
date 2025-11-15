@@ -1,0 +1,166 @@
+@page "/minimal-column-test"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+
+<PageTitle>Minimal Column Test</PageTitle>
+
+<h3>Minimal Custom Column Test (.NET 9)</h3>
+
+<p>This page tests the absolute simplest custom column possible. Check your browser console for diagnostic output.</p>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #f0f0f0; border: 2px solid #333;">
+    <h4>Test 1: Standard PropertyColumn (Control)</h4>
+    <p>This should ALWAYS work:</p>
+    
+    <QuickGrid Items="@employees" style="width: 100%; border: 1px solid black;">
+        <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+        <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" />
+        <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" />
+    </QuickGrid>
+    
+    <p style="margin-top: 10px;">
+        ✅ If you see the grid above with 3 employees, QuickGrid is working correctly.
+    </p>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 2px solid #856404;">
+    <h4>Test 2: MinimalTestColumn (Custom Column)</h4>
+    <p>This uses the simplest possible custom column. Check console for logs:</p>
+    
+    <QuickGrid Items="@employees" style="width: 100%; border: 1px solid black;">
+        <MinimalTestColumn TGridItem="Employee" 
+                          GetValue="@(e => e.Id.ToString())" 
+                          Title="ID" />
+        <MinimalTestColumn TGridItem="Employee" 
+                          GetValue="@(e => e.FirstName)" 
+                          Title="First Name" />
+        <MinimalTestColumn TGridItem="Employee" 
+                          GetValue="@(e => e.LastName)" 
+                          Title="Last Name" />
+    </QuickGrid>
+    
+    <p style="margin-top: 10px;">
+        <strong>Expected:</strong> Yellow background cells with "TEST: " prefix<br/>
+        <strong>If missing:</strong> Check browser console for "MinimalTestColumn" logs
+    </p>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #d1ecf1; border: 2px solid #0c5460;">
+    <h4>Test 3: IconColumn (Known Working Custom Column)</h4>
+    <p>This uses your IconColumn that we know works:</p>
+    
+    <QuickGrid Items="@employees" style="width: 100%; border: 1px solid black;">
+        <IconColumn TGridItem="Employee" 
+                   TValue="int"
+                   Property="@(e => e.Id)"
+                   IconMapper="@(id => "bi bi-hash")"
+                   Title="ID"
+                   ShowValue="true" />
+        <IconColumn TGridItem="Employee" 
+                   TValue="string"
+                   Property="@(e => e.FirstName)"
+                   IconMapper="@(name => "bi bi-person")"
+                   Title="First Name"
+                   ShowValue="true" />
+    </QuickGrid>
+    
+    <p style="margin-top: 10px;">
+        ✅ If this works, custom columns CAN work in your environment
+    </p>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #f8d7da; border: 2px solid #721c24;">
+    <p>Testing component instantiation:</p>
+    @{
+        try
+        {
+            var testColumn = new DynamicColumn_Simple<Employee, string>
+            {
+                GetValue = employee => employee.FirstName // or any other appropriate property
+            };
+            <p style="color: green;">✅ DynamicColumn_Simple can be instantiated</p>
+        }
+        catch (Exception ex)
+        {
+            <p style="color: red;">❌ Error: @ex.Message</p>
+        }
+    }
+
+    <h4>Test 4: Simplified DynamicColumn</h4>
+    <p>This is a simplified version with basic features only (no nested properties yet):</p>
+    
+    @try
+    {
+        <QuickGrid Items="@employees" style="width: 100%; border: 1px solid black;">
+            <DynamicColumn_Simple TGridItem="Employee" TValue="int"
+                                  GetValue="@(e => e.Id)"
+                                  Title="ID" />
+            <DynamicColumn_Simple TGridItem="Employee" TValue="string"
+                                  GetValue="@(e => e.FirstName)"
+                                  Title="First Name" />
+        </QuickGrid>
+    }
+    catch (Exception ex)
+    {
+        <p style="color: red;">Grid error: @ex.Message</p>
+    }
+    
+    <p style="margin-top: 10px;">
+        <strong>Expected:</strong> Blue border cells (instead of yellow)<br/>
+        <strong>If this works:</strong> Basic DynamicColumn logic is sound<br/>
+        <strong>If this fails:</strong> Check console for specific error in expression building<br/>
+        <strong>Look for:</strong> Console logs starting with "DynamicColumn_Simple"
+    </p>
+</div>
+
+
+<h5>Ultra-Minimal Test (Two Type Parameters):</h5>
+<QuickGrid Items="@employees">
+    <UltraMinimalColumn TGridItem="Employee" TValue="int"
+                        GetValue="@(e => e.Id)"
+                        Title="ID" />
+    <UltraMinimalColumn TGridItem="Employee" TValue="string"
+                        GetValue="@(e => e.FirstName)"
+                        Title="First" />
+</QuickGrid>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #e7f3ff; border: 2px solid #004085;">
+    <h4>Debug Information</h4>
+    <p>Open browser console (F12) and look for:</p>
+    <ul>
+        <li><code>MinimalTestColumn.OnInitialized</code> - Shows column is being created</li>
+        <li><code>MinimalTestColumn.OnParametersSet</code> - Shows parameters are being set</li>
+        <li><code>MinimalTestColumn.CellContent</code> - Shows rendering is being called</li>
+        <li>Any errors or exceptions</li>
+    </ul>
+    
+    <p>Employee count: <strong>@employees.Count()</strong></p>
+    <p>.NET Version: <strong>@Environment.Version</strong></p>
+</div>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine("=== PAGE INITIALIZED ===");
+        
+        var employeeList = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith" },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson" },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown" }
+        };
+        employees = employeeList.AsQueryable();
+        
+        Console.WriteLine($"Loaded {employees.Count()} employees");
+        Console.WriteLine($".NET Version: {Environment.Version}");
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+    }
+}

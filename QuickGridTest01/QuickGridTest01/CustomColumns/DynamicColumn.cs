@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
 using System.Linq.Expressions;
@@ -7,77 +7,77 @@ using System.Reflection;
 namespace QuickGridTest01.CustomColumns;
 
 /// <summary>
-/// Dynamic column with runtime property path resolution (including nested paths).
-/// Pattern mirrors IconColumn: exposes a strongly typed Property delegate so QuickGrid can register the column.
-/// Usage example:
-/// <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="Address.City" Title="City" />
+/// Dynamic column supporting either a strongly-typed Property expression (enables sorting)
+/// or a dotted PropertyPath (render-only, no sorting). Mirrors the simple patterns in
+/// FormattedValueColumn and MultiStateColumn to avoid QuickGrid suppression when using
+/// complex, runtime-built expressions.
 /// </summary>
 public class DynamicColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
-    // Configuration parameters
-    [Parameter] public string? PropertyPath { get; set; }   // Alternative to supplying Property directly
-    [Parameter] public Func<TGridItem, TValue>? Property { get; set; } // Strongly typed accessor (preferred)
-    [Parameter] public string? Format { get; set; }
-    [Parameter] public Func<TValue, string>? CustomFormatter { get; set; }
-    [Parameter] public bool ShowValue { get; set; } = true;
+    // Strongly-typed expression (preferred). When supplied, enables sorting.
+    [Parameter] public Expression<Func<TGridItem, TValue>>? Property { get; set; }
 
-    // Internal state
-    private Func<TGridItem, TValue>? _accessor; // Current effective accessor
-    private string? _lastPath;
-    private Func<TGridItem, string?>? _formattedAccessor;
-    private GridSort<TGridItem>? _sortBuilder;
-    private bool _isInitialized;
+    // Dotted path (nested property traversal). When used, render-only (no SortBy).
+    [Parameter] public string? PropertyPath { get; set; }
+
+    [Parameter] public string? Format { get; set; }
+    [Parameter] public Func<object?, string>? CustomFormatter { get; set; }
+
+    private Func<TGridItem, TValue>? _compiledAccessor;        // For cell rendering
+    private Expression<Func<TGridItem, TValue>>? _compiledExpression; // For sorting (if Property provided)
+    private GridSort<TGridItem>? _sortBy;
 
     public override GridSort<TGridItem>? SortBy
     {
-        get => _sortBuilder;
-        set => _sortBuilder = value;
+        get => _sortBy;
+        set => _sortBy = value;
     }
 
-    protected override void OnInitialized()
+    protected override void OnParametersSet()
     {
-        _isInitialized = true;
-
+        // Validate input
         if (Property is null && string.IsNullOrWhiteSpace(PropertyPath))
         {
             throw new InvalidOperationException($"{nameof(DynamicColumn<TGridItem, TValue>)} requires either {nameof(Property)} or {nameof(PropertyPath)}.");
         }
 
-        base.OnInitialized();
-    }
-
-    protected override void OnParametersSet()
-    {
-        if (!_isInitialized)
+        if (Property is not null)
         {
-            return;
-        }
-
-        // Decide whether we need to rebuild accessor
-        bool rebuild = false;
-        if (Property is not null && _accessor != Property)
-        {
-            _accessor = Property;
-            rebuild = true;
-        }
-        else if (Property is null && _lastPath != PropertyPath)
-        {
-            _lastPath = PropertyPath;
-            _accessor = BuildAccessorFromPath(PropertyPath!);
-            rebuild = true;
-        }
-
-        if (rebuild)
-        {
-            _formattedAccessor = BuildFormattedAccessor();
-            if (Sortable ?? false)
+            // Use provided expression directly (QuickGrid-friendly)
+            if (!ReferenceEquals(_compiledExpression, Property))
             {
-                _sortBuilder = BuildSort();
+                _compiledExpression = Property;
+                _compiledAccessor = _compiledExpression.Compile();
+
+                if (Sortable ?? false)
+                {
+                    // Only assign SortBy for comparable key types
+                    var keyType = _compiledExpression.Body.Type;
+                    if (IsSortableType(keyType))
+                    {
+                        _sortBy = GridSort<TGridItem>.ByAscending(_compiledExpression);
+                    }
+                    else
+                    {
+                        _sortBy = null; // Avoid unsortable types
+                    }
+                }
             }
-            if (string.IsNullOrEmpty(Title))
-            {
-                Title = GetDisplayName(PropertyPath ?? "");
-            }
+        }
+        else if (PropertyPath is not null)
+        {
+            // Render-only path: compile a delegate, do NOT build an expression tree for QuickGrid
+            _compiledAccessor = BuildDelegateFromPath(PropertyPath);
+            _compiledExpression = null; // Ensure QuickGrid only sees delegate usage in CellContent
+            _sortBy = null; // No sorting for path-based dynamic columns
+        }
+
+        // Derive title if absent
+        if (string.IsNullOrEmpty(Title))
+        {
+            Title = PropertyPath is not null
+                ? GetDisplayName(PropertyPath)
+                : DeriveDisplayNameFromExpression(_compiledExpression);
         }
 
         base.OnParametersSet();
@@ -85,31 +85,37 @@ public class DynamicColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
-        if (_accessor is null)
+        if (_compiledAccessor is null)
         {
-            builder.AddContent(0, "[No Accessor]");
+            builder.AddContent(0, string.Empty);
             return;
         }
 
-        var formatted = _formattedAccessor?.Invoke(item) ?? string.Empty;
+        var raw = _compiledAccessor(item);
 
-        if (!ShowValue)
+        string formatted;
+        if (raw is null)
         {
-            // If value should be hidden, render empty container (could style later)
-            builder.OpenElement(0, "span");
-            builder.AddAttribute(1, "class", "dynamic-column-empty");
-            builder.CloseElement();
-            return;
+            formatted = string.Empty;
+        }
+        else if (CustomFormatter is not null)
+        {
+            formatted = CustomFormatter(raw);
+        }
+        else if (!string.IsNullOrEmpty(Format) && raw is IFormattable formattable)
+        {
+            formatted = formattable.ToString(Format, null) ?? string.Empty;
+        }
+        else
+        {
+            formatted = raw.ToString() ?? string.Empty;
         }
 
-        builder.OpenElement(0, "span");
-        builder.AddAttribute(1, "class", "dynamic-column-value");
-        builder.AddContent(2, formatted);
-        builder.CloseElement();
+        // Minimal rendering (match FormattedValueColumn style for reliability)
+        builder.AddContent(0, formatted);
     }
 
-    // Build strongly typed accessor from a dotted path (supports nested properties)
-    private Func<TGridItem, TValue> BuildAccessorFromPath(string path)
+    private static Func<TGridItem, TValue> BuildDelegateFromPath(string path)
     {
         var parameter = Expression.Parameter(typeof(TGridItem), "item");
         Expression current = parameter;
@@ -126,28 +132,16 @@ public class DynamicColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             currentType = prop.PropertyType;
         }
 
-        // Handle common flexible cases
+        // Special cases for flexible TValue
         if (typeof(TValue) == typeof(object))
         {
-            // Box any value type; pass-through reference types
-            if (current.Type.IsValueType)
-            {
-                current = Expression.Convert(current, typeof(object));
-            }
-            else if (current.Type != typeof(object))
-            {
-                current = Expression.Convert(current, typeof(object));
-            }
-
-            var lambdaObj = Expression.Lambda<Func<TGridItem, object>>(current, parameter);
-            var compiledObj = lambdaObj.Compile();
-            // Wrap to match Func<TGridItem, TValue>
-            return (TGridItem item) => (TValue)(object?)compiledObj(item)!;
+            Expression boxed = current.Type.IsValueType ? Expression.Convert(current, typeof(object)) : Expression.Convert(current, typeof(object));
+            var lambdaObj = Expression.Lambda<Func<TGridItem, object>>(boxed, parameter).Compile();
+            return (TGridItem item) => (TValue)lambdaObj(item)!;
         }
 
         if (typeof(TValue) == typeof(string))
         {
-            // Build ToString with null safety for reference types
             Expression toStringExpr;
             if (!current.Type.IsValueType)
             {
@@ -159,78 +153,59 @@ public class DynamicColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             }
             else
             {
-                // Value types are non-nullable here; direct ToString
                 toStringExpr = Expression.Call(current, current.Type.GetMethod(nameof(object.ToString), Type.EmptyTypes)!);
             }
-
-            var lambdaStr = Expression.Lambda<Func<TGridItem, string>>(toStringExpr, parameter);
-            var compiledStr = lambdaStr.Compile();
-            return (TGridItem item) => (TValue)(object)compiledStr(item);
+            var lambdaStr = Expression.Lambda<Func<TGridItem, string>>(toStringExpr, parameter).Compile();
+            return (TGridItem item) => (TValue)(object)lambdaStr(item);
         }
 
-        // If destination type is assignable, cast/box if necessary
-        if (typeof(TValue).IsAssignableFrom(currentType))
+        // Direct assignable
+        if (typeof(TValue).IsAssignableFrom(current.Type))
         {
             if (current.Type != typeof(TValue))
             {
                 current = Expression.Convert(current, typeof(TValue));
             }
-            var lambda = Expression.Lambda<Func<TGridItem, TValue>>(current, parameter);
-            return lambda.Compile();
+            return Expression.Lambda<Func<TGridItem, TValue>>(current, parameter).Compile();
         }
 
-        // Try runtime conversion using Convert.ChangeType for other convertible pairs
-        var boxed = Expression.Convert(current, typeof(object));
+        // Fallback: Convert.ChangeType
+        var boxedValue = Expression.Convert(current, typeof(object));
         var changeType = typeof(Convert).GetMethod(nameof(Convert.ChangeType), new[] { typeof(object), typeof(Type) })!;
         var targetTypeExpr = Expression.Constant(typeof(TValue), typeof(Type));
-        var changed = Expression.Call(changeType, boxed, targetTypeExpr);
+        var changed = Expression.Call(changeType, boxedValue, targetTypeExpr);
         var casted = Expression.Convert(changed, typeof(TValue));
-        var lambdaFallback = Expression.Lambda<Func<TGridItem, TValue>>(casted, parameter);
-        return lambdaFallback.Compile();
+        return Expression.Lambda<Func<TGridItem, TValue>>(casted, parameter).Compile();
     }
 
-    private Func<TGridItem, string?> BuildFormattedAccessor()
+    private static bool IsSortableType(Type t)
     {
-        return item =>
+        if (t == typeof(object)) return false;
+        if (typeof(IComparable).IsAssignableFrom(t)) return true;
+        foreach (var i in t.GetInterfaces())
         {
-            try
-            {
-                var value = _accessor!(item);
-                if (value is null)
-                {
-                    return string.Empty;
-                }
-                if (CustomFormatter is not null)
-                {
-                    return CustomFormatter(value);
-                }
-                if (!string.IsNullOrEmpty(Format) && value is IFormattable formattable)
-                {
-                    return formattable.ToString(Format, null);
-                }
-                return value.ToString();
-            }
-            catch (Exception ex)
-            {
-                return $"[Error: {ex.Message}]";
-            }
-        };
-    }
-
-    private GridSort<TGridItem> BuildSort()
-    {
-        // Simple stable ascending sort based on the underlying value
-        return GridSort<TGridItem>.ByAscending(item => _accessor!(item))
-                                   .ThenAscending(item => item); // stable fallback
+            if (i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IComparable<>)) return true;
+        }
+        return false;
     }
 
     private static string GetDisplayName(string path)
     {
-        if (string.IsNullOrEmpty(path))
-        {
-            return string.Empty;
-        }
+        if (string.IsNullOrEmpty(path)) return string.Empty;
         var last = path.Split('.').Last();
         return string.Concat(last.Select((c, i) => i > 0 && char.IsUpper(c) ? " " + c : c.ToString()));
+    }
+
+    private static string DeriveDisplayNameFromExpression(Expression<Func<TGridItem, TValue>>? expr)
+    {
+        if (expr is null) return string.Empty;
+        Expression body = expr.Body;
+        var segments = new List<string>();
+        while (body is MemberExpression m)
+        {
+            segments.Insert(0, m.Member.Name);
+            body = m.Expression!;
+        }
+        return segments.Count > 0 ? string.Join('.', segments) : string.Empty;
     }
 }

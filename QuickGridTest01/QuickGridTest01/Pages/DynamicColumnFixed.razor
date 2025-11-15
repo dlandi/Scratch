@@ -1,0 +1,109 @@
+@page "/dynamic-column-fixed"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+
+<PageTitle>DynamicColumn - Fixed Implementation</PageTitle>
+
+<h3>DynamicColumn - Production Ready</h3>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #d4edda; border: 2px solid #28a745;">
+    <h4>✅ Fixed DynamicColumn</h4>
+    <p>This version works correctly with exact type matching.</p>
+    
+    <QuickGrid Items="@employees" Class="table">
+        <DynamicColumn TGridItem="Employee" TValue="int" PropertyPath="Id" Title="ID" />
+        <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="FirstName" Title="First Name" />
+        <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="LastName" Title="Last Name" />
+        <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="Address.City" Title="City" />
+        <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="Address.ZipCode" Title="Zip" />
+        <DynamicColumn TGridItem="Employee" TValue="string" PropertyPath="Department.Name" Title="Department" />
+        <DynamicColumn TGridItem="Employee" TValue="decimal" PropertyPath="Salary" Format="C0" Title="Salary" />
+        <DynamicColumn TGridItem="Employee" TValue="DateTime" PropertyPath="HireDate" Format="yyyy-MM-dd" Title="Hire Date" />
+    </QuickGrid>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #e7f3ff;">
+    <h4>Key Requirements</h4>
+    <ul>
+        <li><strong>Exact Type Match:</strong> TValue must match property type exactly</li>
+        <li><strong>int properties:</strong> Use <code>TValue="int"</code></li>
+        <li><strong>string properties:</strong> Use <code>TValue="string"</code></li>
+        <li><strong>decimal properties:</strong> Use <code>TValue="decimal"</code></li>
+        <li><strong>DateTime properties:</strong> Use <code>TValue="DateTime"</code></li>
+        <li><strong>Nested properties:</strong> Use dot notation like <code>"Address.City"</code></li>
+    </ul>
+</div>
+
+<div style="margin: 20px 0; padding: 15px; background-color: #fff3cd;">
+    <h4>Configuration Example</h4>
+    <pre>var columns = new ColumnMetadataBuilder()
+    .Add("Id", m => { m.Title = "ID"; })
+    .Add("FirstName", m => { m.Title = "First Name"; })
+    .Add("Address.City", m => { m.Title = "City"; })
+    .Add("Salary", m => { m.Title = "Salary"; m.Format = "C0"; })
+    .Build();</pre>
+</div>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+
+    protected override void OnInitialized()
+    {
+        var employeeList = new List<Employee>
+        {
+            new()
+            {
+                Id = 1,
+                FirstName = "John",
+                LastName = "Smith",
+                Address = new Address { City = "New York", ZipCode = "10001" },
+                Department = new Department { Name = "Engineering" },
+                Salary = 95000,
+                HireDate = new DateTime(2020, 3, 15)
+            },
+            new()
+            {
+                Id = 2,
+                FirstName = "Sarah",
+                LastName = "Johnson",
+                Address = new Address { City = "Los Angeles", ZipCode = "90001" },
+                Department = new Department { Name = "Marketing" },
+                Salary = 82000,
+                HireDate = new DateTime(2021, 7, 22)
+            },
+            new()
+            {
+                Id = 3,
+                FirstName = "Michael",
+                LastName = "Brown",
+                Address = new Address { City = "Chicago", ZipCode = "60601" },
+                Department = new Department { Name = "Engineering" },
+                Salary = 103000,
+                HireDate = new DateTime(2019, 1, 10)
+            }
+        };
+        employees = employeeList.AsQueryable();
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public Address Address { get; set; } = default!;
+        public Department Department { get; set; } = default!;
+        public decimal Salary { get; set; }
+        public DateTime HireDate { get; set; }
+    }
+
+    public class Address
+    {
+        public string City { get; set; } = string.Empty;
+        public string ZipCode { get; set; } = string.Empty;
+    }
+
+    public class Department
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+}
