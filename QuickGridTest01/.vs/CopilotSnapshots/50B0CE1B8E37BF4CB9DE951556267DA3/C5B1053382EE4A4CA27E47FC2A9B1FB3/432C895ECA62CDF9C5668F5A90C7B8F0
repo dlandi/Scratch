@@ -1,0 +1,430 @@
+﻿@page "/formatted-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.FormattedValue.Component
+@using QuickGridTest01.FormattedValue.Formatters
+@using QuickGridTest01.FormattedValue.Demo.Models
+@using System.Globalization
+
+<PageTitle>Formatted Value Column - Demo</PageTitle>
+
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #6366f1; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#6366f1;">Why a FormattedValueColumn?</h3>
+    <p><strong>Problem:</strong> Repeating <code>ToString()</code>, format strings, and culture switches inline in grids leads to scattered logic, inconsistent formatting (currency, percentages, dates), and difficult runtime switching. Complex formats (human duration, file sizes, relative dates) require custom extension code that becomes noisy in page markup.</p>
+    <p><strong>Solution:</strong> <code>FormattedValueColumn&lt;TItem,TValue&gt;</code> centralizes formatting by accepting a <code>Formatter</code> delegate plus an optional <code>CultureName</code>. Consumers declare intent ("use accounting currency", "compact number", "relative date") while the component handles value extraction, culture selection, and rendering.</p>
+    <p><strong>Runtime Switching Demo:</strong> Drop‑downs change culture, date/time style, and numeric style. Each selection triggers a single grid re-render; columns recompute only their formatting delegate—no need to recreate the grid or duplicate conditional logic.</p>
+    <p><strong>Benefits:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li><em>Declarative:</em> Page markup stays concise; complex formatter logic lives in a library.</li>
+        <li><em>Type‑Safe:</em> Property expressions supply sort support and compiled value access.</li>
+        <li><em>Extensible:</em> Add new delegates (e.g. temperature, distance, ordinal) without changing the column contract.</li>
+        <li><em>Culture Awareness:</em> Per-column culture override enables mixed-locale displays (demo uses a global selector).</li>
+        <li><em>Separation of Concerns:</em> Formatting decisions are isolated from layout/pagination concerns.</li>
+        <li><em>Consistency:</em> Shared helpers (numeric, currency, date/time, specialized) prevent subtly different patterns across pages.</li>
+    </ul>
+    <p><strong>Formatter Strategy:</strong> Library exposes factory functions returning <code>Func&lt;object?, string&gt;</code>. Column invokes the selected delegate with the raw value. This keeps column code simple and reduces allocations (only string results).</p>
+    <p><strong>Performance:</strong> Property lambda compiled once. Switching culture or style replaces delegates (cheap). No reflection per cell; only a direct cast + formatter call. Advanced formatters (relative date, file size, accounting) encapsulate reusable algorithms.</p>
+    <p><strong>Use Cases:</strong> Financial dashboards (multi-currency), operations consoles (durations & bytes), analytics (scientific / compact numbers), administrative tables (localized timestamps), and any scenario requiring user-driven formatting toggles.</p>
+    <p><strong>Contrast with Plain Columns:</strong> A standard <code>PropertyColumn</code> can apply a basic <code>Format</code> string; complex or conditional formatting requires ad hoc code or templates. <code>FormattedValueColumn</code> upgrades this to a composable, library-driven approach with dynamic runtime selection.</p>
+    <p><strong>Example:</strong></p>
+    <pre style="margin-top:.5rem;"><code>&lt;FormattedValueColumn
+    Property="@@(m =&gt; m.CurrentValue)"
+    Formatter="@@NumericSelectionFormatter1"
+    CultureName="@@SelectedCulture"
+    Title="Current" /&gt;</code></pre>
+</div>
+
+<div class="demo-container">
+    <header class="demo-header">
+        <h1>📊 FormattedValueColumn Demonstration</h1>
+        <p class="subtitle">Comprehensive formatting examples</p>
+    </header>
+
+    <div class="culture-selector">
+        <label>
+            <strong>Culture:</strong>
+            <select @bind="SelectedCulture" @bind:after="OnCultureChanged">
+                <option value="en-US">🇺🇸 English (United States)</option>
+                <option value="en-GB">🇬🇧 English (United Kingdom)</option>
+                <option value="de-DE">🇩🇪 German (Germany)</option>
+                <option value="fr-FR">🇫🇷 French (France)</option>
+                <option value="ja-JP">🇯🇵 Japanese (Japan)</option>
+                <option value="es-ES">🇪🇸 Spanish (Spain)</option>
+            </select>
+        </label>
+        <label style="margin-left:1rem;">
+            <strong>Date/Time:</strong>
+            <select @bind="SelectedDateTimeFormat" @bind:after="OnDateTimeFormatChanged">
+                <option value="short">Short Date</option>
+                <option value="long">Long Date</option>
+                <option value="general">Date &amp; Time (General)</option>
+                <option value="iso">ISO Date</option>
+                <option value="relative">Relative Date</option>
+                <option value="time12">Time (12h)</option>
+                <option value="time24">Time (24h)</option>
+            </select>
+        </label>
+        <label style="margin-left:1rem;">
+            <strong>Numeric:</strong>
+            <select @bind="SelectedNumericFormat" @bind:after="OnNumericFormatChanged">
+                <option value="number">Number (N)</option>
+                <option value="fixed">Fixed (F)</option>
+                <option value="scientific">Scientific (E)</option>
+                <option value="compact">Compact (K/M/B)</option>
+            </select>
+        </label>
+    </div>
+    <div style="margin-top:.5rem;">
+        <span class="culture-info">Current: @CurrentCulture.DisplayName | DateTime: @SelectedDateTimeFormat | Numeric: @SelectedNumericFormat</span>
+    </div>
+
+    <!-- Demo 1: Financial Transactions -->
+    <section class="demo-section">
+        <div class="section-header">
+            <h2>💰 Financial Transactions</h2>
+            <p>Currency formatting with accounting style for negative values & selectable date format</p>
+        </div>
+
+        <QuickGrid Items="@Transactions" Class="demo-grid" @key="@GridKey">
+            <FormattedValueColumn Property="@(t => t.Date)"
+                                Formatter="@DateTimeSelectionFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Date" />
+            <PropertyColumn Property="@(t => t.Description)" Title="Description" />
+            <PropertyColumn Property="@(t => t.Type)" Title="Type" />
+            
+            <FormattedValueColumn Property="@(t => t.Amount)"
+                                Formatter="@CurrencyFormatter2"
+                                CultureName="@SelectedCulture"
+                                Title="Amount" />
+            
+            <FormattedValueColumn Property="@(t => t.Balance)"
+                                Formatter="@CurrencyAccountingFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Balance" />
+        </QuickGrid>
+    </section>
+
+    <!-- Demo 2: Product Inventory -->
+    <section class="demo-section">
+        <div class="section-header">
+            <h2>📦 Product Inventory</h2>
+            <p>Mixed formats with selectable date and numeric representation</p>
+        </div>
+
+        <QuickGrid Items="@Products" Class="demo-grid" @key="@GridKey">
+            <PropertyColumn Property="@(p => p.Name)" Title="Product" />
+            
+            <FormattedValueColumn Property="@(p => p.Price)"
+                                Formatter="@CurrencyFormatter2"
+                                CultureName="@SelectedCulture"
+                                Title="Price" />
+            
+            <FormattedValueColumn Property="@(p => p.DiscountedPrice)"
+                                Formatter="@CurrencyFormatter2"
+                                CultureName="@SelectedCulture"
+                                Title="Discounted" />
+            
+            <FormattedValueColumn Property="@(p => p.DiscountPercent)"
+                                Formatter="@PercentageFormatter0"
+                                CultureName="@SelectedCulture"
+                                Title="Discount" />
+            
+            <FormattedValueColumn Property="@(p => p.Stock)"
+                                Formatter="@NumericSelectionFormatter0"
+                                CultureName="@SelectedCulture"
+                                Title="Stock" />
+            
+            <FormattedValueColumn Property="@(p => p.Weight)"
+                                Formatter="@NumericSelectionFormatter1"
+                                CultureName="@SelectedCulture"
+                                Title="Weight (g)" />
+            
+            <FormattedValueColumn Property="@(p => p.SizeBytes)"
+                                Formatter="@FileSizeFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Package Size" />
+            
+            <FormattedValueColumn Property="@(p => p.LastRestocked)"
+                                Formatter="@DateTimeSelectionFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Last Restocked" />
+        </QuickGrid>
+    </section>
+
+    <!-- Demo 3: Employee Directory -->
+    <section class="demo-section">
+        <div class="section-header">
+            <h2>👥 Employee Directory</h2>
+            <p>Date formats & phone numbers with selectable date/time style</p>
+        </div>
+
+        <QuickGrid Items="@Employees" Class="demo-grid" @key="@GridKey">
+            <PropertyColumn Property="@(e => e.FullName)" Title="Name" />
+            
+            <PropertyColumn Property="@(e => e.Email)" Title="Email" />
+            
+            <FormattedValueColumn Property="@(e => e.Phone)"
+                                Formatter="@PhoneNumberFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Phone" />
+            
+            <FormattedValueColumn Property="@(e => e.HireDate)"
+                                Formatter="@DateTimeSelectionFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Hire Date" />
+            
+            <FormattedValueColumn Property="@(e => e.Salary)"
+                                Formatter="@CurrencyFormatter0"
+                                CultureName="@SelectedCulture"
+                                Title="Salary" />
+            
+            <FormattedValueColumn Property="@(e => e.IsActive)"
+                                Formatter="@YesNoFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Active" />
+        </QuickGrid>
+    </section>
+
+    <!-- Demo 4: Performance Metrics -->
+    <section class="demo-section">
+        <div class="section-header">
+            <h2>📈 Performance Metrics</h2>
+            <p>Calculated properties with selectable numeric representation</p>
+        </div>
+
+        <QuickGrid Items="@Metrics" Class="demo-grid" @key="@GridKey">
+            <PropertyColumn Property="@(m => m.MetricName)" Title="Metric" />
+            
+            <FormattedValueColumn Property="@(m => m.CurrentValue)"
+                                Formatter="@NumericSelectionFormatter1"
+                                CultureName="@SelectedCulture"
+                                Title="Current" />
+            
+            <FormattedValueColumn Property="@(m => m.TargetValue)"
+                                Formatter="@NumericSelectionFormatter1"
+                                CultureName="@SelectedCulture"
+                                Title="Target" />
+            
+            <FormattedValueColumn Property="@(m => m.PercentOfTarget)"
+                                Formatter="@PercentageFormatter1"
+                                CultureName="@SelectedCulture"
+                                Title="% of Target" />
+            
+            <FormattedValueColumn Property="@(m => m.ChangePercent)"
+                                Formatter="@PercentageFormatter1"
+                                CultureName="@SelectedCulture"
+                                Title="Change %" />
+        </QuickGrid>
+    </section>
+
+    <!-- Demo 5: System Logs -->
+    <section class="demo-section">
+        <div class="section-header">
+            <h2>📝 System Logs</h2>
+            <p>Timestamps & durations with selectable date/time style</p>
+        </div>
+
+        <QuickGrid Items="@Logs" Class="demo-grid" @key="@GridKey">
+            <FormattedValueColumn Property="@(l => l.Timestamp)"
+                                Formatter="@DateTimeSelectionFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Timestamp" />
+            
+            <PropertyColumn Property="@(l => l.Level)" Title="Level" />
+            
+            <PropertyColumn Property="@(l => l.Source)" Title="Source" />
+            
+            <PropertyColumn Property="@(l => l.Message)" Title="Message" />
+            
+            <FormattedValueColumn Property="@(l => l.Duration)"
+                                Formatter="@HumanDurationFormatter"
+                                CultureName="@SelectedCulture"
+                                Title="Duration" />
+            
+            <FormattedValueColumn Property="@(l => l.MemoryBytes)"
+                                Formatter="@FileSizeFormatter2"
+                                CultureName="@SelectedCulture"
+                                Title="Memory" />
+        </QuickGrid>
+    </section>
+
+    <!-- Documentation Section -->
+    <section class="demo-documentation">
+        <h2>📚 About This Demo</h2>
+        
+        <div class="doc-grid">
+            <div class="doc-section">
+                <h3>✨ Key Features</h3>
+                <ul>
+                    <li><strong>30+ Formatters:</strong> Currency, numeric, date/time, specialized</li>
+                    <li><strong>Culture, Date/Time &amp; Numeric Switching:</strong> Runtime change via selectors</li>
+                    <li><strong>Type-Safe:</strong> Strongly typed property expressions with compiled accessors</li>
+                    <li><strong>No Stale State:</strong> Formatters created on demand using current culture</li>
+                    <li><strong>Sorting Integration:</strong> Auto-enabled based on property expression</li>
+                    <li><strong>Extensible:</strong> Add new formatter functions easily</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h3>🏗️ Architecture</h3>
+                <ul>
+                    <li><strong>Layer 1:</strong> <code>FormatterHelpers</code></li>
+                    <li><strong>Layer 2:</strong> Formatter library</li>
+                    <li><strong>Layer 3:</strong> <code>FormattedValueColumn&lt;TItem,TValue&gt;</code></li>
+                    <li><strong>Layer 4:</strong> Demo page + culture / date / numeric switching</li>
+                </ul>
+            </div>
+
+            <div class="doc-section">
+                <h3>💡 Usage</h3>
+                <pre><code>&lt;FormattedValueColumn
+    Property="@@(m =&gt; m.CurrentValue)"
+    Formatter="@@NumericSelectionFormatter1"
+    CultureName="@@SelectedCulture"
+    Title="Current" /&gt;</code></pre>
+                <p><em>Select culture + date/time + numeric style to re-render formatted cells.</em></p>
+            </div>
+
+            <div class="doc-section">
+                <h3>📊 Performance</h3>
+                <ul>
+                    <li><strong>Compiled Accessors:</strong> Property compiled once per column</li>
+                    <li><strong>Formatter Selection:</strong> Lightweight switch per render</li>
+                    <li><strong>Low Allocation:</strong> Outputs strings only</li>
+                    <li><strong>Switch Cost:</strong> Full grid re-render on selection change</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private string SelectedCulture { get; set; } = "en-US";
+    private string SelectedDateTimeFormat { get; set; } = "short"; // short | long | general | iso | relative | time12 | time24
+    private string SelectedNumericFormat { get; set; } = "number"; // number | fixed | scientific | compact
+    private CultureInfo CurrentCulture { get; set; } = CultureInfo.GetCultureInfo("en-US");
+
+    private IQueryable<Transaction> Transactions { get; set; } = null!;
+    private IQueryable<Product> Products { get; set; } = null!;
+    private IQueryable<Employee> Employees { get; set; } = null!;
+    private IQueryable<PerformanceMetric> Metrics { get; set; } = null!;
+    private IQueryable<LogEntry> Logs { get; set; } = null!;
+
+    private string GridKey => $"{SelectedCulture}-{SelectedDateTimeFormat}-{SelectedNumericFormat}";
+
+    // Currency & other fixed formatters
+    private Func<object?, string> CurrencyFormatter0 => CurrencyFormatters.Currency(0);
+    private Func<object?, string> CurrencyFormatter2 => CurrencyFormatters.Currency(2);
+    private Func<object?, string> CurrencyAccountingFormatter => CurrencyFormatters.CurrencyAccounting(2);
+    private Func<object?, string> PercentageFormatter0 => NumericFormatters.Percentage(0);
+    private Func<object?, string> PercentageFormatter1 => NumericFormatters.Percentage(1);
+    private Func<object?, string> FileSizeFormatter => SpecializedFormatters.FileSize(1);
+    private Func<object?, string> FileSizeFormatter2 => SpecializedFormatters.FileSize(2);
+    private Func<object?, string> HumanDurationFormatter => DateTimeFormatters.HumanDuration();
+    private Func<object?, string> PhoneNumberFormatter => SpecializedFormatters.PhoneNumberUs();
+    private Func<object?, string> YesNoFormatter => SpecializedFormatters.YesNo();
+
+    // Dynamic numeric formatters (different decimal precision versions)
+    private Func<object?, string> NumericSelectionFormatter0 => SelectedNumericFormat switch
+    {
+        "number" => NumericFormatters.Number(0),
+        "fixed" => NumericFormatters.FixedPoint(0),
+        "scientific" => NumericFormatters.Scientific(2),
+        "compact" => NumericFormatters.CompactNumber(1),
+        _ => NumericFormatters.Number(0)
+    };
+    private Func<object?, string> NumericSelectionFormatter1 => SelectedNumericFormat switch
+    {
+        "number" => NumericFormatters.Number(1),
+        "fixed" => NumericFormatters.FixedPoint(1),
+        "scientific" => NumericFormatters.Scientific(2),
+        "compact" => NumericFormatters.CompactNumber(1),
+        _ => NumericFormatters.Number(1)
+    };
+
+    private Func<object?, string> DateTimeSelectionFormatter => SelectedDateTimeFormat switch
+    {
+        "short" => DateTimeFormatters.ShortDate(),
+        "long" => DateTimeFormatters.LongDate(),
+        "general" => DateTimeFormatters.DateTime(),
+        "iso" => DateTimeFormatters.IsoDate(),
+        "relative" => DateTimeFormatters.RelativeDate(),
+        "time12" => DateTimeFormatters.Time12Hour(),
+        "time24" => DateTimeFormatters.Time24Hour(),
+        _ => DateTimeFormatters.ShortDate()
+    };
+
+    protected override void OnInitialized()
+    {
+        ApplyCulture("en-US"); // initial override for demo
+        LoadSampleData();
+    }
+
+    private void OnCultureChanged()
+    {
+        ApplyCulture(SelectedCulture);
+        StateHasChanged();
+    }
+
+    private void OnDateTimeFormatChanged() => StateHasChanged();
+    private void OnNumericFormatChanged() => StateHasChanged();
+
+    private void ApplyCulture(string cultureName)
+    {
+        CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
+        CultureInfo.CurrentCulture = CurrentCulture;
+        CultureInfo.CurrentUICulture = CurrentCulture;
+        CultureInfo.DefaultThreadCurrentCulture = CurrentCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = CurrentCulture;
+    }
+
+    private void LoadSampleData()
+    {
+        Transactions = new[]
+        {
+            new Transaction { Id = 1, Date = DateTime.Now.AddDays(-5), Description = "Initial Deposit", Amount = 5000m, Balance = 5000m, Type = "Deposit" },
+            new Transaction { Id = 2, Date = DateTime.Now.AddDays(-4), Description = "Rent Payment", Amount = -1500m, Balance = 3500m, Type = "Withdrawal" },
+            new Transaction { Id = 3, Date = DateTime.Now.AddDays(-3), Description = "Salary", Amount = 3500m, Balance = 7000m, Type = "Deposit" },
+            new Transaction { Id = 4, Date = DateTime.Now.AddDays(-2), Description = "Grocery Shopping", Amount = -250.75m, Balance = 6749.25m, Type = "Debit" },
+            new Transaction { Id = 5, Date = DateTime.Now.AddDays(-1), Description = "Utilities", Amount = -175.50m, Balance = 6573.75m, Type = "Debit" },
+            new Transaction { Id = 6, Date = DateTime.Now, Description = "Freelance Payment", Amount = 800m, Balance = 7373.75m, Type= "Deposit" }
+        }.AsQueryable();
+
+        Products = new[]
+        {
+            new Product { Id = 1, Name = "Laptop Pro 15\"", Price = 1299.99m, Stock = 45, DiscountPercent = 15, Weight = 1800.5, SizeBytes = 524288000, LastRestocked = DateTime.Now.AddDays(-2) },
+            new Product { Id = 2, Name = "Wireless Mouse", Price = 29.99m, Stock = 234, DiscountPercent = 0, Weight = 95.2, SizeBytes = 1048576, LastRestocked = DateTime.Now.AddDays(-5) },
+            new Product { Id = 3, Name = "USB-C Hub", Price = 49.99m, Stock = 89, DiscountPercent = 20, Weight = 120.8, SizeBytes = 2097152, LastRestocked = DateTime.Now.AddDays(-1) },
+            new Product { Id = 4, Name = "4K Monitor", Price = 399.99m, Stock = 12, DiscountPercent = 10, Weight = 5200.0, SizeBytes = 10485760, LastRestocked = DateTime.Now.AddDays(-7) },
+            new Product { Id = 5, Name = "Mechanical Keyboard", Price = 129.99m, Stock = 67, DiscountPercent = 5, Weight = 980.3, SizeBytes = 3145728, LastRestocked = DateTime.Now.AddDays(-3) }
+        }.AsQueryable();
+
+        Employees = new[]
+        {
+            new Employee { Id = 1, FirstName = "Alice", LastName = "Johnson", Email = "alice.johnson@example.com", Phone = "5551234567", HireDate = new DateTime(2020, 3, 15), Salary = 75000m, IsActive = true },
+            new Employee { Id = 2, FirstName = "Bob", LastName = "Smith", Email = "bob.smith@example.com", Phone = "5559876543", HireDate = new DateTime(2019, 7, 22), Salary = 82000m, IsActive = true },
+            new Employee { Id = 3, FirstName = "Carol", LastName = "Williams", Email = "carol.williams@example.com", Phone = "5555551212", HireDate = new DateTime(2021, 1, 10), Salary = 68000m, IsActive = true },
+            new Employee { Id = 4, FirstName = "David", LastName = "Brown", Email = "david.brown@example.com", Phone = "5554443333", HireDate = new DateTime(2018, 11, 5), TerminationDate = new DateTime(2023, 6, 30), Salary = 0m, IsActive = false },
+            new Employee { Id = 5, FirstName = "Eve", LastName = "Davis", Email = "eve.davis@example.com", Phone = "5552223344", HireDate = new DateTime(2022, 4, 18), Salary = 71000m, IsActive = true }
+        }.AsQueryable();
+
+        Metrics = new[]
+        {
+            new PerformanceMetric { MetricName = "Revenue", CurrentValue = 285000m, TargetValue = 250000m, PreviousValue = 265000m },
+            new PerformanceMetric { MetricName = "Customer Acquisition", CurrentValue = 450m, TargetValue = 500m, PreviousValue = 420m },
+            new PerformanceMetric { MetricName = "Conversion Rate", CurrentValue = 3.8m, TargetValue = 4.0m, PreviousValue = 3.5m },
+            new PerformanceMetric { MetricName = "Churn Rate", CurrentValue = 2.1m, TargetValue = 3.0m, PreviousValue = 2.5m },
+            new PerformanceMetric { MetricName = "Average Order Value", CurrentValue = 127.50m, TargetValue = 120.00m, PreviousValue = 115.00m }
+        }.AsQueryable();
+
+        Logs = new[]
+        {
+            new LogEntry { Id = 1, Timestamp = DateTime.Now.AddMinutes(-30), Level = "INFO", Source = "WebServer", Message = "Application started successfully", Duration = 1250.5, MemoryBytes = 157286400 },
+            new LogEntry { Id = 2, Timestamp = DateTime.Now.AddMinutes(-25), Level = "INFO", Source = "Database", Message = "Connection pool initialized", Duration = 850.2, MemoryBytes = 104857600 },
+            new LogEntry { Id = 3, Timestamp = DateTime.Now.AddMinutes(-20), Level = "WARNING", Source = "Cache", Message = "Cache miss rate exceeding threshold", Duration = 50.8, MemoryBytes = 524288000 },
+            new LogEntry { Id = 4, Timestamp = DateTime.Now.AddMinutes(-15), Level = "ERROR", Source = "API", Message = "External service timeout", Duration = 30250.0, MemoryBytes = 209715200 },
+            new LogEntry { Id = 5, Timestamp = DateTime.Now.AddMinutes(-10), Level = "INFO", Source = "BackgroundJob", Message = "Daily backup completed", Duration = 125500.0, MemoryBytes = 1073741824 },
+            new LogEntry { Id = 6, Timestamp = DateTime.Now.AddMinutes(-5), Level = "INFO", Source = "WebServer", Message = "Request processed successfully", Duration = 125.3, MemoryBytes = 83886080 }
+        }.AsQueryable();
+    }
+}

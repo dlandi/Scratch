@@ -1,0 +1,20 @@
+.overview-container { max-width:1400px; margin:0 auto; padding:2rem 2rem 4rem; }
+.hero h1 { margin:0 0 .75rem; font-size:2.2rem; font-weight:600; }
+.lead { font-size:1.05rem; color:#34495e; margin-bottom:.75rem; line-height:1.5; }
+.context { font-size:.95rem; color:#566271; }
+.quick-start h2, .architecture h2 { font-size:1.65rem; margin:2.25rem 0 1rem; border-bottom:3px solid #3498db; padding-bottom:.5rem; }
+.section-intro { color:#566271; margin-bottom:1.25rem; }
+.feature-grid { display:grid; gap:1.25rem; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+.feature-card { background:#fff; border-radius:10px; padding:1.1rem 1.15rem 1.25rem; box-shadow:0 2px 8px rgba(0,0,0,.06); display:flex; flex-direction:column; }
+.feature-card h3 { margin:.25rem 0 .6rem; font-size:1.25rem; color:#2c3e50; }
+.feature-card p { font-size:.82rem; line-height:1.35; margin:0 0 .45rem; }
+.feature-card .bullets { margin:.25rem 0 .65rem 1.1rem; padding:0; font-size:.78rem; line-height:1.3; }
+.feature-card .bullets li { margin:0 0 .25rem; }
+.feature-card code { font-size:.75rem; }
+.feature-card .btn { margin-top:auto; align-self:flex-start; font-size:.75rem; letter-spacing:.5px; }
+.architecture .themes { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); margin-top:.75rem; }
+.theme { background:#f8fafc; border-radius:8px; padding:.9rem .95rem; border-left:4px solid #3178c6; }
+.theme h4 { margin:.1rem 0 .4rem; font-size:1rem; color:#2c5282; }
+.theme p { font-size:.78rem; line-height:1.35; margin:0; }
+.footer { margin-top:3rem; text-align:center; font-size:.7rem; color:#6c757d; }
+@media (max-width:700px){ .hero h1 { font-size:1.85rem; } .feature-grid { grid-template-columns:1fr; } }

@@ -77,7 +77,7 @@
                     <li>Visible window + overscan buffering</li>
                     <li>Estimator: time / DOM / memory projection</li>
                     <li>Scroll telemetry (FPS, viewport stats)</li>
-                    <li>Guidance thresholds (&lt;100 skip, &gt;2K essential)</li>
+                    <li>Guidance thresholds (<100 skip, >2K essential)</li>
                 </ul>
                 <NavLink class="btn btn-primary" href="/virtual-scrolling-demo">View Demo</NavLink>
             </div>

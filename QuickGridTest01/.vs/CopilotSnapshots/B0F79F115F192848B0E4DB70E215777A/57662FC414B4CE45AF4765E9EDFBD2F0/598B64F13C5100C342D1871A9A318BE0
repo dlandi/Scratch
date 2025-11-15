@@ -1,0 +1,168 @@
+﻿/* Align styles with ConditionalStyleDemo: conservative, neutral palette */
+.demo-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.demo-container h1 {
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.intro-text {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.demo-section {
+    margin-bottom: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.demo-section h2 {
+    color: #34495e;
+    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+.section-description {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 0.975rem;
+    line-height: 1.5;
+}
+
+/* Grid styles */
+.demo-grid {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.demo-grid thead {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.demo-grid thead th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.demo-grid tbody tr {
+    border-bottom: 1px solid #e9ecef;
+}
+
+.demo-grid tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.demo-grid tbody td {
+    padding: 10px 12px;
+    font-size: 14px;
+    color: #495057;
+}
+
+/* Editable cell styles */
+::deep .editable-cell { position: relative; min-height: 32px; }
+::deep .editable-cell.edit-mode {
+    padding: 8px;
+    background-color: #fff;
+    border: 1px solid #86b7fe;
+    border-radius: 4px;
+    box-shadow: none;
+}
+::deep .editable-cell.edit-mode.invalid { border-color: #dc3545; }
+
+/* Validation */
+::deep .validation-errors {
+    margin-top: 6px;
+    padding: 8px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+}
+
+::deep .validation-error {
+    color: #721c24;
+    font-size: 12px;
+    margin: 2px 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+::deep .validation-loading {
+    margin-top: 6px;
+    padding: 4px 8px;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Change log */
+.change-log {
+    margin-top: 20px;
+    padding: 16px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.change-log h5 {
+    margin: 0 0 12px 0;
+    color: #495057;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.log-entries { display: flex; flex-direction: column; gap: 6px; }
+.log-entry {
+    padding: 8px 12px;
+    background-color: #f8f9fa;
+    border-left: 3px solid #3498db;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #495057;
+    font-family: 'Courier New', monospace;
+}
+
+/* Stock badges */
+.stock-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.stock-high { background-color: #d4edda; color: #155724; }
+.stock-medium { background-color: #d1ecf1; color: #0c5460; }
+.stock-low { background-color: #fff3cd; color: #856404; }
+.stock-out { background-color: #f8d7da; color: #721c24; }
+
+/* Validation rules summary */
+.validation-rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 20px; background-color: white; border-radius: 4px; }
+.rule-group h5 { margin: 0 0 12px 0; color: #2c3e50; font-size: 16px; font-weight: 600; border-bottom: 2px solid #3498db; padding-bottom: 8px; }
+.rule-group ul { margin: 0; padding-left: 20px; }
+.rule-group li { margin: 8px 0; color: #495057; font-size: 14px; line-height: 1.6; }
+.rule-group li strong { color: #2c3e50; }
+/* Responsive */
+@media (max-width: 768px) { 
+    .demo-grid tbody td { padding: 6px 8px; font-size: 13px; } 
+    .demo-section { padding: 1rem; } 
+    .demo-container { padding: 1rem; } 
+}

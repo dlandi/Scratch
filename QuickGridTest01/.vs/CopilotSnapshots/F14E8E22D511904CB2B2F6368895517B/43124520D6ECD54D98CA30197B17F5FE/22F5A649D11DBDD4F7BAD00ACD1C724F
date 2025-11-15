@@ -21,6 +21,7 @@
         <p class="section-intro">Select a feature below to view its full demo with code, validation rules, performance notes, and architectural commentary.</p>
 
         <div class="feature-grid">
+            <!-- Filterable Column -->
             <div class="feature-card">
                 <h3>Filterable Columns</h3>
                 <p class="problem"><strong>Problem:</strong> Repeated ad hoc LINQ filtering logic scattered across pages.</p>
@@ -33,6 +34,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/filterable-column-demo">View Demo</NavLink>
             </div>
+
+            <!-- Editable Column -->
             <div class="feature-card">
                 <h3>Editable Column</h3>
                 <p class="problem"><strong>Problem:</strong> Per‑cell <code>EditForm</code> boilerplate + validation duplication.</p>
@@ -45,6 +48,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/editable-column-demo">View Demo</NavLink>
             </div>
+
+            <!-- Multi-State Column -->
             <div class="feature-card">
                 <h3>Multi‑State Column</h3>
                 <p class="problem"><strong>Problem:</strong> Complex async edit flows require manual flag handling.</p>
@@ -57,6 +62,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/multistate-demo">View Demo</NavLink>
             </div>
+
+            <!-- Formatted Value Column -->
             <div class="feature-card">
                 <h3>Formatted Value Column</h3>
                 <p class="problem"><strong>Problem:</strong> Inline <code>ToString()</code> clutter + inconsistent culture/time/number formatting.</p>
@@ -69,6 +76,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/formatted-column-demo">View Demo</NavLink>
             </div>
+
+            <!-- Virtual Column / Virtual Scrolling -->
             <div class="feature-card">
                 <h3>Virtual Scrolling</h3>
                 <p class="problem"><strong>Problem:</strong> Large datasets cause heavy initial render + oversized DOM.</p>
@@ -81,6 +90,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/virtual-scrolling-demo">View Demo</NavLink>
             </div>
+
+            <!-- Optimized Column -->
             <div class="feature-card">
                 <h3>Optimized Column</h3>
                 <p class="problem"><strong>Problem:</strong> Unnecessary reflection, unstable sequence numbers, and excess wrapping elements inflate cost.</p>
@@ -93,6 +104,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/optimized-column-demo">View Demo</NavLink>
             </div>
+
+            <!-- Icon Column -->
             <div class="feature-card">
                 <h3>Icon Column</h3>
                 <p class="problem"><strong>Problem:</strong> Repeated conditional icon/color/tooltip logic in templates.</p>
@@ -105,6 +118,8 @@
                 </ul>
                 <NavLink class="btn btn-primary" href="/icon-column-demo">View Demo</NavLink>
             </div>
+
+            <!-- Ad Hoc Inline Editing Baseline -->
             <div class="feature-card">
                 <h3>Ad Hoc Inline Editing (Baseline)</h3>
                 <p class="problem"><strong>Purpose:</strong> Serves as a contrast page showing raw per‑cell <code>EditForm</code> duplication.</p>

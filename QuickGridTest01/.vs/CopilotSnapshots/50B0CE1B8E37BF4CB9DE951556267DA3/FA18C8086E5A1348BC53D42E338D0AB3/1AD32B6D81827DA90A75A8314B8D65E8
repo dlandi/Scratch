@@ -1,0 +1,92 @@
+﻿@page "/styled-employees"
+@using Microsoft.AspNetCore.Components.QuickGrid
+
+<PageTitle>Styled Employee Grid</PageTitle>
+
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #0d6efd; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#0d6efd;">Why a Styled Grid?</h3>
+    <p><strong>Goal:</strong> Show practical presentation-layer customization of <code>QuickGrid</code> without custom column types: targeted column classes, semantic badges, conditional styling, and inline action buttons.</p>
+    <p><strong>Techniques Demonstrated:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li><em>Per-Column Classes:</em> <code>Class="id-column"</code>, <code>salary-column</code>, <code>email-column</code> for width, alignment, or color rules in CSS.</li>
+        <li><em>Template Columns:</em> Status badge and action buttons composed with simple markup instead of full component overhead.</li>
+        <li><em>Conditional Class Fragments:</em> Status badge uses ternary fragment to switch active vs inactive class names.</li>
+        <li><em>Built-in Formatting:</em> Uses <code>Format="C"</code> and date format strings for Salary/Hire Date columns.</li>
+        <li><em>Declarative Sorting:</em> Applied only where useful (<code>FirstName</code>, <code>LastName</code>, <code>Department</code>).</li>
+    </ul>
+    <p><strong>Use Cases:</strong> Admin / HR dashboards, lightweight directories, CRUD lists where quick visual differentiation (badge, buttons, currency) matters more than advanced cell logic.</p>
+    <p><strong>Extensibility:</strong> Convert the Status badge to an <code>IconColumn</code>, attach inline edit columns, or add filter toolbar. Replace action buttons with a dropdown for bulk operations.</p>
+    <p><strong>Contrast:</strong> Compared to specialized columns (Editable / Icon / ConditionalStyle), this page keeps styling concerns purely in markup + CSS for simplicity.</p>
+    <p><strong>Next Step:</strong> Extract badge + action markup into small components if reused across multiple grids.</p>
+</div>
+
+<h3>Employee Directory</h3>
+
+<div class="grid-container">
+    <QuickGrid Items="@employees" Class="employee-grid">
+        <PropertyColumn Property="@(e => e.Id)" Title="ID" Class="id-column" />
+        <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" Sortable="true" />
+        <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" Sortable="true" />
+        <PropertyColumn Property="@(e => e.Department)" Title="Department" Sortable="true" />
+        <PropertyColumn Property="@(e => e.Email)" Title="Email" Class="email-column" />
+        <PropertyColumn Property="@(e => e.Salary)" Title="Salary" Format="C" Class="salary-column" />
+        <PropertyColumn Property="@(e => e.HireDate)" Title="Hire Date" Format="yyyy-MM-dd" />
+        <TemplateColumn Title="Status" Class="status-column">
+            <span class="status-badge status-@(context.IsActive ? "active" : "inactive")">
+                @(context.IsActive ? "Active" : "Inactive")
+            </span>
+        </TemplateColumn>
+        <TemplateColumn Title="Actions" Class="actions-column">
+            <button class="btn-edit" @onclick="() => EditEmployee(context.Id)">Edit</button>
+            <button class="btn-delete" @onclick="() => DeleteEmployee(context.Id)">Delete</button>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+
+    protected override void OnInitialized()
+    {
+        // Sample data
+        var employeeList = new List<Employee>
+        {
+            new Employee { Id = 1, FirstName = "John", LastName = "Doe", Department = "Engineering", Email = "john.doe@company.com", Salary = 95000, HireDate = new DateTime(2020, 3, 15), IsActive = true },
+            new Employee { Id = 2, FirstName = "Jane", LastName = "Smith", Department = "Marketing", Email = "jane.smith@company.com", Salary = 78000, HireDate = new DateTime(2021, 7, 22), IsActive = true },
+            new Employee { Id = 3, FirstName = "Robert", LastName = "Johnson", Department = "Engineering", Email = "robert.j@company.com", Salary = 102000, HireDate = new DateTime(2019, 1, 10), IsActive = true },
+            new Employee { Id = 4, FirstName = "Emily", LastName = "Davis", Department = "HR", Email = "emily.davis@company.com", Salary = 72000, HireDate = new DateTime(2022, 4, 5), IsActive = false },
+            new Employee { Id = 5, FirstName = "Michael", LastName = "Wilson", Department = "Sales", Email = "m.wilson@company.com", Salary = 85000, HireDate = new DateTime(2020, 11, 30), IsActive = true },
+            new Employee { Id = 6, FirstName = "Sarah", LastName = "Brown", Department = "Engineering", Email = "sarah.brown@company.com", Salary = 98000, HireDate = new DateTime(2021, 2, 14), IsActive = true },
+            new Employee { Id = 7, FirstName = "David", LastName = "Martinez", Department = "Finance", Email = "d.martinez@company.com", Salary = 91000, HireDate = new DateTime(2018, 9, 8), IsActive = true },
+            new Employee { Id = 8, FirstName = "Lisa", LastName = "Anderson", Department = "Marketing", Email = "lisa.a@company.com", Salary = 76000, HireDate = new DateTime(2023, 1, 20), IsActive = true },
+            new Employee { Id = 9, FirstName = "James", LastName = "Taylor", Department = "Sales", Email = "james.taylor@company.com", Salary = 83000, HireDate = new DateTime(2019, 6, 12), IsActive = false },
+            new Employee { Id = 10, FirstName = "Jennifer", LastName = "White", Department = "Engineering", Email = "jennifer.w@company.com", Salary = 105000, HireDate = new DateTime(2017, 3, 25), IsActive = true }
+        };
+
+        employees = employeeList.AsQueryable();
+    }
+
+    private void EditEmployee(int id)
+    {
+        // Edit logic here
+        Console.WriteLine($"Editing employee {id}");
+    }
+
+    private void DeleteEmployee(int id)
+    {
+        // Delete logic here
+        Console.WriteLine($"Deleting employee {id}");
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public decimal Salary { get; set; }
+        public DateTime HireDate { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

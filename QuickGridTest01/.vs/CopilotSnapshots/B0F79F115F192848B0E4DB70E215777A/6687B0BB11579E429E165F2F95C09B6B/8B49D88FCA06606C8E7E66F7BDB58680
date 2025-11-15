@@ -1,0 +1,237 @@
+﻿@page "/icon-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+
+<PageTitle>Icon Column Demo</PageTitle>
+
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #6f42c1; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#6f42c1;">Why an Icon Column?</h3>
+    <p><strong>Problem:</strong> Repeated conditional icon + color + tooltip logic in grid templates quickly becomes verbose and inconsistent (copy/paste of <code>span</code> tags, switch statements, sorting configuration). Each page duplicates mapping code for status, priority, health, etc.</p>
+    <p><strong>Solution:</strong> <code>IconColumn&lt;TGridItem,TValue&gt;</code> centralizes icon display concerns—given a property expression and mapper delegates (icon, color, tooltip, optional text) it renders a compact cell with semantic styling and inferred sort expression. Consumers only supply mapping functions; DOM + sequencing + sort wiring are handled automatically.</p>
+    <p><strong>Features:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li>Icon/text toggle via <code>ShowValue</code>.</li>
+        <li>Independent mappers: <code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>, optional value formatting.</li>
+        <li>Sortable by underlying value (expression compiled once).</li>
+        <li>Lightweight render tree (single wrapper + icon + optional text).</li>
+        <li>Works for multiple domains (tasks, servers, alerts, statuses) without redesign.</li>
+    </ul>
+    <p><strong>Use Cases:</strong> Status dashboards, ticket priority, server health, workflow steps, boolean flags (✔ / ✖), rating badges, risk indicators.</p>
+    <p><strong>Extensibility Ideas:</strong> Add size mapper, accessibility label mapper, animation mapper (e.g. pulse for critical), multi-icon stacking, or dynamic theming. Provide preset map factories for common enums.</p>
+    <p><strong>Contrast vs TemplateColumn:</strong> A raw template requires manual icon spans, classes, tooltips, sort duplication; <code>IconColumn</code> assembles these from pure functions—clearer intent, less markup, easier future changes.</p>
+    <p><strong>Example:</strong></p>
+    <pre><code>&lt;IconColumn Property="@@(t =&gt; t.Status)" IconMapper="@@GetStatusIcon" ColorMapper="@@GetStatusColor" TooltipMapper="@@GetStatusTooltip" ShowValue="true" /&gt;</code></pre>
+</div>
+
+<h3>Custom Icon Column Implementation</h3>
+
+<p>
+    This example demonstrates a custom column extending <code>ColumnBase&lt;TGridItem&gt;</code>
+    with custom rendering, state management, and lifecycle methods. The IconColumn displays a colored 
+    icon alongside text values in the grid. In the Task Status Grid, you'll see icons representing 
+    different task states (clock for Pending, spinning arrows for In Progress, check mark for Completed, 
+    and warning triangle for Blocked), each with color-coded styling. The Server Health Grid shows 
+    health status icons (hearts for Healthy, warning triangles, and stop signs for Critical) without 
+    text labels. Hover over any icon to see descriptive tooltips, and click column headers to sort by 
+    the underlying values.
+</p>
+
+<div class="demo-section">
+    <h4>Task Status Grid</h4>
+    <QuickGrid Items="@tasks" Class="demo-grid">
+        <PropertyColumn Property="@(t => t.Id)" Title="ID" />
+        <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
+        
+        <!-- Custom Icon Column for Status -->
+        <IconColumn 
+            TGridItem="TaskItem" 
+            TValue="TaskStatus"
+            Property="@(t => t.Status)"
+            IconMapper="@GetStatusIcon"
+            ColorMapper="@GetStatusColor"
+            TooltipMapper="@GetStatusTooltip"
+            Title="Status"
+            Sortable="true"
+            ShowValue="true" />
+        
+        <!-- Custom Icon Column for Priority -->
+        <IconColumn 
+            TGridItem="TaskItem" 
+            TValue="Priority"
+            Property="@(t => t.Priority)"
+            IconMapper="@GetPriorityIcon"
+            ColorMapper="@GetPriorityColor"
+            Title="Priority"
+            Sortable="true"
+            ShowValue="true" />
+        
+        <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
+        <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="yyyy-MM-dd" />
+    </QuickGrid>
+</div>
+
+<div class="demo-section">
+    <h4>Server Health Grid</h4>
+    <QuickGrid Items="@servers" Class="demo-grid">
+        <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
+        
+        <!-- Icon-only column (no value text) -->
+        <IconColumn 
+            TGridItem="ServerInfo" 
+            TValue="HealthStatus"
+            Property="@(s => s.Health)"
+            IconMapper="@GetHealthIcon"
+            ColorMapper="@GetHealthColor"
+            TooltipMapper="@GetHealthTooltip"
+            Title="Health"
+            Sortable="true"
+            ShowValue="false" />
+        
+        <PropertyColumn Property="@(s => s.CpuUsage)" Title="CPU %" Format="F1" />
+        <PropertyColumn Property="@(s => s.MemoryUsage)" Title="Memory %" Format="F1" />
+        <PropertyColumn Property="@(s => s.LastCheck)" Title="Last Check" Format="HH:mm:ss" />
+    </QuickGrid>
+</div>
+
+@code {
+    private IQueryable<TaskItem> tasks = default!;
+    private IQueryable<ServerInfo> servers = default!;
+
+    protected override void OnInitialized()
+    {
+        // Initialize task data
+        var taskList = new List<TaskItem>
+        {
+            new() { Id = 1, TaskName = "Implement authentication", Status = TaskStatus.InProgress, Priority = Priority.High, AssignedTo = "Alice", DueDate = DateTime.Now.AddDays(2) },
+            new() { Id = 2, TaskName = "Write unit tests", Status = TaskStatus.Completed, Priority = Priority.Medium, AssignedTo = "Bob", DueDate = DateTime.Now.AddDays(-1) },
+            new() { Id = 3, TaskName = "Code review", Status = TaskStatus.Pending, Priority = Priority.Low, AssignedTo = "Charlie", DueDate = DateTime.Now.AddDays(5) },
+            new() { Id = 4, TaskName = "Deploy to production", Status = TaskStatus.Blocked, Priority = Priority.High, AssignedTo = "Diana", DueDate = DateTime.Now.AddDays(1) },
+            new() { Id = 5, TaskName = "Update documentation", Status = TaskStatus.InProgress, Priority = Priority.Medium, AssignedTo = "Eve", DueDate = DateTime.Now.AddDays(3) },
+            new() { Id = 6, TaskName = "Fix bug #247", Status = TaskStatus.Completed, Priority = Priority.High, AssignedTo = "Frank", DueDate = DateTime.Now.AddDays(-2) },
+        };
+        tasks = taskList.AsQueryable();
+
+        // Initialize server data
+        var serverList = new List<ServerInfo>
+        {
+            new() { ServerName = "web-01", Health = HealthStatus.Healthy, CpuUsage = 45.2, MemoryUsage = 62.8, LastCheck = DateTime.Now.AddMinutes(-2) },
+            new() { ServerName = "web-02", Health = HealthStatus.Healthy, CpuUsage = 38.6, MemoryUsage = 58.1, LastCheck = DateTime.Now.AddMinutes(-1) },
+            new() { ServerName = "db-01", Health = HealthStatus.Warning, CpuUsage = 78.3, MemoryUsage = 89.2, LastCheck = DateTime.Now.AddMinutes(-3) },
+            new() { ServerName = "api-01", Health = HealthStatus.Critical, CpuUsage = 95.7, MemoryUsage = 97.4, LastCheck = DateTime.Now.AddMinutes(-5) },
+            new() { ServerName = "cache-01", Health = HealthStatus.Healthy, CpuUsage = 22.1, MemoryUsage = 34.5, LastCheck = DateTime.Now.AddMinutes(-1) },
+        };
+        servers = serverList.AsQueryable();
+    }
+
+    // Task Status Icon Mappers
+    private string GetStatusIcon(TaskStatus status) => status switch
+    {
+        TaskStatus.Pending => "bi bi-clock",
+        TaskStatus.InProgress => "bi bi-arrow-repeat",
+        TaskStatus.Completed => "bi bi-check-circle-fill",
+        TaskStatus.Blocked => "bi bi-exclamation-triangle-fill",
+        _ => "bi bi-question-circle"
+    };
+
+    private string GetStatusColor(TaskStatus status) => status switch
+    {
+        TaskStatus.Pending => "#6c757d",
+        TaskStatus.InProgress => "#0d6efd",
+        TaskStatus.Completed => "#198754",
+        TaskStatus.Blocked => "#dc3545",
+        _ => "#6c757d"
+    };
+
+    private string GetStatusTooltip(TaskStatus status) => status switch
+    {
+        TaskStatus.Pending => "Waiting to start",
+        TaskStatus.InProgress => "Currently in progress",
+        TaskStatus.Completed => "Successfully completed",
+        TaskStatus.Blocked => "Blocked by dependencies",
+        _ => "Unknown status"
+    };
+
+    // Priority Icon Mappers
+    private string GetPriorityIcon(Priority priority) => priority switch
+    {
+        Priority.Low => "bi bi-arrow-down-circle",
+        Priority.Medium => "bi bi-dash-circle",
+        Priority.High => "bi bi-arrow-up-circle-fill",
+        _ => "bi bi-circle"
+    };
+
+    private string GetPriorityColor(Priority priority) => priority switch
+    {
+        Priority.Low => "#198754",
+        Priority.Medium => "#ffc107",
+        Priority.High => "#dc3545",
+        _ => "#6c757d"
+    };
+
+    // Health Status Icon Mappers
+    private string GetHealthIcon(HealthStatus health) => health switch
+    {
+        HealthStatus.Healthy => "bi bi-heart-fill",
+        HealthStatus.Warning => "bi bi-exclamation-triangle-fill",
+        HealthStatus.Critical => "bi bi-x-octagon-fill",
+        _ => "bi bi-question-circle"
+    };
+
+    private string GetHealthColor(HealthStatus health) => health switch
+    {
+        HealthStatus.Healthy => "#198754",
+        HealthStatus.Warning => "#ffc107",
+        HealthStatus.Critical => "#dc3545",
+        _ => "#6c757d"
+    };
+
+    private string GetHealthTooltip(HealthStatus health) => health switch
+    {
+        HealthStatus.Healthy => "System is operating normally",
+        HealthStatus.Warning => "System needs attention",
+        HealthStatus.Critical => "System requires immediate action",
+        _ => "Unknown health status"
+    };
+
+    // Data Models
+    public class TaskItem
+    {
+        public int Id { get; set; }
+        public string TaskName { get; set; } = string.Empty;
+        public TaskStatus Status { get; set; }
+        public Priority Priority { get; set; }
+        public string AssignedTo { get; set; } = string.Empty;
+        public DateTime DueDate { get; set; }
+    }
+
+    public class ServerInfo
+    {
+        public string ServerName { get; set; } = string.Empty;
+        public HealthStatus Health { get; set; }
+        public double CpuUsage { get; set; }
+        public double MemoryUsage { get; set; }
+        public DateTime LastCheck { get; set; }
+    }
+
+    public enum TaskStatus
+    {
+        Pending,
+        InProgress,
+        Completed,
+        Blocked
+    }
+
+    public enum Priority
+    {
+        Low,
+        Medium,
+        High
+    }
+
+    public enum HealthStatus
+    {
+        Healthy,
+        Warning,
+        Critical
+    }
+}
