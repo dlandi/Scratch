@@ -5,88 +5,49 @@
 
 <PageTitle>Editable Column Demo</PageTitle>
 
-<h3>Editable Column with In-Place Editors</h3>
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #0d6efd; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#0d6efd;">Why a Custom Editable Column?</h3>
+    <p><strong>Purpose:</strong> Replace ad hoc <code>EditForm</code> + input fragments in every cell with a reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> that owns edit state, validation, formatting, and commit semantics. This keeps page markup declarative (just list columns) while centralizing behavior and UX rules.</p>
+    <p><strong>Encapsulation:</strong> The column internally manages an <em>EditState</em> per row (original value, current value, dirty flag, validation results, editing mode). All logic for entering edit mode, cancelling, saving, inline editing, and keyboard shortcuts lives in one component instead of duplicated scattered markup.</p>
+    <p><strong>Validation Pipeline:</strong> Supports both DataAnnotations (via reflection caching of property attributes) and pluggable custom validators (<code>IValidator&lt;TValue&gt;</code>). Validation can run on each keystroke (<code>ValidateOnChange</code>) or on explicit commit; results and error messages are rendered consistently. Debounced validation (<code>DebounceMilliseconds</code>) avoids excessive re-renders for rapid typing.</p>
+    <p><strong>Flexible Editing Modes:</strong> Standard mode (click to enter, explicit Save/Cancel buttons) or <em>Inline</em> mode (input always visible, optional auto-commit when valid via <code>CommitOnInput</code>). Keyboard handling (Enter/Escape) is uniformly implemented. Property setters are compiled from the expression body so updates are fast & type?safe.</p>
+    <p><strong>Performance:</strong> The property expression is compiled once and reused for value access + optional formatting (<code>Format</code>) and sorting inference. Per-cell validation and rendering avoids reflection each time. Debounce timers marshal back to the Blazor dispatcher to prevent cross-thread exceptions while reducing unnecessary UI churn.</p>
+    <p><strong>Consistency & UX:</strong> Common CSS classes, icons, error region, and loading indicator give users predictable feedback. Change logging is triggered via a single <code>OnValueChanged</code> callback carrying old/new values and property name.</p>
+    <p><strong>Maintainability:</strong> Adding or modifying validation, changing input type logic, or extending editor UI requires changes only inside the column component—pages remain clean lists of <code>&lt;EditableColumn ... /&gt;</code>. Reduces boilerplate and risk of inconsistent behavior between grids.</p>
+    <p><strong>Extensibility:</strong> Optional <code>DisplayTemplate</code> for custom non-edit rendering; future enhancements (e.g. multi-field row validation, async server validation, optimistic concurrency) can be integrated without altering consumer markup.</p>
+    <p><strong>Net Benefit:</strong> Fewer lines of page code, clearer intent, centralized quality improvements, improved performance, and a simpler mental model: “declare editable columns; component does the rest.”</p>
+</div>
+
+<h3>Editable Column (Inline Editing via Custom Column)</h3>
 
 <p>
-    Refactored to use in-place editors like the inline demo: inputs are always visible in cells with validation via DataAnnotations.
+    This demo refactors the previous ad hoc EditForm-per-cell approach to use the reusable <code>EditableColumn</code>.
+    Columns render inline inputs with DataAnnotations + custom validators, debounced validation, and auto-commit.
 </p>
 
 <div class="demo-section">
-    <h4>Employee Editor</h4>
+    <h4>Employee Editor (Inline)</h4>
     <p class="info-text">
-        Edit directly in the grid. Uses EditForm + Input components per cell.
+        Inline editors using <code>EditableColumn</code>. Validation combines DataAnnotations and explicit validators. Auto-commit on valid change.
     </p>
 
     <QuickGrid Items="@employees" Class="demo-grid">
         <PropertyColumn Property="@(e => e.Id)" Title="ID" />
 
-        <TemplateColumn Title="First Name" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.FirstName"
-                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "First Name", e.Value))"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.FirstName)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Last Name" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.LastName"
-                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Last Name", e.Value))"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.LastName)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Email" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.Email"
-                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Email", e.Value))"
-                           type="email"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Email)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Department" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.Department"
-                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Department", e.Value))"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Department)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Salary" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputNumber @bind-Value="row.Salary"
-                             @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Salary", e.Value))"
-                             class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Salary)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Hire Date" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputDate @bind-Value="row.HireDate"
-                           @bind-Value:after="@(() => OnEmployeeFieldChanged(row, "Hire Date", row.HireDate))"
-                           class="form-control form-control-sm seamless-input" />
-            </EditForm>
-        </TemplateColumn>
+        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@EmailValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@DepartmentValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        <EditableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@SalaryValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        <EditableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Inline="true" UseDataAnnotations="true" InputType="date" DebounceMilliseconds="300" Validators="@HireDateValidators" OnValueChanged="@OnEmployeeValueChanged" />
     </QuickGrid>
 
     @if (_changeLog.Any())
     {
         <div class="change-log">
-            <h5>Change Log:</h5>
+            <h5>Recent Changes:</h5>
             <div class="log-entries">
-                @foreach (var entry in _changeLog.TakeLast(5).Reverse())
+                @foreach (var entry in _changeLog.TakeLast(8).Reverse())
                 {
                     <div class="log-entry">@entry</div>
                 }
@@ -96,75 +57,28 @@
 </div>
 
 <div class="demo-section">
-    <h4>Product Inventory Editor</h4>
+    <h4>Product Inventory Editor (Inline)</h4>
     <p class="info-text">
-        Same in-place editing approach for products.
+        Products use the same approach. Debounced validation and auto-commit on valid modifications.
     </p>
 
     <QuickGrid Items="@products" Class="demo-grid">
         <PropertyColumn Property="@(p => p.Id)" Title="ID" />
 
-        <TemplateColumn Title="Product Name" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.Name"
-                           @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Name", e.Value))"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Name)" />
-            </EditForm>
-        </TemplateColumn>
+        <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
+        <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
+        <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
+        <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
+        <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
 
-        <TemplateColumn Title="SKU" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputText @bind-Value="row.SKU"
-                           @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "SKU", e.Value))"
-                           class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.SKU)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Price" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputNumber @bind-Value="row.Price"
-                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Price", e.Value))"
-                             class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Price)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Stock" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputNumber @bind-Value="row.Stock"
-                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Stock", e.Value))"
-                             class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Stock)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Rating" Context="row">
-            <EditForm Model="row" class="d-inline">
-                <DataAnnotationsValidator />
-                <InputNumber @bind-Value="row.Rating"
-                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Rating", e.Value))"
-                             class="form-control form-control-sm seamless-input" />
-                <ValidationMessage For="@(() => row.Rating)" />
-            </EditForm>
-        </TemplateColumn>
-
-        <TemplateColumn Title="Status">
-            <span class="stock-badge stock-@GetStockLevel(context.Stock)">
-                @GetStockText(context.Stock)
-            </span>
+        <TemplateColumn Title="Status" Context="context">
+            <span class="stock-badge stock-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
         </TemplateColumn>
     </QuickGrid>
 </div>
 
 <div class="demo-section">
     <h4>Validation Rules Summary</h4>
-
     <div class="validation-rules">
         <div class="rule-group">
             <h5>Employee Validations:</h5>
@@ -177,7 +91,6 @@
                 <li><strong>Hire Date:</strong> Must be in the past</li>
             </ul>
         </div>
-
         <div class="rule-group">
             <h5>Product Validations:</h5>
             <ul>
@@ -192,86 +105,29 @@
 </div>
 
 <style>
-    .seamless-input {
-        border: 1px solid transparent;
-        background-color: transparent;
-        transition: all 0.2s ease-in-out;
-        box-shadow: none;
-        outline: none !important;
-    }
-
-    .seamless-input:hover {
-        border-color: #dee2e6;
-        background-color: #f8f9fa;
-    }
-
-    .seamless-input:focus {
-        border-color: #dee2e6 !important;
-        background-color: #f8f9fa;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-    /* Override Bootstrap validation styling */
-    .seamless-input.valid,
-    .seamless-input.is-valid,
-    .seamless-input:valid {
-        border: 1px solid transparent !important;
-        background-color: transparent !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-    .seamless-input.valid:hover,
-    .seamless-input.is-valid:hover,
-    .seamless-input:valid:hover {
-        border-color: #dee2e6 !important;
-        background-color: #f8f9fa !important;
-    }
-
-    .seamless-input.valid:focus,
-    .seamless-input.is-valid:focus,
-    .seamless-input:valid:focus {
-        border-color: #dee2e6 !important;
-        background-color: #f8f9fa !important;
-        box-shadow: none !important;
-        outline: none !important;
-    }
-
-    /* Override site.css .valid.modified rule */
-    .seamless-input.valid.modified,
-    .seamless-input.modified.valid {
-        outline: none !important;
-        border: 1px solid transparent !important;
-        background-color: transparent !important;
-    }
-
-    .seamless-input.valid.modified:hover,
-    .seamless-input.modified.valid:hover {
-        border-color: #dee2e6 !important;
-        background-color: #f8f9fa !important;
-        outline: none !important;
-    }
-
-    .seamless-input.valid.modified:focus,
-    .seamless-input.modified.valid:focus {
-        border-color: #dee2e6 !important;
-        background-color: #f8f9fa !important;
-        outline: none !important;
-    }
-
-    /* Checkbox styling */
-    .seamless-checkbox {
-        cursor: pointer;
-        width: 1.2em;
-        height: 1.2em;
-    }
+    .seamless-input { border: 1px solid transparent; background: transparent; box-shadow:none; outline:none; }
+    .seamless-input:focus { border-color:#dee2e6 !important; background:#f8f9fa !important; }
+    ::deep .editable-cell.inline-mode.invalid .seamless-input { border-color:#dc3545 !important; }
+    ::deep .validation-error { font-size:11px; }
 </style>
 
 @code {
     private IQueryable<Employee> employees = default!;
     private IQueryable<Product> products = default!;
     private List<string> _changeLog = new();
+
+    // Validator lists
+    private static readonly List<IValidator<string>> FirstLastNameValidators = new() { new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 50 } };
+    private static readonly List<IValidator<string>> EmailValidators = new() { new RequiredStringValidator(), new EmailValidator() };
+    private static readonly List<IValidator<string>> DepartmentValidators = new() { new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 100 } };
+    private static readonly List<IValidator<int>> SalaryValidators = new() { new RangeValidator<int> { Minimum = 30000, Maximum = 250000 } };
+    private static readonly List<IValidator<DateTime>> HireDateValidators = new() { new PastDateValidator() };
+
+    private static readonly List<IValidator<string>> ProductNameValidators = new() { new RequiredStringValidator(), new StringLengthValidator { MinLength = 3, MaxLength = 100 } };
+    private static readonly List<IValidator<string>> SkuValidators = new() { new RequiredStringValidator(), new PatternValidator { Pattern = "^[A-Z]{3}-\\d{4}$", ErrorMessage = "Format ABC-1234" } };
+    private static readonly List<IValidator<decimal>> PriceValidators = new() { new RangeValidator<decimal> { Minimum = 0.0m, Maximum = 10000m }, new PositiveNumberValidator<decimal>() };
+    private static readonly List<IValidator<int>> StockValidators = new() { new RangeValidator<int> { Minimum = 0, Maximum = 9999 } };
+    private static readonly List<IValidator<double>> RatingValidators = new() { new RangeValidator<double> { Minimum = 0.0, Maximum = 5.0 } };
 
     protected override void OnInitialized()
     {
@@ -305,66 +161,44 @@
         products = productList.AsQueryable();
     }
 
-    private void OnEmployeeFieldChanged(Employee employee, string field, object? value)
+    private Task OnEmployeeValueChanged(CellValueChangedArgs<Employee, object> args)
     {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        _changeLog.Add($"[{timestamp}] Employee #{employee.Id} {field} changed.");
-        StateHasChanged();
+        LogChange("Employee", args.Item.Id, args.PropertyName, args.OldValue, args.NewValue);
+        return Task.CompletedTask;
     }
 
-    private void OnProductFieldChanged(Product product, string field, object? value)
+    private Task OnProductValueChanged(CellValueChangedArgs<Product, object> args)
+    {
+        LogChange("Product", args.Item.Id, args.PropertyName, args.OldValue, args.NewValue);
+        return Task.CompletedTask;
+    }
+
+    private void LogChange(string entityType, int id, string property, object oldVal, object newVal)
     {
         var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        _changeLog.Add($"[{timestamp}] Product #{product.Id} {field} changed.");
+        _changeLog.Add($"[{timestamp}] {entityType} #{id} {property} changed: '{oldVal}' ? '{newVal}'");
         StateHasChanged();
     }
 
     public class Employee
     {
         public int Id { get; set; }
-
-        [Required]
-        [StringLength(50, MinimumLength = 2)]
-        public string FirstName { get; set; } = string.Empty;
-
-        [Required]
-        [StringLength(50, MinimumLength = 2)]
-        public string LastName { get; set; } = string.Empty;
-
-        [Required]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
-        [MinLength(2)]
-        public string Department { get; set; } = string.Empty;
-
-        [Range(30000, 250000)]
-        public int Salary { get; set; }
-
+        [Required][StringLength(50, MinimumLength = 2)] public string FirstName { get; set; } = string.Empty;
+        [Required][StringLength(50, MinimumLength = 2)] public string LastName { get; set; } = string.Empty;
+        [Required][EmailAddress] public string Email { get; set; } = string.Empty;
+        [Required][MinLength(2)] public string Department { get; set; } = string.Empty;
+        [Range(30000, 250000)] public int Salary { get; set; }
         public DateTime HireDate { get; set; }
     }
 
     public class Product
     {
         public int Id { get; set; }
-
-        [Required]
-        [StringLength(100, MinimumLength = 3)]
-        public string Name { get; set; } = string.Empty;
-
-        [Required]
-        [RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "SKU must be in format: ABC-1234")]
-        public string SKU { get; set; } = string.Empty;
-
-        [Range(0.0, 10000)]
-        public decimal Price { get; set; }
-
-        [Range(0, 9999)]
-        public int Stock { get; set; }
-
-        [Range(0.0, 5.0)]
-        public double Rating { get; set; }
+        [Required][StringLength(100, MinimumLength = 3)] public string Name { get; set; } = string.Empty;
+        [Required][RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "SKU must be in format: ABC-1234")] public string SKU { get; set; } = string.Empty;
+        [Range(0.0, 10000)] public decimal Price { get; set; }
+        [Range(0, 9999)] public int Stock { get; set; }
+        [Range(0.0, 5.0)] public double Rating { get; set; }
     }
 
     private string GetStockLevel(int stock) => stock switch

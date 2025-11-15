@@ -1,0 +1,504 @@
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.QuickGrid;
+using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
+using System.Linq.Expressions;
+using System.ComponentModel.DataAnnotations;
+using System.Reflection;
+
+namespace QuickGridTest01.CustomColumns;
+
+public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
+{
+    [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+    [Parameter] public List<IValidator<TValue>> Validators { get; set; } = new();
+    [Parameter] public string? Format { get; set; }
+    [Parameter] public string? InputType { get; set; }
+    [Parameter] public EventCallback<CellValueChangedArgs<TGridItem, object>> OnValueChanged { get; set; }
+    [Parameter] public bool ValidateOnChange { get; set; } = true; // existing behavior (on input vs on change)
+    [Parameter] public RenderFragment<TValue>? DisplayTemplate { get; set; }
+    [Parameter] public bool Inline { get; set; } = false; // always show editor
+    [Parameter] public bool UseDataAnnotations { get; set; } = false; // include DataAnnotations for the bound property
+    [Parameter] public int DebounceMilliseconds { get; set; } = 0; // delay validation/commit
+    [Parameter] public bool CommitOnInput { get; set; } = true; // when Inline, commit value automatically after valid
+
+    private readonly Dictionary<TGridItem, EditState<TValue>> _editStates = new();
+    private readonly Dictionary<TGridItem, System.Threading.Timer> _debounceTimers = new();
+
+    private Expression<Func<TGridItem, TValue>>? _lastProperty;
+    private Func<TGridItem, TValue>? _compiledProperty;
+    private Action<TGridItem, TValue>? _propertySetter;
+    private Func<TGridItem, string?>? _cellTextFunc;
+    private GridSort<TGridItem>? _sortBuilder;
+    private List<ValidationAttribute>? _dataAnnotationAttributes; // cached validation attributes
+    private PropertyInfo? _boundPropertyInfo;
+
+    public override GridSort<TGridItem>? SortBy
+    {
+        get => _sortBuilder;
+        set => _sortBuilder = value;
+    }
+
+    protected override void OnInitialized()
+    {
+        if (Property is null)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(EditableColumn<TGridItem, TValue>)} requires a {nameof(Property)} parameter.");
+        }
+        base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Title is null && Property.Body is MemberExpression memberExpressionTitle)
+        {
+            Title = memberExpressionTitle.Member.Name;
+        }
+
+        if (_lastProperty != Property)
+        {
+            _lastProperty = Property;
+            _compiledProperty = Property.Compile();
+            _propertySetter = BuildPropertySetter();
+
+            // Cache property info & DataAnnotations if requested
+            if (Property.Body is MemberExpression memberExpression && memberExpression.Member is PropertyInfo pi)
+            {
+                _boundPropertyInfo = pi;
+                if (UseDataAnnotations)
+                {
+                    _dataAnnotationAttributes = pi.GetCustomAttributes(typeof(ValidationAttribute), true)
+                        .Cast<ValidationAttribute>()
+                        .ToList();
+                }
+                else
+                {
+                    _dataAnnotationAttributes = null;
+                }
+            }
+            else
+            {
+                _boundPropertyInfo = null;
+                _dataAnnotationAttributes = null;
+            }
+
+            if (!string.IsNullOrEmpty(Format))
+            {
+                _cellTextFunc = item =>
+                {
+                    var value = _compiledProperty!(item);
+                    if (value is IFormattable formattable)
+                    {
+                        return formattable.ToString(Format, null);
+                    }
+                    return value?.ToString();
+                };
+            }
+            else
+            {
+                _cellTextFunc = item => _compiledProperty!(item)?.ToString();
+            }
+
+            if (Sortable ?? false)
+            {
+                _sortBuilder = GridSort<TGridItem>.ByAscending(Property);
+            }
+        }
+
+        base.OnParametersSet();
+    }
+
+    protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
+    {
+        var state = GetOrCreateEditState(item);
+
+        // Inline always shows editor (no buttons) and treats cell as continuously editable
+        if (Inline)
+        {
+            RenderInlineEditor(builder, item, state);
+            return;
+        }
+
+        if (state.IsEditing)
+        {
+            RenderEditMode(builder, item, state);
+        }
+        else
+        {
+            RenderDisplayMode(builder, item, state);
+        }
+    }
+
+    private void RenderDisplayMode(RenderTreeBuilder builder, TGridItem item, EditState<TValue> state)
+    {
+        int sequence = 0;
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "editable-cell display-mode");
+        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, (MouseEventArgs _) => EnterEditMode(item)));
+        builder.AddAttribute(sequence++, "ondblclick", EventCallback.Factory.Create<MouseEventArgs>(this, (MouseEventArgs _) => EnterEditMode(item)));
+        builder.AddAttribute(sequence++, "title", "Click to edit");
+
+        if (DisplayTemplate is not null)
+        {
+            var value = _compiledProperty!(item);
+            builder.AddContent(sequence++, DisplayTemplate(value));
+        }
+        else
+        {
+            var text = _cellTextFunc!(item);
+            builder.OpenElement(sequence++, "span");
+            builder.AddAttribute(sequence++, "class", "cell-value");
+            builder.AddContent(sequence++, text ?? string.Empty);
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", "bi bi-pencil edit-icon");
+        builder.CloseElement();
+        builder.CloseElement();
+    }
+
+    private void RenderEditMode(RenderTreeBuilder builder, TGridItem item, EditState<TValue> state)
+    {
+        int sequence = 0;
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", $"editable-cell edit-mode {(state.IsValid ? "" : "invalid")}");
+        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+
+        RenderEditor(builder, ref sequence, item, state, includeAutofocus: true);
+
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", "edit-actions");
+
+        builder.OpenElement(sequence++, "button");
+        builder.AddAttribute(sequence++, "type", "button");
+        builder.AddAttribute(sequence++, "class", "btn-save");
+        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => SaveEdit(item)));
+        builder.AddAttribute(sequence++, "disabled", state.IsValidating || !state.IsValid);
+        builder.AddAttribute(sequence++, "title", state.IsValid ? "Save" : "Fix validation errors");
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", "bi bi-check");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        builder.OpenElement(sequence++, "button");
+        builder.AddAttribute(sequence++, "type", "button");
+        builder.AddAttribute(sequence++, "class", "btn-cancel");
+        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, () => CancelEdit(item)));
+        builder.AddAttribute(sequence++, "title", "Cancel");
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", "bi bi-x");
+        builder.CloseElement();
+        builder.CloseElement();
+
+        builder.CloseElement();
+
+        RenderValidationFeedback(builder, ref sequence, state);
+        builder.CloseElement();
+    }
+
+    private void RenderInlineEditor(RenderTreeBuilder builder, TGridItem item, EditState<TValue> state)
+    {
+        // Ensure state has initial value
+        if (!state.IsEditing && state.OriginalValue is null && _compiledProperty is not null)
+        {
+            state.BeginEdit(_compiledProperty(item));
+        }
+
+        int sequence = 0;
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", $"editable-cell inline-mode {(state.IsValid ? "" : "invalid")}");
+        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+
+        RenderEditor(builder, ref sequence, item, state, includeAutofocus: false, cssClass: "edit-input seamless-input");
+
+        RenderValidationFeedback(builder, ref sequence, state);
+        builder.CloseElement();
+    }
+
+    private void RenderEditor(RenderTreeBuilder builder, ref int sequence, TGridItem item, EditState<TValue> state, bool includeAutofocus, string cssClass = "edit-input")
+    {
+        var inputType = GetInputType();
+        builder.OpenElement(sequence++, "input");
+        builder.AddAttribute(sequence++, "type", inputType);
+        builder.AddAttribute(sequence++, "class", cssClass);
+        builder.AddAttribute(sequence++, "value", FormatValueForInput(state.CurrentValue));
+
+        // Decide event binding
+        var eventName = ValidateOnChange ? "oninput" : "onchange";
+        if (DebounceMilliseconds > 0)
+        {
+            builder.AddAttribute(sequence++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputWithDebounce(item, e)));
+        }
+        else
+        {
+            builder.AddAttribute(sequence++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
+        }
+
+        if (includeAutofocus)
+        {
+            builder.AddAttribute(sequence++, "autofocus", true);
+        }
+        builder.AddAttribute(sequence++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => OnKeyDown(item, e)));
+        builder.CloseElement();
+    }
+
+    private void RenderValidationFeedback(RenderTreeBuilder builder, ref int sequence, EditState<TValue> state)
+    {
+        if (!state.IsValid && state.ErrorMessages.Any())
+        {
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(sequence++, "class", "validation-errors");
+            foreach (var error in state.ErrorMessages)
+            {
+                builder.OpenElement(sequence++, "div");
+                builder.AddAttribute(sequence++, "class", "validation-error");
+                builder.AddContent(sequence++, error);
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+        }
+        if (state.IsValidating)
+        {
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(sequence++, "class", "validation-loading");
+            builder.AddContent(sequence++, "Validating...");
+            builder.CloseElement();
+        }
+    }
+
+    private string GetInputType()
+    {
+        if (!string.IsNullOrWhiteSpace(InputType))
+            return InputType;
+        var valueType = typeof(TValue);
+        var underlyingType = Nullable.GetUnderlyingType(valueType) ?? valueType;
+        if (underlyingType == typeof(DateTime)) return "date";
+        if (underlyingType == typeof(int) || underlyingType == typeof(long)) return "number";
+        if (underlyingType == typeof(decimal) || underlyingType == typeof(double) || underlyingType == typeof(float)) return "number";
+        if (underlyingType == typeof(bool)) return "checkbox";
+        return "text";
+    }
+
+    private string FormatValueForInput(TValue? value)
+    {
+        if (value is null) return string.Empty;
+        if (value is DateTime dateTime) return dateTime.ToString("yyyy-MM-dd");
+        return value.ToString() ?? string.Empty;
+    }
+
+    private EditState<TValue> GetOrCreateEditState(TGridItem item)
+    {
+        if (!_editStates.TryGetValue(item, out var state))
+        {
+            state = new EditState<TValue>();
+            _editStates[item] = state;
+        }
+        return state;
+    }
+
+    private void EnterEditMode(TGridItem item)
+    {
+        var state = GetOrCreateEditState(item);
+        var currentValue = _compiledProperty!(item);
+        state.BeginEdit(currentValue);
+        StateHasChanged();
+    }
+
+    private async Task OnInputChanged(TGridItem item, ChangeEventArgs e)
+    {
+        var state = GetOrCreateEditState(item);
+        UpdateStateValueFromEvent(state, e);
+        if (ValidateOnChange)
+        {
+            await ValidateAsync(item, state);
+            if (Inline && CommitOnInput && state.IsValid && state.IsDirty && _propertySetter is not null)
+            {
+                await CommitValueAsync(item, state);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private Task OnInputWithDebounce(TGridItem item, ChangeEventArgs e)
+    {
+        var state = GetOrCreateEditState(item);
+        UpdateStateValueFromEvent(state, e);
+
+        if (_debounceTimers.TryGetValue(item, out var existing))
+        {
+            existing.Dispose();
+        }
+
+        var timer = new System.Threading.Timer(async _ =>
+        {
+            try
+            {
+                if (ValidateOnChange)
+                {
+                    await ValidateAsync(item, state);
+                    if (Inline && CommitOnInput && state.IsValid && state.IsDirty && _propertySetter is not null)
+                    {
+                        await CommitValueAsync(item, state);
+                    }
+                }
+            }
+            finally
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, DebounceMilliseconds, System.Threading.Timeout.Infinite);
+        _debounceTimers[item] = timer;
+        return Task.CompletedTask;
+    }
+
+    private void UpdateStateValueFromEvent(EditState<TValue> state, ChangeEventArgs e)
+    {
+        try
+        {
+            var stringValue = e.Value?.ToString();
+            if (string.IsNullOrWhiteSpace(stringValue))
+            {
+                state.CurrentValue = default;
+            }
+            else if (typeof(TValue) == typeof(bool))
+            {
+                object parsed = stringValue == "on" ? true : bool.Parse(stringValue);
+                state.CurrentValue = (TValue)parsed;
+            }
+            else
+            {
+                state.CurrentValue = (TValue)Convert.ChangeType(stringValue, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
+            }
+        }
+        catch { }
+    }
+
+    private async Task OnKeyDown(TGridItem item, KeyboardEventArgs e)
+    {
+        if (Inline)
+        {
+            // In inline mode, Enter commits explicitly if not commit-on-input; Esc reverts
+            if (e.Key == "Enter" && !CommitOnInput)
+            {
+                await SaveEdit(item);
+            }
+            else if (e.Key == "Escape")
+            {
+                CancelEdit(item);
+            }
+            return;
+        }
+
+        if (e.Key == "Enter")
+        {
+            await SaveEdit(item);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEdit(item);
+        }
+    }
+
+    private async Task SaveEdit(TGridItem item)
+    {
+        var state = GetOrCreateEditState(item);
+        if (!ValidateOnChange || state.ValidationResults.Count == 0)
+        {
+            await ValidateAsync(item, state);
+        }
+        if (!state.IsValid)
+        {
+            StateHasChanged();
+            return;
+        }
+        if (state.IsDirty && _propertySetter is not null)
+        {
+            await CommitValueAsync(item, state);
+        }
+        state.CommitEdit();
+        StateHasChanged();
+    }
+
+    private async Task CommitValueAsync(TGridItem item, EditState<TValue> state)
+    {
+        var oldValue = _compiledProperty!(item);
+        _propertySetter!(item, state.CurrentValue!);
+        await OnValueChanged.InvokeAsync(new CellValueChangedArgs<TGridItem, object>
+        {
+            Item = item,
+            OldValue = oldValue!,
+            NewValue = state.CurrentValue!
+        });
+        // Update original value when inline commit occurs
+        if (Inline)
+        {
+            state.OriginalValue = state.CurrentValue;
+        }
+    }
+
+    private void CancelEdit(TGridItem item)
+    {
+        var state = GetOrCreateEditState(item);
+        state.CancelEdit();
+        StateHasChanged();
+    }
+
+    private async Task ValidateAsync(TGridItem item, EditState<TValue> state)
+    {
+        state.IsValidating = true;
+        state.ValidationResults.Clear();
+        StateHasChanged();
+        try
+        {
+            // Custom validators
+            foreach (var validator in Validators)
+            {
+                var result = await validator.ValidateAsync(state.CurrentValue);
+                state.ValidationResults.Add(result);
+            }
+
+            // DataAnnotations (property-level)
+            if (UseDataAnnotations && _dataAnnotationAttributes is not null && _boundPropertyInfo is not null)
+            {
+                var validationContext = new ValidationContext(item)
+                {
+                    MemberName = _boundPropertyInfo.Name
+                };
+                foreach (var attr in _dataAnnotationAttributes)
+                {
+                    var systemResult = attr.GetValidationResult(state.CurrentValue, validationContext);
+                    if (systemResult is not null)
+                    {
+                        state.ValidationResults.Add(ValidationResult.Failure(systemResult.ErrorMessage ?? "Invalid"));
+                    }
+                }
+            }
+        }
+        finally
+        {
+            state.IsValidating = false;
+            StateHasChanged();
+        }
+    }
+
+    private Action<TGridItem, TValue>? BuildPropertySetter()
+    {
+        if (Property.Body is not MemberExpression memberExpression)
+            return null;
+        var parameter = Property.Parameters[0];
+        var valueParameter = Expression.Parameter(typeof(TValue), "value");
+        var assign = Expression.Assign(memberExpression, valueParameter);
+        var lambda = Expression.Lambda<Action<TGridItem, TValue>>(assign, parameter, valueParameter);
+        return lambda.Compile();
+    }
+}
+
+public class CellValueChangedArgs<TGridItem, TValue>
+{
+    public TGridItem Item { get; set; } = default!;
+    public TValue OldValue { get; set; } = default!;
+    public TValue NewValue { get; set; } = default!;
+}

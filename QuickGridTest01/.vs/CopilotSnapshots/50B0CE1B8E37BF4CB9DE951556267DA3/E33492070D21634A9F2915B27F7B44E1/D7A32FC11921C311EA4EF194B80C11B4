@@ -1,0 +1,384 @@
+﻿@page "/editable-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Editable Column Demo</PageTitle>
+
+<h3>Editable Column with In-Place Editors</h3>
+
+<p>
+    Refactored to use in-place editors like the inline demo: inputs are always visible in cells with validation via DataAnnotations.
+</p>
+
+<div class="demo-section">
+    <h4>Employee Editor</h4>
+    <p class="info-text">
+        Edit directly in the grid. Uses EditForm + Input components per cell.
+    </p>
+
+    <QuickGrid Items="@employees" Class="demo-grid">
+        <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+
+        <TemplateColumn Title="First Name" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.FirstName"
+                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "First Name", e.Value))"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.FirstName)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Last Name" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.LastName"
+                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Last Name", e.Value))"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.LastName)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Email" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.Email"
+                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Email", e.Value))"
+                           type="email"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Email)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Department" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.Department"
+                           @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Department", e.Value))"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Department)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Salary" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputNumber @bind-Value="row.Salary"
+                             @oninput="@((ChangeEventArgs e) => OnEmployeeFieldChanged(row, "Salary", e.Value))"
+                             class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Salary)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Hire Date" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputDate @bind-Value="row.HireDate"
+                           @bind-Value:after="@(() => OnEmployeeFieldChanged(row, "Hire Date", row.HireDate))"
+                           class="form-control form-control-sm seamless-input" />
+            </EditForm>
+        </TemplateColumn>
+    </QuickGrid>
+
+    @if (_changeLog.Any())
+    {
+        <div class="change-log">
+            <h5>Change Log:</h5>
+            <div class="log-entries">
+                @foreach (var entry in _changeLog.TakeLast(5).Reverse())
+                {
+                    <div class="log-entry">@entry</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<div class="demo-section">
+    <h4>Product Inventory Editor</h4>
+    <p class="info-text">
+        Same in-place editing approach for products.
+    </p>
+
+    <QuickGrid Items="@products" Class="demo-grid">
+        <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+
+        <TemplateColumn Title="Product Name" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.Name"
+                           @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Name", e.Value))"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Name)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="SKU" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputText @bind-Value="row.SKU"
+                           @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "SKU", e.Value))"
+                           class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.SKU)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Price" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputNumber @bind-Value="row.Price"
+                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Price", e.Value))"
+                             class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Price)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Stock" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputNumber @bind-Value="row.Stock"
+                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Stock", e.Value))"
+                             class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Stock)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Rating" Context="row">
+            <EditForm Model="row" class="d-inline">
+                <DataAnnotationsValidator />
+                <InputNumber @bind-Value="row.Rating"
+                             @oninput="@((ChangeEventArgs e) => OnProductFieldChanged(row, "Rating", e.Value))"
+                             class="form-control form-control-sm seamless-input" />
+                <ValidationMessage For="@(() => row.Rating)" />
+            </EditForm>
+        </TemplateColumn>
+
+        <TemplateColumn Title="Status">
+            <span class="stock-badge stock-@GetStockLevel(context.Stock)">
+                @GetStockText(context.Stock)
+            </span>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<div class="demo-section">
+    <h4>Validation Rules Summary</h4>
+
+    <div class="validation-rules">
+        <div class="rule-group">
+            <h5>Employee Validations:</h5>
+            <ul>
+                <li><strong>First Name:</strong> Required, 2-50 characters</li>
+                <li><strong>Last Name:</strong> Required, 2-50 characters</li>
+                <li><strong>Email:</strong> Required, valid email format</li>
+                <li><strong>Department:</strong> Required, min 2 characters</li>
+                <li><strong>Salary:</strong> Between $30,000 and $250,000</li>
+                <li><strong>Hire Date:</strong> Must be in the past</li>
+            </ul>
+        </div>
+
+        <div class="rule-group">
+            <h5>Product Validations:</h5>
+            <ul>
+                <li><strong>Name:</strong> Required, 3-100 characters</li>
+                <li><strong>SKU:</strong> Required, pattern: ABC-1234</li>
+                <li><strong>Price:</strong> Positive, max $10,000</li>
+                <li><strong>Stock:</strong> Non-negative, max 9,999</li>
+                <li><strong>Rating:</strong> Between 0.0 and 5.0</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+    .seamless-input {
+        border: 1px solid transparent;
+        background-color: transparent;
+        transition: all 0.2s ease-in-out;
+        box-shadow: none;
+        outline: none !important;
+    }
+
+    .seamless-input:hover {
+        border-color: #dee2e6;
+        background-color: #f8f9fa;
+    }
+
+    .seamless-input:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Override Bootstrap validation styling */
+    .seamless-input.valid,
+    .seamless-input.is-valid,
+    .seamless-input:valid {
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid:hover,
+    .seamless-input.is-valid:hover,
+    .seamless-input:valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+    }
+
+    .seamless-input.valid:focus,
+    .seamless-input.is-valid:focus,
+    .seamless-input:valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Override site.css .valid.modified rule */
+    .seamless-input.valid.modified,
+    .seamless-input.modified.valid {
+        outline: none !important;
+        border: 1px solid transparent !important;
+        background-color: transparent !important;
+    }
+
+    .seamless-input.valid.modified:hover,
+    .seamless-input.modified.valid:hover {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+
+    .seamless-input.valid.modified:focus,
+    .seamless-input.modified.valid:focus {
+        border-color: #dee2e6 !important;
+        background-color: #f8f9fa !important;
+        outline: none !important;
+    }
+
+    /* Checkbox styling */
+    .seamless-checkbox {
+        cursor: pointer;
+        width: 1.2em;
+        height: 1.2em;
+    }
+</style>
+
+@code {
+    private IQueryable<Employee> employees = default!;
+    private IQueryable<Product> products = default!;
+    private List<string> _changeLog = new();
+
+    protected override void OnInitialized()
+    {
+        InitializeEmployeeData();
+        InitializeProductData();
+    }
+
+    private void InitializeEmployeeData()
+    {
+        var employeeList = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith", Email = "john.smith@company.com", Department = "Engineering", Salary = 95000, HireDate = new DateTime(2020, 3, 15) },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson", Email = "sarah.j@company.com", Department = "Marketing", Salary = 78000, HireDate = new DateTime(2021, 7, 22) },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown", Email = "m.brown@company.com", Department = "Engineering", Salary = 103000, HireDate = new DateTime(2019, 1, 10) },
+            new() { Id = 4, FirstName = "Emily", LastName = "Davis", Email = "emily.davis@company.com", Department = "HR", Salary = 72000, HireDate = new DateTime(2022, 4, 5) },
+            new() { Id = 5, FirstName = "David", LastName = "Wilson", Email = "d.wilson@company.com", Department = "Sales", Salary = 85000, HireDate = new DateTime(2020, 11, 30) },
+        };
+        employees = employeeList.AsQueryable();
+    }
+
+    private void InitializeProductData()
+    {
+        var productList = new List<Product>
+        {
+            new() { Id = 1, Name = "Laptop Pro", SKU = "LAP-1001", Price = 1299.99m, Stock = 45, Rating = 4.5 },
+            new() { Id = 2, Name = "Office Chair", SKU = "CHR-2001", Price = 399.99m, Stock = 23, Rating = 4.2 },
+            new() { Id = 3, Name = "Wireless Mouse", SKU = "MOU-3001", Price = 49.99m, Stock = 150, Rating = 4.7 },
+            new() { Id = 4, Name = "Desk Lamp", SKU = "LMP-4001", Price = 79.99m, Stock = 0, Rating = 4.0 },
+            new() { Id = 5, Name = "USB-C Hub", SKU = "HUB-5001", Price = 89.99m, Stock = 67, Rating = 4.6 },
+        };
+        products = productList.AsQueryable();
+    }
+
+    private void OnEmployeeFieldChanged(Employee employee, string field, object? value)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        _changeLog.Add($"[{timestamp}] Employee #{employee.Id} {field} changed.");
+        StateHasChanged();
+    }
+
+    private void OnProductFieldChanged(Product product, string field, object? value)
+    {
+        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+        _changeLog.Add($"[{timestamp}] Product #{product.Id} {field} changed.");
+        StateHasChanged();
+    }
+
+    public class Employee
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [StringLength(50, MinimumLength = 2)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(50, MinimumLength = 2)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [MinLength(2)]
+        public string Department { get; set; } = string.Empty;
+
+        [Range(30000, 250000)]
+        public int Salary { get; set; }
+
+        public DateTime HireDate { get; set; }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 3)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [RegularExpression(@"^[A-Z]{3}-\d{4}$", ErrorMessage = "SKU must be in format: ABC-1234")]
+        public string SKU { get; set; } = string.Empty;
+
+        [Range(0.0, 10000)]
+        public decimal Price { get; set; }
+
+        [Range(0, 9999)]
+        public int Stock { get; set; }
+
+        [Range(0.0, 5.0)]
+        public double Rating { get; set; }
+    }
+
+    private string GetStockLevel(int stock) => stock switch
+    {
+        0 => "out",
+        < 25 => "low",
+        < 100 => "medium",
+        _ => "high"
+    };
+
+    private string GetStockText(int stock) => stock switch
+    {
+        0 => "Out of Stock",
+        < 25 => $"Low ({stock})",
+        _ => $"In Stock ({stock})"
+    };
+}
