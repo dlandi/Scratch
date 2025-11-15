@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using QuickGridTest01.Data;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using System.Text;
 
 namespace QuickGridTest01
 {
@@ -9,7 +12,20 @@ namespace QuickGridTest01
     {
         public static void Main(string[] args)
         {
+            // Ensure console supports UTF-8 (for emoji/special chars in logs)
+            Console.OutputEncoding = Encoding.UTF8;
+
+            // Configure Serilog early
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Verbose()
+                .Enrich.FromLogContext()
+                .WriteTo.Console(outputTemplate: "{Timestamp:HH:mm:ss} {Level:u3} {SourceContext} {Message:lj}{NewLine}{Exception}")
+                .CreateLogger();
+
             var builder = WebApplication.CreateBuilder(args);
+
+            // Replace default logging with Serilog
+            builder.Host.UseSerilog();
 
             // Add services to the container.
             builder.Services.AddRazorPages();
@@ -32,10 +48,11 @@ namespace QuickGridTest01
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
-                app.UseExceptionHandler("/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+                app.UseExceptionHandler("/_Host");
                 app.UseHsts();
             }
+
+            app.UseSerilogRequestLogging();
 
             app.UseHttpsRedirection();
 
