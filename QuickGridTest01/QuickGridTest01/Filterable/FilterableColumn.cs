@@ -27,7 +27,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     
     private IFilterOperator<TValue>? _selectedOperator;
     private TValue? _filterValue;
-    private bool _hasFilterValue; // NEW: track if user set a value
+    private bool _hasFilterValue; // tracks if user set a value
     private bool _showFilterUI;
     
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
@@ -56,7 +56,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         }
 
         _selectedOperator = FilterOperators.FirstOrDefault();
-        _hasFilterValue = false; // ensure not active on load for value types
+        _hasFilterValue = false;
         FilterableGrid?.RegisterColumn(this);
         base.OnInitialized();
     }
@@ -137,7 +137,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             builder.AddAttribute(sequence++, "class", "filter-operator");
             builder.AddAttribute(sequence++, "style", "margin-right:.5rem;");
             builder.AddAttribute(sequence++, "value", _selectedOperator?.Name ?? "");
-            builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChanged));
+            builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChangedAsync));
             foreach (var op in FilterOperators)
             {
                 builder.OpenElement(sequence++, "option");
@@ -175,17 +175,15 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         builder.OpenElement(seq++, "div");
         builder.AddAttribute(seq++, "class", "ft-inline");
 
-        // Label/title
         builder.OpenElement(seq++, "label");
         builder.AddAttribute(seq++, "class", "ft-label");
         builder.AddContent(seq++, Title);
         builder.CloseElement();
 
-        // Operator select
         builder.OpenElement(seq++, "select");
         builder.AddAttribute(seq++, "class", "ft-operator");
         builder.AddAttribute(seq++, "value", _selectedOperator?.Name ?? "");
-        builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChanged));
+        builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChangedAsync));
         foreach (var op in FilterOperators)
         {
             builder.OpenElement(seq++, "option");
@@ -195,11 +193,11 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         }
         builder.CloseElement();
 
-        // Value input
         RenderValueInput(builder, ref seq);
 
         builder.CloseElement();
     }
+
     public override void ToggleFilter() => ToggleFilterUI();
 
     internal void RenderFilterUI(RenderTreeBuilder builder)
@@ -216,7 +214,10 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         {
             builder.AddAttribute(sequence++, "value", FormatValueForInput(_filterValue));
         }
-        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChanged));
+        // Auto-apply while typing
+        builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
+        // Fallback for controls that only raise change
+        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
         builder.CloseElement();
     }
 
@@ -242,14 +243,23 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         StateHasChanged();
     }
 
-    private void OnOperatorChanged(ChangeEventArgs e)
+    // Now async to auto-apply
+    private async Task OnOperatorChangedAsync(ChangeEventArgs e)
     {
         var operatorName = e.Value?.ToString();
         _selectedOperator = FilterOperators.FirstOrDefault(op => op.Name == operatorName);
-        StateHasChanged();
+        if (FilterableGrid is not null)
+        {
+            await FilterableGrid.OnFilterChangedAsync();
+        }
+        else
+        {
+            await OnFilterChanged.InvokeAsync(_hasFilterValue ? _filterValue : null);
+            StateHasChanged();
+        }
     }
 
-    private void OnValueChanged(ChangeEventArgs e)
+    private async Task OnValueChangedAsync(ChangeEventArgs e)
     {
         try
         {
@@ -257,23 +267,34 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             if (string.IsNullOrWhiteSpace(stringValue))
             {
                 _filterValue = default;
-                _hasFilterValue = false; // cleared
-                return;
+                _hasFilterValue = false;
             }
-            if (typeof(TValue) == typeof(bool))
+            else if (typeof(TValue) == typeof(bool))
             {
                 object parsed = stringValue == "on" ? true : bool.Parse(stringValue);
                 _filterValue = (TValue)parsed;
                 _hasFilterValue = true;
-                return;
             }
-            _filterValue = (TValue)Convert.ChangeType(stringValue, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
-            _hasFilterValue = true;
+            else
+            {
+                _filterValue = (TValue)Convert.ChangeType(stringValue, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
+                _hasFilterValue = true;
+            }
         }
         catch
         {
             _filterValue = default;
             _hasFilterValue = false;
+        }
+
+        if (FilterableGrid is not null)
+        {
+            await FilterableGrid.OnFilterChangedAsync();
+        }
+        else
+        {
+            await OnFilterChanged.InvokeAsync(_hasFilterValue ? _filterValue : null);
+            StateHasChanged();
         }
     }
 

@@ -1,11 +1,11 @@
-@page "/filterable-column-demo"
+﻿@page "/filterable-column-demo"
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using QuickGridTest01.Filterable
 
 <PageTitle>Filterable Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Filterable Columns � Combined Approaches</h1>
+    <h1>Filterable Columns – Two Approaches</h1>
     <p class="intro-text">
         This page contrasts two filtering strategies for <code>QuickGrid</code>: a reusable column-centric
         component model and an ad hoc page-level implementation.
@@ -17,7 +17,7 @@
         <p><strong>Ad Hoc (Section B):</strong> Single manual filter bar builds a LINQ query directly. Faster for one-off pages, but duplicative for multiple grids.</p>
         <p><strong>Advantages of Reusable Columns:</strong></p>
         <ul style="margin:.4rem 0 .6rem 1.25rem;">
-            <li>Strongly?typed expressions (safe refactors, auto sorting).</li>
+            <li>Strongly‑typed expressions (safe refactors, auto sorting).</li>
             <li>Per-type default operators (string, numeric, date, bool).</li>
             <li>Encapsulated state & consistent UI; easy reuse.</li>
             <li>Central clear-all and composition without page code.</li>
@@ -36,7 +36,7 @@
     <!-- SECTION A: Reusable Column-Centric Filtering (uses markup from Demo02) -->
     <section class="demo-section">
         <h2>Section A: Reusable Column-Centric Filtering (FilterableGrid + FilterableColumn)</h2>
-        <p class="section-description">Inline toolbar renders operator + value input per column. Click Apply / Clear to compose active filters.</p>
+        <p class="section-description">Inline toolbar renders operator + value input per column. Filters apply automatically while typing.</p>
 
         <div class="demo-section">
             <h4>Employees</h4>
@@ -51,7 +51,6 @@
                         </div>
                     }
                     <div class="ft-actions">
-                        <button class="btn btn-sm btn-primary" @onclick="ApplyEmployeeFilters">Apply</button>
                         <button class="btn btn-sm btn-secondary" @onclick="ClearEmployeeFilters">Clear All</button>
                     </div>
                 }
@@ -82,7 +81,6 @@
                         </div>
                     }
                     <div class="ft-actions">
-                        <button class="btn btn-sm btn-primary" @onclick="ApplyProductFilters">Apply</button>
                         <button class="btn btn-sm btn-secondary" @onclick="ClearProductFilters">Clear All</button>
                     </div>
                 }
@@ -102,7 +100,7 @@
     <!-- SECTION B: Ad Hoc Filtering -->
     <section class="demo-section">
         <h2>Section B: Manual Ad Hoc Filtering (Single Filter Bar)</h2>
-        <p class="section-description">Central filter bar composes LINQ directly. Faster to prototype; less reusable for multiple grids.</p>
+        <p class="section-description">Central filter bar composes LINQ directly. Filters apply automatically while typing.</p>
 
         <div class="filter-bar">
             <div class="filter-item">
@@ -120,18 +118,21 @@
                 <input type="text" @bind="_adHocDepartment" @bind:event="oninput" placeholder="Value..." class="filter-input" />
             </div>
             <div class="filter-item">
-                <label>Salary ?:</label>
-                <input type="number" @bind="_adHocSalaryMin" @bind:event="oninput" class="filter-input" />
+                <label>Salary:</label>
+                <select @bind="_adHocSalaryOperator" class="operator-select">
+                    @foreach (var op in _numericOps) { <option value="@op.Name">@op.Symbol @op.Name</option> }
+                </select>
+                <input type="number" @bind="_adHocSalaryValue" @bind:event="oninput" class="filter-input" placeholder="Amount..." />
             </div>
             <div class="filter-item">
                 <label>Active:</label>
+                <select disabled class="operator-select"><option>= Is</option></select>
                 <select @bind="_adHocActive" class="filter-input">
                     <option value="">All</option>
                     <option value="true">Active</option>
                     <option value="false">Inactive</option>
                 </select>
             </div>
-            <button class="btn-apply" @onclick="ApplyAdHocEmployeeFilters">Apply</button>
             <button class="btn-clear-all" @onclick="ClearAdHocEmployeeFilters">Clear</button>
         </div>
 
@@ -166,8 +167,7 @@
 .filter-item { display:flex; flex-direction:column; }
 .filter-item label { font-size:.7rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; margin-bottom:.25rem; }
 .operator-select, .filter-input { padding:.35rem .5rem; font-size:.8rem; border:1px solid #ced4da; border-radius:.25rem; background:#fff; }
-.btn-apply, .btn-clear-all, .btn.btn-sm { padding:.4rem .85rem; font-size:.75rem; font-weight:600; letter-spacing:.5px; }
-.btn-apply { background:#0d6efd; color:#fff; border:1px solid #0d6efd; }
+.btn-clear-all, .btn.btn-sm { padding:.4rem .85rem; font-size:.75rem; font-weight:600; letter-spacing:.5px; }
 .btn-clear-all { background:#6c757d; color:#fff; border:1px solid #6c757d; }
 .results-info { background:#e7f3ff; padding:.5rem .75rem; border-left:4px solid #0d6efd; font-size:.75rem; margin-bottom:.6rem; }
 .status-badge { display:inline-block; padding:.25rem .6rem; border-radius:12px; font-size:.65rem; font-weight:600; letter-spacing:.5px; }
@@ -186,11 +186,13 @@
 
     // Ad hoc state (Section B)
     private List<IFilterOperator<string>> _stringOps = new();
+    private List<IFilterOperator<int>> _numericOps = new();
     private string _adHocFirstNameOperator = "Contains";
     private string _adHocDepartmentOperator = "Contains";
+    private string _adHocSalaryOperator = "Greater Than or Equal";
     private string? _adHocFirstName;
     private string? _adHocDepartment;
-    private int? _adHocSalaryMin;
+    private int? _adHocSalaryValue;
     private string? _adHocActive;
 
     // Rerender once after first render so Demo02-style toolbars appear before grid
@@ -232,6 +234,16 @@
             new StringStartsWithOperator(),
             new StringEndsWithOperator()
         };
+
+        _numericOps = new()
+        {
+            new NumericEqualsOperator<int>(),
+            new NumericNotEqualsOperator<int>(),
+            new NumericGreaterThanOperator<int>(),
+            new NumericGreaterThanOrEqualOperator<int>(),
+            new NumericLessThanOperator<int>(),
+            new NumericLessThanOrEqualOperator<int>()
+        };
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -243,10 +255,8 @@
         }
     }
 
-    // Section A actions
-    private Task ApplyEmployeeFilters() => _employeeGrid?.OnFilterChangedAsync() ?? Task.CompletedTask;
+    // Section A clear methods
     private Task ClearEmployeeFilters() => _employeeGrid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
-    private Task ApplyProductFilters() => _productGrid?.OnFilterChangedAsync() ?? Task.CompletedTask;
     private Task ClearProductFilters() => _productGrid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
 
     // Ad hoc filtering
@@ -263,9 +273,10 @@
             var op = _stringOps.First(o => o.Name == _adHocDepartmentOperator);
             q = op.Apply(q, e => e.Department, _adHocDepartment);
         }
-        if (_adHocSalaryMin.HasValue)
+        if (_adHocSalaryValue.HasValue)
         {
-            q = q.Where(e => e.Salary >= _adHocSalaryMin.Value);
+            var op = _numericOps.First(o => o.Name == _adHocSalaryOperator);
+            q = op.Apply(q, e => e.Salary, _adHocSalaryValue.Value);
         }
         if (!string.IsNullOrWhiteSpace(_adHocActive))
         {
@@ -275,13 +286,13 @@
         return q;
     }
 
-    private void ApplyAdHocEmployeeFilters() => StateHasChanged();
     private void ClearAdHocEmployeeFilters()
     {
         _adHocFirstName = null;
         _adHocDepartment = null;
-        _adHocSalaryMin = null;
+        _adHocSalaryValue = null;
         _adHocActive = null;
+        _adHocSalaryOperator = "Greater Than or Equal";
         StateHasChanged();
     }
 
