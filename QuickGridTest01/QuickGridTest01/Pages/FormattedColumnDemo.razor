@@ -7,6 +7,32 @@
 
 <PageTitle>Formatted Value Column - Demo</PageTitle>
 
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #6366f1; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#6366f1;">Why a FormattedValueColumn?</h3>
+    <p><strong>Problem:</strong> Repeating <code>ToString()</code>, format strings, and culture switches inline in grids leads to scattered logic, inconsistent formatting (currency, percentages, dates), and difficult runtime switching. Complex formats (human duration, file sizes, relative dates) require custom extension code that becomes noisy in page markup.</p>
+    <p><strong>Solution:</strong> <code>FormattedValueColumn&lt;TItem,TValue&gt;</code> centralizes formatting by accepting a <code>Formatter</code> delegate plus an optional <code>CultureName</code>. Consumers declare intent ("use accounting currency", "compact number", "relative date") while the component handles value extraction, culture selection, and rendering.</p>
+    <p><strong>Runtime Switching Demo:</strong> Drop‑downs change culture, date/time style, and numeric style. Each selection triggers a single grid re-render; columns recompute only their formatting delegate—no need to recreate the grid or duplicate conditional logic.</p>
+    <p><strong>Benefits:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li><em>Declarative:</em> Page markup stays concise; complex formatter logic lives in a library.</li>
+        <li><em>Type‑Safe:</em> Property expressions supply sort support and compiled value access.</li>
+        <li><em>Extensible:</em> Add new delegates (e.g. temperature, distance, ordinal) without changing the column contract.</li>
+        <li><em>Culture Awareness:</em> Per-column culture override enables mixed-locale displays (demo uses a global selector).</li>
+        <li><em>Separation of Concerns:</em> Formatting decisions are isolated from layout/pagination concerns.</li>
+        <li><em>Consistency:</em> Shared helpers (numeric, currency, date/time, specialized) prevent subtly different patterns across pages.</li>
+    </ul>
+    <p><strong>Formatter Strategy:</strong> Library exposes factory functions returning <code>Func&lt;object?, string&gt;</code>. Column invokes the selected delegate with the raw value. This keeps column code simple and reduces allocations (only string results).</p>
+    <p><strong>Performance:</strong> Property lambda compiled once. Switching culture or style replaces delegates (cheap). No reflection per cell; only a direct cast + formatter call. Advanced formatters (relative date, file size, accounting) encapsulate reusable algorithms.</p>
+    <p><strong>Use Cases:</strong> Financial dashboards (multi-currency), operations consoles (durations & bytes), analytics (scientific / compact numbers), administrative tables (localized timestamps), and any scenario requiring user-driven formatting toggles.</p>
+    <p><strong>Contrast with Plain Columns:</strong> A standard <code>PropertyColumn</code> can apply a basic <code>Format</code> string; complex or conditional formatting requires ad hoc code or templates. <code>FormattedValueColumn</code> upgrades this to a composable, library-driven approach with dynamic runtime selection.</p>
+    <p><strong>Example:</strong></p>
+    <pre style="margin-top:.5rem;"><code>&lt;FormattedValueColumn
+    Property="@@(m =&gt; m.CurrentValue)"
+    Formatter="@@NumericSelectionFormatter1"
+    CultureName="@@SelectedCulture"
+    Title="Current" /&gt;</code></pre>
+</div>
+
 <div class="demo-container">
     <header class="demo-header">
         <h1>📊 FormattedValueColumn Demonstration</h1>
@@ -30,7 +56,7 @@
             <select @bind="SelectedDateTimeFormat" @bind:after="OnDateTimeFormatChanged">
                 <option value="short">Short Date</option>
                 <option value="long">Long Date</option>
-                <option value="general">Date & Time (General)</option>
+                <option value="general">Date &amp; Time (General)</option>
                 <option value="iso">ISO Date</option>
                 <option value="relative">Relative Date</option>
                 <option value="time12">Time (12h)</option>
@@ -231,7 +257,7 @@
                 <h3>✨ Key Features</h3>
                 <ul>
                     <li><strong>30+ Formatters:</strong> Currency, numeric, date/time, specialized</li>
-                    <li><strong>Culture, Date/Time & Numeric Switching:</strong> Runtime change via selectors</li>
+                    <li><strong>Culture, Date/Time &amp; Numeric Switching:</strong> Runtime change via selectors</li>
                     <li><strong>Type-Safe:</strong> Strongly typed property expressions with compiled accessors</li>
                     <li><strong>No Stale State:</strong> Formatters created on demand using current culture</li>
                     <li><strong>Sorting Integration:</strong> Auto-enabled based on property expression</li>
@@ -252,7 +278,7 @@
             <div class="doc-section">
                 <h3>💡 Usage</h3>
                 <pre><code>&lt;FormattedValueColumn
-    Property="@@(m => m.CurrentValue)"
+    Property="@@(m =&gt; m.CurrentValue)"
     Formatter="@@NumericSelectionFormatter1"
     CultureName="@@SelectedCulture"
     Title="Current" /&gt;</code></pre>

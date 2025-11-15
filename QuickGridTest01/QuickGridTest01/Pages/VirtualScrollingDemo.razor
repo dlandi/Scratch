@@ -6,6 +6,24 @@
 
 <PageTitle>Virtual Scrolling Column Demo</PageTitle>
 
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #198754; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#198754;">Why Virtual Scrolling?</h3>
+    <p><strong>Problem:</strong> Large tabular datasets (thousands of rows) cause slow initial renders, heavy DOM trees, high memory use, and janky scroll performance when every row + cell is materialized. Rendering 10,000 rows × 5 columns means 50,000 cells (tens of thousands of DOM elements) even though the user sees only ~20–30 at a time.</p>
+    <p><strong>Solution:</strong> Virtual scrolling renders only the visible slice plus a small buffer. As the user scrolls, rows are recycled; total DOM count stays almost constant. This dramatically lowers memory and improves FPS during scroll. The demo compares a naive full render with a virtualized approach using Blazor's built‑in <code>&lt;Virtualize&gt;</code> component.</p>
+    <p><strong>VirtualColumn Role:</strong> A lightweight column variant that focuses on minimal DOM (no extra wrappers) and compiled property access (<code>Property.Compile()</code>) to reduce per‑cell overhead. In non‑virtual scenarios it still helps keep cell rendering inexpensive; in virtual scenarios low per‑row cost amplifies performance gains.</p>
+    <p><strong>Heuristic Estimator:</strong> The top dashboard uses <code>VirtualizationEstimator</code> to project render time, DOM nodes, and memory for full vs virtual rendering (not measuring actual DOM). Constants (ms per cell, bytes per cell) can be tuned to approximate your environment.</p>
+    <p><strong>When to Use:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li><em>&lt; 100 rows:</em> Skip virtualization; overhead outweighs benefit.</li>
+        <li><em>500–2,000 rows:</em> Noticeable speed/memory improvement.</li>
+        <li><em>&gt; 2,000 rows:</em> Essential for smooth UX and reasonable resource usage.</li>
+    </ul>
+    <p><strong>Trade‑Offs:</strong> Requires accurate <code>ItemSize</code>; dynamic row heights reduce accuracy. Debugging scroll position logic and estimating viewport info becomes more complex. Initial complexity increases compared to simple <code>QuickGrid</code> usage.</p>
+    <p><strong>Performance Impact (Example 10,000 rows):</strong> Full render ~50,000 cells. Virtual render ~150 cells (20 visible + buffer). Potential &gt;300× reduction in DOM + memory.</p>
+    <p><strong>Patterns Demonstrated:</strong> Non‑virtual grid (stress test), on‑demand full render timing, virtual grid with <code>Virtualize</code>, manual viewport info + FPS monitoring, and a heuristic comparison panel driving recommendations.</p>
+    <p><strong>Extend Further:</strong> Row recycling hooks, placeholder rows during data fetch, dynamic overscan adjustments based on scroll velocity, adaptive ItemSize measurement, or server‑driven paging combined with virtualization for infinite scrolling.</p>
+</div>
+
 <h3>Virtual Scrolling Column</h3>
 
 <p>

@@ -6,6 +6,29 @@
 
 <PageTitle>Products with Auto-Save</PageTitle>
 
+<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #dc3545; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#dc3545;">Ad‑Hoc Inline Editing Approach (Before a Reusable Column)</h3>
+    <p><strong>What this page shows:</strong> A direct, template‑driven inline editing pattern for <code>QuickGrid</code> where each editable cell manually embeds an <code>EditForm</code>, validators, and input component. Auto‑save logic (debounced timer) lives in the page itself.</p>
+    <p><strong>How it works:</strong> Each <code>TemplateColumn</code> contains its own <code>EditForm</code>. Inputs bind directly to the row model, and <code>@@oninput</code>/<code>@@bind-Value:after</code> events call <code>OnFieldChanged</code>, marking pending changes and scheduling a save. Validation is handled per cell via <code>DataAnnotationsValidator</code> + <code>ValidationMessage</code>.</p>
+    <p><strong>Advantages:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li>Straightforward to prototype—no custom components required.</li>
+        <li>Full control of markup per cell (easy to experiment with different inputs).</li>
+        <li>Immediate DataAnnotations feedback using built‑in Blazor pieces.</li>
+        <li>Auto‑save demo logic is highly visible for learning purposes.</li>
+    </ul>
+    <p><strong>Drawbacks motivating a reusable <code>EditableColumn</code>:</strong></p>
+    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <li><em>Duplication:</em> Repeats <code>EditForm</code>, validator, and input wiring for every property.</li>
+        <li><em>Inconsistent UX risk:</em> Minor differences (classes, events, debounce) can creep in across columns.</li>
+        <li><em>Harder to evolve:</em> Adding features (debounce, combined validation, keyboard shortcuts) requires editing many template blocks.</li>
+        <li><em>Performance overhead:</em> Multiple <code>EditForm</code> instances and per-cell validation objects.</li>
+        <li><em>Scattered logic:</em> State (timers, change tracking, validation) spread across page methods instead of a focused component.</li>
+    </ul>
+    <p><strong>Contrast:</strong> The newer <code>EditableColumn</code> encapsulates edit state, validation pipeline, commit semantics, and rendering—reducing page size and centralizing maintenance. This page intentionally retains the "raw" approach for comparison and education.</p>
+    <p><strong>Takeaway:</strong> Ad‑hoc templates are fine early on or for one‑off custom UIs; a reusable column shines when patterns repeat across multiple grids or domains.</p>
+</div>
+
 <h3>Product Management (Auto-Save)</h3>
 
 @if (hasUnsavedChanges)
