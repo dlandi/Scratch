@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Web.Virtualization; // Added for Virtualize<T>
 
-namespace QuickGridTest01.CustomColumns;
+namespace QuickGridTest01.Filterable;
 
 /// <summary>
 /// Wrapper for QuickGrid that coordinates filtering across multiple filterable columns.

@@ -1,7 +1,7 @@
 using System.Collections.Generic; // For Comparer<T>
 using System.Linq.Expressions;
 
-namespace QuickGridTest01.CustomColumns;
+namespace QuickGridTest01.Filterable;
 
 /// <summary>
 /// Interface for filter operators that can be applied to IQueryable sources.

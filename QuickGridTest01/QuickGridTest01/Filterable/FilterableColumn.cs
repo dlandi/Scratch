@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web; // Added for MouseEventArgs
 using System.Linq.Expressions;
 
-namespace QuickGridTest01.CustomColumns;
+namespace QuickGridTest01.Filterable;
 
 public abstract class FilterableColumnBase<TGridItem> : ColumnBase<TGridItem>
 {
