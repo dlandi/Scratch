@@ -6,360 +6,228 @@
 
 <PageTitle>Virtual Scrolling Column Demo</PageTitle>
 
-<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #198754; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#198754;">Why Virtual Scrolling?</h3>
-    <p><strong>Problem:</strong> Large tabular datasets (thousands of rows) cause slow initial renders, heavy DOM trees, high memory use, and janky scroll performance when every row + cell is materialized. Rendering 10,000 rows × 5 columns means 50,000 cells (tens of thousands of DOM elements) even though the user sees only ~20–30 at a time.</p>
-    <p><strong>Solution:</strong> Virtual scrolling renders only the visible slice plus a small buffer. As the user scrolls, rows are recycled; total DOM count stays almost constant. This dramatically lowers memory and improves FPS during scroll. The demo compares a naive full render with a virtualized approach using Blazor's built‑in <code>&lt;Virtualize&gt;</code> component.</p>
-    <p><strong>VirtualColumn Role:</strong> A lightweight column variant that focuses on minimal DOM (no extra wrappers) and compiled property access (<code>Property.Compile()</code>) to reduce per‑cell overhead. In non‑virtual scenarios it still helps keep cell rendering inexpensive; in virtual scenarios low per‑row cost amplifies performance gains.</p>
-    <p><strong>Heuristic Estimator:</strong> The top dashboard uses <code>VirtualizationEstimator</code> to project render time, DOM nodes, and memory for full vs virtual rendering (not measuring actual DOM). Constants (ms per cell, bytes per cell) can be tuned to approximate your environment.</p>
-    <p><strong>When to Use:</strong></p>
-    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-        <li><em>&lt; 100 rows:</em> Skip virtualization; overhead outweighs benefit.</li>
-        <li><em>500–2,000 rows:</em> Noticeable speed/memory improvement.</li>
-        <li><em>&gt; 2,000 rows:</em> Essential for smooth UX and reasonable resource usage.</li>
-    </ul>
-    <p><strong>Trade‑Offs:</strong> Requires accurate <code>ItemSize</code>; dynamic row heights reduce accuracy. Debugging scroll position logic and estimating viewport info becomes more complex. Initial complexity increases compared to simple <code>QuickGrid</code> usage.</p>
-    <p><strong>Performance Impact (Example 10,000 rows):</strong> Full render ~50,000 cells. Virtual render ~150 cells (20 visible + buffer). Potential &gt;300× reduction in DOM + memory.</p>
-    <p><strong>Patterns Demonstrated:</strong> Non‑virtual grid (stress test), on‑demand full render timing, virtual grid with <code>Virtualize</code>, manual viewport info + FPS monitoring, and a heuristic comparison panel driving recommendations.</p>
-    <p><strong>Extend Further:</strong> Row recycling hooks, placeholder rows during data fetch, dynamic overscan adjustments based on scroll velocity, adaptive ItemSize measurement, or server‑driven paging combined with virtualization for infinite scrolling.</p>
-</div>
+<div class="demo-container">
+    <h1>Virtual Scrolling Column Demo</h1>
+    <p class="intro-text">Viewport-based rendering for large datasets with side-by-side non-virtual vs virtual performance estimates and practical guidance. Standardized neutral layout.</p>
 
-<h3>Virtual Scrolling Column</h3>
-
-<p>
-    Demonstrates viewport-based rendering for large datasets with performance measurement and comparison.
-</p>
-
-<div class="demo-section">
-    <h4>Performance Estimates</h4>
-    
-    <div class="scenario-selector">
-        <label>Select Dataset Size:</label>
-        <select @bind="_selectedRowCount" @bind:after="UpdateEstimates">
-            <option value="100">100 rows (Small)</option>
-            <option value="500">500 rows (Medium)</option>
-            <option value="1000">1,000 rows (Large)</option>
-            <option value="5000">5,000 rows (Very Large)</option>
-            <option value="10000">10,000 rows (Huge)</option>
-        </select>
+    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why Virtual Scrolling?</h3>
+        <p><strong>Problem:</strong> Large tabular datasets cause slow initial renders and heavy DOM usage when every row + cell is materialized. Rendering 10,000 rows × 5 columns means 50,000 cells though only ~20–30 are visible.</p>
+        <p><strong>Solution:</strong> Virtualization renders only the visible slice plus a buffer. Rows are recycled so DOM size remains nearly constant, reducing memory and improving scroll smoothness.</p>
+        <p><strong>VirtualColumn:</strong> Lightweight column variant using compiled property access and minimal DOM (single wrapper element) to keep per-cell cost low.</p>
+        <p><strong>Estimator:</strong> <code>VirtualizationEstimator</code> projects render time, DOM nodes, and memory (heuristic). Tune constants for your environment.</p>
+        <p><strong>When to Use:</strong> &lt; 100 rows: skip; 500–2,000 rows: beneficial; &gt; 2,000 rows: essential.</p>
+        <p><strong>Trade-Offs:</strong> Requires accurate fixed <code>ItemSize</code>; dynamic heights reduce accuracy. Slight added complexity vs basic grid.</p>
+        <p><strong>Impact:</strong> 10,000-row example: full ~50,000 cells vs virtual ~150 cells (~97% reduction).</p>
+        <p><strong>Extend:</strong> Adaptive overscan, row placeholders, server paging + virtualization, scroll velocity tuning.</p>
     </div>
 
-    @if (_estimate != null)
-    {
-        <div class="estimate-cards">
-            <div class="estimate-card">
-                <h5>Without Virtualization</h5>
-                <div class="estimate-metrics">
-                    <div class="metric">
-                        <label>Render Time:</label>
-                        <span class="value-bad">@_estimate.NonVirtualRenderTimeMs.ToString("F0") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>DOM Elements:</label>
-                        <span class="value-bad">@_estimate.NonVirtualDomElements.ToString("N0")</span>
-                    </div>
-                    <div class="metric">
-                        <label>Memory:</label>
-                        <span class="value-bad">@((_estimate.NonVirtualMemoryBytes / 1024.0 / 1024.0).ToString("F1")) MB</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="estimate-card">
-                <h5>With Virtualization</h5>
-                <div class="estimate-metrics">
-                    <div class="metric">
-                        <label>Render Time:</label>
-                        <span class="value-good">@_estimate.VirtualRenderTimeMs.ToString("F0") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>DOM Elements:</label>
-                        <span class="value-good">@_estimate.VirtualDomElements.ToString("N0")</span>
-                    </div>
-                    <div class="metric">
-                        <label>Memory:</label>
-                        <span class="value-good">@((_estimate.VirtualMemoryBytes / 1024.0 / 1024.0).ToString("F1")) MB</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="estimate-card highlight">
-                <h5>Improvement</h5>
-                <div class="estimate-metrics">
-                    <div class="metric">
-                        <label>Speedup:</label>
-                        <span class="value-highlight">@_estimate.RenderTimeSpeedup.ToString("F1")x faster</span>
-                    </div>
-                    <div class="metric">
-                        <label>DOM Reduction:</label>
-                        <span class="value-highlight">@_estimate.DomElementReduction.ToString("F1")% fewer</span>
-                    </div>
-                    <div class="metric">
-                        <label>Memory Savings:</label>
-                        <span class="value-highlight">@_estimate.MemoryReduction.ToString("F1")% less</span>
-                    </div>
-                </div>
-                <div class="recommendation">
-                    @VirtualizationEstimator.GetRecommendation(_selectedRowCount)
-                </div>
-            </div>
+    <section class="demo-section">
+        <h2>Performance Estimates</h2>
+        <div class="scenario-selector">
+            <label>Dataset Size</label>
+            <select @bind="_selectedRowCount" @bind:after="UpdateEstimates">
+                <option value="100">100 rows (Small)</option>
+                <option value="500">500 rows (Medium)</option>
+                <option value="1000">1,000 rows (Large)</option>
+                <option value="5000">5,000 rows (Very Large)</option>
+                <option value="10000">10,000 rows (Huge)</option>
+            </select>
         </div>
-    }
-</div>
-
-<div class="demo-section">
-    <h4>Scenario 1: Small Dataset (100 rows) - No Virtualization Needed</h4>
-    <p class="info-text">
-        For small datasets, virtualization adds unnecessary overhead. Traditional rendering is sufficient.
-    </p>
-    
-    <div class="performance-display">
-        <div class="metric">
-            <label>Rows:</label>
-            <span>@_smallDataset.Count()</span>
-        </div>
-        <div class="metric">
-            <label>Render Time:</label>
-            <span>@_smallRenderTime ms</span>
-        </div>
-    </div>
-
-    <div class="grid-scroll-container small">
-        <QuickGrid Items="@_smallDataset" Class="demo-grid">
-            <PropertyColumn Property="@(r => r.Id)" Title="ID" />
-            <VirtualColumn TGridItem="DataRow" TValue="string"
-                          Property="@(r => r.Name)"
-                          Title="Name" />
-            <VirtualColumn TGridItem="DataRow" TValue="string"
-                          Property="@(r => r.Category)"
-                          Title="Category" />
-            <VirtualColumn TGridItem="DataRow" TValue="decimal"
-                          Property="@(r => r.Value)"
-                          Format="C2"
-                          Title="Value" />
-            <VirtualColumn TGridItem="DataRow" TValue="DateTime"
-                          Property="@(r => r.Timestamp)"
-                          Format="yyyy-MM-dd HH:mm"
-                          Title="Timestamp" />
-        </QuickGrid>
-    </div>
-</div>
-
-<div class="demo-section">
-    <h4>Scenario 2: Large Dataset (@_selectedRowCount rows) - Without Virtualization ⚠️</h4>
-    <p class="warning-text">
-        ⚠️ Warning: This may freeze your browser for several seconds! All @_selectedRowCount rows are rendered.
-    </p>
-    
-    <button class="btn-render" @onclick="RenderNonVirtual" disabled="@_isRenderingNonVirtual">
-        @if (_isRenderingNonVirtual)
+        @if (_estimate != null)
         {
-            <span>Rendering... (Browser may freeze)</span>
+            <div class="estimate-cards">
+                <div class="estimate-card">
+                    <h5>Without Virtualization</h5>
+                    <div class="estimate-metrics">
+                        <div class="metric">
+                            <label>Render Time:</label>
+                            <span class="value-bad">@_estimate.NonVirtualRenderTimeMs.ToString("F0") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>DOM Elements:</label>
+                            <span class="value-bad">@_estimate.NonVirtualDomElements.ToString("N0")</span>
+                        </div>
+                        <div class="metric">
+                            <label>Memory:</label>
+                            <span class="value-bad">@((_estimate.NonVirtualMemoryBytes / 1024.0 / 1024.0).ToString("F1")) MB</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="estimate-card">
+                    <h5>With Virtualization</h5>
+                    <div class="estimate-metrics">
+                        <div class="metric">
+                            <label>Render Time:</label>
+                            <span class="value-good">@_estimate.VirtualRenderTimeMs.ToString("F0") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>DOM Elements:</label>
+                            <span class="value-good">@_estimate.VirtualDomElements.ToString("N0")</span>
+                        </div>
+                        <div class="metric">
+                            <label>Memory:</label>
+                            <span class="value-good">@((_estimate.VirtualMemoryBytes / 1024.0 / 1024.0).ToString("F1")) MB</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="estimate-card improvement">
+                    <h5>Improvement</h5>
+                    <div class="estimate-metrics">
+                        <div class="metric">
+                            <label>Speedup:</label>
+                            <span class="value-highlight">@_estimate.RenderTimeSpeedup.ToString("F1")x</span>
+                        </div>
+                        <div class="metric">
+                            <label>DOM Reduction:</label>
+                            <span class="value-highlight">@_estimate.DomElementReduction.ToString("F1")%</span>
+                        </div>
+                        <div class="metric">
+                            <label>Memory Savings:</label>
+                            <span class="value-highlight">@_estimate.MemoryReduction.ToString("F1")%</span>
+                        </div>
+                    </div>
+                    <div class="recommendation">@VirtualizationEstimator.GetRecommendation(_selectedRowCount)</div>
+                </div>
+            </div>
         }
-        else
-        {
-            <span>Render Non-Virtualized Grid</span>
-        }
-    </button>
+    </section>
 
-    @if (_nonVirtualRendered)
-    {
+    <section class="demo-section">
+        <h2>Scenario 1: 100 Rows (Non-Virtual)</h2>
+        <p class="section-description">Small dataset—virtualization overhead not needed.</p>
         <div class="performance-display">
-            <div class="metric">
-                <label>Rows:</label>
-                <span>@_largeDataset.Count()</span>
-            </div>
-            <div class="metric">
-                <label>Render Time:</label>
-                <span class="value-bad">@_nonVirtualRenderTime ms</span>
-            </div>
-            <div class="metric">
-                <label>DOM Elements:</label>
-                <span class="value-bad">~@(_largeDataset.Count() * 5).ToString("N0")</span>
-            </div>
+            <div class="metric"><label>Rows:</label><span>@_smallDataset.Count()</span></div>
+            <div class="metric"><label>Render Time:</label><span>@_smallRenderTime ms</span></div>
         </div>
-
-        <div class="grid-scroll-container large">
-            <QuickGrid Items="@_largeDataset" Class="demo-grid">
+        <div class="grid-scroll-container small">
+            <QuickGrid Items="@_smallDataset" Class="demo-grid">
                 <PropertyColumn Property="@(r => r.Id)" Title="ID" />
-                <VirtualColumn TGridItem="DataRow" TValue="string"
-                              Property="@(r => r.Name)"
-                              Title="Name" />
-                <VirtualColumn TGridItem="DataRow" TValue="string"
-                              Property="@(r => r.Category)"
-                              Title="Category" />
-                <VirtualColumn TGridItem="DataRow" TValue="decimal"
-                              Property="@(r => r.Value)"
-                              Format="C2"
-                              Title="Value" />
-                <VirtualColumn TGridItem="DataRow" TValue="DateTime"
-                              Property="@(r => r.Timestamp)"
-                              Format="yyyy-MM-dd HH:mm"
-                              Title="Timestamp" />
+                <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Name)" Title="Name" />
+                <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Category)" Title="Category" />
+                <VirtualColumn TGridItem="DataRow" TValue="decimal" Property="@(r => r.Value)" Format="C2" Title="Value" />
+                <VirtualColumn TGridItem="DataRow" TValue="DateTime" Property="@(r => r.Timestamp)" Format="yyyy-MM-dd HH:mm" Title="Timestamp" />
             </QuickGrid>
         </div>
-    }
-</div>
+    </section>
 
-<div class="demo-section">
-    <h4>Scenario 3: Large Dataset (@_selectedRowCount rows) - With Virtualization ✅</h4>
-    <p class="success-text">
-        ✅ Only ~30 rows rendered at a time. Smooth scrolling through @_selectedRowCount rows!
-    </p>
-    
-    <div class="performance-display">
-        <div class="metric">
-            <label>Total Rows:</label>
-            <span>@_largeDataset.Count().ToString("N0")</span>
+    <section class="demo-section">
+        <h2>Scenario 2: @_selectedRowCount Rows (Full Render)</h2>
+        <p class="section-description warning">All rows rendered. Large counts may cause noticeable delay.</p>
+        <button class="btn-render" @onclick="RenderNonVirtual" disabled="@_isRenderingNonVirtual">
+            @(_isRenderingNonVirtual ? "Rendering..." : "Render Non-Virtualized Grid")
+        </button>
+        @if (_nonVirtualRendered)
+        {
+            <div class="performance-display">
+                <div class="metric"><label>Rows:</label><span>@_largeDataset.Count()</span></div>
+                <div class="metric"><label>Render Time:</label><span class="value-bad">@_nonVirtualRenderTime ms</span></div>
+                <div class="metric"><label>DOM Elements:</label><span class="value-bad">~@(_largeDataset.Count() * 5).ToString("N0")</span></div>
+            </div>
+            <div class="grid-scroll-container large">
+                <QuickGrid Items="@_largeDataset" Class="demo-grid">
+                    <PropertyColumn Property="@(r => r.Id)" Title="ID" />
+                    <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Name)" Title="Name" />
+                    <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Category)" Title="Category" />
+                    <VirtualColumn TGridItem="DataRow" TValue="decimal" Property="@(r => r.Value)" Format="C2" Title="Value" />
+                    <VirtualColumn TGridItem="DataRow" TValue="DateTime" Property="@(r => r.Timestamp)" Format="yyyy-MM-dd HH:mm" Title="Timestamp" />
+                </QuickGrid>
+            </div>
+        }
+    </section>
+
+    <section class="demo-section">
+        <h2>Scenario 3: @_selectedRowCount Rows (Virtualized)</h2>
+        <p class="section-description">Only a small window of rows rendered at once for smooth scrolling.</p>
+        <div class="performance-display">
+            <div class="metric"><label>Total Rows:</label><span>@_largeDataset.Count().ToString("N0")</span></div>
+            <div class="metric"><label>Rendered Rows:</label><span class="value-good">~@_renderedRowCount</span></div>
+            <div class="metric"><label>Render Time:</label><span class="value-good">@_virtualRenderTime ms</span></div>
+            <div class="metric"><label>Scroll FPS:</label><span>@_monitor.CurrentFps.ToString("F0")</span></div>
         </div>
-        <div class="metric">
-            <label>Rendered Rows:</label>
-            <span class="value-good">~@_renderedRowCount</span>
+        <div class="viewport-info">
+            <div class="metric"><label>Viewing:</label><span>Rows @(_viewportInfo.FirstVisibleRow + 1) - @(_viewportInfo.LastVisibleRow + 1)</span></div>
+            <div class="metric"><label>Scroll Position:</label><span>@_viewportInfo.ScrollPercentage.ToString("F1")%</span></div>
         </div>
-        <div class="metric">
-            <label>Render Time:</label>
-            <span class="value-good">@_virtualRenderTime ms</span>
+        <div class="scroll-controls">
+            <button @onclick="() => ScrollToRow(0)">Top</button>
+            <button @onclick="() => ScrollToRow(_largeDataset.Count() / 4)">25%</button>
+            <button @onclick="() => ScrollToRow(_largeDataset.Count() / 2)">50%</button>
+            <button @onclick="() => ScrollToRow(_largeDataset.Count() * 3 / 4)">75%</button>
+            <button @onclick="() => ScrollToRow(_largeDataset.Count() - 1)">Bottom</button>
         </div>
-        <div class="metric">
-            <label>Scroll FPS:</label>
-            <span>@_monitor.CurrentFps.ToString("F0")</span>
+        <div class="grid-scroll-container large" @onscroll="OnScroll">
+            <QuickGrid Items="@_largeDataset" Class="demo-grid">
+                <Virtualize TItem="DataRow" Items="@_largeDataset.ToList()" Context="row" ItemSize="40" OverscanCount="5">
+                    <tr @key="row.Id">
+                        <td>@row.Id</td>
+                        <td>@row.Name</td>
+                        <td>@row.Category</td>
+                        <td>@row.Value.ToString("C2")</td>
+                        <td>@row.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                </Virtualize>
+            </QuickGrid>
         </div>
-    </div>
+    </section>
 
-    <div class="viewport-info">
-        <div class="metric">
-            <label>Viewing:</label>
-            <span>Rows @(_viewportInfo.FirstVisibleRow + 1) - @(_viewportInfo.LastVisibleRow + 1)</span>
+    <section class="demo-section">
+        <h2>Key Concepts</h2>
+        <div class="concept-cards">
+            <div class="concept-card">
+                <h5>ItemSize Parameter</h5>
+                <p>Must match actual row height (40px). Incorrect values produce scroll glitches.</p>
+                <pre>&lt;Virtualize ItemSize="40" ...&gt;</pre>
+            </div>
+            <div class="concept-card">
+                <h5>OverscanCount</h5>
+                <p>Buffer rows above and below viewport. Increased (5) to reduce blank gaps during fast scroll.</p>
+                <pre>&lt;Virtualize OverscanCount="5" ...&gt;</pre>
+            </div>
+            <div class="concept-card">
+                <h5>Render Optimization</h5>
+                <p>Minimal DOM + compiled accessors minimize per-row work.</p>
+                <pre>_compiledAccessor = Property.Compile();</pre>
+            </div>
+            <div class="concept-card">
+                <h5>When to Use</h5>
+                <ul>
+                    <li>&gt; 500 rows — beneficial</li>
+                    <li>&gt; 2,000 rows — essential</li>
+                    <li>&lt; 100 rows — skip</li>
+                </ul>
+            </div>
         </div>
-        <div class="metric">
-            <label>Scroll Position:</label>
-            <span>@_viewportInfo.ScrollPercentage.ToString("F1")%</span>
-        </div>
-    </div>
+    </section>
 
-    <div class="scroll-controls">
-        <button @onclick="() => ScrollToRow(0)">Top</button>
-        <button @onclick="() => ScrollToRow(_largeDataset.Count() / 4)">25%</button>
-        <button @onclick="() => ScrollToRow(_largeDataset.Count() / 2)">50%</button>
-        <button @onclick="() => ScrollToRow(_largeDataset.Count() * 3 / 4)">75%</button>
-        <button @onclick="() => ScrollToRow(_largeDataset.Count() - 1)">Bottom</button>
-    </div>
-
-    <div class="grid-scroll-container large" @onscroll="OnScroll">
-        <QuickGrid Items="@_largeDataset" Class="demo-grid">
-            <Virtualize TItem="DataRow" Items="@_largeDataset.ToList()" Context="row" ItemSize="40" OverscanCount="5">
-                <tr @key="row.Id">
-                    <td>@row.Id</td>
-                    <td>@row.Name</td>
-                    <td>@row.Category</td>
-                    <td>@row.Value.ToString("C2")</td>
-                    <td>@row.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
-                </tr>
-            </Virtualize>
-        </QuickGrid>
-    </div>
-</div>
-
-<div class="demo-section">
-    <h4>Key Concepts</h4>
-    
-    <div class="concept-cards">
-        <div class="concept-card">
-            <h5>📐 ItemSize Parameter</h5>
-            <p>
-                <strong>Critical:</strong> Must match actual row height (40px in this demo).
-                Incorrect values cause scroll position issues and visual glitches.
-            </p>
-            <pre>&lt;Virtualize ItemSize="40" ...&gt;</pre>
-        </div>
-
-        <div class="concept-card">
-            <h5>🔄 OverscanCount</h5>
-            <p>
-                Buffer rows above and below viewport. Default is 3, increased to 5 
-                prevents blank rows during fast scrolling.
-            </p>
-            <pre>&lt;Virtualize OverscanCount="5" ...&gt;</pre>
-        </div>
-
-        <div class="concept-card">
-            <h5>⚡ Render Optimization</h5>
-            <p>
-                VirtualColumn uses compiled accessors and minimal DOM. 
-                Heavy computation in cell rendering will hurt scroll performance.
-            </p>
-            <pre>_compiledAccessor = Property.Compile();</pre>
-        </div>
-
-        <div class="concept-card">
-            <h5>🎯 When to Use</h5>
-            <ul>
-                <li>✅ &gt; 500 rows - Noticeable benefit</li>
-                <li>✅ &gt; 2,000 rows - Essential</li>
-                <li>❌ &lt; 100 rows - Unnecessary overhead</li>
-            </ul>
-        </div>
-    </div>
-</div>
-
-<!-- New explanatory section -->
-<div class="demo-section">
-    <h4>Performance Esimates Explained</h4>
-    <p>
-        The cards above use a lightweight heuristic from <code>VirtualizationEstimator.EstimatePerformance</code>
-        (see <code>QuickGridTest01/Virtualization/VirtualizationPerformance.cs</code>). It does not measure the DOM; it
-        projects costs based on row/column counts and a few constants.
-    </p>
-
-    <h5>Inputs and constants</h5>
-    <ul>
-        <li><strong>rowCount</strong>: selected dataset size</li>
-        <li><strong>columnCount</strong>: 5</li>
-        <li><strong>visibleRows</strong>: 20, <strong>bufferRows</strong>: 5 → <strong>renderedRows</strong> = 20 + 2×5 = 30</li>
-        <li><strong>msPerCell</strong>: 0.05 ms (heuristic CPU/render cost per cell)</li>
-        <li><strong>bytesPerCell</strong>: 2,048 bytes (≈2 KB per cell)</li>
-    </ul>
-
-    <h5>Formulas</h5>
-    <ul>
-        <li><strong>totalCells</strong> = rowCount × columnCount</li>
-        <li><strong>renderedCells</strong> = renderedRows × columnCount</li>
-        <li><strong>Non‑virtual</strong>:
-            <ul>
-                <li>Render time = totalCells × msPerCell</li>
-                <li>DOM elements = totalCells</li>
-                <li>Memory = totalCells × bytesPerCell</li>
-            </ul>
-        </li>
-        <li><strong>Virtualized</strong>:
-            <ul>
-                <li>Render time = renderedCells × msPerCell</li>
-                <li>DOM elements = renderedCells</li>
-                <li>Memory = renderedCells × bytesPerCell</li>
-            </ul>
-        </li>
-        <li><strong>Improvements</strong>:
-            <ul>
-                <li>Speedup = NonVirtualTime / VirtualTime</li>
-                <li>DOM reduction = (1 − VirtualDom / NonVirtualDom) × 100</li>
-                <li>Memory savings = (1 − VirtualMem / NonVirtualMem) × 100</li>
-            </ul>
-        </li>
-    </ul>
-
-    <h5>Example (1,000 rows)</h5>
-    <ul>
-        <li>totalCells = 1,000 × 5 = 5,000</li>
-        <li>Non‑virtual: time ≈ 5,000 × 0.05 = 250 ms, DOM = 5,000, memory ≈ 10 MB</li>
-        <li>Virtualized: renderedCells = 30 × 5 = 150 → time ≈ 7.5 ms, DOM = 150, memory ≈ 0.3 MB</li>
-        <li>Improvements: ~33× faster, ~97% fewer DOM nodes, ~97% less memory</li>
-    </ul>
-
-    <p>
-        Note: Scenario 2‘s “Render Time” uses a <code>Stopwatch</code> to measure that specific render,
-        but the top cards always use the estimator. Tune <code>msPerCell</code> or <code>bytesPerCell</code>
-        in the estimator to calibrate for your environment.
-    </p>
+    <section class="demo-section">
+        <h2>Performance Estimates Explained</h2>
+        <p>The estimator uses row/column counts plus constants (ms per cell, bytes per cell) to project costs—does not measure real DOM.</p>
+        <h5>Inputs</h5>
+        <ul>
+            <li><strong>rowCount</strong>: selected dataset size</li>
+            <li><strong>columnCount</strong>: 5</li>
+            <li><strong>visibleRows</strong>: 20, <strong>bufferRows</strong>: 5 → renderedRows = 30</li>
+            <li><strong>msPerCell</strong>: 0.05 ms</li>
+            <li><strong>bytesPerCell</strong>: 2,048 bytes</li>
+        </ul>
+        <h5>Formulas</h5>
+        <ul>
+            <li><strong>totalCells</strong> = rowCount × columns</li>
+            <li><strong>renderedCells</strong> (virtual) = renderedRows × columns</li>
+            <li>Non-virtual: time = totalCells × msPerCell; memory = totalCells × bytesPerCell</li>
+            <li>Virtual: time = renderedCells × msPerCell; memory = renderedCells × bytesPerCell</li>
+            <li>Speedup = NonVirtualTime / VirtualTime</li>
+            <li>Reductions = (1 − Virtual / NonVirtual) × 100%</li>
+        </ul>
+        <h5>Example (1,000 rows)</h5>
+        <ul>
+            <li>totalCells = 5,000 → time ≈ 250 ms, DOM = 5,000, memory ≈ 10 MB</li>
+            <li>virtual: renderedCells = 150 → time ≈ 7.5 ms, DOM = 150, memory ≈ 0.3 MB</li>
+            <li>≈33× faster, ≈97% fewer nodes & memory</li>
+        </ul>
+        <p>Scenario 2 render time uses a <code>Stopwatch</code>; estimate cards remain heuristic. Adjust constants to calibrate.</p>
+    </section>
 </div>
 
 @code {
@@ -383,8 +251,6 @@
         GenerateSmallDataset();
         GenerateLargeDataset();
         UpdateEstimates();
-        
-        // Measure small dataset render
         var sw = Stopwatch.StartNew();
         StateHasChanged();
         sw.Stop();
@@ -396,7 +262,6 @@
         var data = new List<DataRow>();
         var random = new Random(42);
         var categories = new[] { "Electronics", "Furniture", "Clothing", "Food", "Books" };
-
         for (int i = 1; i <= 100; i++)
         {
             data.Add(new DataRow
@@ -408,7 +273,6 @@
                 Timestamp = DateTime.Now.AddDays(-random.Next(365))
             });
         }
-
         _smallDataset = data.AsQueryable();
     }
 
@@ -417,7 +281,6 @@
         var data = new List<DataRow>();
         var random = new Random(42);
         var categories = new[] { "Electronics", "Furniture", "Clothing", "Food", "Books", "Toys", "Sports", "Garden" };
-
         for (int i = 1; i <= _selectedRowCount; i++)
         {
             data.Add(new DataRow
@@ -429,18 +292,13 @@
                 Timestamp = DateTime.Now.AddDays(-random.Next(1825))
             });
         }
-
         _largeDataset = data.AsQueryable();
     }
 
     private void UpdateEstimates()
     {
         GenerateLargeDataset();
-        _estimate = VirtualizationEstimator.EstimatePerformance(
-            rowCount: _selectedRowCount,
-            columnCount: 5,
-            visibleRows: 20,
-            bufferRows: 5);
+        _estimate = VirtualizationEstimator.EstimatePerformance(_selectedRowCount, 5, 20, 5);
         _nonVirtualRendered = false;
     }
 
@@ -448,15 +306,12 @@
     {
         _isRenderingNonVirtual = true;
         StateHasChanged();
-        
-        await Task.Delay(100); // Let UI update
-
+        await Task.Delay(100);
         var sw = Stopwatch.StartNew();
         _nonVirtualRendered = true;
         StateHasChanged();
-        await Task.Delay(100); // Let render complete
+        await Task.Delay(100);
         sw.Stop();
-        
         _nonVirtualRenderTime = sw.Elapsed.TotalMilliseconds;
         _isRenderingNonVirtual = false;
         StateHasChanged();
@@ -465,18 +320,13 @@
     private void OnScroll()
     {
         _monitor.RecordScrollFrame();
-        
-        // Estimate viewport (rough calculation)
         _viewportInfo.TotalRows = _largeDataset.Count();
         _viewportInfo.RenderedRowCount = _renderedRowCount;
-        
         StateHasChanged();
     }
 
     private void ScrollToRow(int rowIndex)
     {
-        // In real implementation, would use Virtualize reference
-        // For demo purposes, just update viewport info
         _viewportInfo.FirstVisibleRow = rowIndex;
         _viewportInfo.LastVisibleRow = Math.Min(rowIndex + 20, _largeDataset.Count() - 1);
         _viewportInfo.ScrollPercentage = (rowIndex / (double)_largeDataset.Count()) * 100;

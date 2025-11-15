@@ -1,97 +1,96 @@
-/* Demo page styling */
-.demo-section {
-    margin: 30px 0;
-    padding: 20px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+/* Align styles with ConditionalStyleDemo (conservative, consistent) */
+.demo-container {
+    padding: 2rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
-.demo-section h4 {
-    margin-top: 0;
-    margin-bottom: 16px;
+.demo-container h1 {
     color: #2c3e50;
-    font-size: 18px;
-    font-weight: 600;
+    margin-bottom: 0.5rem;
+    font-size: 2rem;
+    font-weight: 700;
 }
 
-/* Grid styling */
-.demo-grid {
+.intro-text {
+    color: #6c757d;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.demo-section {
+    margin-bottom: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.demo-section h2 {
+    color: #34495e;
+    margin-bottom: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 0.5rem;
+}
+
+.section-description {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 0.975rem;
+    line-height: 1.5;
+}
+
+/* Grid styles, consistent with ConditionalStyleDemo */
+::deep .demo-grid {
     width: 100%;
     border-collapse: collapse;
-    background-color: white;
-    border-radius: 4px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1rem;
 }
 
-.demo-grid thead {
-    background-color: #343a40;
-    color: white;
-}
-
-.demo-grid thead th {
-    padding: 12px 16px;
+::deep .demo-grid th {
+    background-color: #f8f9fa;
+    padding: 12px;
     text-align: left;
     font-weight: 600;
-    font-size: 14px;
-    border-bottom: 2px solid #495057;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    white-space: nowrap;
 }
 
-.demo-grid tbody tr {
-    transition: background-color 0.2s;
-    border-bottom: 1px solid #dee2e6;
+::deep .demo-grid td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e9ecef;
 }
 
-.demo-grid tbody tr:hover {
-    background-color: #f1f8ff;
-}
-
-.demo-grid tbody tr:nth-child(even) {
+::deep .demo-grid tr:hover {
     background-color: #f8f9fa;
 }
 
-.demo-grid tbody tr:nth-child(even):hover {
-    background-color: #f1f8ff;
-}
-
-.demo-grid tbody td {
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #495057;
-}
-
-/* Icon column specific styling */
+/* Icon column cell */
 ::deep .icon-column-container {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    font-size: 14px;
+    gap: 6px;
+    padding: 2px 0;
+    color: #343a40;
 }
 
 ::deep .icon-column-container i {
-    font-size: 18px;
-    margin-right: 8px;
+    font-size: 16px;
 }
 
 ::deep .icon-column-value {
     font-weight: 500;
 }
 
-/* Sort button styling */
-.demo-grid thead th button {
-    background: none;
-    border: none;
-    color: white;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    width: 100%;
-}
-
-.demo-grid thead th button:hover {
-    color: #adb5bd;
+/* Responsive */
+@media (max-width: 768px) {
+    .demo-container { padding: 1rem; }
+    .demo-section { padding: 1rem; }
+    ::deep .demo-grid { font-size: 0.9rem; }
+    ::deep .demo-grid th, ::deep .demo-grid td { padding: 8px; }
 }

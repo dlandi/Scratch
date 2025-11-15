@@ -4,93 +4,90 @@
 
 <PageTitle>Icon Column Demo</PageTitle>
 
-<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #6f42c1; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#6f42c1;">Why an Icon Column?</h3>
-    <p><strong>Problem:</strong> Repeated conditional icon + color + tooltip logic in grid templates quickly becomes verbose and inconsistent (copy/paste of <code>span</code> tags, switch statements, sorting configuration). Each page duplicates mapping code for status, priority, health, etc.</p>
-    <p><strong>Solution:</strong> <code>IconColumn&lt;TGridItem,TValue&gt;</code> centralizes icon display concerns—given a property expression and mapper delegates (icon, color, tooltip, optional text) it renders a compact cell with semantic styling and inferred sort expression. Consumers only supply mapping functions; DOM + sequencing + sort wiring are handled automatically.</p>
-    <p><strong>Features:</strong></p>
-    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-        <li>Icon/text toggle via <code>ShowValue</code>.</li>
-        <li>Independent mappers: <code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>, optional value formatting.</li>
-        <li>Sortable by underlying value (expression compiled once).</li>
-        <li>Lightweight render tree (single wrapper + icon + optional text).</li>
-        <li>Works for multiple domains (tasks, servers, alerts, statuses) without redesign.</li>
-    </ul>
-    <p><strong>Use Cases:</strong> Status dashboards, ticket priority, server health, workflow steps, boolean flags (? / ?), rating badges, risk indicators.</p>
-    <p><strong>Extensibility Ideas:</strong> Add size mapper, accessibility label mapper, animation mapper (e.g. pulse for critical), multi-icon stacking, or dynamic theming. Provide preset map factories for common enums.</p>
-    <p><strong>Contrast vs TemplateColumn:</strong> A raw template requires manual icon spans, classes, tooltips, sort duplication; <code>IconColumn</code> assembles these from pure functions—clearer intent, less markup, easier future changes.</p>
-    <p><strong>Example:</strong></p>
-    <pre><code>&lt;IconColumn Property="@@(t =&gt; t.Status)" IconMapper="@@GetStatusIcon" ColorMapper="@@GetStatusColor" TooltipMapper="@@GetStatusTooltip" ShowValue="true" /&gt;</code></pre>
-</div>
+<div class="demo-container">
+    <h1>Icon Column Demonstrations</h1>
+    <p class="intro-text">
+        This page demonstrates a reusable <code>IconColumn&lt;TGridItem,TValue&gt;</code> for QuickGrid.
+        Icons, colors, and optional tooltips are mapped from values via simple delegates. The layout and
+        styling follow the same conservative aesthetic as other demos.
+    </p>
 
-<h3>Custom Icon Column Implementation</h3>
+    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">About the Icon Column</h3>
+        <p><strong>Problem:</strong> Repeated conditional icon + color + tooltip logic in grid templates quickly becomes verbose and inconsistent. Each page duplicates mapping code for status, priority, health, etc.</p>
+        <p><strong>Solution:</strong> <code>IconColumn&lt;TGridItem,TValue&gt;</code> centralizes icon display concerns—given a property expression and mapper delegates (icon, color, tooltip, optional text) it renders a compact cell with inferred sort expression.</p>
+        <p><strong>Features:</strong></p>
+        <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+            <li>Icon/text toggle via <code>ShowValue</code>.</li>
+            <li>Independent mappers: <code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>.</li>
+            <li>Sortable by underlying value.</li>
+            <li>Lightweight render tree (single wrapper + icon + optional text).</li>
+        </ul>
+    </div>
 
-<p>
-    This example demonstrates a custom column extending <code>ColumnBase&lt;TGridItem&gt;</code>
-    with custom rendering, state management, and lifecycle methods. The IconColumn displays a colored 
-    icon alongside text values in the grid. In the Task Status Grid, you'll see icons representing 
-    different task states (clock for Pending, spinning arrows for In Progress, check mark for Completed, 
-    and warning triangle for Blocked), each with color-coded styling. The Server Health Grid shows 
-    health status icons (hearts for Healthy, warning triangles, and stop signs for Critical) without 
-    text labels. Hover over any icon to see descriptive tooltips, and click column headers to sort by 
-    the underlying values.
-</p>
+    <section class="demo-section">
+        <h2>Example 1: Task Status Grid</h2>
+        <p class="section-description">
+            Task rows with icon and color indicators for status and priority. Values remain readable
+            and sorting uses the underlying values.
+        </p>
+        <QuickGrid Items="@tasks" Class="demo-grid">
+            <PropertyColumn Property="@(t => t.Id)" Title="ID" />
+            <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
+            
+            <!-- Custom Icon Column for Status -->
+            <IconColumn 
+                TGridItem="TaskItem" 
+                TValue="TaskStatus"
+                Property="@(t => t.Status)"
+                IconMapper="@GetStatusIcon"
+                ColorMapper="@GetStatusColor"
+                TooltipMapper="@GetStatusTooltip"
+                Title="Status"
+                Sortable="true"
+                ShowValue="true" />
+            
+            <!-- Custom Icon Column for Priority -->
+            <IconColumn 
+                TGridItem="TaskItem" 
+                TValue="Priority"
+                Property="@(t => t.Priority)"
+                IconMapper="@GetPriorityIcon"
+                ColorMapper="@GetPriorityColor"
+                Title="Priority"
+                Sortable="true"
+                ShowValue="true" />
+            
+            <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
+            <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="yyyy-MM-dd" />
+        </QuickGrid>
+    </section>
 
-<div class="demo-section">
-    <h4>Task Status Grid</h4>
-    <QuickGrid Items="@tasks" Class="demo-grid">
-        <PropertyColumn Property="@(t => t.Id)" Title="ID" />
-        <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
-        
-        <!-- Custom Icon Column for Status -->
-        <IconColumn 
-            TGridItem="TaskItem" 
-            TValue="TaskStatus"
-            Property="@(t => t.Status)"
-            IconMapper="@GetStatusIcon"
-            ColorMapper="@GetStatusColor"
-            TooltipMapper="@GetStatusTooltip"
-            Title="Status"
-            Sortable="true"
-            ShowValue="true" />
-        
-        <!-- Custom Icon Column for Priority -->
-        <IconColumn 
-            TGridItem="TaskItem" 
-            TValue="Priority"
-            Property="@(t => t.Priority)"
-            IconMapper="@GetPriorityIcon"
-            ColorMapper="@GetPriorityColor"
-            Title="Priority"
-            Sortable="true"
-            ShowValue="true" />
-        
-        <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
-        <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="yyyy-MM-dd" />
-    </QuickGrid>
-</div>
-
-<div class="demo-section">
-    <h4>Server Health Grid</h4>
-    <QuickGrid Items="@servers" Class="demo-grid">
-        <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
-        
-        <!-- Icon-only column (no value text) -->
-        <IconColumn 
-            TGridItem="ServerInfo" 
-            TValue="HealthStatus"
-            Property="@(s => s.Health)"
-            IconMapper="@GetHealthIcon"
-            ColorMapper="@GetHealthColor"
-            TooltipMapper="@GetHealthTooltip"
-            Title="Health"
-            Sortable="true"
-            ShowValue="false" />
-        
-        <PropertyColumn Property="@(s => s.CpuUsage)" Title="CPU %" Format="F1" />
-        <PropertyColumn Property="@(s => s.MemoryUsage)" Title="Memory %" Format="F1" />
-        <PropertyColumn Property="@(s => s.LastCheck)" Title="Last Check" Format="HH:mm:ss" />
-    </QuickGrid>
+    <section class="demo-section">
+        <h2>Example 2: Server Health Grid</h2>
+        <p class="section-description">
+            Icon-only health status column with tooltips for additional context.
+        </p>
+        <QuickGrid Items="@servers" Class="demo-grid">
+            <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
+            
+            <!-- Icon-only column (no value text) -->
+            <IconColumn 
+                TGridItem="ServerInfo" 
+                TValue="HealthStatus"
+                Property="@(s => s.Health)"
+                IconMapper="@GetHealthIcon"
+                ColorMapper="@GetHealthColor"
+                TooltipMapper="@GetHealthTooltip"
+                Title="Health"
+                Sortable="true"
+                ShowValue="false" />
+            
+            <PropertyColumn Property="@(s => s.CpuUsage)" Title="CPU %" Format="F1" />
+            <PropertyColumn Property="@(s => s.MemoryUsage)" Title="Memory %" Format="F1" />
+            <PropertyColumn Property="@(s => s.LastCheck)" Title="Last Check" Format="HH:mm:ss" />
+        </QuickGrid>
+    </section>
 </div>
 
 @code {

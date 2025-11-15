@@ -5,103 +5,92 @@
 
 <PageTitle>Editable Column Demo</PageTitle>
 
-<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #0d6efd; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#0d6efd;">Why a Custom Editable Column?</h3>
-    <p><strong>Purpose:</strong> Replace ad hoc <code>EditForm</code> + input fragments in every cell with a reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> that owns edit state, validation, formatting, and commit semantics. This keeps page markup declarative (just list columns) while centralizing behavior and UX rules.</p>
-    <p><strong>Encapsulation:</strong> The column internally manages an <em>EditState</em> per row (original value, current value, dirty flag, validation results, editing mode). All logic for entering edit mode, cancelling, saving, inline editing, and keyboard shortcuts lives in one component instead of duplicated scattered markup.</p>
-    <p><strong>Validation Pipeline:</strong> Supports both DataAnnotations (via reflection caching of property attributes) and pluggable custom validators (<code>IValidator&lt;TValue&gt;</code>). Validation can run on each keystroke (<code>ValidateOnChange</code>) or on explicit commit; results and error messages are rendered consistently. Debounced validation (<code>DebounceMilliseconds</code>) avoids excessive re-renders for rapid typing.</p>
-    <p><strong>Flexible Editing Modes:</strong> Standard mode (click to enter, explicit Save/Cancel buttons) or <em>Inline</em> mode (input always visible, optional auto-commit when valid via <code>CommitOnInput</code>). Keyboard handling (Enter/Escape) is uniformly implemented. Property setters are compiled from the expression body so updates are fast & type?safe.</p>
-    <p><strong>Performance:</strong> The property expression is compiled once and reused for value access + optional formatting (<code>Format</code>) and sorting inference. Per-cell validation and rendering avoids reflection each time. Debounce timers marshal back to the Blazor dispatcher to prevent cross-thread exceptions while reducing unnecessary UI churn.</p>
-    <p><strong>Consistency & UX:</strong> Common CSS classes, icons, error region, and loading indicator give users predictable feedback. Change logging is triggered via a single <code>OnValueChanged</code> callback carrying old/new values and property name.</p>
-    <p><strong>Maintainability:</strong> Adding or modifying validation, changing input type logic, or extending editor UI requires changes only inside the column component—pages remain clean lists of <code>&lt;EditableColumn ... /&gt;</code>. Reduces boilerplate and risk of inconsistent behavior between grids.</p>
-    <p><strong>Extensibility:</strong> Optional <code>DisplayTemplate</code> for custom non-edit rendering; future enhancements (e.g. multi-field row validation, async server validation, optimistic concurrency) can be integrated without altering consumer markup.</p>
-    <p><strong>Net Benefit:</strong> Fewer lines of page code, clearer intent, centralized quality improvements, improved performance, and a simpler mental model: “declare editable columns; component does the rest.”</p>
-</div>
+<div class="demo-container">
+    <h1>Editable Column Demo</h1>
+    <p class="intro-text">Reusable editable column with inline editors, validation, and commit semantics, presented with a conservative, consistent design.</p>
 
-<h3>Editable Column (Inline Editing via Custom Column)</h3>
+    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why a Custom Editable Column?</h3>
+        <p><strong>Purpose:</strong> Replace ad hoc <code>EditForm</code> + input fragments in every cell with a reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> that owns edit state, validation, formatting, and commit semantics. This keeps page markup declarative.</p>
+        <p><strong>Encapsulation:</strong> The column manages an EditState per row (original/current value, dirty flag, validation results, editing mode) and handles enter/cancel/save and keyboard shortcuts.</p>
+        <p><strong>Validation:</strong> DataAnnotations and custom validators with optional debouncing and on-change validation.</p>
+        <p><strong>Performance:</strong> Compiled expressions and minimal re-renders. Centralized behavior yields consistency.</p>
+    </div>
 
-<p>
-    This demo refactors the previous ad hoc EditForm-per-cell approach to use the reusable <code>EditableColumn</code>.
-    Columns render inline inputs with DataAnnotations + custom validators, debounced validation, and auto-commit.
-</p>
+    <section class="demo-section">
+        <h2>Employee Editor (Inline)</h2>
+        <p class="section-description">Inline editors using <code>EditableColumn</code>. Validation combines DataAnnotations and explicit validators. Auto-commit on valid change.</p>
 
-<div class="demo-section">
-    <h4>Employee Editor (Inline)</h4>
-    <p class="info-text">
-        Inline editors using <code>EditableColumn</code>. Validation combines DataAnnotations and explicit validators. Auto-commit on valid change.
-    </p>
+        <QuickGrid Items="@employees" Class="demo-grid">
+            <PropertyColumn Property="@(e => e.Id)" Title="ID" />
 
-    <QuickGrid Items="@employees" Class="demo-grid">
-        <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@EmailValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@DepartmentValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            <EditableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@SalaryValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            <EditableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Inline="true" UseDataAnnotations="true" InputType="date" DebounceMilliseconds="300" Validators="@HireDateValidators" OnValueChanged="@OnEmployeeValueChanged" />
+        </QuickGrid>
 
-        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@EmailValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@DepartmentValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        <EditableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@SalaryValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        <EditableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Inline="true" UseDataAnnotations="true" InputType="date" DebounceMilliseconds="300" Validators="@HireDateValidators" OnValueChanged="@OnEmployeeValueChanged" />
-    </QuickGrid>
+        @if (_changeLog.Any())
+        {
+            <div class="change-log">
+                <h5>Recent Changes</h5>
+                <div class="log-entries">
+                    @foreach (var entry in _changeLog.TakeLast(8).Reverse())
+                    {
+                        <div class="log-entry">@entry</div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
 
-    @if (_changeLog.Any())
-    {
-        <div class="change-log">
-            <h5>Recent Changes:</h5>
-            <div class="log-entries">
-                @foreach (var entry in _changeLog.TakeLast(8).Reverse())
-                {
-                    <div class="log-entry">@entry</div>
-                }
+    <section class="demo-section">
+        <h2>Product Inventory Editor (Inline)</h2>
+        <p class="section-description">Debounced validation and auto-commit on valid modifications.</p>
+
+        <QuickGrid Items="@products" Class="demo-grid">
+            <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+
+            <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
+            <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
+            <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
+            <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
+            <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
+
+            <TemplateColumn Title="Status" Context="context">
+                <span class="stock-badge stock-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
+            </TemplateColumn>
+        </QuickGrid>
+    </section>
+
+    <section class="demo-section">
+        <h2>Validation Rules Summary</h2>
+        <div class="validation-rules">
+            <div class="rule-group">
+                <h5>Employee Validations</h5>
+                <ul>
+                    <li><strong>First Name:</strong> Required, 2-50 characters</li>
+                    <li><strong>Last Name:</strong> Required, 2-50 characters</li>
+                    <li><strong>Email:</strong> Required, valid email format</li>
+                    <li><strong>Department:</strong> Required, min 2 characters</li>
+                    <li><strong>Salary:</strong> Between $30,000 and $250,000</li>
+                    <li><strong>Hire Date:</strong> Must be in the past</li>
+                </ul>
+            </div>
+            <div class="rule-group">
+                <h5>Product Validations</h5>
+                <ul>
+                    <li><strong>Name:</strong> Required, 3-100 characters</li>
+                    <li><strong>SKU:</strong> Required, pattern: ABC-1234</li>
+                    <li><strong>Price:</strong> Positive, max $10,000</li>
+                    <li><strong>Stock:</strong> Non-negative, max 9,999</li>
+                    <li><strong>Rating:</strong> Between 0.0 and 5.0</li>
+                </ul>
             </div>
         </div>
-    }
-</div>
-
-<div class="demo-section">
-    <h4>Product Inventory Editor (Inline)</h4>
-    <p class="info-text">
-        Products use the same approach. Debounced validation and auto-commit on valid modifications.
-    </p>
-
-    <QuickGrid Items="@products" Class="demo-grid">
-        <PropertyColumn Property="@(p => p.Id)" Title="ID" />
-
-        <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
-        <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
-        <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
-        <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
-        <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
-
-        <TemplateColumn Title="Status" Context="context">
-            <span class="stock-badge stock-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
-        </TemplateColumn>
-    </QuickGrid>
-</div>
-
-<div class="demo-section">
-    <h4>Validation Rules Summary</h4>
-    <div class="validation-rules">
-        <div class="rule-group">
-            <h5>Employee Validations:</h5>
-            <ul>
-                <li><strong>First Name:</strong> Required, 2-50 characters</li>
-                <li><strong>Last Name:</strong> Required, 2-50 characters</li>
-                <li><strong>Email:</strong> Required, valid email format</li>
-                <li><strong>Department:</strong> Required, min 2 characters</li>
-                <li><strong>Salary:</strong> Between $30,000 and $250,000</li>
-                <li><strong>Hire Date:</strong> Must be in the past</li>
-            </ul>
-        </div>
-        <div class="rule-group">
-            <h5>Product Validations:</h5>
-            <ul>
-                <li><strong>Name:</strong> Required, 3-100 characters</li>
-                <li><strong>SKU:</strong> Required, pattern: ABC-1234</li>
-                <li><strong>Price:</strong> Positive, max $10,000</li>
-                <li><strong>Stock:</strong> Non-negative, max 9,999</li>
-                <li><strong>Rating:</strong> Between 0.0 and 5.0</li>
-            </ul>
-        </div>
-    </div>
+    </section>
 </div>
 
 <style>

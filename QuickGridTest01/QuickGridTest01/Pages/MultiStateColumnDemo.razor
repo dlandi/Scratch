@@ -7,47 +7,46 @@
 
 <PageTitle>Multi-State Column Demo</PageTitle>
 
-<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #20c997; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#20c997;">Why a Multi-State Column?</h3>
-    <p><strong>Goal:</strong> Provide a richer, event‑driven editing experience than simple inline editors by formalizing distinct cell states (<code>Reading → Editing → Loading → Reading</code>) and exposing lifecycle hooks for instrumentation, validation, cancellation, and async persistence.</p>
-    <p><strong>Encapsulated State Machine:</strong> The column coordinates transitions with a clear contract: before‑edit, value‑changing (diff visibility), save result (success/failure), state changed, and cancel. Consumers subscribe without duplicating boilerplate or manually wiring timers / flags.</p>
-    <p><strong>Layered Architecture:</strong> Core state (<code>MultiState&lt;T&gt;</code>), validation orchestrator, component coordinator, and demo layer are separated for testability and reuse. You can unit test validation or persistence independently of UI rendering.</p>
-    <p><strong>Advanced Validation Flow:</strong> Multiple async validators aggregate results; failure halts transition to loading, keeping user in editing with consolidated error feedback. Success triggers async save with loading feedback and retry potential.</p>
-    <p><strong>Async Persistence & Feedback:</strong> The <code>OnSaveAsync</code> delegate returns (success, message). The component shows transient loading UI, updates metrics, and logs events. This models real back‑end latency and error handling patterns.</p>
-    <p><strong>Observability:</strong> Event log + counters surface operational insight (number of edits, save failures, cancellations). Useful for UX tuning, auditing, or analytics hooks.</p>
-    <p><strong>Extensibility:</strong> Additional states (e.g. Dirty, Conflict, Disabled) or behaviors (optimistic concurrency, auto‑save, batched commit) can be added centrally—pages only declare <code>&lt;MultiStateColumn ... /&gt;</code>.</p>
-    <p><strong>Use Cases:</strong> Admin panels, CRM contact editing, data quality tasks, multi-user collaborative grids, where reliability, validation richness, and instrumentation matter more than minimal markup.</p>
-    <p><strong>Benefit vs Basic EditableColumn:</strong> Adds explicit loading state, granular lifecycle events, structured error propagation, and metrics—ideal when auditing and async workflows are first‑class requirements.</p>
-</div>
-
 <div class="demo-container">
-    <h1>🎯 Multi-State Column Demo</h1>
-    <p class="subtitle">Comprehensive demonstration of the Multi-State Column architecture for Blazor QuickGrid</p>
+    <h1>Multi-State Column Demo</h1>
+    <p class="intro-text">A conservative, standardized demonstration of the Multi-State Column architecture for Blazor QuickGrid.</p>
+
+    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why a Multi-State Column?</h3>
+        <p><strong>Goal:</strong> Provide an event‑driven editing experience with distinct cell states (<code>Reading → Editing → Loading → Reading</code>) and lifecycle hooks for validation and async persistence.</p>
+        <p><strong>Encapsulated State Machine:</strong> Consumers subscribe to events without duplicating boilerplate or wiring flags/timers.</p>
+        <p><strong>Architecture:</strong> Core state, validation orchestrator, component coordinator, and demo layer separated for testability.</p>
+        <p><strong>Advanced Validation:</strong> Multiple async validators aggregate results; failure keeps the cell in editing with errors. Success triggers async save with loading feedback.</p>
+        <p><strong>Observability:</strong> Event log and counters show edits, save failures, and cancellations.</p>
+    </div>
 
     <!-- Statistics Dashboard -->
-    <div class="stats-dashboard">
-        <div class="stat-card">
-            <div class="stat-value">@_eventLog.Count</div>
-            <div class="stat-label">Total Events</div>
+    <section class="demo-section">
+        <h2>Statistics</h2>
+        <div class="stats-dashboard">
+            <div class="stat-card">
+                <div class="stat-value">@_eventLog.Count</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@_saveCount</div>
+                <div class="stat-label">Successful Saves</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@_validationErrorCount</div>
+                <div class="stat-label">Validation Errors</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">@_cancelCount</div>
+                <div class="stat-label">Cancelled Edits</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-value">@_saveCount</div>
-            <div class="stat-label">Successful Saves</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value">@_validationErrorCount</div>
-            <div class="stat-label">Validation Errors</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value">@_cancelCount</div>
-            <div class="stat-label">Cancelled Edits</div>
-        </div>
-    </div>
+    </section>
 
     <!-- Demo Section 1: Contact Directory -->
     <section class="demo-section">
-        <h2>📇 Contact Directory</h2>
-        <p>Edit contacts with comprehensive validation (required, min/max length, email format, uniqueness).</p>
+        <h2>Contact Directory</h2>
+        <p class="section-description">Edit contacts with validation (required, length, email format, uniqueness).</p>
 
         @if (_contacts == null)
         {
@@ -104,8 +103,8 @@
 
     <!-- Demo Section 2: Event Log -->
     <section class="demo-section">
-        <h2>📋 Event Log</h2>
-        <p>Real-time tracking of all lifecycle events.</p>
+        <h2>Event Log</h2>
+        <p class="section-description">Real-time tracking of lifecycle events.</p>
 
         <div class="event-log-controls">
             <button class="btn btn-secondary" @onclick="ClearEventLog">Clear Log</button>
@@ -139,8 +138,8 @@
 
     <!-- Demo Section 3: Validation Showcase -->
     <section class="demo-section">
-        <h2>✅ Validation Showcase</h2>
-        <p>Examples of different validation rules and error handling.</p>
+        <h2>Validation Showcase</h2>
+        <p class="section-description">Examples of different validation rules and error handling.</p>
 
         <div class="validation-examples">
             <div class="validation-example">
@@ -183,8 +182,8 @@
 
     <!-- Demo Section 4: State Machine Diagram -->
     <section class="demo-section">
-        <h2>🔄 State Machine</h2>
-        <p>Visual representation of cell state transitions.</p>
+        <h2>State Machine</h2>
+        <p class="section-description">Visual representation of cell state transitions.</p>
 
         <div class="state-diagram">
             <div class="state-box reading">
@@ -223,8 +222,8 @@
 
     <!-- Demo Section 5: Architecture Overview -->
     <section class="demo-section">
-        <h2>🏗️ Architecture Layers</h2>
-        <p>The Multi-State Column is built on a layered architecture.</p>
+        <h2>Architecture Layers</h2>
+        <p class="section-description">Overview of the layered design.</p>
 
         <div class="architecture-layers">
             <div class="layer">
@@ -252,7 +251,7 @@
                 </div>
             </div>
             <div class="layer">
-                <div class="layer-name">Layer 5: Demo (You are here!)</div>
+                <div class="layer-name">Layer 5: Demo</div>
                 <div class="layer-content">
                     <code>Contact</code>, <code>ContactService</code>, <code>ContactValidators</code>
                 </div>
@@ -262,43 +261,37 @@
 
     <!-- Demo Section 6: Features Summary -->
     <section class="demo-section">
-        <h2>✨ Key Features</h2>
+        <h2>Key Features</h2>
         
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon">🔒</div>
                 <div class="feature-title">Thread-Safe</div>
                 <div class="feature-desc">SemaphoreSlim ensures safe concurrent access</div>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon">💾</div>
                 <div class="feature-title">Memory-Efficient</div>
                 <div class="feature-desc">ConditionalWeakTable prevents memory leaks</div>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon">⚡</div>
                 <div class="feature-title">Async/Await</div>
                 <div class="feature-desc">Non-blocking async operations throughout</div>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon">✅</div>
                 <div class="feature-title">Flexible Validation</div>
                 <div class="feature-desc">Multiple validators with error aggregation</div>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon">🎯</div>
                 <div class="feature-title">Type-Safe</div>
                 <div class="feature-desc">Generic types ensure compile-time safety</div>
             </div>
 
             <div class="feature-card">
-                <div class="feature-icon">📢</div>
                 <div class="feature-title">Event-Driven</div>
-                <div class="feature-desc">5 lifecycle events for extensibility</div>
+                <div class="feature-desc">Five lifecycle events for extensibility</div>
             </div>
         </div>
     </section>

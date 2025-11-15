@@ -5,304 +5,238 @@
 
 <PageTitle>Optimized Render Tree Column Demo</PageTitle>
 
-<div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #ff9800; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-    <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#ff9800;">Why an Optimized Column?</h3>
-    <p><strong>Goal:</strong> Reduce CPU, memory, and DOM pressure for data-heavy grids by eliminating avoidable costs: reflection lookups, repeated string building, excess elements, and unstable sequence numbers. This component packages 4 core optimizations into a reusable column.</p>
-    <p><strong>Key Techniques:</strong></p>
-    <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-        <li><em>Compiled Accessors:</em> <code>Property.Compile()</code> once → nanosecond property access vs hundreds of ns via reflection.</li>
-        <li><em>Deterministic Sequences:</em> Single <code>int seq = 0; seq++</code> progression per cell maximizes diffing efficiency.</li>
-        <li><em>Cached Class Strings:</em> Precomputed for small combination space (highlight/warning/error) instead of concatenating each render.</li>
-        <li><em>Minimal DOM:</em> One wrapper element per cell; conditional attributes replace nested structural wrappers.</li>
-    </ul>
-    <p><strong>Benchmarks (Representative):</strong> Reflection vs compiled access often yields 10–30× speedup; cached class building removes thousands of transient string allocations; DOM reduction (4 → 1 element) divides layout/paint cost by ~4; overall full-grid rendering shows multi‑X improvements for large row counts.</p>
-    <p><strong>Use Cases:</strong> High-frequency refresh dashboards, virtualization buffers, large analytics tables (&gt; 1k rows), realtime monitoring grids, mobile scenarios where DOM budget is tight.</p>
-    <p><strong>Adoption Strategy:</strong> Start with naive columns for clarity; introduce optimized columns when profiler or DevTools show layout / scripting hotspots (long scripting tasks, high node counts, reclaimed memory spikes).</p>
-    <p><strong>Trade‑Offs:</strong> Slightly more internal complexity (caching dictionary + compiled delegate). Avoid premature optimization for tiny grids (&lt;100 rows)—benefits scale with cell count.</p>
-    <p><strong>Extensibility:</strong> Add conditional formatting, skeleton loading, or batched updates without violating optimizations (keep sequence discipline, reuse caches, avoid nested spans).</p>
-    <p><strong>Outcome:</strong> Cleaner page markup (<code>&lt;OptimizedColumn ... /&gt;</code>) and consistent performance best practices applied everywhere automatically.</p>
-</div>
+<div class="demo-container">
+    <h1>Optimized Render Tree Column</h1>
+    <p class="intro-text">Demonstrates sequence discipline, cached classes, minimal DOM, and compiled accessors using a conservative, standardized layout.</p>
 
-<h3>Optimized Render Tree Column</h3>
+    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
+        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why an Optimized Column?</h3>
+        <p><strong>Goal:</strong> Reduce CPU, memory, and DOM pressure for data-heavy grids by eliminating avoidable costs.</p>
+        <p><strong>Techniques:</strong> Compiled accessors, deterministic sequences, cached class strings, and minimal DOM.</p>
+        <p><strong>Use Cases:</strong> High-frequency dashboards, virtualization, and large analytics tables.</p>
+    </div>
 
-<p>
-    Demonstrates four critical performance optimizations: proper sequence numbering, 
-    cached class computation, minimal DOM manipulation, and compiled expression accessors.
-</p>
+    <section class="demo-section">
+        <h2>Performance Benchmarks</h2>
+        
+        <button class="btn-benchmark" @onclick="RunBenchmarks">
+            @if (_isRunningBenchmarks)
+            {
+                <span>Running Benchmarks...</span>
+            }
+            else
+            {
+                <span>Run Performance Benchmarks</span>
+            }
+        </button>
 
-<div class="demo-section">
-    <h4>Performance Benchmarks</h4>
-    
-    <button class="btn-benchmark" @onclick="RunBenchmarks">
-        @if (_isRunningBenchmarks)
+        @if (_propertyBenchmark != null)
         {
-            <span>Running Benchmarks...</span>
+            <div class="benchmark-results">
+                <div class="benchmark-card">
+                    <h5>Property Access (Expression Compilation)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Reflection:</label>
+                            <span class="value-bad">@_propertyBenchmark.ReflectionNsPerCall.ToString("F1") ns/call</span>
+                        </div>
+                        <div class="metric">
+                            <label>Compiled:</label>
+                            <span class="value-good">@_propertyBenchmark.CompiledNsPerCall.ToString("F1") ns/call</span>
+                        </div>
+                        <div class="metric">
+                            <label>Speedup:</label>
+                            <span class="value-highlight">@_propertyBenchmark.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>Class String Computation (Caching)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Uncached:</label>
+                            <span class="value-bad">@_classBenchmark!.UncachedTimeMs.ToString("F2") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Cached:</label>
+                            <span class="value-good">@_classBenchmark.CachedTimeMs.ToString("F2") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Speedup:</label>
+                            <span class="value-highlight">@_classBenchmark.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                        <div class="metric">
+                            <label>Cache Size:</label>
+                            <span>@_classBenchmark.CacheSize / @_classBenchmark.MaxCacheSize combinations</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>DOM Element Count (Minimal Structure)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Naive (4 per cell):</label>
+                            <span class="value-bad">@_domCount!.NaiveElements.ToString("N0") elements</span>
+                        </div>
+                        <div class="metric">
+                            <label>Optimized (1 per cell):</label>
+                            <span class="value-good">@_domCount.OptimizedElements.ToString("N0") elements</span>
+                        </div>
+                        <div class="metric">
+                            <label>Reduction:</label>
+                            <span class="value-highlight">@_domCount.ReductionPercent.ToString("F1")% fewer elements</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>Estimated Full Grid Render</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Grid Size:</label>
+                            <span>@_gridEstimate!.Rows rows × @_gridEstimate.Columns cols = @_gridEstimate.TotalCells.ToString("N0") cells</span>
+                        </div>
+                        <div class="metric">
+                            <label>Naive:</label>
+                            <span class="value-bad">@_gridEstimate.NaiveRenderTimeMs.ToString("F1") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Optimized:</label>
+                            <span class="value-good">@_gridEstimate.OptimizedRenderTimeMs.ToString("F1") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Overall Speedup:</label>
+                            <span class="value-highlight">@_gridEstimate.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         }
-        else
-        {
-            <span>Run Performance Benchmarks</span>
-        }
-    </button>
+    </section>
 
-    @if (_propertyBenchmark != null)
-    {
-        <div class="benchmark-results">
-            <div class="benchmark-card">
-                <h5>1️⃣ Property Access (Expression Compilation)</h5>
-                <div class="metric-grid">
-                    <div class="metric">
-                        <label>Reflection:</label>
-                        <span class="value-bad">@_propertyBenchmark.ReflectionNsPerCall.ToString("F1") ns/call</span>
-                    </div>
-                    <div class="metric">
-                        <label>Compiled:</label>
-                        <span class="value-good">@_propertyBenchmark.CompiledNsPerCall.ToString("F1") ns/call</span>
-                    </div>
-                    <div class="metric">
-                        <label>Speedup:</label>
-                        <span class="value-highlight">@_propertyBenchmark.SpeedupFactor.ToString("F1")x faster</span>
-                    </div>
-                </div>
+    <section class="demo-section">
+        <h2>Side-by-Side Comparison</h2>
+        <p class="section-description">Both grids show the same data. The naive implementation uses reflection, no caching, and excessive DOM elements.</p>
+
+        <div class="grid-comparison">
+            <div class="grid-container">
+                <h5>Optimized Column</h5>
+                <p class="grid-stats">1 DOM element per cell, compiled accessors, cached classes</p>
+                <QuickGrid Items="@products" Class="demo-grid">
+                    <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                    <OptimizedColumn TGridItem="Product" TValue="string"
+                                    Property="@(p => p.Name)"
+                                    Title="Product"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="decimal"
+                                    Property="@(p => p.Price)"
+                                    Format="C2"
+                                    Title="Price"
+                                    HighlightCondition="@(p => p > 500)"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="int"
+                                    Property="@(p => p.Stock)"
+                                    Title="Stock"
+                                    WarningCondition="@(s => s < 25)"
+                                    ErrorCondition="@(s => s == 0)"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="double"
+                                    Property="@(p => p.Rating)"
+                                    Format="F1"
+                                    Title="Rating"
+                                    HighlightCondition="@(r => r >= 4.5)"
+                                    ShowTooltip="true" />
+                </QuickGrid>
             </div>
 
-            <div class="benchmark-card">
-                <h5>2️⃣ Class String Computation (Caching)</h5>
-                <div class="metric-grid">
-                    <div class="metric">
-                        <label>Uncached:</label>
-                        <span class="value-bad">@_classBenchmark!.UncachedTimeMs.ToString("F2") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>Cached:</label>
-                        <span class="value-good">@_classBenchmark.CachedTimeMs.ToString("F2") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>Speedup:</label>
-                        <span class="value-highlight">@_classBenchmark.SpeedupFactor.ToString("F1")x faster</span>
-                    </div>
-                    <div class="metric">
-                        <label>Cache Size:</label>
-                        <span>@_classBenchmark.CacheSize / @_classBenchmark.MaxCacheSize combinations</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="benchmark-card">
-                <h5>3️⃣ DOM Element Count (Minimal Structure)</h5>
-                <div class="metric-grid">
-                    <div class="metric">
-                        <label>Naive (4 per cell):</label>
-                        <span class="value-bad">@_domCount!.NaiveElements.ToString("N0") elements</span>
-                    </div>
-                    <div class="metric">
-                        <label>Optimized (1 per cell):</label>
-                        <span class="value-good">@_domCount.OptimizedElements.ToString("N0") elements</span>
-                    </div>
-                    <div class="metric">
-                        <label>Reduction:</label>
-                        <span class="value-highlight">@_domCount.ReductionPercent.ToString("F1")% fewer elements</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="benchmark-card">
-                <h5>4️⃣ Estimated Full Grid Render</h5>
-                <div class="metric-grid">
-                    <div class="metric">
-                        <label>Grid Size:</label>
-                        <span>@_gridEstimate!.Rows rows × @_gridEstimate.Columns cols = @_gridEstimate.TotalCells.ToString("N0") cells</span>
-                    </div>
-                    <div class="metric">
-                        <label>Naive Approach:</label>
-                        <span class="value-bad">@_gridEstimate.NaiveRenderTimeMs.ToString("F1") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>Optimized Approach:</label>
-                        <span class="value-good">@_gridEstimate.OptimizedRenderTimeMs.ToString("F1") ms</span>
-                    </div>
-                    <div class="metric">
-                        <label>Overall Speedup:</label>
-                        <span class="value-highlight">@_gridEstimate.SpeedupFactor.ToString("F1")x faster</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    }
-</div>
-
-<div class="demo-section">
-    <h4>Side-by-Side Comparison</h4>
-    <p class="info-text">
-        Both grids show the same data. The naive implementation uses reflection, 
-        no caching, and excessive DOM elements. Open browser DevTools to inspect the DOM difference.
-    </p>
-
-    <div class="grid-comparison">
-        <div class="grid-container">
-            <h5>✅ Optimized Column</h5>
-            <p class="grid-stats">1 DOM element per cell, compiled accessors, cached classes</p>
-            <QuickGrid Items="@products" Class="demo-grid">
-                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
-                <OptimizedColumn TGridItem="Product" TValue="string"
+            <div class="grid-container">
+                <h5>Naive Column</h5>
+                <p class="grid-stats">4 DOM elements per cell, reflection, no caching</p>
+                <QuickGrid Items="@products" Class="demo-grid">
+                    <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                    <NaiveColumn TGridItem="Product" TValue="string"
                                 Property="@(p => p.Name)"
                                 Title="Product"
                                 ShowTooltip="true" />
-                <OptimizedColumn TGridItem="Product" TValue="decimal"
+                    <NaiveColumn TGridItem="Product" TValue="decimal"
                                 Property="@(p => p.Price)"
                                 Format="C2"
                                 Title="Price"
                                 HighlightCondition="@(p => p > 500)"
                                 ShowTooltip="true" />
-                <OptimizedColumn TGridItem="Product" TValue="int"
+                    <NaiveColumn TGridItem="Product" TValue="int"
                                 Property="@(p => p.Stock)"
                                 Title="Stock"
                                 WarningCondition="@(s => s < 25)"
                                 ErrorCondition="@(s => s == 0)"
                                 ShowTooltip="true" />
-                <OptimizedColumn TGridItem="Product" TValue="double"
+                    <NaiveColumn TGridItem="Product" TValue="double"
                                 Property="@(p => p.Rating)"
                                 Format="F1"
                                 Title="Rating"
                                 HighlightCondition="@(r => r >= 4.5)"
                                 ShowTooltip="true" />
-            </QuickGrid>
+                </QuickGrid>
+            </div>
         </div>
+    </section>
 
-        <div class="grid-container">
-            <h5>❌ Naive Column</h5>
-            <p class="grid-stats">4 DOM elements per cell, reflection, no caching</p>
-            <QuickGrid Items="@products" Class="demo-grid">
-                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
-                <NaiveColumn TGridItem="Product" TValue="string"
-                            Property="@(p => p.Name)"
-                            Title="Product"
-                            ShowTooltip="true" />
-                <NaiveColumn TGridItem="Product" TValue="decimal"
-                            Property="@(p => p.Price)"
-                            Format="C2"
-                            Title="Price"
-                            HighlightCondition="@(p => p > 500)"
-                            ShowTooltip="true" />
-                <NaiveColumn TGridItem="Product" TValue="int"
-                            Property="@(p => p.Stock)"
-                            Title="Stock"
-                            WarningCondition="@(s => s < 25)"
-                            ErrorCondition="@(s => s == 0)"
-                            ShowTooltip="true" />
-                <NaiveColumn TGridItem="Product" TValue="double"
-                            Property="@(p => p.Rating)"
-                            Format="F1"
-                            Title="Rating"
-                            HighlightCondition="@(r => r >= 4.5)"
-                            ShowTooltip="true" />
-            </QuickGrid>
-        </div>
-    </div>
-</div>
-
-<div class="demo-section">
-    <h4>Technique Explanations</h4>
-    
-    <div class="technique-cards">
-        <div class="technique-card">
-            <div class="technique-number">1️⃣</div>
-            <h5>Sequence Number Management</h5>
-            <p>
-                Uses <code>sequence++</code> pattern for deterministic, sequential numbering. 
-                Enables Blazor's diffing algorithm to efficiently match elements between renders.
-            </p>
-            <div class="code-example">
-                <div class="code-label">✅ Good:</div>
-                <pre>int sequence = 0;
+    <section class="demo-section">
+        <h2>Technique Explanations</h2>
+        
+        <div class="technique-cards">
+            <div class="technique-card">
+                <h5>Sequence Number Management</h5>
+                <p>Uses sequence++ pattern for deterministic numbering to help Blazor's diffing algorithm.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>int sequence = 0;
 builder.OpenElement(sequence++, "div");
 builder.AddAttribute(sequence++, "class", "...");
 builder.AddContent(sequence++, value);</pre>
+                </div>
             </div>
-            <div class="code-example">
-                <div class="code-label">❌ Bad:</div>
-                <pre>builder.OpenElement(0, "div");
-builder.AddAttribute(1, "class", "...");
-builder.AddContent(2, value);</pre>
-            </div>
-        </div>
 
-        <div class="technique-card">
-            <div class="technique-number">2️⃣</div>
-            <h5>Cached Class Computation</h5>
-            <p>
-                Caches computed CSS class strings in a dictionary. For 3 boolean states, 
-                only 8 possible combinations instead of computing on every render.
-            </p>
-            <div class="code-example">
-                <div class="code-label">✅ Good:</div>
-                <pre>var key = (highlight, warning, error);
+            <div class="technique-card">
+                <h5>Cached Class Computation</h5>
+                <p>Caches computed CSS class strings for small combination spaces to avoid repeated allocations.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>var key = (highlight, warning, error);
 if (!_cache.TryGetValue(key, out var css))
 {
     css = BuildClass(highlight, warning, error);
     _cache[key] = css;
 }
 return css;</pre>
+                </div>
             </div>
-            <div class="code-example">
-                <div class="code-label">❌ Bad:</div>
-                <pre>var css = "cell";
-if (highlight) css += " highlight";
-if (warning) css += " warning";
-if (error) css += " error";
-return css; // New allocation every render!</pre>
-            </div>
-        </div>
 
-        <div class="technique-card">
-            <div class="technique-number">3️⃣</div>
-            <h5>Minimal DOM Manipulation</h5>
-            <p>
-                Uses single wrapper element per cell instead of nested divs. 
-                Conditional rendering instead of CSS hiding. Direct content without extra spans.
-            </p>
-            <div class="code-example">
-                <div class="code-label">✅ Good:</div>
-                <pre>builder.OpenElement(0, "div");
+            <div class="technique-card">
+                <h5>Minimal DOM Manipulation</h5>
+                <p>Renders a single wrapper element per cell with conditional attributes instead of nested wrappers.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>builder.OpenElement(0, "div");
 builder.AddAttribute(1, "class", cssClass);
 builder.AddContent(2, value);
 builder.CloseElement();</pre>
+                </div>
             </div>
-            <div class="code-example">
-                <div class="code-label">❌ Bad:</div>
-                <pre>builder.OpenElement(0, "div");
-  builder.OpenElement(1, "div");
-    builder.OpenElement(2, "div");
-      builder.OpenElement(3, "span");
-        builder.AddContent(4, value);
-      ...4 closing elements</pre>
-            </div>
-        </div>
 
-        <div class="technique-card">
-            <div class="technique-number">4️⃣</div>
-            <h5>Expression Compilation</h5>
-            <p>
-                Compiles property expressions once into delegates. Achieves near-native 
-                property access speed (~15ns) vs reflection (~300ns).
-            </p>
-            <div class="code-example">
-                <div class="code-label">✅ Good:</div>
-                <pre>// One-time compilation
-_compiled = Property.Compile();
-
-// Fast repeated access
+            <div class="technique-card">
+                <h5>Expression Compilation</h5>
+                <p>Compiles property expressions once into delegates for near-native access speed.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>_compiled = Property.Compile();
 var value = _compiled(item);</pre>
-            </div>
-            <div class="code-example">
-                <div class="code-label">❌ Bad:</div>
-                <pre>// Extract PropertyInfo
-var prop = typeof(T).GetProperty("Name");
-
-// Slow repeated reflection
-var value = prop.GetValue(item);</pre>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
 @code {
@@ -348,16 +282,14 @@ var value = prop.GetValue(item);</pre>
         _isRunningBenchmarks = true;
         StateHasChanged();
 
-        await Task.Delay(100); // Let UI update
+        await Task.Delay(100);
 
-        // Benchmark 1: Property Access
         var sampleProduct = products.First();
         _propertyBenchmark = PerformanceBenchmark.BenchmarkPropertyAccess(
             sampleProduct,
             p => p.Price,
             iterations: 100000);
 
-        // Benchmark 2: Class Caching
         var highlightStates = new[] { false, true, false, true, false, true, false, true };
         var warningStates = new[] { false, false, true, true, false, false, true, true };
         var errorStates = new[] { false, false, false, false, true, true, true, true };
@@ -368,11 +300,9 @@ var value = prop.GetValue(item);</pre>
             errorStates,
             iterations: 100000);
 
-        // Benchmark 3: DOM Count
         var cellCount = products.Count() * 4; // 4 data columns
         _domCount = PerformanceBenchmark.CompareDomElements(cellCount);
 
-        // Benchmark 4: Full Grid Estimate
         _gridEstimate = PerformanceBenchmark.EstimateGridRenderPerformance(
             rows: 1000,
             columns: 10);
