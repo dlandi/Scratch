@@ -13,6 +13,9 @@ public abstract class FilterableColumnBase<TGridItem> : ColumnBase<TGridItem>
     public abstract bool HasActiveFilter { get; }
     public abstract IQueryable<TGridItem> ApplyFilter(IQueryable<TGridItem> items);
     public abstract Task ClearFilterAsync();
+
+    public virtual void BuildFilterToolbar(RenderTreeBuilder builder) { builder.AddContent(0, Title); }
+    public virtual void ToggleFilter() { }
 }
 
 public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridItem>
@@ -24,6 +27,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     
     private IFilterOperator<TValue>? _selectedOperator;
     private TValue? _filterValue;
+    private bool _hasFilterValue; // NEW: track if user set a value
     private bool _showFilterUI;
     
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
@@ -31,7 +35,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     private Func<TGridItem, string?>? _cellTextFunc;
     private GridSort<TGridItem>? _sortBuilder;
 
-    public override bool HasActiveFilter => _selectedOperator is not null && _filterValue is not null;
+    public override bool HasActiveFilter => _selectedOperator is not null && _hasFilterValue;
 
     public override GridSort<TGridItem>? SortBy
     {
@@ -52,6 +56,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         }
 
         _selectedOperator = FilterOperators.FirstOrDefault();
+        _hasFilterValue = false; // ensure not active on load for value types
         FilterableGrid?.RegisterColumn(this);
         base.OnInitialized();
     }
@@ -101,23 +106,23 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         builder.AddContent(0, text ?? string.Empty);
     }
 
-    internal void RenderFilterUI(RenderTreeBuilder builder)
+    internal void RenderFilterUI(RenderTreeBuilder builder, ref int sequence)
     {
-        if (!ShowFilterInHeader) return;
-
-        int sequence = 0;
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", "filter-container");
-        // Prevent header sort when interacting with filter by stopping propagation
-        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
-
-        builder.OpenElement(sequence++, "button");
+        builder.OpenElement(sequence++, "span");
         builder.AddAttribute(sequence++, "class", $"filter-toggle {(HasActiveFilter ? "active" : "")}");
-        builder.AddAttribute(sequence++, "type", "button");
+        builder.AddAttribute(sequence++, "style", "position:relative; display:inline-flex; align-items:center; gap:.35rem; padding:.25rem .5rem;");
+        builder.AddAttribute(sequence++, "role", "button");
+        builder.AddAttribute(sequence++, "tabindex", "0");
+        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+        builder.AddAttribute(sequence++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => { if (e.Key == "Enter" || e.Key == " ") ToggleFilterUI(); }));
         builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create(this, ToggleFilterUI));
-        builder.AddAttribute(sequence++, "title", "Filter");
+
         builder.OpenElement(sequence++, "i");
         builder.AddAttribute(sequence++, "class", HasActiveFilter ? "bi bi-funnel-fill" : "bi bi-funnel");
+        builder.CloseElement();
+        builder.OpenElement(sequence++, "span");
+        builder.AddAttribute(sequence++, "class", "filter-title");
+        builder.AddContent(sequence++, Title);
         builder.CloseElement();
         builder.CloseElement();
 
@@ -125,9 +130,12 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         {
             builder.OpenElement(sequence++, "div");
             builder.AddAttribute(sequence++, "class", "filter-dropdown");
+            builder.AddAttribute(sequence++, "style", "position:absolute; z-index:1000; background:white; border:1px solid #ced4da; padding:.5rem; border-radius:.25rem; box-shadow:0 4px 16px rgba(0,0,0,.15);");
+            builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
 
             builder.OpenElement(sequence++, "select");
             builder.AddAttribute(sequence++, "class", "filter-operator");
+            builder.AddAttribute(sequence++, "style", "margin-right:.5rem;");
             builder.AddAttribute(sequence++, "value", _selectedOperator?.Name ?? "");
             builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChanged));
             foreach (var op in FilterOperators)
@@ -143,6 +151,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
 
             builder.OpenElement(sequence++, "div");
             builder.AddAttribute(sequence++, "class", "filter-actions");
+            builder.AddAttribute(sequence++, "style", "margin-top:.5rem; display:flex; gap:.5rem; justify-content:flex-end;");
             builder.OpenElement(sequence++, "button");
             builder.AddAttribute(sequence++, "type", "button");
             builder.AddAttribute(sequence++, "class", "btn-filter-apply");
@@ -158,8 +167,43 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             builder.CloseElement();
             builder.CloseElement();
         }
+    }
+
+    public override void BuildFilterToolbar(RenderTreeBuilder builder)
+    {
+        int seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "ft-inline");
+
+        // Label/title
+        builder.OpenElement(seq++, "label");
+        builder.AddAttribute(seq++, "class", "ft-label");
+        builder.AddContent(seq++, Title);
+        builder.CloseElement();
+
+        // Operator select
+        builder.OpenElement(seq++, "select");
+        builder.AddAttribute(seq++, "class", "ft-operator");
+        builder.AddAttribute(seq++, "value", _selectedOperator?.Name ?? "");
+        builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChanged));
+        foreach (var op in FilterOperators)
+        {
+            builder.OpenElement(seq++, "option");
+            builder.AddAttribute(seq++, "value", op.Name);
+            builder.AddContent(seq++, $"{op.Symbol} {op.Name}");
+            builder.CloseElement();
+        }
+        builder.CloseElement();
+
+        // Value input
+        RenderValueInput(builder, ref seq);
+
         builder.CloseElement();
     }
+    public override void ToggleFilter() => ToggleFilterUI();
+
+    internal void RenderFilterUI(RenderTreeBuilder builder)
+    { int seq = 0; RenderFilterUI(builder, ref seq); }
 
     private void RenderValueInput(RenderTreeBuilder builder, ref int sequence)
     {
@@ -168,7 +212,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         builder.AddAttribute(sequence++, "type", inputType);
         builder.AddAttribute(sequence++, "class", "filter-value");
         builder.AddAttribute(sequence++, "placeholder", "Filter value...");
-        if (_filterValue is not null)
+        if (_hasFilterValue && _filterValue is not null)
         {
             builder.AddAttribute(sequence++, "value", FormatValueForInput(_filterValue));
         }
@@ -213,23 +257,37 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             if (string.IsNullOrWhiteSpace(stringValue))
             {
                 _filterValue = default;
+                _hasFilterValue = false; // cleared
+                return;
+            }
+            if (typeof(TValue) == typeof(bool))
+            {
+                object parsed = stringValue == "on" ? true : bool.Parse(stringValue);
+                _filterValue = (TValue)parsed;
+                _hasFilterValue = true;
                 return;
             }
             _filterValue = (TValue)Convert.ChangeType(stringValue, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
+            _hasFilterValue = true;
         }
-        catch { _filterValue = default; }
+        catch
+        {
+            _filterValue = default;
+            _hasFilterValue = false;
+        }
     }
 
     private async Task ApplyFilterAsync()
     {
         _showFilterUI = false;
-        await OnFilterChanged.InvokeAsync(_filterValue);
+        await OnFilterChanged.InvokeAsync(_hasFilterValue ? _filterValue : null);
         if (FilterableGrid is not null) await FilterableGrid.OnFilterChangedAsync(); else StateHasChanged();
     }
 
     public override async Task ClearFilterAsync()
     {
         _filterValue = default;
+        _hasFilterValue = false;
         _showFilterUI = false;
         await OnFilterChanged.InvokeAsync(null);
         if (FilterableGrid is not null) await FilterableGrid.OnFilterChangedAsync(); else StateHasChanged();
@@ -237,7 +295,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
 
     public override IQueryable<TGridItem> ApplyFilter(IQueryable<TGridItem> items)
     {
-        if (!HasActiveFilter || _selectedOperator is null || _filterValue is null) return items;
+        if (!HasActiveFilter || _selectedOperator is null || !_hasFilterValue || _filterValue is null) return items;
         return _selectedOperator.Apply(items, Property, _filterValue);
     }
 

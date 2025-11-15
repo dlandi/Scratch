@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Web.Virtualization; // Added for Virtualize<T>
+using System.Linq;
+using System.Collections.Generic;
 
 namespace QuickGridTest01.Filterable;
 
@@ -16,6 +18,9 @@ public partial class FilterableGrid<TGridItem> : ComponentBase
     
     private readonly List<FilterableColumnBase<TGridItem>> _filterableColumns = new();
     private IQueryable<TGridItem>? _filteredItems;
+
+    // NEW: Expose columns for external filter toolbars
+    public IReadOnlyList<FilterableColumnBase<TGridItem>> Columns => _filterableColumns;
 
     protected override void OnInitialized()
     {
@@ -78,6 +83,6 @@ public partial class FilterableGrid<TGridItem> : ComponentBase
         }
         
         RefreshFilteredItems();
-        StateHasChanged();
+        await InvokeAsync(StateHasChanged);
     }
 }

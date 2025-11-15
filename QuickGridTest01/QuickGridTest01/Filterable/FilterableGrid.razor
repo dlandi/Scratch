@@ -1,0 +1,9 @@
+@typeparam TGridItem
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.Linq
+
+<CascadingValue Value="this">
+    <QuickGrid Items="@(_filteredItems ?? Items ?? Enumerable.Empty<TGridItem>().AsQueryable())" Class="@Class" Virtualize="false">
+        @ChildContent
+    </QuickGrid>
+</CascadingValue>

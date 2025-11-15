@@ -77,7 +77,7 @@ public class StringEqualsOperator : FilterOperatorBase<string>
             return source;
 
         var predicate = BuildPredicate(propertyExpression, 
-            value => value != null && value.Equals(filterValue, StringComparison.OrdinalIgnoreCase));
+            value => value != null && string.Equals(value, filterValue, StringComparison.OrdinalIgnoreCase));
         
         return source.Where(predicate);
     }
@@ -97,7 +97,7 @@ public class StringContainsOperator : FilterOperatorBase<string>
             return source;
 
         var predicate = BuildPredicate(propertyExpression,
-            value => value != null && value.Contains(filterValue, StringComparison.OrdinalIgnoreCase));
+            value => value != null && value.IndexOf(filterValue, StringComparison.OrdinalIgnoreCase) >= 0);
         
         return source.Where(predicate);
     }
