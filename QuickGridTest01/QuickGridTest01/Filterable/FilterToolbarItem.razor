@@ -1,0 +1,11 @@
+@typeparam TGridItem
+@using QuickGridTest01.Filterable
+
+@if (Column is not null)
+{
+    @Column.BuildFilterToolbar
+}
+
+@code {
+    [Parameter] public FilterableColumnBase<TGridItem>? Column { get; set; }
+}

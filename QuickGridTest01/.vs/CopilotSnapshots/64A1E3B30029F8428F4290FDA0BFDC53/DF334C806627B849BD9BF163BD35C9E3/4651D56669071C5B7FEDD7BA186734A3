@@ -1,0 +1,419 @@
+﻿@page "/filterable-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+@using QuickGridTest01.Filterable
+
+<PageTitle>Filterable Column Demo</PageTitle>
+
+<h3>Filterable Column with Operators</h3>
+
+<p>
+    Demonstrates type-safe filtering with multiple operators and IQueryable composition.
+</p>
+
+<div class="demo-section">
+    <div class="demo-header">
+        <h4>Employee Database</h4>
+        <div class="filter-summary">
+            @if (GetActiveFilterCount() > 0)
+            {
+                <span class="filter-count">@GetActiveFilterCount() active filter(s)</span>
+                <button class="btn-clear-all" @onclick="ClearAllFiltersAsync">Clear All</button>
+            }
+            else
+            {
+                <span class="filter-hint">Click filter icons in headers to add filters</span>
+            }
+        </div>
+    </div>
+
+    <div class="filter-bar">
+        <div class="filter-item">
+            <label>First Name:</label>
+            <select @bind="_firstNameOperator" class="operator-select">
+                @foreach (var op in _stringOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="text" @bind="_firstNameFilter" @bind:event="oninput" 
+                   placeholder="Filter..." class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Department:</label>
+            <select @bind="_departmentOperator" class="operator-select">
+                @foreach (var op in _stringOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="text" @bind="_departmentFilter" @bind:event="oninput" 
+                   placeholder="Filter..." class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Salary:</label>
+            <select @bind="_salaryOperator" class="operator-select">
+                @foreach (var op in _numericOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="number" @bind="_salaryFilter" @bind:event="oninput" 
+                   placeholder="Amount..." class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Hire Date:</label>
+            <select @bind="_hireDateOperator" class="operator-select">
+                @foreach (var op in _dateOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="date" @bind="_hireDateFilter" @bind:event="oninput" 
+                   class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Active:</label>
+            <select @bind="_activeFilter" class="filter-input">
+                <option value="">All</option>
+                <option value="true">Active Only</option>
+                <option value="false">Inactive Only</option>
+            </select>
+        </div>
+
+        <button class="btn-apply" @onclick="ApplyFilters">Apply Filters</button>
+    </div>
+
+    <div class="results-info">
+        Showing @filteredEmployees.Count() of @allEmployees.Count() employees
+    </div>
+
+    <QuickGrid Items="@filteredEmployees" Class="demo-grid">
+        <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+        <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" Sortable="true" />
+        <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" Sortable="true" />
+        <PropertyColumn Property="@(e => e.Department)" Title="Department" Sortable="true" />
+        <PropertyColumn Property="@(e => e.Email)" Title="Email" />
+        <PropertyColumn Property="@(e => e.Salary)" Title="Salary" Format="C0" Sortable="true" />
+        <PropertyColumn Property="@(e => e.HireDate)" Title="Hire Date" Format="yyyy-MM-dd" Sortable="true" />
+        <TemplateColumn Title="Status">
+            <span class="status-badge status-@(context.IsActive ? "active" : "inactive")">
+                @(context.IsActive ? "Active" : "Inactive")
+            </span>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+<div class="demo-section">
+    <h4>Product Inventory</h4>
+    
+    <div class="filter-bar">
+        <div class="filter-item">
+            <label>Product Name:</label>
+            <select @bind="_productNameOperator" class="operator-select">
+                @foreach (var op in _stringOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="text" @bind="_productNameFilter" @bind:event="oninput" 
+                   placeholder="Filter..." class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Price:</label>
+            <select @bind="_priceOperator" class="operator-select">
+                @foreach (var op in _decimalOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="number" step="0.01" @bind="_priceFilter" @bind:event="oninput" 
+                   placeholder="Amount..." class="filter-input" />
+        </div>
+
+        <div class="filter-item">
+            <label>Stock:</label>
+            <select @bind="_stockOperator" class="operator-select">
+                @foreach (var op in _numericOperators)
+                {
+                    <option value="@op.Name">@op.Symbol @op.Name</option>
+                }
+            </select>
+            <input type="number" @bind="_stockFilter" @bind:event="oninput" 
+                   placeholder="Quantity..." class="filter-input" />
+        </div>
+
+        <button class="btn-apply" @onclick="RefreshProductFilters">Apply Filters</button>
+    </div>
+
+    <div class="results-info">
+        Showing @filteredProducts.Count() of @allProducts.Count() products
+    </div>
+
+    <QuickGrid Items="@filteredProducts" Class="demo-grid">
+        <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+        <PropertyColumn Property="@(p => p.Name)" Title="Product" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Category)" Title="Category" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Price)" Title="Price" Format="C2" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Stock)" Title="Stock" Sortable="true" />
+        <PropertyColumn Property="@(p => p.Rating)" Title="Rating" Format="F1" Sortable="true" />
+        <TemplateColumn Title="Availability">
+            <span class="stock-badge stock-@GetStockLevel(context.Stock)">
+                @GetStockText(context.Stock)
+            </span>
+        </TemplateColumn>
+    </QuickGrid>
+</div>
+
+@code {
+    private List<Employee> allEmployees = new();
+    private IQueryable<Employee> filteredEmployees => ApplyEmployeeFilters();
+    
+    private List<Product> allProducts = new();
+    private IQueryable<Product> filteredProducts => BuildProductQuery();
+
+    // Filter operators
+    private List<IFilterOperator<string>> _stringOperators = new();
+    private List<IFilterOperator<int>> _numericOperators = new();
+    private List<IFilterOperator<decimal>> _decimalOperators = new();
+    private List<IFilterOperator<DateTime>> _dateOperators = new();
+
+    // Employee filters
+    private string _firstNameOperator = "Contains";
+    private string? _firstNameFilter;
+    private string _departmentOperator = "Contains";
+    private string? _departmentFilter;
+    private string _salaryOperator = "Greater Than or Equal";
+    private int? _salaryFilter;
+    private string _hireDateOperator = "After";
+    private DateTime? _hireDateFilter;
+    private string? _activeFilter;
+
+    // Product filters
+    private string _productNameOperator = "Contains";
+    private string? _productNameFilter;
+    private string _priceOperator = "Less Than or Equal";
+    private decimal? _priceFilter;
+    private string _stockOperator = "Greater Than";
+    private int? _stockFilter;
+
+    protected override void OnInitialized()
+    {
+        InitializeOperators();
+        InitializeEmployeeData();
+        InitializeProductData();
+    }
+
+    private void InitializeOperators()
+    {
+        _stringOperators = new List<IFilterOperator<string>>
+        {
+            new StringContainsOperator(),
+            new StringEqualsOperator(),
+            new StringStartsWithOperator(),
+            new StringEndsWithOperator(),
+        };
+
+        _numericOperators = new List<IFilterOperator<int>>
+        {
+            new NumericEqualsOperator<int>(),
+            new NumericNotEqualsOperator<int>(),
+            new NumericGreaterThanOperator<int>(),
+            new NumericGreaterThanOrEqualOperator<int>(),
+            new NumericLessThanOperator<int>(),
+            new NumericLessThanOrEqualOperator<int>(),
+        };
+
+        _decimalOperators = new List<IFilterOperator<decimal>>
+        {
+            new NumericEqualsOperator<decimal>(),
+            new NumericNotEqualsOperator<decimal>(),
+            new NumericGreaterThanOperator<decimal>(),
+            new NumericGreaterThanOrEqualOperator<decimal>(),
+            new NumericLessThanOperator<decimal>(),
+            new NumericLessThanOrEqualOperator<decimal>(),
+        };
+
+        _dateOperators = new List<IFilterOperator<DateTime>>
+        {
+            new DateEqualsOperator(),
+            new DateAfterOperator(),
+            new DateBeforeOperator(),
+        };
+    }
+
+    private void InitializeEmployeeData()
+    {
+        allEmployees = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith", Department = "Engineering", Email = "john.smith@company.com", Salary = 95000, HireDate = new DateTime(2020, 3, 15), IsActive = true },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson", Department = "Marketing", Email = "sarah.j@company.com", Salary = 78000, HireDate = new DateTime(2021, 7, 22), IsActive = true },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown", Department = "Engineering", Email = "m.brown@company.com", Salary = 103000, HireDate = new DateTime(2019, 1, 10), IsActive = true },
+            new() { Id = 4, FirstName = "Emily", LastName = "Davis", Department = "HR", Email = "emily.davis@company.com", Salary = 72000, HireDate = new DateTime(2022, 4, 5), IsActive = false },
+            new() { Id = 5, FirstName = "David", LastName = "Wilson", Department = "Sales", Email = "d.wilson@company.com", Salary = 85000, HireDate = new DateTime(2020, 11, 30), IsActive = true },
+            new() { Id = 6, FirstName = "Jennifer", LastName = "Martinez", Department = "Engineering", Email = "j.martinez@company.com", Salary = 98000, HireDate = new DateTime(2021, 2, 14), IsActive = true },
+            new() { Id = 7, FirstName = "Robert", LastName = "Garcia", Department = "Finance", Email = "robert.g@company.com", Salary = 91000, HireDate = new DateTime(2018, 9, 8), IsActive = true },
+            new() { Id = 8, FirstName = "Lisa", LastName = "Anderson", Department = "Marketing", Email = "lisa.a@company.com", Salary = 76000, HireDate = new DateTime(2023, 1, 20), IsActive = true },
+            new() { Id = 9, FirstName = "James", LastName = "Taylor", Department = "Sales", Email = "james.t@company.com", Salary = 83000, HireDate = new DateTime(2019, 6, 12), IsActive = false },
+            new() { Id = 10, FirstName = "Amanda", LastName = "White", Department = "Engineering", Email = "amanda.w@company.com", Salary = 105000, HireDate = new DateTime(2017, 3, 25), IsActive = true },
+            new() { Id = 11, FirstName = "Christopher", LastName = "Lee", Department = "HR", Email = "chris.lee@company.com", Salary = 74000, HireDate = new DateTime(2022, 8, 17), IsActive = true },
+            new() { Id = 12, FirstName = "Michelle", LastName = "Clark", Department = "Finance", Email = "m.clark@company.com", Salary = 89000, HireDate = new DateTime(2020, 5, 3), IsActive = true },
+        };
+    }
+
+    private void InitializeProductData()
+    {
+        allProducts = new List<Product>
+        {
+            new() { Id = 1, Name = "Laptop Pro", Category = "Electronics", Price = 1299.99m, Stock = 45, Rating = 4.5 },
+            new() { Id = 2, Name = "Office Chair", Category = "Furniture", Price = 399.99m, Stock = 23, Rating = 4.2 },
+            new() { Id = 3, Name = "Wireless Mouse", Category = "Electronics", Price = 49.99m, Stock = 150, Rating = 4.7 },
+            new() { Id = 4, Name = "Desk Lamp", Category = "Furniture", Price = 79.99m, Stock = 0, Rating = 4.0 },
+            new() { Id = 5, Name = "USB-C Hub", Category = "Electronics", Price = 89.99m, Stock = 67, Rating = 4.6 },
+            new() { Id = 6, Name = "Monitor Stand", Category = "Furniture", Price = 149.99m, Stock = 31, Rating = 4.3 },
+            new() { Id = 7, Name = "Mechanical Keyboard", Category = "Electronics", Price = 179.99m, Stock = 58, Rating = 4.8 },
+            new() { Id = 8, Name = "Ergonomic Mat", Category = "Furniture", Price = 59.99m, Stock = 12, Rating = 4.1 },
+            new() { Id = 9, Name = "Webcam HD", Category = "Electronics", Price = 119.99m, Stock = 89, Rating = 4.4 },
+            new() { Id = 10, Name = "File Cabinet", Category = "Furniture", Price = 299.99m, Stock = 8, Rating = 4.2 },
+        };
+    }
+
+    private IQueryable<Employee> ApplyEmployeeFilters()
+    {
+        var query = allEmployees.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(_firstNameFilter))
+        {
+            var op = _stringOperators.First(o => o.Name == _firstNameOperator);
+            query = op.Apply(query, e => e.FirstName, _firstNameFilter);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_departmentFilter))
+        {
+            var op = _stringOperators.First(o => o.Name == _departmentOperator);
+            query = op.Apply(query, e => e.Department, _departmentFilter);
+        }
+
+        if (_salaryFilter.HasValue)
+        {
+            var op = _numericOperators.First(o => o.Name == _salaryOperator);
+            query = op.Apply(query, e => e.Salary, _salaryFilter.Value);
+        }
+
+        if (_hireDateFilter.HasValue)
+        {
+            var op = _dateOperators.First(o => o.Name == _hireDateOperator);
+            query = op.Apply(query, e => e.HireDate, _hireDateFilter.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_activeFilter))
+        {
+            var isActive = bool.Parse(_activeFilter);
+            query = query.Where(e => e.IsActive == isActive);
+        }
+
+        return query;
+    }
+
+    private IQueryable<Product> BuildProductQuery()
+    {
+        var query = allProducts.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(_productNameFilter))
+        {
+            var op = _stringOperators.First(o => o.Name == _productNameOperator);
+            query = op.Apply(query, p => p.Name, _productNameFilter);
+        }
+
+        if (_priceFilter.HasValue)
+        {
+            var op = _decimalOperators.First(o => o.Name == _priceOperator);
+            query = op.Apply(query, p => p.Price, _priceFilter.Value);
+        }
+
+        if (_stockFilter.HasValue)
+        {
+            var op = _numericOperators.First(o => o.Name == _stockOperator);
+            query = op.Apply(query, p => p.Stock, _stockFilter.Value);
+        }
+
+        return query;
+    }
+
+    private int GetActiveFilterCount()
+    {
+        int count = 0;
+        if (!string.IsNullOrWhiteSpace(_firstNameFilter)) count++;
+        if (!string.IsNullOrWhiteSpace(_departmentFilter)) count++;
+        if (_salaryFilter.HasValue) count++;
+        if (_hireDateFilter.HasValue) count++;
+        if (!string.IsNullOrWhiteSpace(_activeFilter)) count++;
+        return count;
+    }
+
+    private void ApplyFilters()
+    {
+        StateHasChanged();
+    }
+
+    private void RefreshProductFilters()
+    {
+        StateHasChanged();
+    }
+
+    private async Task ClearAllFiltersAsync()
+    {
+        _firstNameFilter = null;
+        _departmentFilter = null;
+        _salaryFilter = null;
+        _hireDateFilter = null;
+        _activeFilter = null;
+        _productNameFilter = null;
+        _priceFilter = null;
+        _stockFilter = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetStockLevel(int stock) => stock switch
+    {
+        0 => "out",
+        < 25 => "low",
+        < 100 => "medium",
+        _ => "high"
+    };
+
+    private string GetStockText(int stock) => stock switch
+    {
+        0 => "Out of Stock",
+        < 25 => $"Low Stock ({stock})",
+        _ => $"In Stock ({stock})"
+    };
+
+    // Data models
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int Salary { get; set; }
+        public DateTime HireDate { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public double Rating { get; set; }
+    }
+}
