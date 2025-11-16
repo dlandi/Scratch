@@ -1,79 +1,46 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">QuickGridTest01</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-    </div>
-</div>
+﻿<header class="qg-nav-header">
+    <span class="qg-nav-brand">QuickGrid</span>
+    <button class="qg-nav-toggle" title="Toggle navigation" aria-label="Toggle navigation" aria-expanded="@(!collapseNavMenu)" @onclick="ToggleNavMenu">
+        Menu
+    </button>
+</header>
 
-<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="inline">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Inline Editor
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="editable-column-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Editable Column
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="multistate-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Multi-state Columns
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="icon-column-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Icon Column
-            </NavLink>
-        </div>
-               
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="filterable-column-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Filterable Column
-            </NavLink>
-        </div>	
-        
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="optimized-column-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Optimized Column
-            </NavLink>
-        </div>
-        
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="virtual-scrolling-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Virtual Scrolling
-            </NavLink>
-        </div>
-        
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="formatted-column-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Formatted Column
-            </NavLink>
-        </div>        
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="conditional-style-demo">
-                <span class="oi oi-check icon-green" aria-hidden="true"></span> Conditional Style 
-            </NavLink>
-        </div>
-
-    </nav>
-</div>
+<nav id="app-nav" class="qg-nav @MenuCssClass">
+    <ul class="qg-nav-list">
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/inline">Inline Editor</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/editable-column-demo">Editable Column</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/multistate-demo">Multi-state Columns</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/icon-column-demo">Icon Column</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/filterable-column-demo">Filterable Column</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/optimized-column-demo">Optimized Column</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/virtual-scrolling-demo">Virtual Scrolling</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/formatted-column-demo">Formatted Column</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/conditional-style-demo">Conditional Style</NavLink>
+        </li>
+    </ul>
+</nav>
 
 @code {
     private bool collapseNavMenu = true;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string? MenuCssClass => collapseNavMenu ? "qg-collapsed" : null;
 
-    private void ToggleNavMenu()
-    {
-        collapseNavMenu = !collapseNavMenu;
-    }
+    private void ToggleNavMenu() => collapseNavMenu = !collapseNavMenu;
 }
