@@ -6,11 +6,13 @@
 <PageTitle>Editable Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Editable Column Demo</h1>
-    <p class="intro-text">Reusable editable column with inline editors, validation, and commit semantics, presented with a conservative, consistent design.</p>
+    <header class="demo-header">
+        <h1>Editable Column Demo</h1>
+        <p class="intro-text">Reusable editable column with inline editors, validation, and commit semantics, presented with a conservative, consistent design.</p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why a Custom Editable Column?</h3>
+    <div class="demo-description">
+        <h3>Why a Custom Editable Column?</h3>
         <p><strong>Purpose:</strong> Replace ad hoc <code>EditForm</code> + input fragments in every cell with a reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> that owns edit state, validation, formatting, and commit semantics. This keeps page markup declarative.</p>
         <p><strong>Encapsulation:</strong> The column manages an EditState per row (original/current value, dirty flag, validation results, editing mode) and handles enter/cancel/save and keyboard shortcuts.</p>
         <p><strong>Validation:</strong> DataAnnotations and custom validators with optional debouncing and on-change validation.</p>
@@ -92,13 +94,6 @@
         </div>
     </section>
 </div>
-
-<style>
-    .seamless-input { border: 1px solid transparent; background: transparent; box-shadow:none; outline:none; }
-    .seamless-input:focus { border-color:#dee2e6 !important; background:#f8f9fa !important; }
-    ::deep .editable-cell.inline-mode.invalid .seamless-input { border-color:#dc3545 !important; }
-    ::deep .validation-error { font-size:11px; }
-</style>
 
 @code {
     private IQueryable<Employee> employees = default!;

@@ -7,11 +7,13 @@
 <PageTitle>Virtual Scrolling Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Virtual Scrolling Column Demo</h1>
-    <p class="intro-text">Viewport-based rendering for large datasets with side-by-side non-virtual vs virtual performance estimates and practical guidance. Standardized neutral layout.</p>
+    <header class="demo-header">
+        <h1>Virtual Scrolling Column Demo</h1>
+        <p class="intro-text">Viewport-based rendering for large datasets with side-by-side non-virtual vs virtual performance estimates and practical guidance. Standardized neutral layout.</p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why Virtual Scrolling?</h3>
+    <div class="demo-description">
+        <h3>Why Virtual Scrolling?</h3>
         <p><strong>Problem:</strong> Large tabular datasets cause slow initial renders and heavy DOM usage when every row + cell is materialized. Rendering 10,000 rows × 5 columns means 50,000 cells though only ~20–30 are visible.</p>
         <p><strong>Solution:</strong> Virtualization renders only the visible slice plus a buffer. Rows are recycled so DOM size remains nearly constant, reducing memory and improving scroll smoothness.</p>
         <p><strong>VirtualColumn:</strong> Lightweight column variant using compiled property access and minimal DOM (single wrapper element) to keep per-cell cost low.</p>

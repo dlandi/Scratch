@@ -5,19 +5,21 @@
 <PageTitle>Icon Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Icon Column Demonstrations</h1>
-    <p class="intro-text">
-        This page demonstrates a reusable <code>IconColumn&lt;TGridItem,TValue&gt;</code> for QuickGrid.
-        Icons, colors, and optional tooltips are mapped from values via simple delegates. The layout and
-        styling follow the same conservative aesthetic as other demos.
-    </p>
+    <header class="demo-header">
+        <h1>Icon Column Demonstrations</h1>
+        <p class="intro-text">
+            This page demonstrates a reusable <code>IconColumn&lt;TGridItem,TValue&gt;</code> for QuickGrid.
+            Icons, colors, and optional tooltips are mapped from values via simple delegates. The layout and
+            styling follow the same conservative aesthetic as other demos.
+        </p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">About the Icon Column</h3>
+    <div class="demo-description">
+        <h3>About the Icon Column</h3>
         <p><strong>Problem:</strong> Repeated conditional icon + color + tooltip logic in grid templates quickly becomes verbose and inconsistent. Each page duplicates mapping code for status, priority, health, etc.</p>
         <p><strong>Solution:</strong> <code>IconColumn&lt;TGridItem,TValue&gt;</code> centralizes icon display concerns—given a property expression and mapper delegates (icon, color, tooltip, optional text) it renders a compact cell with inferred sort expression.</p>
         <p><strong>Features:</strong></p>
-        <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
+        <ul>
             <li>Icon/text toggle via <code>ShowValue</code>.</li>
             <li>Independent mappers: <code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>.</li>
             <li>Sortable by underlying value.</li>

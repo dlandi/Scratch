@@ -7,11 +7,13 @@
 <PageTitle>Products with Auto-Save</PageTitle>
 
 <div class="demo-container">
-    <h1>Inline Editing (Ad Hoc)</h1>
-    <p class="intro-text">Direct template-driven inline editing with per-cell <code>EditForm</code> and auto-save. This page retains the raw approach for comparison.</p>
+    <header class="demo-header">
+        <h1>Inline Editing (Ad Hoc)</h1>
+        <p class="intro-text">Direct template-driven inline editing with per-cell <code>EditForm</code> and auto-save. This page retains the raw approach for comparison.</p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Ad‑Hoc Inline Editing Approach</h3>
+    <div class="demo-description">
+        <h3>Ad‑Hoc Inline Editing Approach</h3>
         <p><strong>What this page shows:</strong> A template‑driven inline editing pattern for <code>QuickGrid</code> where each editable cell embeds an <code>EditForm</code>, validators, and an input component. Auto‑save logic (debounced timer) is implemented in the page.</p>
         <p><strong>Motivation for a reusable column:</strong> Reduces duplication, improves UX consistency, and centralizes validation and commit logic.</p>
     </div>
@@ -132,19 +134,6 @@
         </QuickGrid>
     </section>
 </div>
-
-<style>
-    .seamless-input { border: 1px solid transparent; background-color: transparent; transition: all 0.2s ease-in-out; box-shadow: none; outline: none !important; }
-    .seamless-input:hover { border-color: #dee2e6; background-color: #f8f9fa; }
-    .seamless-input:focus { border-color: #dee2e6 !important; background-color: #f8f9fa; box-shadow: none !important; outline: none !important; }
-    .seamless-input.valid, .seamless-input.is-valid, .seamless-input:valid { border: 1px solid transparent !important; background-color: transparent !important; box-shadow: none !important; outline: none !important; }
-    .seamless-input.valid:hover, .seamless-input.is-valid:hover, .seamless-input:valid:hover { border-color: #dee2e6 !important; background-color: #f8f9fa !important; }
-    .seamless-input.valid:focus, .seamless-input.is-valid:focus, .seamless-input:valid:focus { border-color: #dee2e6 !important; background-color: #f8f9fa !important; box-shadow: none !important; outline: none !important; }
-    .seamless-input.valid.modified, .seamless-input.modified.valid { outline: none !important; border: 1px solid transparent !important; background-color: transparent !important; }
-    .seamless-input.valid.modified:hover, .seamless-input.modified.valid:hover { border-color: #dee2e6 !important; background-color: #f8f9fa !important; outline: none !important; }
-    .seamless-input.valid.modified:focus, .seamless-input.modified.valid:focus { border-color: #dee2e6 !important; background-color: #f8f9fa !important; outline: none !important; }
-    .seamless-checkbox { cursor: pointer; width: 1.2em; height: 1.2em; }
-</style>
 
 @code {
     // Enum for Priority

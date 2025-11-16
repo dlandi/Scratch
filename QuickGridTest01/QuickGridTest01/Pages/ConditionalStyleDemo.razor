@@ -5,73 +5,68 @@
 <PageTitle>Conditional Styling Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Conditional Styling Column Demonstrations</h1>
-    <p class="intro-text">
-        This page demonstrates the <code>ConditionalStyleColumn</code> component with various real-world scenarios.
-        Cells are automatically styled based on their values using configurable rules.
-    </p>
+    <header class="demo-header">
+        <h1>Conditional Styling Column Demonstrations</h1>
+        <p class="intro-text">
+            This page demonstrates the <code>ConditionalStyleColumn</code> component with various real-world scenarios.
+            Cells are automatically styled based on their values using configurable rules.
+        </p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">How This Conditional Style Demo Works</h3>
+    <div class="demo-description">
+        <h3>How This Conditional Style Demo Works</h3>
         <p><strong>Purpose:</strong> Show a reusable <code>ConditionalStyleColumn&lt;TGridItem,TValue&gt;</code> for <code>QuickGrid</code> that applies dynamic CSS classes, icons, tooltips, and formatting based on cell values. It centralizes conditional display logic and keeps page markup declarative.</p>
-        <p><strong>Core Component:</strong> <code>ConditionalStyleColumn</code> inherits <code>ColumnBase&lt;TGridItem&gt;</code>. You supply a <code>Property</code> expression (<code>Expression&lt;Func&lt;TGridItem,TValue&gt;&gt;</code>) so QuickGrid can:
-            <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li>Extract the value efficiently (compiled once).</li>
-                <li>Generate a sort expression (<code>SortBy</code>) automatically.</li>
-                <li>Infer a column title if none is provided (member name).</li>
-            </ul>
-        </p>
-        <p><strong>Value Display:</strong> Cell text is produced by (priority order):
-            <ol style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li><code>ValueFormatter</code> delegate if supplied.</li>
-                <li><code>Format</code> string if type implements <code>IFormattable</code>.</li>
-                <li>Fallback <code>ToString()</code>.</li>
-            </ol>
-        </p>
-        <p><strong>Styling Rules:</strong> Rules are created via the fluent <code>StyleRuleBuilder&lt;TValue&gt;</code>. Each rule contains:
-            <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li><code>Condition</code> – predicate on the value.</li>
-                <li><code>CssClass</code> – applied when matched.</li>
-                <li><code>Priority</code> – higher runs first; list is pre-sorted descending.</li>
-                <li>Optional <code>IconClass</code> and <code>Tooltip</code>.</li>
-            </ul>
-            Builder helpers (e.g. <code>WhenLessThan</code>, <code>WhenBetween</code>, <code>WhenEquals</code>, <code>WhenIn</code>) reduce repetition for numbers, strings, booleans, dates.
-        </p>
-        <p><strong>Rule Evaluation Modes:</strong>
-            <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li><code>CombineMultipleMatches = false</code> (default): First matching rule (after priority sort) determines CSS + icon + tooltip.</li>
-                <li><code>CombineMultipleMatches = true</code>: All matching rules' CSS classes are concatenated; icon & tooltip come from highest priority rule.</li>
-            </ul>
-        </p>
-        <p><strong>Rendering Flow (Default):</strong>
-            <ol style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li>Compile property expression once (cached).</li>
-                <li>Evaluate rules for current value.</li>
-                <li>Build class list: base class + matched rule(s) + <code>conditional-cell</code>.</li>
-                <li>Emit wrapper <code>&lt;div&gt;</code>, optional icon <code>&lt;span&gt;</code>, then value <code>&lt;span&gt;</code>.</li>
-            </ol>
-        </p>
+        <p><strong>Core Component:</strong> <code>ConditionalStyleColumn</code> inherits <code>ColumnBase&lt;TGridItem&gt;</code>. You supply a <code>Property</code> expression (<code>Expression&lt;Func&lt;TGridItem,TValue&gt;&gt;</code>) so QuickGrid can:</p>
+        <ul>
+            <li>Extract the value efficiently (compiled once).</li>
+            <li>Generate a sort expression (<code>SortBy</code>) automatically.</li>
+            <li>Infer a column title if none is provided (member name).</li>
+        </ul>
+        <p><strong>Value Display:</strong> Cell text is produced by (priority order):</p>
+        <ol>
+            <li><code>ValueFormatter</code> delegate if supplied.</li>
+            <li><code>Format</code> string if type implements <code>IFormattable</code>.</li>
+            <li>Fallback <code>ToString()</code>.</li>
+        </ol>
+        <p><strong>Styling Rules:</strong> Rules are created via the fluent <code>StyleRuleBuilder&lt;TValue&gt;</code>. Each rule contains:</p>
+        <ul>
+            <li><code>Condition</code> – predicate on the value.</li>
+            <li><code>CssClass</code> – applied when matched.</li>
+            <li><code>Priority</code> – higher runs first; list is pre-sorted descending.</li>
+            <li>Optional <code>IconClass</code> and <code>Tooltip</code>.</li>
+        </ul>
+        <p>Builder helpers (e.g. <code>WhenLessThan</code>, <code>WhenBetween</code>, <code>WhenEquals</code>, <code>WhenIn</code>) reduce repetition for numbers, strings, booleans, dates.</p>
+        <p><strong>Rule Evaluation Modes:</strong></p>
+        <ul>
+            <li><code>CombineMultipleMatches = false</code> (default): First matching rule (after priority sort) determines CSS + icon + tooltip.</li>
+            <li><code>CombineMultipleMatches = true</code>: All matching rules' CSS classes are concatenated; icon & tooltip come from highest priority rule.</li>
+        </ul>
+        <p><strong>Rendering Flow (Default):</strong></p>
+        <ol>
+            <li>Compile property expression once (cached).</li>
+            <li>Evaluate rules for current value.</li>
+            <li>Build class list: base class + matched rule(s) + <code>conditional-cell</code>.</li>
+            <li>Emit wrapper <code>&lt;div&gt;</code>, optional icon <code>&lt;span&gt;</code>, then value <code>&lt;span&gt;</code>.</li>
+        </ol>
         <p><strong>Custom Templates:</strong> Provide a <code>CellTemplate</code> with context tuple <code>(Item, Value, Style)</code> to override default DOM. Demo shows percent formatting with sign prefix and conditional icon injection.</p>
-        <p><strong>Performance Considerations:</strong>
-            <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li>Expression compilation avoids reflection per row.</li>
-                <li>Rule list sorted once at build time (in <code>Build()</code>).</li>
-                <li>Class building uses simple list join.</li>
-                <li>Sorting uses inferred expression so no manual configuration necessary.</li>
-            </ul>
-        </p>
+        <p><strong>Performance Considerations:</strong></p>
+        <ul>
+            <li>Expression compilation avoids reflection per row.</li>
+            <li>Rule list sorted once at build time (in <code>Build()</code>).</li>
+            <li>Class building uses simple list join.</li>
+            <li>Sorting uses inferred expression so no manual configuration necessary.</li>
+        </ul>
         <p><strong>Preset Rule Collections:</strong> <code>StylePresets</code> provides reusable domain sets: numeric thresholds, profit/loss, age indicators, health checks, rating scales, SLA compliance, boolean flags, task priority, sentiment mapping, variance, temperature. Each returns a <code>List&lt;StyleRule&lt;T&gt;&gt;</code> for direct assignment to <code>Rules</code>.</p>
-        <p><strong>Scenarios Illustrated:</strong>
-            <ul style="margin:0.5rem 0 0.75rem 1.25rem; padding:0;">
-                <li><em>Sales Performance:</em> Revenue & target variance with traffic light colors, icons, tooltips, custom template cell.</li>
-                <li><em>Inventory:</em> Stock levels, status state mapping, restock age.</li>
-                <li><em>Tasks:</em> Priority, status, completion percentage, due-date overdue logic.</li>
-                <li><em>Health Metrics:</em> Vital thresholds (temperature, heart rate, oxygen saturation), categorical status.</li>
-                <li><em>Financial:</em> Profit/loss, percent change, variance categories, conditional percent format.</li>
-                <li><em>Server Health:</em> Resource usage tiers, uptime, boolean online state.</li>
-                <li><em>Customer Satisfaction:</em> Ratings, sentiment classification, recommendation boolean, NPS tiers.</li>
-            </ul>
-        </p>
+        <p><strong>Scenarios Illustrated:</strong></p>
+        <ul>
+            <li><em>Sales Performance:</em> Revenue & target variance with traffic light colors, icons, tooltips, custom template cell.</li>
+            <li><em>Inventory:</em> Stock levels, status state mapping, restock age.</li>
+            <li><em>Tasks:</em> Priority, status, completion percentage, due-date overdue logic.</li>
+            <li><em>Health Metrics:</em> Vital thresholds (temperature, heart rate, oxygen saturation), categorical status.</li>
+            <li><em>Financial:</em> Profit/loss, percent change, variance categories, conditional percent format.</li>
+            <li><em>Server Health:</em> Resource usage tiers, uptime, boolean online state.</li>
+            <li><em>Customer Satisfaction:</em> Ratings, sentiment classification, recommendation boolean, NPS tiers.</li>
+        </ul>
         <p><strong>Extensibility:</strong> Add new presets or ad‑hoc rules by chaining builder methods; supply a template for advanced visuals (graphs, badges); toggle icons/tooltips via flags; switch to multi-match for composite states.</p>
         <p><strong>Usage Pattern:</strong> Build rule list once (e.g. in <code>OnInitialized()</code>), bind <code>Rules</code>, optionally set <code>Format</code> or <code>ValueFormatter</code>, and (optionally) customize cell with <code>CellTemplate</code>.</p>
         <p><strong>Key Benefit:</strong> Separates styling logic (conditions + metadata) from presentation markup, improving maintainability and readability across multiple data domains.</p>

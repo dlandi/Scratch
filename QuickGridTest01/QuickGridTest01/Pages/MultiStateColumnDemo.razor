@@ -8,11 +8,13 @@
 <PageTitle>Multi-State Column Demo</PageTitle>
 
 <div class="demo-container">
-    <h1>Multi-State Column Demo</h1>
-    <p class="intro-text">A conservative, standardized demonstration of the Multi-State Column architecture for Blazor QuickGrid.</p>
+    <header class="demo-header">
+        <h1>Multi-State Column Demo</h1>
+        <p class="intro-text">A conservative, standardized demonstration of the Multi-State Column architecture for Blazor QuickGrid.</p>
+    </header>
 
-    <div class="demo-description" style="margin:1.5rem 0; padding:1rem 1.25rem; background:#f7fafc; border-left:4px solid #3182ce; border-radius:4px; line-height:1.55; font-size:0.95rem;">
-        <h3 style="margin-top:0; margin-bottom:0.75rem; font-size:1.25rem; color:#2c5282;">Why a Multi-State Column?</h3>
+    <div class="demo-description">
+        <h3>Why a Multi-State Column?</h3>
         <p><strong>Goal:</strong> Provide an event‑driven editing experience with distinct cell states (<code>Reading → Editing → Loading → Reading</code>) and lifecycle hooks for validation and async persistence.</p>
         <p><strong>Encapsulated State Machine:</strong> Consumers subscribe to events without duplicating boilerplate or wiring flags/timers.</p>
         <p><strong>Architecture:</strong> Core state, validation orchestrator, component coordinator, and demo layer separated for testability.</p>
