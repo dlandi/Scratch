@@ -1,0 +1,118 @@
+﻿:root {
+    /* Fallbacks if global tokens are missing */
+    --qg-nav-width: 250px;
+}
+
+/* Container/header */
+.qg-nav-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 3.25rem;
+    padding: 0 var(--space-12, 1rem);
+    background: var(--color-surface, #fff);
+    border-bottom: 1px solid var(--color-border-subtle, #e9ecef);
+}
+
+.qg-nav-brand {
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1f2328);
+    letter-spacing: var(--letter-spacing-tight, -0.01em);
+}
+
+.qg-nav-toggle {
+    appearance: none;
+    border: 1px solid var(--color-border-default, #d0d7de);
+    background: var(--color-canvas, #fff);
+    color: var(--color-text-secondary, #57606a);
+    border-radius: var(--card-radius, 8px);
+    padding: .35rem .6rem;
+    font-size: var(--font-size-sm, .9rem);
+    cursor: pointer;
+}
+
+.qg-nav-toggle:hover { background: var(--color-canvas, #f8f9fa); color: var(--color-text-primary, #24292f); border-color: var(--color-border-emphasis, #b6bec6); }
+.qg-nav-toggle:focus { outline: none; box-shadow: var(--focus-ring, 0 0 0 3px rgba(31,111,235,.25)); border-color: var(--color-accent-primary, #1f6feb); }
+
+/* Hide toggle on desktop */
+@media (min-width: 641px) { .qg-nav-toggle { display:none; } }
+
+/* Nav */
+.qg-nav {
+    background: var(--color-surface, #fff);
+    border-right: 1px solid var(--color-border-subtle, #e9ecef);
+    /* elegant scroll when content exceeds viewport */
+    max-height: calc(100vh - 3.25rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+}
+
+/* Scrollbar aesthetics */
+.qg-nav { scrollbar-color: var(--color-border-default, #d0d7de) transparent; }
+.qg-nav::-webkit-scrollbar { width: 10px; }
+.qg-nav::-webkit-scrollbar-track { background: transparent; }
+.qg-nav::-webkit-scrollbar-thumb { background-color: var(--color-border-default, #d0d7de); border-radius: 8px; border: 2px solid var(--color-surface, #fff); }
+
+.qg-nav.qg-collapsed { display: none; }
+
+@media (min-width: 641px) {
+    .qg-nav.qg-collapsed { display: block; }
+}
+
+.qg-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: var(--space-16, 1.25rem) var(--space-12, 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16, 1.25rem); /* generous spacing */
+}
+
+.qg-nav-item { margin: 0; }
+
+/* Base link normalization via deep selector (NavLink renders <a>) */
+::deep .qg-nav-link {
+    all: unset; /* remove UA/Bootstrap hyperlink styles */
+    -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: 3rem; /* larger touch target */
+    padding: 0 var(--space-12, 1rem);
+    color: var(--color-text-primary, #1f2328);
+    border-radius: var(--card-radius, 8px);
+    letter-spacing: var(--letter-spacing-normal, 0.01em);
+    font-weight: var(--font-weight-medium, 500);
+    font-size: var(--font-size-base, 1rem);
+    cursor: pointer;
+    width: 100%;
+}
+
+/* Guarantee no underlines and stable color across states */
+::deep .qg-nav-link,
+::deep .qg-nav-link:link,
+::deep .qg-nav-link:visited,
+::deep .qg-nav-link:hover,
+::deep .qg-nav-link:active,
+::deep .qg-nav-link:focus {
+    text-decoration: none !important;
+    color: var(--color-text-primary, #1f2328) !important; /* never blue/purple */
+}
+
+/* Hover focus visuals */
+::deep .qg-nav-link:hover { background: var(--color-canvas, #f6f8fa); }
+::deep .qg-nav-link:focus-visible { outline: none; box-shadow: var(--focus-ring, 0 0 0 3px rgba(31,111,235,.25)); }
+
+/* Active route indicator - subtle background only */
+::deep .qg-nav-link.active {
+    background: var(--color-canvas, #f6f8fa);
+    color: var(--color-text-primary, #1f2328) !important;
+    border: 1px solid var(--color-border-subtle, #e9ecef);
+}
+
+/* Sidebar width on desktop if placed as sidebar */
+@media (min-width: 641px) {
+    .qg-nav { width: var(--qg-nav-width); }
+    .qg-nav-header { width: var(--qg-nav-width); position: sticky; top: 0; z-index: 2; }
+}
