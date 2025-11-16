@@ -1,0 +1,213 @@
+﻿@page "/inline"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+@implements IDisposable
+
+<PageTitle>Products with Auto-Save</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Inline Editing (Ad Hoc)</h1>
+        <p class="qg-page-subtitle">Direct template-driven inline editing with per-cell <code>EditForm</code> and auto-save. Raw approach kept for comparison.</p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Ad‑Hoc Inline Editing Approach</h2>
+            <p class="qg-section-description">Each editable cell embeds an <code>EditForm</code>, validators, and an input. A debounced timer auto‑saves changes.</p>
+        </div>
+
+        @if (hasUnsavedChanges)
+        {
+            <div class="qg-card qg-mb-16">
+                <span class="qg-badge qg-badge-info">Pending</span>
+                <span class="qg-text-secondary">Unsaved changes detected. Will auto-save in @secondsUntilSave seconds...</span>
+            </div>
+        }
+        else if (lastSaveTime.HasValue)
+        {
+            <div class="qg-card qg-mb-16">
+                <span class="qg-badge qg-badge-success">Saved</span>
+                <span class="qg-text-secondary">Last saved at @lastSaveTime.Value.ToString("HH:mm:ss")</span>
+            </div>
+        }
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@products.AsQueryable()" Class="qg-grid qg-grid-auto">
+                <PropertyColumn Property="@(p => p.Id)" Title="Id" Sortable="true" />
+
+                <TemplateColumn Title="Name" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputText @bind-Value="row.Name" @oninput="@((e) => OnFieldChanged(row, e.Value?.ToString()))" />
+                        <ValidationMessage For="@(() => row.Name)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Price" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputNumber @bind-Value="row.Price" @oninput="@((e) => OnFieldChanged(row, e.Value))" />
+                        <ValidationMessage For="@(() => row.Price)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Stock" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputNumber @bind-Value="row.Stock" @oninput="@((e) => OnFieldChanged(row, e.Value))" />
+                        <ValidationMessage For="@(() => row.Stock)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Location" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputSelect @bind-Value="row.Location" @bind-Value:after="@(() => OnFieldChanged(row, row.Location))">
+                            <option value="LA">LA</option>
+                            <option value="NYC">NYC</option>
+                            <option value="Wash DC">Wash DC</option>
+                        </InputSelect>
+                        <ValidationMessage For="@(() => row.Location)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="In Stock" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputCheckbox @bind-Value="row.IsInStock" @bind-Value:after="@(() => OnFieldChanged(row, row.IsInStock))" />
+                        <ValidationMessage For="@(() => row.IsInStock)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Release Date" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputDate @bind-Value="row.ReleaseDate" @bind-Value:after="@(() => OnFieldChanged(row, row.ReleaseDate))" />
+                        <ValidationMessage For="@(() => row.ReleaseDate)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Priority" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputRadioGroup @bind-Value="row.Priority" @bind-Value:after="@(() => OnFieldChanged(row, row.Priority))" class="inline-radio">
+                            <label>
+                                <InputRadio Value="Priority.Low" /> Low
+                            </label>
+                            <label>
+                                <InputRadio Value="Priority.Medium" /> Med
+                            </label>
+                            <label>
+                                <InputRadio Value="Priority.High" /> High
+                            </label>
+                        </InputRadioGroup>
+                        <ValidationMessage For="@(() => row.Priority)" />
+                    </EditForm>
+                </TemplateColumn>
+
+                <TemplateColumn Title="Description" Context="row">
+                    <EditForm Model="row">
+                        <DataAnnotationsValidator />
+                        <InputTextArea @bind-Value="row.Description" @oninput="@((e) => OnFieldChanged(row, e.Value?.ToString()))" rows="2" />
+                        <ValidationMessage For="@(() => row.Description)" />
+                    </EditForm>
+                </TemplateColumn>
+            </QuickGrid>
+        </div>
+    </section>
+</div>
+
+@code {
+    public enum Priority { Low, Medium, High }
+
+    public class ValidatedProduct
+    {
+        public int Id { get; set; }
+        [Required(ErrorMessage = "Name is required")]
+        [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
+        public string Name { get; set; } = string.Empty;
+        [Required]
+        [Range(0.01, 999999.99, ErrorMessage = "Price must be between 0.01 and 999999.99")]
+        public decimal Price { get; set; }
+        [Required]
+        [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]
+        public int Stock { get; set; }
+        [Required(ErrorMessage = "Location is required")]
+        public string Location { get; set; } = "LA";
+        public bool IsInStock { get; set; } = true;
+        [Required(ErrorMessage = "Release date is required")]
+        public DateOnly ReleaseDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
+        [Required(ErrorMessage = "Priority is required")]
+        public Priority Priority { get; set; } = Priority.Medium;
+        [StringLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
+        public string? Description { get; set; }
+    }
+
+    private List<ValidatedProduct> products = new()
+    {
+        new() { Id = 1, Name = "Keyboard", Price = 29.99m, Stock = 50, Location = "LA", IsInStock = true, ReleaseDate = new DateOnly(2024, 1, 15), Priority = Priority.High, Description = "Mechanical gaming keyboard with RGB" },
+        new() { Id = 2, Name = "Mouse", Price = 19.99m, Stock = 120, Location = "NYC", IsInStock = true, ReleaseDate = new DateOnly(2024, 2, 20), Priority = Priority.Medium, Description = "Wireless optical mouse" },
+        new() { Id = 3, Name = "Monitor", Price = 199.99m, Stock = 15, Location = "Wash DC", IsInStock = false, ReleaseDate = new DateOnly(2023, 11, 5), Priority = Priority.Low, Description = "27-inch 4K display" },
+        new() { Id = 4, Name = "USB Hub", Price = 14.99m, Stock = 75, Location = "LA", IsInStock = true, ReleaseDate = new DateOnly(2024, 3, 10), Priority = Priority.Medium, Description = "7-port USB 3.0 hub" },
+    };
+
+    private bool hasUnsavedChanges = false;
+    private DateTime? lastSaveTime;
+    private int secondsUntilSave = 5;
+    private System.Threading.Timer? autoSaveTimer;
+    private System.Threading.Timer? countdownTimer;
+
+    protected override void OnInitialized()
+    {
+        countdownTimer = new System.Threading.Timer(async _ =>
+        {
+            if (hasUnsavedChanges && secondsUntilSave > 0)
+            {
+                secondsUntilSave--;
+                await InvokeAsync(StateHasChanged);
+            }
+        }, null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    private void OnFieldChanged(ValidatedProduct product, object? value)
+    {
+        if (!hasUnsavedChanges)
+        {
+            hasUnsavedChanges = true;
+            secondsUntilSave = 5;
+            autoSaveTimer?.Dispose();
+            autoSaveTimer = new System.Threading.Timer(async _ => { await AutoSave(); }, null, TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
+        }
+        else
+        {
+            secondsUntilSave = 5;
+            autoSaveTimer?.Dispose();
+            autoSaveTimer = new System.Threading.Timer(async _ => { await AutoSave(); }, null, TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan);
+        }
+    }
+
+    private async Task AutoSave()
+    {
+        bool allValid = true;
+        foreach (var product in products)
+        {
+            var editContext = new EditContext(product);
+            if (!editContext.Validate()) { allValid = false; break; }
+        }
+        if (allValid)
+        {
+            hasUnsavedChanges = false;
+            lastSaveTime = DateTime.Now;
+            secondsUntilSave = 5;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        autoSaveTimer?.Dispose();
+        countdownTimer?.Dispose();
+    }
+}

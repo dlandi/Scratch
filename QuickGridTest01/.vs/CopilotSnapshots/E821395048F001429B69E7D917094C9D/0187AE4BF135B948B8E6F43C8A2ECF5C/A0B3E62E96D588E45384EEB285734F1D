@@ -1,0 +1,17 @@
+﻿/* InlineEditor - component-specific refinements using Refined Minimalism */
+
+/* Make inline radio group compact */
+.inline-radio { display:inline-flex; gap: var(--space-8); align-items:center; }
+.inline-radio label { display:inline-flex; gap: var(--space-2); align-items:center; }
+
+/* Subtle validation message spacing */
+::deep .validation-message,
+::deep .validation-errors,
+::deep .message { margin-top: var(--space-2); display:block; font-size: var(--font-size-xs); color: var(--color-error); }
+
+/* Inputs inside grid cells behave like seamless controls (reuse global tokens) */
+::deep td input, ::deep td select, ::deep td textarea { width: 100%; padding: var(--space-2) var(--space-4); border: 1px solid transparent; background-color: transparent; border-radius: var(--card-radius); transition: all var(--duration-fast) var(--ease-in-out); }
+::deep td input:hover, ::deep td select:hover, ::deep td textarea:hover { background-color: var(--color-surface); border-color: var(--color-border-default); }
+::deep td input:focus, ::deep td select:focus, ::deep td textarea:focus { outline:none; background-color: var(--color-surface); border-color: var(--color-accent-primary); box-shadow: var(--focus-ring); }
+
+/* Remove leftover demo layout rules - global qg-* handles container, headers and grid */

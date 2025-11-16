@@ -1,0 +1,526 @@
+﻿@page "/conditional-style-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ConditionalStyling
+
+<PageTitle>Conditional Styling Column Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Conditional Styling Column</h1>
+        <p class="qg-page-subtitle">
+            Dynamic CSS classes, icons, and tooltips based on cell values. Centralizes conditional display logic for declarative page markup.
+        </p>
+    </header>
+
+    <div class="demo-description qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+        
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4>Purpose</h4>
+                <p>Show reusable <code>ConditionalStyleColumn&lt;TGridItem,TValue&gt;</code> for QuickGrid that applies dynamic CSS classes, icons, tooltips, and formatting based on cell values</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Core Component</h4>
+                <p><code>ConditionalStyleColumn</code> inherits <code>ColumnBase&lt;TGridItem&gt;</code>. Supply a <code>Property</code> expression for efficient value extraction, automatic sort expression generation, and column title inference</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Value Display</h4>
+                <p>Cell text produced by: <code>ValueFormatter</code> delegate (priority), <code>Format</code> string if <code>IFormattable</code>, or fallback <code>ToString()</code></p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Styling Rules</h4>
+                <p>Rules created via fluent <code>StyleRuleBuilder&lt;TValue&gt;</code>. Each rule contains condition, CSS class, priority, optional icon and tooltip</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Rule Evaluation</h4>
+                <p>Default mode: first matching rule determines styling. Multi-match mode: concatenate all matching CSS classes</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Performance</h4>
+                <p>Expression compilation avoids reflection per row. Rule list sorted once at build time. Sorting uses inferred expression</p>
+            </div>
+        </div>
+    </div>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Sales Performance Dashboard</h2>
+            <p class="qg-section-description">Revenue values styled with traffic light system based on target thresholds</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_salesData.AsQueryable()" Class="qg-grid" Pagination="_salesPagination">
+                <PropertyColumn Property="@(s => s.SalesRep)" Title="Sales Rep" Sortable="true" />
+                <PropertyColumn Property="@(s => s.Region)" Title="Region" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(s => s.Revenue)" 
+                    Title="Revenue"
+                    Format="C0"
+                    Rules="@_revenueRules"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(s => s.ActualVsTarget)" 
+                    Title="vs Target"
+                    Format="N1"
+                    Rules="@_targetVarianceRules"
+                    ShowIcons="true"
+                    BaseCssClass="percentage-cell"
+                    ShowTooltips="true">
+                    <CellTemplate Context="cellContext">
+                        <div class="@cellContext.Style.CssClass" title="@cellContext.Style.Tooltip">
+                            @if (cellContext.Value >= 0)
+                            {
+                                <span class="positive-sign">+</span>
+                            }
+                            <span>@cellContext.Value.ToString("N1")%</span>
+                            @if (!string.IsNullOrEmpty(cellContext.Style.IconClass))
+                            {
+                                <span class="@cellContext.Style.IconClass" aria-hidden="true"></span>
+                            }
+                        </div>
+                    </CellTemplate>
+                </ConditionalStyleColumn>
+
+                <PropertyColumn Property="@(s => s.DealsClosed)" Title="Deals" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(s => s.Status)" 
+                    Title="Status"
+                    Rules="@StylePresets.StatusIndicator()"
+                    ShowIcons="true" />
+            </QuickGrid>
+            <Paginator State="_salesPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Inventory Management</h2>
+            <p class="qg-section-description">Stock levels highlighted based on reorder points and maximum capacity</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_inventoryData.AsQueryable()" Class="qg-grid" Pagination="_inventoryPagination">
+                <PropertyColumn Property="@(i => i.ProductName)" Title="Product" Sortable="true" />
+                <PropertyColumn Property="@(i => i.Sku)" Title="SKU" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(i => i.StockLevel)" 
+                    Title="Stock Level"
+                    Rules="@StylePresets.InventoryLevel(0, 20, 150)"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(i => i.StockStatus)" 
+                    Title="Status"
+                    Rules="@_stockStatusRules"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(i => i.DaysSinceRestock)" 
+                    Title="Days Since Restock"
+                    Rules="@StylePresets.AgeIndicator(7, 30, 60)"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <PropertyColumn Property="@(i => i.UnitPrice)" Title="Price" Format="C2" />
+            </QuickGrid>
+            <Paginator State="_inventoryPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Task Priority Board</h2>
+            <p class="qg-section-description">Tasks color-coded by priority and status with overdue highlighting</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_taskData.AsQueryable()" Class="qg-grid" Pagination="_taskPagination">
+                <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(t => t.Priority)" 
+                    Title="Priority"
+                    Rules="@StylePresets.PriorityIndicator()"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(t => t.Status)" 
+                    Title="Status"
+                    Rules="@_taskStatusRules"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(t => t.CompletionPercentage)" 
+                    Title="Progress"
+                    Format="N0"
+                    Rules="@StylePresets.PercentageIndicator(33, 66)"
+                    ShowIcons="true" />
+
+                <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
+                <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="d" />
+            </QuickGrid>
+            <Paginator State="_taskPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Health Metrics Monitoring</h2>
+            <p class="qg-section-description">Vital signs monitored with threshold-based alerts</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_healthData.AsQueryable()" Class="qg-grid" Pagination="_healthPagination">
+                <PropertyColumn Property="@(h => h.PatientName)" Title="Patient" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(h => h.Temperature)" 
+                    Title="Temperature (°F)"
+                    Format="N1"
+                    Rules="@StylePresets.Temperature(99.5m, 101m, 103m)"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(h => h.HeartRate)" 
+                    Title="Heart Rate"
+                    Rules="@_heartRateRules"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(h => h.OxygenLevel)" 
+                    Title="O₂ Level %"
+                    Format="N1"
+                    Rules="@_oxygenRules"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(h => h.OverallStatus)" 
+                    Title="Status"
+                    Rules="@_healthStatusRules"
+                    ShowIcons="true" />
+            </QuickGrid>
+            <Paginator State="_healthPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Financial Performance</h2>
+            <p class="qg-section-description">Profit/loss analysis with variance categorization</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_financialData.AsQueryable()" Class="qg-grid" Pagination="_financialPagination">
+                <PropertyColumn Property="@(f => f.Account)" Title="Account" Sortable="true" />
+                <PropertyColumn Property="@(f => f.CurrentPeriod)" Title="Current Period" Format="C0" />
+                <PropertyColumn Property="@(f => f.PreviousPeriod)" Title="Previous Period" Format="C0" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(f => f.PercentageChange)" 
+                    Title="Change %"
+                    Format="N1"
+                    Rules="@_percentageChangeRules"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(f => f.Variance)" 
+                    Title="Variance"
+                    Rules="@_varianceRules"
+                    ShowIcons="true" />
+            </QuickGrid>
+            <Paginator State="_financialPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Server Health Monitoring</h2>
+            <p class="qg-section-description">Resource usage tiers and uptime tracking</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_serverData.AsQueryable()" Class="qg-grid">
+                <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(s => s.CpuUsage)" 
+                    Title="CPU %"
+                    Format="N1"
+                    Rules="@_resourceUsageRules"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(s => s.MemoryUsage)" 
+                    Title="Memory %"
+                    Format="N1"
+                    Rules="@_resourceUsageRules"
+                    ShowIcons="true" />
+
+                <PropertyColumn Property="@(s => s.UptimePercentage)" Title="Uptime %" Format="N0" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(s => s.IsOnline)" 
+                    Title="Online"
+                    Rules="@StylePresets.BooleanIndicator()"
+                    ShowIcons="true" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Customer Satisfaction</h2>
+            <p class="qg-section-description">Ratings, sentiment classification, and NPS scoring</p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_satisfactionData.AsQueryable()" Class="qg-grid" Pagination="_satisfactionPagination">
+                <PropertyColumn Property="@(c => c.CustomerName)" Title="Customer" Sortable="true" />
+                
+                <ConditionalStyleColumn 
+                    Property="@(c => c.Rating)" 
+                    Title="Rating"
+                    Format="N1"
+                    Rules="@StylePresets.RatingIndicator()"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(c => c.Sentiment)" 
+                    Title="Sentiment"
+                    Rules="@_sentimentRules"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(c => c.WouldRecommend)" 
+                    Title="Recommend"
+                    Rules="@StylePresets.BooleanIndicator()"
+                    ShowIcons="true" />
+
+                <ConditionalStyleColumn 
+                    Property="@(c => c.NpsScore)" 
+                    Title="NPS Score"
+                    Rules="@_npsRules"
+                    ShowIcons="true"
+                    ShowTooltips="true" />
+            </QuickGrid>
+            <Paginator State="_satisfactionPagination" />
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from rules and presets to column, evaluation, and demos</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Rule Model & Builder</div>
+                <div class="layer-content"><code>StyleRule&lt;T&gt;</code>, <code>StyleRuleBuilder&lt;T&gt;</code> with extensions (numeric/string/boolean), priority system, icon/tooltip metadata</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Evaluation Engine</div>
+                <div class="layer-content"><code>StyleRuleEvaluator.Evaluate</code> (first match) and <code>EvaluateAll</code> (combine classes) with descending priority</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Presets</div>
+                <div class="layer-content"><code>StylePresets</code> for common patterns (thresholds, percentages, profit/loss, inventory, status/priority, KPI/rating/SLA, date/age, email/text, health/temperature, traffic light, custom mapping)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Column Component</div>
+                <div class="layer-content"><code>ConditionalStyleColumn&lt;TGridItem,TValue&gt;</code>: compiled accessor, <code>Format</code>/<code>ValueFormatter</code>, <code>BaseCssClass</code>, <code>ShowIcons</code>/<code>ShowTooltips</code>, <code>CombineMultipleMatches</code>, <code>CellTemplate</code>, sorting</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demos</div>
+                <div class="layer-content">Sales, inventory, tasks, health, finance, servers, satisfaction — each wired to rules/presets</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Fluent Rules</div><div class="feature-desc">Builder with <code>WhenLessThan/Between/GreaterThan</code>, <code>WhenEquals/In</code>, <code>WhenEmpty</code></div></div>
+            <div class="feature-card"><div class="feature-title">Priority System</div><div class="feature-desc">Deterministic evaluation using descending priority</div></div>
+            <div class="feature-card"><div class="feature-title">Combine Matches</div><div class="feature-desc">Optional multi-match mode concatenates classes</div></div>
+            <div class="feature-card"><div class="feature-title">Icons & Tooltips</div><div class="feature-desc">Per-rule icon and tooltip metadata rendered conditionally</div></div>
+            <div class="feature-card"><div class="feature-title">Formatting</div><div class="feature-desc">Use <code>Format</code> or <code>ValueFormatter</code> for value text</div></div>
+            <div class="feature-card"><div class="feature-title">Type-Safe & Sortable</div><div class="feature-desc">Expression-based property access and sort metadata</div></div>
+            <div class="feature-card"><div class="feature-title">Template Override</div><div class="feature-desc"><code>CellTemplate</code> exposes <code>(Item, Value, Style)</code> for custom HTML</div></div>
+            <div class="feature-card"><div class="feature-title">Preset Library</div><div class="feature-desc">Ready-to-use rule sets for common scenarios</div></div>
+            <div class="feature-card"><div class="feature-title">Performance</div><div class="feature-desc">Compiled accessors and pre-sorted rules minimize per-cell work</div></div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private List<SalesPerformance> _salesData = new();
+    private List<InventoryItem> _inventoryData = new();
+    private List<TaskItem> _taskData = new();
+    private List<HealthMetric> _healthData = new();
+    private List<FinancialStatement> _financialData = new();
+    private List<ServerStatus> _serverData = new();
+    private List<CustomerSatisfaction> _satisfactionData = new();
+
+    private PaginationState _salesPagination = new() { ItemsPerPage = 10 };
+    private PaginationState _inventoryPagination = new() { ItemsPerPage = 10 };
+    private PaginationState _taskPagination = new() { ItemsPerPage = 10 };
+    private PaginationState _healthPagination = new() { ItemsPerPage = 10 };
+    private PaginationState _financialPagination = new() { ItemsPerPage = 10 };
+    private PaginationState _satisfactionPagination = new() { ItemsPerPage = 10 };
+
+    private List<StyleRule<decimal>> _revenueRules = new();
+    private List<StyleRule<decimal>> _targetVarianceRules = new();
+    private List<StyleRule<string>> _stockStatusRules = new();
+    private List<StyleRule<string>> _taskStatusRules = new();
+    private List<StyleRule<int>> _heartRateRules = new();
+    private List<StyleRule<decimal>> _oxygenRules = new();
+    private List<StyleRule<string>> _healthStatusRules = new();
+    private List<StyleRule<decimal>> _percentageChangeRules = new();
+    private List<StyleRule<string>> _varianceRules = new();
+    private List<StyleRule<decimal>> _resourceUsageRules = new();
+    private List<StyleRule<string>> _sentimentRules = new();
+    private List<StyleRule<int>> _npsRules = new();
+
+    protected override void OnInitialized()
+    {
+        _salesData = ConditionalStyleDataGenerator.GenerateSalesData();
+        _inventoryData = ConditionalStyleDataGenerator.GenerateInventoryData();
+        _taskData = ConditionalStyleDataGenerator.GenerateTaskData();
+        _healthData = ConditionalStyleDataGenerator.GenerateHealthData();
+        _financialData = ConditionalStyleDataGenerator.GenerateFinancialData();
+        _serverData = ConditionalStyleDataGenerator.GenerateServerData();
+        _satisfactionData = ConditionalStyleDataGenerator.GenerateCustomerSatisfactionData();
+
+        ConfigureRevenueRules();
+        ConfigureTargetVarianceRules();
+        ConfigureStockStatusRules();
+        ConfigureTaskStatusRules();
+        ConfigureHealthRules();
+        ConfigureFinancialRules();
+        ConfigureResourceUsageRules();
+        ConfigureSentimentRules();
+        ConfigureNpsRules();
+    }
+
+    private void ConfigureRevenueRules()
+    {
+        _revenueRules = new StyleRuleBuilder<decimal>()
+            .WhenLessThan(100000m, "cell-danger", priority: 30, icon: "icon-trending-down", tooltip: "Below $100K - Critical")
+            .WhenBetween(100000m, 250000m, "cell-warning", priority: 20, icon: "icon-minus", tooltip: "$100K-$250K - Needs Improvement")
+            .WhenGreaterThan(250000m, "cell-success", priority: 10, icon: "icon-trending-up", tooltip: "Above $250K - Excellent")
+            .Build();
+    }
+
+    private void ConfigureTargetVarianceRules()
+    {
+        _targetVarianceRules = new StyleRuleBuilder<decimal>()
+            .WhenLessThan(-20m, "variance-danger", priority: 40, icon: "icon-arrow-down", tooltip: "More than 20% below target")
+            .WhenBetween(-20m, -10m, "variance-warning", priority: 30, icon: "icon-arrow-down-right", tooltip: "10-20% below target")
+            .WhenBetween(-10m, 10m, "variance-neutral", priority: 20, icon: "icon-minus", tooltip: "Within 10% of target")
+            .WhenGreaterThan(10m, "variance-success", priority: 10, icon: "icon-arrow-up", tooltip: "Above target")
+            .Build();
+    }
+
+    private void ConfigureStockStatusRules()
+    {
+        _stockStatusRules = new StyleRuleBuilder<string>()
+            .WhenEquals("Out of Stock", "stock-critical", priority: 40, icon: "icon-x-circle", tooltip: "Immediate reorder required")
+            .WhenEquals("Low Stock", "stock-warning", priority: 30, icon: "icon-alert-triangle", tooltip: "Below reorder point")
+            .WhenEquals("Overstock", "stock-info", priority: 20, icon: "icon-info", tooltip: "Above maximum capacity")
+            .WhenEquals("Normal", "stock-normal", priority: 10, icon: "icon-check", tooltip: "Stock level normal")
+            .Build();
+    }
+
+    private void ConfigureTaskStatusRules()
+    {
+        _taskStatusRules = new StyleRuleBuilder<string>()
+            .WhenEquals("Completed", "task-completed", priority: 10, icon: "icon-check-circle")
+            .WhenEquals("In Progress", "task-progress", priority: 20, icon: "icon-loader")
+            .WhenEquals("Blocked", "task-blocked", priority: 40, icon: "icon-alert-octagon")
+            .WhenEquals("Not Started", "task-not-started", priority: 30, icon: "icon-circle")
+            .Build();
+    }
+
+    private void ConfigureHealthRules()
+    {
+        _heartRateRules = new StyleRuleBuilder<int>()
+            .WhenLessThan(60, "health-abnormal", priority: 30, icon: "icon-alert-triangle", tooltip: "Below normal range")
+            .WhenBetween(60, 100, "health-normal", priority: 10, icon: "icon-check", tooltip: "Normal range")
+            .WhenGreaterThan(100, "health-abnormal", priority: 20, icon: "icon-alert-circle", tooltip: "Above normal range")
+            .Build();
+
+        _oxygenRules = new StyleRuleBuilder<decimal>()
+            .WhenLessThan(90m, "health-critical", priority: 30, icon: "icon-alert-octagon", tooltip: "Critical - immediate attention")
+            .WhenBetween(90m, 95m, "health-warning", priority: 20, icon: "icon-alert-triangle", tooltip: "Low - monitor closely")
+            .WhenGreaterThan(95m, "health-normal", priority: 10, icon: "icon-check", tooltip: "Normal range")
+            .Build();
+
+        _healthStatusRules = new StyleRuleBuilder<string>()
+            .WhenEquals("Critical", "health-critical", priority: 40, icon: "icon-alert-octagon")
+            .WhenEquals("Warning", "health-warning", priority: 30, icon: "icon-alert-triangle")
+            .WhenEquals("Observation", "health-warning", priority: 25, icon: "icon-alert-circle")
+            .WhenEquals("Normal", "health-normal", priority: 10, icon: "icon-check")
+            .Build();
+    }
+
+    private void ConfigureFinancialRules()
+    {
+        _percentageChangeRules = new StyleRuleBuilder<decimal>()
+            .WhenLessThan(-10m, "financial-large-loss", priority: 40, icon: "icon-trending-down")
+            .WhenBetween(-10m, 0m, "financial-loss", priority: 30, icon: "icon-arrow-down")
+            .WhenBetween(0m, 10m, "financial-gain", priority: 20, icon: "icon-arrow-up")
+            .WhenGreaterThan(10m, "financial-large-gain", priority: 10, icon: "icon-trending-up")
+            .Build();
+
+        _varianceRules = new StyleRuleBuilder<string>()
+            .WhenEquals("Favorable", "variance-favorable", priority: 10, icon: "icon-thumbs-up")
+            .WhenEquals("Unfavorable", "variance-unfavorable", priority: 20, icon: "icon-thumbs-down")
+            .Build();
+    }
+
+    private void ConfigureResourceUsageRules()
+    {
+        _resourceUsageRules = new StyleRuleBuilder<decimal>()
+            .WhenLessThan(50m, "resource-low", priority: 10, icon: "icon-check")
+            .WhenBetween(50m, 80m, "resource-moderate", priority: 20, icon: "icon-alert-triangle")
+            .WhenGreaterThan(80m, "resource-high", priority: 30, icon: "icon-alert-circle")
+            .Build();
+    }
+
+    private void ConfigureSentimentRules()
+    {
+        _sentimentRules = new StyleRuleBuilder<string>()
+            .WhenIn(new[] { "Very Positive", "Positive" }, "sentiment-positive", priority: 10, icon: "icon-smile")
+            .WhenEquals("Neutral", "sentiment-neutral", priority: 20, icon: "icon-meh")
+            .WhenIn(new[] { "Negative", "Very Negative" }, "sentiment-negative", priority: 30, icon: "icon-frown")
+            .Build();
+    }
+
+    private void ConfigureNpsRules()
+    {
+        _npsRules = new StyleRuleBuilder<int>()
+            .WhenLessThan(0, "nps-detractor", priority: 30, icon: "icon-thumbs-down", tooltip: "Detractor (0-6)")
+            .WhenBetween(0, 70, "nps-passive", priority: 20, icon: "icon-minus", tooltip: "Passive (7-8)")
+            .WhenGreaterThan(70, "nps-promoter", priority: 10, icon: "icon-thumbs-up", tooltip: "Promoter (9-10)")
+            .Build();
+    }
+}

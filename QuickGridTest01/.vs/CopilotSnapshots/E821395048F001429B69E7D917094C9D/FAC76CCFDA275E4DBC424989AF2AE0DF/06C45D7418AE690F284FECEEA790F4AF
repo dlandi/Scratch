@@ -1,0 +1,12 @@
+﻿/* IconColumnDemo - component-specific extensions using Refined Minimalism */
+
+/* Icon column cell */
+::deep .icon-column-container { display:inline-flex; align-items:center; gap: var(--space-4); padding: var(--space-1) 0; color: var(--color-text-primary); }
+::deep .icon-column-container i { font-size: 16px; }
+::deep .icon-column-value { font-weight: var(--font-weight-medium); }
+
+/* Optional sizing helpers for % columns */
+::deep td[title="CPU %"],
+::deep td[title="Memory %"] { text-align:right; }
+
+/* No other styles needed; layout handled by global design system (qg-*) */

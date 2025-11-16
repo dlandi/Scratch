@@ -323,6 +323,52 @@
             <Paginator State="_satisfactionPagination" />
         </div>
     </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from rules and presets to column, evaluation, and demos</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Rule Model & Builder</div>
+                <div class="layer-content"><code>StyleRule&lt;T&gt;</code>, <code>StyleRuleBuilder&lt;T&gt;</code> with extensions (numeric/string/boolean), priority system, icon/tooltip metadata</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Evaluation Engine</div>
+                <div class="layer-content"><code>StyleRuleEvaluator.Evaluate</code> (first match) and <code>EvaluateAll</code> (combine classes) with descending priority</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Presets</div>
+                <div class="layer-content"><code>StylePresets</code> for common patterns (thresholds, percentages, profit/loss, inventory, status/priority, KPI/rating/SLA, date/age, email/text, health/temperature, traffic light, custom mapping)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Column Component</div>
+                <div class="layer-content"><code>ConditionalStyleColumn&lt;TGridItem,TValue&gt;</code>: compiled accessor, <code>Format</code>/<code>ValueFormatter</code>, <code>BaseCssClass</code>, <code>ShowIcons</code>/<code>ShowTooltips</code>, <code>CombineMultipleMatches</code>, <code>CellTemplate</code>, sorting</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demos</div>
+                <div class="layer-content">Sales, inventory, tasks, health, finance, servers, satisfaction — each wired to rules/presets</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Fluent Rules</div><div class="feature-desc">Builder with <code>WhenLessThan/Between/GreaterThan</code>, <code>WhenEquals/In</code>, <code>WhenEmpty</code></div></div>
+            <div class="feature-card"><div class="feature-title">Priority System</div><div class="feature-desc">Deterministic evaluation using descending priority</div></div>
+            <div class="feature-card"><div class="feature-title">Combine Matches</div><div class="feature-desc">Optional multi-match mode concatenates classes</div></div>
+            <div class="feature-card"><div class="feature-title">Icons & Tooltips</div><div class="feature-desc">Per-rule icon and tooltip metadata rendered conditionally</div></div>
+            <div class="feature-card"><div class="feature-title">Formatting</div><div class="feature-desc">Use <code>Format</code> or <code>ValueFormatter</code> for value text</div></div>
+            <div class="feature-card"><div class="feature-title">Type-Safe & Sortable</div><div class="feature-desc">Expression-based property access and sort metadata</div></div>
+            <div class="feature-card"><div class="feature-title">Template Override</div><div class="feature-desc"><code>CellTemplate</code> exposes <code>(Item, Value, Style)</code> for custom HTML</div></div>
+            <div class="feature-card"><div class="feature-title">Preset Library</div><div class="feature-desc">Ready-to-use rule sets for common scenarios</div></div>
+            <div class="feature-card"><div class="feature-title">Performance</div><div class="feature-desc">Compiled accessors and pre-sorted rules minimize per-cell work</div></div>
+        </div>
+    </section>
 </div>
 
 @code {

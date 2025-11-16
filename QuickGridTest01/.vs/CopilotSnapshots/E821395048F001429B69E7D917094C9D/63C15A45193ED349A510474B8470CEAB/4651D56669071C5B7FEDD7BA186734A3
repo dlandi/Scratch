@@ -1,0 +1,294 @@
+﻿@page "/filterable-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.Filterable
+
+<PageTitle>Filterable Column Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Filterable Columns – Two Approaches</h1>
+        <p class="qg-page-subtitle">
+            Reusable column-centric filtering vs a simple manual filter bar. Both approaches contrasted with unified refined minimalist styling.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Filtering Design Comparison</h2>
+            <p class="qg-section-description">
+                Reusable column component filtering vs ad hoc toolbar composition. Operators generate typed predicates applied live while typing.
+            </p>
+        </div>
+
+        <!-- SECTION A: Reusable Column-Centric Filtering -->
+        <div class="qg-section qg-mb-32">
+            <div class="qg-section-header">
+                <h2 class="qg-section-title">Section A: Column-Centric Filtering</h2>
+                <p class="qg-section-description">Each <code>FilterableColumn&lt;TItem,TValue&gt;</code> owns operator list, parser, active state; <code>FilterableGrid</code> composes predicates. Inline toolbars update automatically.</p>
+            </div>
+
+            <!-- Employees Card -->
+            <div class="qg-card qg-mb-24 filter-card">
+                <button class="qg-btn qg-btn-secondary qg-btn-sm filter-clear" @onclick="ClearEmployeeFilters" aria-label="Clear all employee filters">Clear All</button>
+                <h4 class="qg-mb-16 qg-font-semibold">Employees</h4>
+                <div class="filter-toolbar qg-mb-16">
+                    @if (_employeeGrid is not null && _employeeGrid.Columns?.Count > 0)
+                    {
+                        foreach (var col in _employeeGrid.Columns)
+                        {
+                            <div class="ft-item @(col.HasActiveFilter ? "active" : "")">
+                                @col.BuildFilterToolbar
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="qg-grid-container">
+                    <FilterableGrid TGridItem="Employee" Items="@Employees" Class="qg-grid" @ref="_employeeGrid">
+                        <FilterableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Id)" Title="ID" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" />
+                        <FilterableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Format="C0" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Format="yyyy-MM-dd" Sortable="true" />
+                        <FilterableColumn TGridItem="Employee" TValue="bool" Property="@(e => e.IsActive)" Title="Active" />
+                    </FilterableGrid>
+                </div>
+            </div>
+
+            <!-- Products Card -->
+            <div class="qg-card filter-card">
+                <button class="qg-btn qg-btn-secondary qg-btn-sm filter-clear" @onclick="ClearProductFilters" aria-label="Clear all product filters">Clear All</button>
+                <h4 class="qg-mb-16 qg-font-semibold">Products</h4>
+                <div class="filter-toolbar qg-mb-16">
+                    @if (_productGrid is not null && _productGrid.Columns?.Count > 0)
+                    {
+                        foreach (var col in _productGrid.Columns)
+                        {
+                            <div class="ft-item @(col.HasActiveFilter ? "active" : "")">
+                                @col.BuildFilterToolbar
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="qg-grid-container">
+                    <FilterableGrid TGridItem="Product" Items="@Products" Class="qg-grid" @ref="_productGrid">
+                        <FilterableColumn TGridItem="Product" TValue="int" Property="@(p => p.Id)" Title="ID" Sortable="true" />
+                        <FilterableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product" Sortable="true" />
+                        <FilterableColumn TGridItem="Product" TValue="string" Property="@(p => p.Category)" Title="Category" Sortable="true" />
+                        <FilterableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Format="C2" Sortable="true" />
+                        <FilterableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Sortable="true" />
+                        <FilterableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" />
+                    </FilterableGrid>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION B: Manual / Ad Hoc Filtering -->
+        <div class="qg-section">
+            <div class="qg-section-header">
+                <h2 class="qg-section-title">Section B: Ad Hoc Filtering</h2>
+                <p class="qg-section-description">Central filter bar composes LINQ directly. Simple but duplicative across pages.</p>
+            </div>
+
+            <div class="qg-card qg-mb-16">
+                <div class="filter-bar">
+                    <div class="filter-item">
+                        <label class="qg-label">First Name</label>
+                        <select @bind="_adHocFirstNameOperator" class="qg-select operator-select">
+                            @foreach (var op in _stringOps) { <option value="@op.Name">@op.Symbol @op.Name</option> }
+                        </select>
+                        <input type="text" @bind="_adHocFirstName" @bind:event="oninput" placeholder="Value..." class="qg-input filter-input" />
+                    </div>
+                    <div class="filter-item">
+                        <label class="qg-label">Department</label>
+                        <select @bind="_adHocDepartmentOperator" class="qg-select operator-select">
+                            @foreach (var op in _stringOps) { <option value="@op.Name">@op.Symbol @op.Name</option> }
+                        </select>
+                        <input type="text" @bind="_adHocDepartment" @bind:event="oninput" placeholder="Value..." class="qg-input filter-input" />
+                    </div>
+                    <div class="filter-item">
+                        <label class="qg-label">Salary</label>
+                        <select @bind="_adHocSalaryOperator" class="qg-select operator-select">
+                            @foreach (var op in _numericOps) { <option value="@op.Name">@op.Symbol @op.Name</option> }
+                        </select>
+                        <input type="number" @bind="_adHocSalaryValue" @bind:event="oninput" class="qg-input filter-input" placeholder="Amount..." />
+                    </div>
+                    <div class="filter-item">
+                        <label class="qg-label">Active</label>
+                        <select disabled class="qg-select operator-select"><option>= Is</option></select>
+                        <select @bind="_adHocActive" class="qg-select filter-input">
+                            <option value="">All</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                    <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="ClearAdHocEmployeeFilters">Clear</button>
+                </div>
+            </div>
+
+            <div class="qg-card qg-mb-16 results-info">
+                Showing @FilteredEmployeesAdHoc.Count() of @Employees.Count() employees
+            </div>
+
+            <div class="qg-grid-container">
+                <QuickGrid Items="@FilteredEmployeesAdHoc" Class="qg-grid">
+                    <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+                    <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" Sortable="true" />
+                    <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" Sortable="true" />
+                    <PropertyColumn Property="@(e => e.Department)" Title="Department" Sortable="true" />
+                    <PropertyColumn Property="@(e => e.Email)" Title="Email" />
+                    <PropertyColumn Property="@(e => e.Salary)" Title="Salary" Format="C0" Sortable="true" />
+                    <PropertyColumn Property="@(e => e.HireDate)" Title="Hire Date" Format="yyyy-MM-dd" Sortable="true" />
+                    <TemplateColumn Title="Status">
+                        <span class="qg-badge @(context.IsActive ? "qg-badge-success" : "qg-badge-error")">@(context.IsActive ? "Active" : "Inactive")</span>
+                    </TemplateColumn>
+                </QuickGrid>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Shared data
+    private IQueryable<Employee> Employees = default!;
+    private IQueryable<Product> Products = default!;
+
+    // Section A grid refs (matching Demo02)
+    private FilterableGrid<Employee>? _employeeGrid;
+    private FilterableGrid<Product>? _productGrid;
+
+    // Ad hoc state (Section B)
+    private List<IFilterOperator<string>> _stringOps = new();
+    private List<IFilterOperator<int>> _numericOps = new();
+    private string _adHocFirstNameOperator = "Contains";
+    private string _adHocDepartmentOperator = "Contains";
+    private string _adHocSalaryOperator = "Greater Than or Equal";
+    private string? _adHocFirstName;
+    private string? _adHocDepartment;
+    private int? _adHocSalaryValue;
+    private string? _adHocActive;
+
+    // Rerender once after first render so Demo02-style toolbars appear before grid
+    private bool _rerenderPending;
+
+    private IQueryable<Employee> FilteredEmployeesAdHoc => BuildAdHocEmployeeQuery();
+
+    protected override void OnInitialized()
+    {
+        Employees = new List<Employee>
+        {
+            new() { Id = 1, FirstName = "John", LastName = "Smith", Department = "Engineering", Email = "john.smith@company.com", Salary = 95000, HireDate = new DateTime(2020,3,15), IsActive = true },
+            new() { Id = 2, FirstName = "Sarah", LastName = "Johnson", Department = "Marketing", Email = "sarah.j@company.com", Salary = 78000, HireDate = new DateTime(2021,7,22), IsActive = true },
+            new() { Id = 3, FirstName = "Michael", LastName = "Brown", Department = "Engineering", Email = "m.brown@company.com", Salary = 103000, HireDate = new DateTime(2019,1,10), IsActive = true },
+            new() { Id = 4, FirstName = "Emily", LastName = "Davis", Department = "HR", Email = "emily.davis@company.com", Salary = 72000, HireDate = new DateTime(2022,4,5), IsActive = false },
+            new() { Id = 5, FirstName = "David", LastName = "Wilson", Department = "Sales", Email = "d.wilson@company.com", Salary = 85000, HireDate = new DateTime(2020,11,30), IsActive = true },
+            new() { Id = 6, FirstName = "Jennifer", LastName = "Martinez", Department = "Engineering", Email = "j.martinez@company.com", Salary = 98000, HireDate = new DateTime(2021,2,14), IsActive = true },
+            new() { Id = 7, FirstName = "Robert", LastName = "Garcia", Department = "Finance", Email = "robert.g@company.com", Salary = 91000, HireDate = new DateTime(2018,9,8), IsActive = true },
+            new() { Id = 8, FirstName = "Lisa", LastName = "Anderson", Department = "Marketing", Email = "lisa.a@company.com", Salary = 76000, HireDate = new DateTime(2023,1,20), IsActive = true },
+            new() { Id = 9, FirstName = "James", LastName = "Taylor", Department = "Sales", Email = "james.t@company.com", Salary = 83000, HireDate = new DateTime(2019,6,12), IsActive = false },
+            new() { Id = 10, FirstName = "Amanda", LastName = "White", Department = "Engineering", Email = "amanda.w@company.com", Salary = 105000, HireDate = new DateTime(2017,3,25), IsActive = true }
+        }.AsQueryable();
+
+        Products = new List<Product>
+        {
+            new() { Id = 1, Name = "Laptop Pro", Category = "Electronics", Price = 1299.99m, Stock = 45, Rating = 4.5 },
+            new() { Id = 2, Name = "Office Chair", Category = "Furniture", Price = 399.99m, Stock = 23, Rating = 4.2 },
+            new() { Id = 3, Name = "Wireless Mouse", Category = "Electronics", Price = 49.99m, Stock = 150, Rating = 4.7 },
+            new() { Id = 4, Name = "Desk Lamp", Category = "Furniture", Price = 79.99m, Stock = 0, Rating = 4.0 },
+            new() { Id = 5, Name = "USB-C Hub", Category = "Electronics", Price = 89.99m, Stock = 67, Rating = 4.6 },
+            new() { Id = 6, Name = "Monitor Stand", Category = "Furniture", Price = 149.99m, Stock = 31, Rating = 4.3 },
+            new() { Id = 7, Name = "Mechanical Keyboard", Category = "Electronics", Price = 179.99m, Stock = 58, Rating = 4.8 }
+        }.AsQueryable();
+
+        _stringOps = new()
+        {
+            new StringContainsOperator(),
+            new StringEqualsOperator(),
+            new StringStartsWithOperator(),
+            new StringEndsWithOperator()
+        };
+
+        _numericOps = new()
+        {
+            new NumericEqualsOperator<int>(),
+            new NumericNotEqualsOperator<int>(),
+            new NumericGreaterThanOperator<int>(),
+            new NumericGreaterThanOrEqualOperator<int>(),
+            new NumericLessThanOperator<int>(),
+            new NumericLessThanOrEqualOperator<int>()
+        };
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_rerenderPending)
+        {
+            _rerenderPending = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // Section A clear methods
+    private Task ClearEmployeeFilters() => _employeeGrid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
+    private Task ClearProductFilters() => _productGrid?.ClearAllFiltersAsync() ?? Task.CompletedTask;
+
+    // Ad hoc filtering
+    private IQueryable<Employee> BuildAdHocEmployeeQuery()
+    {
+        var q = Employees;
+        if (!string.IsNullOrWhiteSpace(_adHocFirstName))
+        {
+            var op = _stringOps.First(o => o.Name == _adHocFirstNameOperator);
+            q = op.Apply(q, e => e.FirstName, _adHocFirstName);
+        }
+        if (!string.IsNullOrWhiteSpace(_adHocDepartment))
+        {
+            var op = _stringOps.First(o => o.Name == _adHocDepartmentOperator);
+            q = op.Apply(q, e => e.Department, _adHocDepartment);
+        }
+        if (_adHocSalaryValue.HasValue)
+        {
+            var op = _numericOps.First(o => o.Name == _adHocSalaryOperator);
+            q = op.Apply(q, e => e.Salary, _adHocSalaryValue.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(_adHocActive))
+        {
+            var isActive = bool.Parse(_adHocActive);
+            q = q.Where(e => e.IsActive == isActive);
+        }
+        return q;
+    }
+
+    private void ClearAdHocEmployeeFilters()
+    {
+        _adHocFirstName = null;
+        _adHocDepartment = null;
+        _adHocSalaryValue = null;
+        _adHocActive = null;
+        _adHocSalaryOperator = "Greater Than or Equal";
+        StateHasChanged();
+    }
+
+    // Models
+    public class Employee
+    {
+        public int Id { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public int Salary { get; set; }
+        public DateTime HireDate { get; set; }
+        public bool IsActive { get; set; }
+    }
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public double Rating { get; set; }
+    }
+}

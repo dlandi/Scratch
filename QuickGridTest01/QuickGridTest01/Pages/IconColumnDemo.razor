@@ -83,6 +83,49 @@
             </QuickGrid>
         </div>
     </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from pure mapping functions to demo usage</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Core Mapping Contracts</div>
+                <div class="layer-content"><code>IconMapper : Func&lt;TValue,string&gt;</code>, <code>ColorMapper : Func&lt;TValue,string&gt;</code>, <code>TooltipMapper : Func&lt;TValue,string&gt;</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Formatting & Accessibility</div>
+                <div class="layer-content">Tooltip strategy (title fallback to <code>ToString()</code>), <code>aria-hidden</code> on icons</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Component Infrastructure</div>
+                <div class="layer-content">Parameter validation (<code>OnInitialized</code>), property change detection (<code>OnParametersSet</code>), sort builder (<code>BuildSort()</code>)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Column Component</div>
+                <div class="layer-content"><code>IconColumn&lt;TGridItem, TValue&gt;</code> render pipeline (<code>CellContent</code>) with compact DOM</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demo</div>
+                <div class="layer-content"><code>TaskItem</code>, <code>ServerInfo</code>, mapping functions (<code>GetStatusIcon</code>, <code>GetPriorityIcon</code>, <code>GetHealthIcon</code>, color + tooltip)</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Compact Render</div><div class="feature-desc">Single wrapper + icon (+ optional text) for minimal DOM</div></div>
+            <div class="feature-card"><div class="feature-title">Sortable</div><div class="feature-desc">Sorts by the underlying value via grid sort builder</div></div>
+            <div class="feature-card"><div class="feature-title">Mappers</div><div class="feature-desc">Separate icon, color, and tooltip logic via delegates</div></div>
+            <div class="feature-card"><div class="feature-title">Optional Text</div><div class="feature-desc"><code>ShowValue</code> toggles value text next to the icon</div></div>
+            <div class="feature-card"><div class="feature-title">A11y-friendly</div><div class="feature-desc">Title tooltip for context, icon marked <code>aria-hidden</code></div></div>
+            <div class="feature-card"><div class="feature-title">Type-Safe</div><div class="feature-desc">Generic <code>TGridItem</code>/<code>TValue</code> with QuickGrid integration</div></div>
+        </div>
+    </section>
 </div>
 
 @code {

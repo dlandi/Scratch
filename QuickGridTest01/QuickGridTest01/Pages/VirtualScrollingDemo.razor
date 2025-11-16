@@ -185,6 +185,49 @@
         </ul>
         <p class="qg-text-secondary">Scenario 2 render time uses a <code>Stopwatch</code>; estimate cards remain heuristic. Adjust constants to calibrate.</p>
     </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from estimators and telemetry to column component and demo</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Core Models & Math</div>
+                <div class="layer-content"><code>VirtualizationComparison</code> (projections), <code>ViewportInfo</code> (range/scroll), <code>VirtualizationScenario</code> (config)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Estimator & Telemetry</div>
+                <div class="layer-content"><code>VirtualizationEstimator</code> (time/DOM/memory), <code>VirtualizationPerformanceMonitor</code> (FPS/render timing)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Column Infrastructure</div>
+                <div class="layer-content"><code>VirtualColumn&lt;TGridItem,TValue&gt;</code>: compiled accessor, <code>BuildFormatter()</code>, minimal DOM, sorting</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Grid Integration</div>
+                <div class="layer-content"><code>Virtualize&lt;TItem&gt;</code> within <code>QuickGrid</code> (ItemSize, Overscan, keys)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demo</div>
+                <div class="layer-content">Dataset generators, scenarios 1–3, scroll controls, estimate cards</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Viewport Virtualization</div><div class="feature-desc">Renders only visible window via <code>Virtualize</code> with ItemSize/Overscan</div></div>
+            <div class="feature-card"><div class="feature-title">Lightweight Cells</div><div class="feature-desc"><code>VirtualColumn</code> uses compiled accessors and minimal DOM</div></div>
+            <div class="feature-card"><div class="feature-title">Estimator</div><div class="feature-desc">Projects time, DOM, and memory to guide thresholds and tradeoffs</div></div>
+            <div class="feature-card"><div class="feature-title">Telemetry</div><div class="feature-desc">Simple FPS/render metrics via <code>VirtualizationPerformanceMonitor</code></div></div>
+            <div class="feature-card"><div class="feature-title">Sorting Preserved</div><div class="feature-desc">Column sorting retained through expression metadata</div></div>
+            <div class="feature-card"><div class="feature-title">Guidance</div><div class="feature-desc">Rules of thumb: &gt;500 useful, &gt;2K essential, &lt;100 skip</div></div>
+        </div>
+    </section>
 </div>
 
 @code {

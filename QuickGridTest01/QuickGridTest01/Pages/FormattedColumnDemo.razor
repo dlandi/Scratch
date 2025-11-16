@@ -182,6 +182,49 @@
             </div>
         </div>
     </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from helpers and formatter library to the column and demo</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Core Helpers & Contracts</div>
+                <div class="layer-content"><code>Func&lt;object?, string&gt;</code> formatter contract, <code>FormatterHelpers</code> (<code>ToDecimal</code>, <code>ToDouble</code>, <code>ApplyFormat</code>, <code>ChainFormatters</code>, <code>WithNullDisplay</code>, <code>CleanString</code>)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Formatter Library</div>
+                <div class="layer-content"><code>CurrencyFormatters</code>, <code>NumericFormatters</code>, <code>DateTimeFormatters</code>, <code>SpecializedFormatters</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Component Infrastructure</div>
+                <div class="layer-content"><code>FormattedValueColumn&lt;TGridItem,TValue&gt;</code>: compiled property getter, <code>Formatter</code> invocation, <code>CultureName</code> re-render, default sorting</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Demo Switching UI</div>
+                <div class="layer-content">Selectors map to delegates (<code>DateTimeSelectionFormatter</code>, <code>NumericSelectionFormatter0/1</code>, currency/percentage/file size/phone)</div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demo Data</div>
+                <div class="layer-content"><code>Transaction</code>, <code>Product</code>, <code>Employee</code>, <code>PerformanceMetric</code>, <code>LogEntry</code></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Culture-Aware</div><div class="feature-desc">Culture/date/numeric switching recomputes formatting at runtime</div></div>
+            <div class="feature-card"><div class="feature-title">Delegate-Based</div><div class="feature-desc">Pluggable <code>Func&lt;object?,string&gt;</code> formatters keep markup clean</div></div>
+            <div class="feature-card"><div class="feature-title">Type-Safe</div><div class="feature-desc">Property expressions compiled once; sorting preserved</div></div>
+            <div class="feature-card"><div class="feature-title">Low Allocation</div><div class="feature-desc">Only final strings are emitted; no reflection in render</div></div>
+            <div class="feature-card"><div class="feature-title">Rich Library</div><div class="feature-desc">Currency, numeric, date/time, size, duration, phone, yes/no</div></div>
+            <div class="feature-card"><div class="feature-title">Composable</div><div class="feature-desc">Helpers enable chaining and null-display fallbacks</div></div>
+        </div>
+    </section>
 </div>
 
 @code {

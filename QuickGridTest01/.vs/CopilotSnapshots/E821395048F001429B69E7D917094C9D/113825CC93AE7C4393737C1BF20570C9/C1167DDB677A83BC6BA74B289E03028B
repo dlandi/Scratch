@@ -1,0 +1,34 @@
+﻿/* FilterableColumnDemo - Component-specific extensions using Refined Minimalism design system */
+
+/* Unified toolbar grid */
+.filter-toolbar { display:grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: var(--space-12) var(--space-16); margin:0 0 var(--space-16); align-items:start; }
+.ft-group { display:flex; flex-direction:column; gap: var(--space-4); }
+.ft-controls { display:flex; gap: var(--space-6); align-items:center; }
+.ft-operator { min-width:110px; }
+.filter-value { flex:1; }
+.filter-checkbox { width:1.25rem; height:1.25rem; cursor:pointer; margin-left: var(--space-4); }
+
+/* Active filter highlight */
+.filter-toolbar .ft-item.active, .ft-group.active { outline:1px solid var(--color-accent-primary); outline-offset:2px; border-radius:var(--card-radius); }
+
+.ft-actions { grid-column:1 / -1; display:flex; justify-content:flex-end; margin-top: var(--space-8); }
+
+/* Ad hoc filter bar */
+.filter-bar { display:flex; flex-wrap:wrap; gap: var(--space-12); align-items:flex-end; }
+.filter-item { display:flex; flex-direction:column; min-width:200px; gap: var(--space-4); }
+.filter-item .operator-select { margin:0; }
+
+/* Results info card override */
+.results-info { font-size: var(--font-size-sm); color: var(--color-text-secondary); border-left:1px solid var(--color-border-emphasis); background-color: var(--color-canvas); }
+
+/* Status badges mapped to qg-badge system */
+.status-badge { display:inline-flex; align-items:center; font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); letter-spacing: var(--letter-spacing-wide); padding: var(--space-2) var(--space-6); border-radius:0.75rem; }
+.status-active { background-color: var(--color-success-subtle); color: var(--color-success); border:1px solid var(--color-success-border); }
+.status-inactive { background-color: var(--color-error-subtle); color: var(--color-error); border:1px solid var(--color-error-border); }
+
+/* Normalize form control heights for alignment */
+.filter-toolbar select.qg-select, .filter-toolbar .qg-input { height: 2.5rem; } /* matches grid header height token */
+.filter-bar .qg-select, .filter-bar .qg-input { height:2.5rem; }
+
+@media (max-width:1024px){ .filter-toolbar { grid-template-columns: repeat(auto-fill,minmax(200px,1fr)); } }
+@media (max-width:768px){ .filter-bar { gap: var(--space-8); } .filter-item { flex:1 1 160px; } .filter-toolbar { grid-template-columns:1fr; } }

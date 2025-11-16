@@ -1,0 +1,324 @@
+﻿@page "/optimized-column-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.CustomColumns
+@using System.Diagnostics
+
+<PageTitle>Optimized Render Tree Column Demo</PageTitle>
+
+<div class="demo-container">
+    <header class="demo-header">
+        <h1>Optimized Render Tree Column</h1>
+        <p class="intro-text">Demonstrates sequence discipline, cached classes, minimal DOM, and compiled accessors using a conservative, standardized layout.</p>
+    </header>
+
+    <div class="demo-description">
+        <h3>Why an Optimized Column?</h3>
+        <p><strong>Goal:</strong> Reduce CPU, memory, and DOM pressure for data-heavy grids by eliminating avoidable costs.</p>
+        <p><strong>Techniques:</strong> Compiled accessors, deterministic sequences, cached class strings, and minimal DOM.</p>
+        <p><strong>Use Cases:</strong> High-frequency dashboards, virtualization, and large analytics tables.</p>
+    </div>
+
+    <section class="demo-section">
+        <h2>Performance Benchmarks</h2>
+        
+        <button class="btn-benchmark" @onclick="RunBenchmarks">
+            @if (_isRunningBenchmarks)
+            {
+                <span>Running Benchmarks...</span>
+            }
+            else
+            {
+                <span>Run Performance Benchmarks</span>
+            }
+        </button>
+
+        @if (_propertyBenchmark != null)
+        {
+            <div class="benchmark-results">
+                <div class="benchmark-card">
+                    <h5>Property Access (Expression Compilation)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Reflection:</label>
+                            <span class="value-bad">@_propertyBenchmark.ReflectionNsPerCall.ToString("F1") ns/call</span>
+                        </div>
+                        <div class="metric">
+                            <label>Compiled:</label>
+                            <span class="value-good">@_propertyBenchmark.CompiledNsPerCall.ToString("F1") ns/call</span>
+                        </div>
+                        <div class="metric">
+                            <label>Speedup:</label>
+                            <span class="value-highlight">@_propertyBenchmark.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>Class String Computation (Caching)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Uncached:</label>
+                            <span class="value-bad">@_classBenchmark!.UncachedTimeMs.ToString("F2") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Cached:</label>
+                            <span class="value-good">@_classBenchmark.CachedTimeMs.ToString("F2") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Speedup:</label>
+                            <span class="value-highlight">@_classBenchmark.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                        <div class="metric">
+                            <label>Cache Size:</label>
+                            <span>@_classBenchmark.CacheSize / @_classBenchmark.MaxCacheSize combinations</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>DOM Element Count (Minimal Structure)</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Naive (4 per cell):</label>
+                            <span class="value-bad">@_domCount!.NaiveElements.ToString("N0") elements</span>
+                        </div>
+                        <div class="metric">
+                            <label>Optimized (1 per cell):</label>
+                            <span class="value-good">@_domCount.OptimizedElements.ToString("N0") elements</span>
+                        </div>
+                        <div class="metric">
+                            <label>Reduction:</label>
+                            <span class="value-highlight">@_domCount.ReductionPercent.ToString("F1")% fewer elements</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="benchmark-card">
+                    <h5>Estimated Full Grid Render</h5>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <label>Grid Size:</label>
+                            <span>@_gridEstimate!.Rows rows × @_gridEstimate.Columns cols = @_gridEstimate.TotalCells.ToString("N0") cells</span>
+                        </div>
+                        <div class="metric">
+                            <label>Naive:</label>
+                            <span class="value-bad">@_gridEstimate.NaiveRenderTimeMs.ToString("F1") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Optimized:</label>
+                            <span class="value-good">@_gridEstimate.OptimizedRenderTimeMs.ToString("F1") ms</span>
+                        </div>
+                        <div class="metric">
+                            <label>Overall Speedup:</label>
+                            <span class="value-highlight">@_gridEstimate.SpeedupFactor.ToString("F1")x faster</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </section>
+
+    <section class="demo-section">
+        <h2>Side-by-Side Comparison</h2>
+        <p class="section-description">Both grids show the same data. The naive implementation uses reflection, no caching, and excessive DOM elements.</p>
+
+        <div class="grid-comparison">
+            <div class="grid-container">
+                <h5>Optimized Column</h5>
+                <p class="grid-stats">1 DOM element per cell, compiled accessors, cached classes</p>
+                <QuickGrid Items="@products" Class="demo-grid">
+                    <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                    <OptimizedColumn TGridItem="Product" TValue="string"
+                                    Property="@(p => p.Name)"
+                                    Title="Product"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="decimal"
+                                    Property="@(p => p.Price)"
+                                    Format="C2"
+                                    Title="Price"
+                                    HighlightCondition="@(p => p > 500)"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="int"
+                                    Property="@(p => p.Stock)"
+                                    Title="Stock"
+                                    WarningCondition="@(s => s < 25)"
+                                    ErrorCondition="@(s => s == 0)"
+                                    ShowTooltip="true" />
+                    <OptimizedColumn TGridItem="Product" TValue="double"
+                                    Property="@(p => p.Rating)"
+                                    Format="F1"
+                                    Title="Rating"
+                                    HighlightCondition="@(r => r >= 4.5)"
+                                    ShowTooltip="true" />
+                </QuickGrid>
+            </div>
+
+            <div class="grid-container">
+                <h5>Naive Column</h5>
+                <p class="grid-stats">4 DOM elements per cell, reflection, no caching</p>
+                <QuickGrid Items="@products" Class="demo-grid">
+                    <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                    <NaiveColumn TGridItem="Product" TValue="string"
+                                Property="@(p => p.Name)"
+                                Title="Product"
+                                ShowTooltip="true" />
+                    <NaiveColumn TGridItem="Product" TValue="decimal"
+                                Property="@(p => p.Price)"
+                                Format="C2"
+                                Title="Price"
+                                HighlightCondition="@(p => p > 500)"
+                                ShowTooltip="true" />
+                    <NaiveColumn TGridItem="Product" TValue="int"
+                                Property="@(p => p.Stock)"
+                                Title="Stock"
+                                WarningCondition="@(s => s < 25)"
+                                ErrorCondition="@(s => s == 0)"
+                                ShowTooltip="true" />
+                    <NaiveColumn TGridItem="Product" TValue="double"
+                                Property="@(p => p.Rating)"
+                                Format="F1"
+                                Title="Rating"
+                                HighlightCondition="@(r => r >= 4.5)"
+                                ShowTooltip="true" />
+                </QuickGrid>
+            </div>
+        </div>
+    </section>
+
+    <section class="demo-section">
+        <h2>Technique Explanations</h2>
+        
+        <div class="technique-cards">
+            <div class="technique-card">
+                <h5>Sequence Number Management</h5>
+                <p>Uses sequence++ pattern for deterministic numbering to help Blazor's diffing algorithm.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>int sequence = 0;
+builder.OpenElement(sequence++, "div");
+builder.AddAttribute(sequence++, "class", "...");
+builder.AddContent(sequence++, value);</pre>
+                </div>
+            </div>
+
+            <div class="technique-card">
+                <h5>Cached Class Computation</h5>
+                <p>Caches computed CSS class strings for small combination spaces to avoid repeated allocations.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>var key = (highlight, warning, error);
+if (!_cache.TryGetValue(key, out var css))
+{
+    css = BuildClass(highlight, warning, error);
+    _cache[key] = css;
+}
+return css;</pre>
+                </div>
+            </div>
+
+            <div class="technique-card">
+                <h5>Minimal DOM Manipulation</h5>
+                <p>Renders a single wrapper element per cell with conditional attributes instead of nested wrappers.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>builder.OpenElement(0, "div");
+builder.AddAttribute(1, "class", cssClass);
+builder.AddContent(2, value);
+builder.CloseElement();</pre>
+                </div>
+            </div>
+
+            <div class="technique-card">
+                <h5>Expression Compilation</h5>
+                <p>Compiles property expressions once into delegates for near-native access speed.</p>
+                <div class="code-example">
+                    <div class="code-label">Example</div>
+                    <pre>_compiled = Property.Compile();
+var value = _compiled(item);</pre>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    private IQueryable<Product> products = default!;
+    private bool _isRunningBenchmarks = false;
+
+    // Benchmark results
+    private BenchmarkResult? _propertyBenchmark;
+    private CacheBenchmarkResult? _classBenchmark;
+    private DomCountResult? _domCount;
+    private GridRenderEstimate? _gridEstimate;
+
+    protected override void OnInitialized()
+    {
+        InitializeProductData();
+    }
+
+    private void InitializeProductData()
+    {
+        var productList = new List<Product>
+        {
+            new() { Id = 1, Name = "Laptop Pro 15\"", Price = 1299.99m, Stock = 45, Rating = 4.5 },
+            new() { Id = 2, Name = "Office Chair Executive", Price = 399.99m, Stock = 23, Rating = 4.2 },
+            new() { Id = 3, Name = "Wireless Mouse", Price = 49.99m, Stock = 150, Rating = 4.7 },
+            new() { Id = 4, Name = "Desk Lamp LED", Price = 79.99m, Stock = 0, Rating = 4.0 },
+            new() { Id = 5, Name = "USB-C Hub 7-Port", Price = 89.99m, Stock = 67, Rating = 4.6 },
+            new() { Id = 6, Name = "Monitor Stand", Price = 149.99m, Stock = 31, Rating = 4.3 },
+            new() { Id = 7, Name = "Mechanical Keyboard", Price = 179.99m, Stock = 58, Rating = 4.8 },
+            new() { Id = 8, Name = "Ergonomic Mat", Price = 59.99m, Stock = 12, Rating = 4.1 },
+            new() { Id = 9, Name = "Webcam 4K", Price = 119.99m, Stock = 89, Rating = 4.4 },
+            new() { Id = 10, Name = "File Cabinet", Price = 299.99m, Stock = 8, Rating = 4.2 },
+            new() { Id = 11, Name = "Desk Organizer", Price = 34.99m, Stock = 200, Rating = 4.6 },
+            new() { Id = 12, Name = "Cable Management", Price = 24.99m, Stock = 150, Rating = 4.5 },
+            new() { Id = 13, Name = "Standing Desk", Price = 599.99m, Stock = 15, Rating = 4.7 },
+            new() { Id = 14, Name = "Bookshelf", Price = 189.99m, Stock = 28, Rating = 4.3 },
+            new() { Id = 15, Name = "Printer All-in-One", Price = 249.99m, Stock = 42, Rating = 4.1 },
+        };
+        products = productList.AsQueryable();
+    }
+
+    private async Task RunBenchmarks()
+    {
+        _isRunningBenchmarks = true;
+        StateHasChanged();
+
+        await Task.Delay(100);
+
+        var sampleProduct = products.First();
+        _propertyBenchmark = PerformanceBenchmark.BenchmarkPropertyAccess(
+            sampleProduct,
+            p => p.Price,
+            iterations: 100000);
+
+        var highlightStates = new[] { false, true, false, true, false, true, false, true };
+        var warningStates = new[] { false, false, true, true, false, false, true, true };
+        var errorStates = new[] { false, false, false, false, true, true, true, true };
+        
+        _classBenchmark = PerformanceBenchmark.BenchmarkClassCaching(
+            highlightStates,
+            warningStates,
+            errorStates,
+            iterations: 100000);
+
+        var cellCount = products.Count() * 4; // 4 data columns
+        _domCount = PerformanceBenchmark.CompareDomElements(cellCount);
+
+        _gridEstimate = PerformanceBenchmark.EstimateGridRenderPerformance(
+            rows: 1000,
+            columns: 10);
+
+        _isRunningBenchmarks = false;
+        StateHasChanged();
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public double Rating { get; set; }
+    }
+}

@@ -1,0 +1,27 @@
+﻿/* FilterableColumnDemo - Component-specific extensions using Refined Minimalism design system */
+
+/* Toolbar items inside qg-card context */
+.filter-toolbar { display:flex; flex-wrap:wrap; gap: var(--space-8); margin:0 0 var(--space-8); align-items:flex-end; }
+.filter-toolbar .ft-item { display:flex; align-items:flex-end; gap: var(--space-6); }
+.filter-toolbar .ft-item.active { outline:1px solid var(--color-accent-primary); outline-offset:2px; border-radius:var(--card-radius); }
+.ft-actions { margin-left:auto; display:flex; gap: var(--space-8); }
+
+/* Ad hoc filter bar */
+.filter-bar { display:flex; flex-wrap:wrap; gap: var(--space-12); align-items:flex-end; }
+.filter-item { display:flex; flex-direction:column; min-width:160px; }
+.filter-item .operator-select { margin-bottom: var(--space-4); }
+.filter-item label { /* replaced by .qg-label when converted in markup */ }
+
+/* Results info card override */
+.results-info { font-size: var(--font-size-sm); color: var(--color-text-secondary); border-left:1px solid var(--color-border-emphasis); background-color: var(--color-canvas); }
+
+/* Status badges mapped to qg-badge system */
+.status-badge { display:inline-block; font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); letter-spacing: var(--letter-spacing-wide); padding: var(--space-2) var(--space-6); border-radius:0.75rem; }
+.status-active { background-color: var(--color-success-subtle); color: var(--color-success); border:1px solid var(--color-success-border); }
+.status-inactive { background-color: var(--color-error-subtle); color: var(--color-error); border:1px solid var(--color-error-border); }
+
+/* Responsive tweaks */
+@media (max-width:768px) {
+  .filter-bar { gap: var(--space-8); }
+  .filter-item { flex:1 1 140px; }
+}

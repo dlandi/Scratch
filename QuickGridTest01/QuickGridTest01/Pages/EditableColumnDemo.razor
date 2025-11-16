@@ -130,6 +130,49 @@
             </div>
         </div>
     </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Layers</h2>
+            <p class="qg-section-description">Unit-test-first layering from core contracts to demo usage</p>
+        </div>
+        <div class="architecture-layers">
+            <div class="layer">
+                <div class="layer-name">Layer 1: Core State & Contracts</div>
+                <div class="layer-content"><code>EditState&lt;TValue&gt;</code>, <code>ValidationResult</code>, <code>IValidator&lt;TValue&gt;</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 2: Built-in Validators</div>
+                <div class="layer-content"><code>RequiredStringValidator</code>, <code>StringLengthValidator</code>, <code>RangeValidator&lt;T&gt;</code>, <code>PatternValidator</code>, <code>PositiveNumberValidator&lt;T&gt;</code>, <code>PastDateValidator</code>, <code>FutureDateValidator</code>, <code>DateRangeValidator</code>, <code>UniqueValueValidator&lt;T&gt;</code>, <code>CustomValidator&lt;T&gt;</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 3: Component Infrastructure</div>
+                <div class="layer-content"><code>BuildPropertySetter()</code>, <code>UpdateStateValueFromEvent()</code>, <code>OnInputChanged()</code>/<code>OnInputWithDebounce()</code>, <code>ValidateAsync()</code> (custom + DataAnnotations), <code>CellValueChangedArgs&lt;TGridItem, object&gt;</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 4: Column Component</div>
+                <div class="layer-content"><code>EditableColumn&lt;TGridItem, TValue&gt;</code></div>
+            </div>
+            <div class="layer">
+                <div class="layer-name">Layer 5: Demo</div>
+                <div class="layer-content"><code>Employee</code>, <code>Product</code>, change log</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Key Features</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-title">Debounced Validation</div><div class="feature-desc">Per-row timers with UI-thread marshalling via <code>InvokeAsync</code></div></div>
+            <div class="feature-card"><div class="feature-title">DataAnnotations Bridge</div><div class="feature-desc">Merges custom validators with attributes when <code>UseDataAnnotations</code> is enabled</div></div>
+            <div class="feature-card"><div class="feature-title">Compiled Accessors</div><div class="feature-desc">Getter/setter built from expressions — no reflection during edits</div></div>
+            <div class="feature-card"><div class="feature-title">Inline or Edit Mode</div><div class="feature-desc">Seamless inline commit (<code>CommitOnInput</code>) or explicit Save/Cancel with Enter/Escape</div></div>
+            <div class="feature-card"><div class="feature-title">Unified Change Event</div><div class="feature-desc"><code>OnValueChanged</code> raises old/new values and property name for logging</div></div>
+            <div class="feature-card"><div class="feature-title">Input Inference</div><div class="feature-desc">Chooses input type by <code>TValue</code> (text/number/date/bool) with optional <code>Format</code></div></div>
+        </div>
+    </section>
 </div>
 
 @code {
