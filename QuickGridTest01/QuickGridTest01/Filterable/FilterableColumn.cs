@@ -172,16 +172,23 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     public override void BuildFilterToolbar(RenderTreeBuilder builder)
     {
         int seq = 0;
+        // Wrapper group
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "ft-inline");
+        builder.AddAttribute(seq++, "class", "ft-group");
 
+        // Label using design system style
         builder.OpenElement(seq++, "label");
-        builder.AddAttribute(seq++, "class", "ft-label");
+        builder.AddAttribute(seq++, "class", "qg-label");
         builder.AddContent(seq++, Title);
         builder.CloseElement();
 
+        // Controls row
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "ft-controls");
+
+        // Operator select
         builder.OpenElement(seq++, "select");
-        builder.AddAttribute(seq++, "class", "ft-operator");
+        builder.AddAttribute(seq++, "class", "qg-select ft-operator");
         builder.AddAttribute(seq++, "value", _selectedOperator?.Name ?? "");
         builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnOperatorChangedAsync));
         foreach (var op in FilterOperators)
@@ -193,9 +200,11 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
         }
         builder.CloseElement();
 
+        // Value input
         RenderValueInput(builder, ref seq);
 
-        builder.CloseElement();
+        builder.CloseElement(); // ft-controls
+        builder.CloseElement(); // ft-group
     }
 
     public override void ToggleFilter() => ToggleFilterUI();
@@ -206,17 +215,28 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     private void RenderValueInput(RenderTreeBuilder builder, ref int sequence)
     {
         var inputType = GetInputType();
+        if (inputType == "checkbox")
+        {
+            builder.OpenElement(sequence++, "input");
+            builder.AddAttribute(sequence++, "type", "checkbox");
+            builder.AddAttribute(sequence++, "class", "filter-value filter-checkbox");
+            if (_hasFilterValue && _filterValue is not null && _filterValue is bool b && b)
+            {
+                builder.AddAttribute(sequence++, "checked", true);
+            }
+            builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
+            builder.CloseElement();
+            return;
+        }
         builder.OpenElement(sequence++, "input");
         builder.AddAttribute(sequence++, "type", inputType);
-        builder.AddAttribute(sequence++, "class", "filter-value");
+        builder.AddAttribute(sequence++, "class", "qg-input filter-value");
         builder.AddAttribute(sequence++, "placeholder", "Filter value...");
         if (_hasFilterValue && _filterValue is not null)
         {
             builder.AddAttribute(sequence++, "value", FormatValueForInput(_filterValue));
         }
-        // Auto-apply while typing
         builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
-        // Fallback for controls that only raise change
         builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
         builder.CloseElement();
     }

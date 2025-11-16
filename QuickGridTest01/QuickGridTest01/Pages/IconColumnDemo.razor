@@ -4,91 +4,84 @@
 
 <PageTitle>Icon Column Demo</PageTitle>
 
-<div class="demo-container">
-    <header class="demo-header">
-        <h1>Icon Column Demonstrations</h1>
-        <p class="intro-text">
-            This page demonstrates a reusable <code>IconColumn&lt;TGridItem,TValue&gt;</code> for QuickGrid.
-            Icons, colors, and optional tooltips are mapped from values via simple delegates. The layout and
-            styling follow the same conservative aesthetic as other demos.
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Icon Column Demonstrations</h1>
+        <p class="qg-page-subtitle">
+            Reusable <code>IconColumn&lt;TGridItem,TValue&gt;</code> with icon/color/tooltip mappers. Refined Minimalism layout and tokens.
         </p>
     </header>
 
-    <div class="demo-description">
-        <h3>About the Icon Column</h3>
-        <p><strong>Problem:</strong> Repeated conditional icon + color + tooltip logic in grid templates quickly becomes verbose and inconsistent. Each page duplicates mapping code for status, priority, health, etc.</p>
-        <p><strong>Solution:</strong> <code>IconColumn&lt;TGridItem,TValue&gt;</code> centralizes icon display concerns—given a property expression and mapper delegates (icon, color, tooltip, optional text) it renders a compact cell with inferred sort expression.</p>
-        <p><strong>Features:</strong></p>
-        <ul>
-            <li>Icon/text toggle via <code>ShowValue</code>.</li>
-            <li>Independent mappers: <code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>.</li>
-            <li>Sortable by underlying value.</li>
-            <li>Lightweight render tree (single wrapper + icon + optional text).</li>
-        </ul>
-    </div>
-
-    <section class="demo-section">
-        <h2>Example 1: Task Status Grid</h2>
-        <p class="section-description">
-            Task rows with icon and color indicators for status and priority. Values remain readable
-            and sorting uses the underlying values.
-        </p>
-        <QuickGrid Items="@tasks" Class="demo-grid">
-            <PropertyColumn Property="@(t => t.Id)" Title="ID" />
-            <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
-            
-            <!-- Custom Icon Column for Status -->
-            <IconColumn 
-                TGridItem="TaskItem" 
-                TValue="TaskStatus"
-                Property="@(t => t.Status)"
-                IconMapper="@GetStatusIcon"
-                ColorMapper="@GetStatusColor"
-                TooltipMapper="@GetStatusTooltip"
-                Title="Status"
-                Sortable="true"
-                ShowValue="true" />
-            
-            <!-- Custom Icon Column for Priority -->
-            <IconColumn 
-                TGridItem="TaskItem" 
-                TValue="Priority"
-                Property="@(t => t.Priority)"
-                IconMapper="@GetPriorityIcon"
-                ColorMapper="@GetPriorityColor"
-                Title="Priority"
-                Sortable="true"
-                ShowValue="true" />
-            
-            <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
-            <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="yyyy-MM-dd" />
-        </QuickGrid>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">About the Icon Column</h2>
+            <p class="qg-section-description">
+                Centralizes icon display logic via mapper delegates (<code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>, optional value text). Sorts by the underlying value and renders a compact cell.
+            </p>
+        </div>
     </section>
 
-    <section class="demo-section">
-        <h2>Example 2: Server Health Grid</h2>
-        <p class="section-description">
-            Icon-only health status column with tooltips for additional context.
-        </p>
-        <QuickGrid Items="@servers" Class="demo-grid">
-            <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
-            
-            <!-- Icon-only column (no value text) -->
-            <IconColumn 
-                TGridItem="ServerInfo" 
-                TValue="HealthStatus"
-                Property="@(s => s.Health)"
-                IconMapper="@GetHealthIcon"
-                ColorMapper="@GetHealthColor"
-                TooltipMapper="@GetHealthTooltip"
-                Title="Health"
-                Sortable="true"
-                ShowValue="false" />
-            
-            <PropertyColumn Property="@(s => s.CpuUsage)" Title="CPU %" Format="F1" />
-            <PropertyColumn Property="@(s => s.MemoryUsage)" Title="Memory %" Format="F1" />
-            <PropertyColumn Property="@(s => s.LastCheck)" Title="Last Check" Format="HH:mm:ss" />
-        </QuickGrid>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Example 1: Task Status Grid</h2>
+            <p class="qg-section-description">
+                Icon and color indicators for status and priority. Values remain readable and sorting uses underlying values.
+            </p>
+        </div>
+        <div class="qg-grid-container">
+            <QuickGrid Items="@tasks" Class="qg-grid qg-grid-auto">
+                <PropertyColumn Property="@(t => t.Id)" Title="ID" />
+                <PropertyColumn Property="@(t => t.TaskName)" Title="Task" Sortable="true" />
+                <IconColumn 
+                    TGridItem="TaskItem" 
+                    TValue="TaskStatus"
+                    Property="@(t => t.Status)"
+                    IconMapper="@GetStatusIcon"
+                    ColorMapper="@GetStatusColor"
+                    TooltipMapper="@GetStatusTooltip"
+                    Title="Status"
+                    Sortable="true"
+                    ShowValue="true" />
+                <IconColumn 
+                    TGridItem="TaskItem" 
+                    TValue="Priority"
+                    Property="@(t => t.Priority)"
+                    IconMapper="@GetPriorityIcon"
+                    ColorMapper="@GetPriorityColor"
+                    Title="Priority"
+                    Sortable="true"
+                    ShowValue="true" />
+                <PropertyColumn Property="@(t => t.AssignedTo)" Title="Assigned To" />
+                <PropertyColumn Property="@(t => t.DueDate)" Title="Due Date" Format="yyyy-MM-dd" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Example 2: Server Health Grid</h2>
+            <p class="qg-section-description">
+                Icon-only health status column with tooltips for additional context.
+            </p>
+        </div>
+        <div class="qg-grid-container">
+            <QuickGrid Items="@servers" Class="qg-grid qg-grid-auto">
+                <PropertyColumn Property="@(s => s.ServerName)" Title="Server" Sortable="true" />
+                <IconColumn 
+                    TGridItem="ServerInfo" 
+                    TValue="HealthStatus"
+                    Property="@(s => s.Health)"
+                    IconMapper="@GetHealthIcon"
+                    ColorMapper="@GetHealthColor"
+                    TooltipMapper="@GetHealthTooltip"
+                    Title="Health"
+                    Sortable="true"
+                    ShowValue="false" />
+                <PropertyColumn Property="@(s => s.CpuUsage)" Title="CPU %" Format="F1" />
+                <PropertyColumn Property="@(s => s.MemoryUsage)" Title="Memory %" Format="F1" />
+                <PropertyColumn Property="@(s => s.LastCheck)" Title="Last Check" Format="HH:mm:ss" />
+            </QuickGrid>
+        </div>
     </section>
 </div>
 
@@ -98,7 +91,6 @@
 
     protected override void OnInitialized()
     {
-        // Initialize task data
         var taskList = new List<TaskItem>
         {
             new() { Id = 1, TaskName = "Implement authentication", Status = TaskStatus.InProgress, Priority = Priority.High, AssignedTo = "Alice", DueDate = DateTime.Now.AddDays(2) },
@@ -110,7 +102,6 @@
         };
         tasks = taskList.AsQueryable();
 
-        // Initialize server data
         var serverList = new List<ServerInfo>
         {
             new() { ServerName = "web-01", Health = HealthStatus.Healthy, CpuUsage = 45.2, MemoryUsage = 62.8, LastCheck = DateTime.Now.AddMinutes(-2) },
@@ -134,11 +125,11 @@
 
     private string GetStatusColor(TaskStatus status) => status switch
     {
-        TaskStatus.Pending => "#6c757d",
-        TaskStatus.InProgress => "#0d6efd",
-        TaskStatus.Completed => "#198754",
-        TaskStatus.Blocked => "#dc3545",
-        _ => "#6c757d"
+        TaskStatus.Pending => "var(--color-text-tertiary)",
+        TaskStatus.InProgress => "var(--color-accent-primary)",
+        TaskStatus.Completed => "var(--color-success)",
+        TaskStatus.Blocked => "var(--color-error)",
+        _ => "var(--color-text-tertiary)"
     };
 
     private string GetStatusTooltip(TaskStatus status) => status switch
@@ -161,10 +152,10 @@
 
     private string GetPriorityColor(Priority priority) => priority switch
     {
-        Priority.Low => "#198754",
-        Priority.Medium => "#ffc107",
-        Priority.High => "#dc3545",
-        _ => "#6c757d"
+        Priority.Low => "var(--color-success)",
+        Priority.Medium => "var(--color-warning)",
+        Priority.High => "var(--color-error)",
+        _ => "var(--color-text-tertiary)"
     };
 
     // Health Status Icon Mappers
@@ -178,10 +169,10 @@
 
     private string GetHealthColor(HealthStatus health) => health switch
     {
-        HealthStatus.Healthy => "#198754",
-        HealthStatus.Warning => "#ffc107",
-        HealthStatus.Critical => "#dc3545",
-        _ => "#6c757d"
+        HealthStatus.Healthy => "var(--color-success)",
+        HealthStatus.Warning => "var(--color-warning)",
+        HealthStatus.Critical => "var(--color-error)",
+        _ => "var(--color-text-tertiary)"
     };
 
     private string GetHealthTooltip(HealthStatus health) => health switch

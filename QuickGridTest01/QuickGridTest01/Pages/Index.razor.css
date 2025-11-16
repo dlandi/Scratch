@@ -1,20 +1,169 @@
-.overview-container { max-width:1400px; margin:0 auto; padding:2rem 2rem 4rem; }
-.hero h1 { margin:0 0 .75rem; font-size:2.2rem; font-weight:600; }
-.lead { font-size:1.05rem; color:#34495e; margin-bottom:.75rem; line-height:1.5; }
-.context { font-size:.95rem; color:#566271; }
-.quick-start h2, .architecture h2 { font-size:1.65rem; margin:2.25rem 0 1rem; border-bottom:3px solid #3498db; padding-bottom:.5rem; }
-.section-intro { color:#566271; margin-bottom:1.25rem; }
-.feature-grid { display:grid; gap:1.25rem; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
-.feature-card { background:#fff; border-radius:10px; padding:1.1rem 1.15rem 1.25rem; box-shadow:0 2px 8px rgba(0,0,0,.06); display:flex; flex-direction:column; }
-.feature-card h3 { margin:.25rem 0 .6rem; font-size:1.25rem; color:#2c3e50; }
-.feature-card p { font-size:.82rem; line-height:1.35; margin:0 0 .45rem; }
-.feature-card .bullets { margin:.25rem 0 .65rem 1.1rem; padding:0; font-size:.78rem; line-height:1.3; }
-.feature-card .bullets li { margin:0 0 .25rem; }
-.feature-card code { font-size:.75rem; }
-.feature-card .btn { margin-top:auto; align-self:flex-start; font-size:.75rem; letter-spacing:.5px; }
-.architecture .themes { display:grid; gap:1rem; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); margin-top:.75rem; }
-.theme { background:#f8fafc; border-radius:8px; padding:.9rem .95rem; border-left:4px solid #3178c6; }
-.theme h4 { margin:.1rem 0 .4rem; font-size:1rem; color:#2c5282; }
-.theme p { font-size:.78rem; line-height:1.35; margin:0; }
-.footer { margin-top:3rem; text-align:center; font-size:.7rem; color:#6c757d; }
-@media (max-width:700px){ .hero h1 { font-size:1.85rem; } .feature-grid { grid-template-columns:1fr; } }
+/* Index.razor Component Styles - Extends Refined Minimalism Design System */
+
+/* Principles Grid - 3-column responsive layout */
+.principles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-16);
+    margin-bottom: var(--space-32);
+}
+
+.principle-card {
+    padding: var(--space-16);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--card-radius);
+}
+
+    .principle-card h3 {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin-bottom: var(--space-8);
+        letter-spacing: var(--letter-spacing-tight);
+    }
+
+    .principle-card p {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-relaxed);
+        margin: 0;
+    }
+
+/* Feature Grid - Responsive card grid */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-16);
+}
+
+.feature-card {
+    display: flex;
+    flex-direction: column;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    transition: all var(--duration-fast) var(--ease-in-out);
+}
+
+    .feature-card:hover {
+        border-color: var(--color-border-emphasis);
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-2px);
+    }
+
+/* Feature Card Header */
+.feature-header {
+    padding: var(--space-12) var(--space-16);
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+    .feature-header h3 {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        margin: 0;
+        letter-spacing: var(--letter-spacing-tight);
+    }
+
+/* Feature Card Body */
+.feature-body {
+    padding: var(--space-16);
+    flex-grow: 1;
+}
+
+.feature-problem,
+.feature-solution {
+    margin-bottom: var(--space-12);
+}
+
+    .feature-problem strong,
+    .feature-solution strong {
+        display: block;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: var(--letter-spacing-wide);
+        margin-bottom: var(--space-3);
+    }
+
+    .feature-problem p,
+    .feature-solution p {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-relaxed);
+        margin: 0;
+    }
+
+/* Feature List - Simple bullets for compatibility */
+.feature-list {
+    margin: var(--space-12) 0 0 0;
+    padding-left: var(--space-20);
+    list-style: disc;
+}
+
+    .feature-list li {
+        font-size: var(--font-size-xs);
+        color: var(--color-text-secondary);
+        line-height: var(--line-height-relaxed);
+        margin-bottom: var(--space-4);
+    }
+
+        .feature-list li::marker {
+            color: var(--color-accent-primary);
+        }
+
+/* Feature Card Footer */
+.feature-footer {
+    padding: var(--space-12) var(--space-16);
+    border-top: 1px solid var(--color-border-subtle);
+    background-color: var(--color-canvas);
+}
+
+/* Themes Grid - Smaller cards for architectural patterns */
+.themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--space-12);
+}
+
+.theme-card {
+    padding: var(--space-12);
+    background-color: var(--color-canvas);
+    border: 1px solid var(--color-border-default);
+    border-left: 2px solid var(--color-accent-primary);
+    border-radius: var(--card-radius);
+}
+
+    .theme-card h4 {
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        margin: 0 0 var(--space-4) 0;
+        letter-spacing: var(--letter-spacing-tight);
+    }
+
+    .theme-card p {
+        font-size: var(--font-size-xs);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-height-relaxed);
+        margin: 0;
+    }
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .principles-grid,
+    .themes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-card:hover {
+        transform: none;
+    }
+}

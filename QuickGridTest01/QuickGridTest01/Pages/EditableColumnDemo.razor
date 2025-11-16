@@ -5,34 +5,62 @@
 
 <PageTitle>Editable Column Demo</PageTitle>
 
-<div class="demo-container">
-    <header class="demo-header">
-        <h1>Editable Column Demo</h1>
-        <p class="intro-text">Reusable editable column with inline editors, validation, and commit semantics, presented with a conservative, consistent design.</p>
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Editable Column</h1>
+        <p class="qg-page-subtitle">
+            Inline editors with validation, debouncing, and commit semantics. Replaces ad-hoc EditForm fragments with declarative column definitions.
+        </p>
     </header>
 
-    <div class="demo-description">
-        <h3>Why a Custom Editable Column?</h3>
-        <p><strong>Purpose:</strong> Replace ad hoc <code>EditForm</code> + input fragments in every cell with a reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> that owns edit state, validation, formatting, and commit semantics. This keeps page markup declarative.</p>
-        <p><strong>Encapsulation:</strong> The column manages an EditState per row (original/current value, dirty flag, validation results, editing mode) and handles enter/cancel/save and keyboard shortcuts.</p>
-        <p><strong>Validation:</strong> DataAnnotations and custom validators with optional debouncing and on-change validation.</p>
-        <p><strong>Performance:</strong> Compiled expressions and minimal re-renders. Centralized behavior yields consistency.</p>
+    <div class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+        
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4>Purpose</h4>
+                <p>Reusable <code>EditableColumn&lt;TItem,TValue&gt;</code> owns edit state, validation, formatting, and commit semantics. Keeps page markup declarative without ad-hoc input fragments per cell</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Edit State</h4>
+                <p>Manages original/current value, dirty flag, validation results, and editing mode per row. Handles enter/cancel/save with keyboard shortcuts</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Validation</h4>
+                <p>Combines DataAnnotations and custom validators with optional debouncing and on-change validation. Error messages display inline with refined styling</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Performance</h4>
+                <p>Compiled expressions for property access. Minimal re-renders through targeted state updates. Centralized behavior ensures consistency</p>
+            </div>
+        </div>
     </div>
 
-    <section class="demo-section">
-        <h2>Employee Editor (Inline)</h2>
-        <p class="section-description">Inline editors using <code>EditableColumn</code>. Validation combines DataAnnotations and explicit validators. Auto-commit on valid change.</p>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Employee Editor</h2>
+            <p class="qg-section-description">
+                Inline editors using EditableColumn with DataAnnotations and custom validators. Auto-commit on valid change with 250-300ms debounce
+            </p>
+        </div>
 
-        <QuickGrid Items="@employees" Class="demo-grid">
-            <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+        <div class="qg-grid-container">
+            <QuickGrid Items="@employees" Class="qg-grid">
+                <PropertyColumn Property="@(e => e.Id)" Title="ID" />
 
-            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
-            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
-            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@EmailValidators" OnValueChanged="@OnEmployeeValueChanged" />
-            <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@DepartmentValidators" OnValueChanged="@OnEmployeeValueChanged" />
-            <EditableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@SalaryValidators" OnValueChanged="@OnEmployeeValueChanged" />
-            <EditableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Inline="true" UseDataAnnotations="true" InputType="date" DebounceMilliseconds="300" Validators="@HireDateValidators" OnValueChanged="@OnEmployeeValueChanged" />
-        </QuickGrid>
+                <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.FirstName)" Title="First Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+                <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.LastName)" Title="Last Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@FirstLastNameValidators" OnValueChanged="@OnEmployeeValueChanged" />
+                <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Email)" Title="Email" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@EmailValidators" OnValueChanged="@OnEmployeeValueChanged" />
+                <EditableColumn TGridItem="Employee" TValue="string" Property="@(e => e.Department)" Title="Department" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@DepartmentValidators" OnValueChanged="@OnEmployeeValueChanged" />
+                <EditableColumn TGridItem="Employee" TValue="int" Property="@(e => e.Salary)" Title="Salary" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@SalaryValidators" OnValueChanged="@OnEmployeeValueChanged" />
+                <EditableColumn TGridItem="Employee" TValue="DateTime" Property="@(e => e.HireDate)" Title="Hire Date" Inline="true" UseDataAnnotations="true" InputType="date" DebounceMilliseconds="300" Validators="@HireDateValidators" OnValueChanged="@OnEmployeeValueChanged" />
+            </QuickGrid>
+        </div>
 
         @if (_changeLog.Any())
         {
@@ -48,29 +76,38 @@
         }
     </section>
 
-    <section class="demo-section">
-        <h2>Product Inventory Editor (Inline)</h2>
-        <p class="section-description">Debounced validation and auto-commit on valid modifications.</p>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Product Inventory Editor</h2>
+            <p class="qg-section-description">
+                Debounced validation with auto-commit on valid modifications. Stock status badges update reactively
+            </p>
+        </div>
 
-        <QuickGrid Items="@products" Class="demo-grid">
-            <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+        <div class="qg-grid-container">
+            <QuickGrid Items="@products" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
 
-            <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
-            <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
-            <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
-            <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
-            <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
+                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
+                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
+                <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
+                <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
+                <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
 
-            <TemplateColumn Title="Status" Context="context">
-                <span class="stock-badge stock-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
-            </TemplateColumn>
-        </QuickGrid>
+                <TemplateColumn Title="Status" Context="context">
+                    <span class="qg-badge qg-badge-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
+                </TemplateColumn>
+            </QuickGrid>
+        </div>
     </section>
 
-    <section class="demo-section">
-        <h2>Validation Rules Summary</h2>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Validation Rules Summary</h2>
+        </div>
+        
         <div class="validation-rules">
-            <div class="rule-group">
+            <div class="rule-card">
                 <h5>Employee Validations</h5>
                 <ul>
                     <li><strong>First Name:</strong> Required, 2-50 characters</li>
@@ -81,7 +118,7 @@
                     <li><strong>Hire Date:</strong> Must be in the past</li>
                 </ul>
             </div>
-            <div class="rule-group">
+            <div class="rule-card">
                 <h5>Product Validations</h5>
                 <ul>
                     <li><strong>Name:</strong> Required, 3-100 characters</li>
@@ -160,7 +197,7 @@
     private void LogChange(string entityType, int id, string property, object oldVal, object newVal)
     {
         var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        _changeLog.Add($"[{timestamp}] {entityType} #{id} {property} changed: '{oldVal}' ? '{newVal}'");
+        _changeLog.Add($"[{timestamp}] {entityType} #{id} {property} changed: '{oldVal}' → '{newVal}'");
         StateHasChanged();
     }
 
@@ -187,10 +224,10 @@
 
     private string GetStockLevel(int stock) => stock switch
     {
-        0 => "out",
-        < 25 => "low",
-        < 100 => "medium",
-        _ => "high"
+        0 => "error",
+        < 25 => "warning",
+        < 100 => "info",
+        _ => "success"
     };
 
     private string GetStockText(int stock) => stock switch

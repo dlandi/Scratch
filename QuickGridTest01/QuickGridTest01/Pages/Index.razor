@@ -1,152 +1,310 @@
-﻿@page "/"
+@page "/"
 
 <PageTitle>QuickGrid Custom Column Overview</PageTitle>
 
-<div class="overview-container">
-    <header class="hero">
-        <h1>Custom QuickGrid Column Showcase</h1>
-        <p class="lead">
-            This application demonstrates a suite of production‑oriented QuickGrid extensions: filtering, inline editing,
-            multi‑state lifecycle editing, value formatting, virtualization, render‑tree optimization, icon mapping, and
-            a raw ad‑hoc inline editing baseline for contrast.
-        </p>
-        <p class="context">
-            Each feature focuses on <strong>encapsulation</strong> (move repetitive per‑cell logic into reusable components),
-            <strong>predictability</strong> (consistent UX + rendering discipline), and <strong>performance</strong> (minimal allocations, minimal DOM, compiled expressions).
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Custom QuickGrid Column Showcase</h1>
+        <p class="qg-page-subtitle">
+            Production-grade QuickGrid extensions demonstrating advanced column implementations: 
+            filtering, inline editing, multi-state lifecycle management, value formatting, 
+            virtualization, render optimization, icon mapping, and conditional styling.
         </p>
     </header>
 
-    <section class="quick-start">
-        <h2>Feature Directory</h2>
-        <p class="section-intro">Select a feature below to view its full demo with code, validation rules, performance notes, and architectural commentary.</p>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Design Principles</h2>
+            <p class="qg-section-description">
+                Each implementation focuses on three core principles
+            </p>
+        </div>
+
+        <div class="principles-grid">
+            <div class="principle-card">
+                <h3>Encapsulation</h3>
+                <p>Move repetitive per-cell logic into reusable components with clear interfaces and single responsibilities</p>
+            </div>
+            <div class="principle-card">
+                <h3>Predictability</h3>
+                <p>Consistent UX patterns and rendering discipline through systematic state management and lifecycle hooks</p>
+            </div>
+            <div class="principle-card">
+                <h3>Performance</h3>
+                <p>Minimal allocations, optimized DOM, and compiled expressions for production-scale data grids</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Feature Directory</h2>
+            <p class="qg-section-description">
+                Select a feature to view its demonstration with architecture details, validation rules, and performance analysis
+            </p>
+        </div>
 
         <div class="feature-grid">
             <div class="feature-card">
-                <h3>Filterable Columns</h3>
-                <p class="problem"><strong>Problem:</strong> Repeated ad hoc LINQ filtering logic scattered across pages.</p>
-                <p class="solution"><strong>Solution:</strong> <code>FilterableColumn&lt;TItem,TValue&gt;</code> owns operator list, parsing, active state, and contributes predicates to <code>FilterableGrid</code>.</p>
-                <ul class="bullets">
-                    <li>Operator model (string/numeric/date/bool)</li>
-                    <li>Automatic toolbar rendering</li>
-                    <li>Composable predicates + clear all</li>
-                    <li>Live filtering while typing</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/filterable-column-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Filterable Columns</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Repeated ad hoc LINQ filtering logic scattered across pages</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p><code>FilterableColumn&lt;TItem,TValue&gt;</code> owns operator list, parsing, active state, and contributes predicates to <code>FilterableGrid</code></p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Operator model (string, numeric, date, boolean)</li>
+                        <li>Automatic toolbar rendering</li>
+                        <li>Composable predicates with clear all</li>
+                        <li>Live filtering while typing</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/filterable-column-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Editable Column</h3>
-                <p class="problem"><strong>Problem:</strong> Per‑cell <code>EditForm</code> boilerplate + validation duplication.</p>
-                <p class="solution"><strong>Solution:</strong> <code>EditableColumn&lt;TItem,TValue&gt;</code> centralizes edit state, validation, debouncing, and commit semantics.</p>
-                <ul class="bullets">
-                    <li>Cell edit lifecycle (dirty/original)</li>
-                    <li>DataAnnotations + custom validators</li>
-                    <li>Debounced value change + auto commit</li>
-                    <li>Unified change log hook</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/editable-column-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Editable Column</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Per-cell <code>EditForm</code> boilerplate with validation duplication</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p><code>EditableColumn&lt;TItem,TValue&gt;</code> centralizes edit state, validation, debouncing, and commit semantics</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Cell edit lifecycle (dirty/original tracking)</li>
+                        <li>DataAnnotations and custom validators</li>
+                        <li>Debounced value change with auto commit</li>
+                        <li>Unified change log hook</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/editable-column-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Multi‑State Column</h3>
-                <p class="problem"><strong>Problem:</strong> Complex async edit flows require manual flag handling.</p>
-                <p class="solution"><strong>Solution:</strong> Encapsulated state machine (<code>Reading → Editing → Loading</code>) with event callbacks and async validation orchestration.</p>
-                <ul class="bullets">
-                    <li>Deterministic state transitions</li>
-                    <li>Async validators + aggregation</li>
-                    <li>Save/cancel/transition events</li>
-                    <li>Observability dashboard + event log</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/multistate-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Multi-State Column</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Complex async edit flows require manual flag handling and race condition prevention</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p>Encapsulated state machine (<code>Reading → Editing → Loading</code>) with event callbacks and async validation orchestration</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Deterministic state transitions</li>
+                        <li>Async validators with aggregation</li>
+                        <li>Save/cancel/transition events</li>
+                        <li>Observability dashboard and event log</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/multistate-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Formatted Value Column</h3>
-                <p class="problem"><strong>Problem:</strong> Inline <code>ToString()</code> clutter + inconsistent culture/time/number formatting.</p>
-                <p class="solution"><strong>Solution:</strong> Delegate‑based formatter + runtime culture / style switching.</p>
-                <ul class="bullets">
-                    <li>30+ reusable formatters (currency, size, duration, percent, phone, relative date)</li>
-                    <li>Dynamic culture + date/time style + numeric style selectors</li>
-                    <li>Type‑safe property extraction</li>
-                    <li>Sorting preserved via expression metadata</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/formatted-column-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Conditional Styling</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Inline conditional logic clutters templates with repeated styling rules</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p><code>ConditionalStyleColumn&lt;TItem,TValue&gt;</code> applies dynamic CSS classes, icons, and tooltips based on configurable rules</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Fluent rule builder with priority system</li>
+                        <li>Traffic light patterns and semantic colors</li>
+                        <li>Icon and tooltip metadata</li>
+                        <li>Preset rule collections for common scenarios</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/conditional-style-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Virtual Scrolling</h3>
-                <p class="problem"><strong>Problem:</strong> Large datasets cause heavy initial render + oversized DOM.</p>
-                <p class="solution"><strong>Solution:</strong> Viewport virtualization + lightweight <code>VirtualColumn</code> to minimize per‑cell cost.</p>
-                <ul class="bullets">
-                    <li>Visible window + overscan buffering</li>
-                    <li>Estimator: time / DOM / memory projection</li>
-                    <li>Scroll telemetry (FPS, viewport stats)</li>
-                    <li>Guidance thresholds (&lt;100 skip, &gt;2K essential)</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/virtual-scrolling-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Formatted Value Column</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Inline <code>ToString()</code> clutter with inconsistent culture, time, and number formatting</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p>Delegate-based formatter with runtime culture and style switching</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>30+ reusable formatters (currency, size, duration, percent, phone, relative date)</li>
+                        <li>Dynamic culture and date/time/numeric style selectors</li>
+                        <li>Type-safe property extraction</li>
+                        <li>Sorting preserved via expression metadata</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/formatted-column-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Optimized Column</h3>
-                <p class="problem"><strong>Problem:</strong> Unnecessary reflection, unstable sequence numbers, and excess wrapping elements inflate cost.</p>
-                <p class="solution"><strong>Solution:</strong> Deterministic sequences + compiled accessors + cached CSS classes + 1 DOM element per cell.</p>
-                <ul class="bullets">
-                    <li>Benchmark comparisons (reflection vs compiled)</li>
-                    <li>Class string caching speedups</li>
-                    <li>DOM reduction metrics</li>
-                    <li>Estimated full grid render savings</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/optimized-column-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Icon Column</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Repeated conditional icon, color, and tooltip logic in templates</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p>Mapper delegates (<code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>) with optional value display</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Status, priority, and health indicator examples</li>
+                        <li>Sortable underlying value</li>
+                        <li>Compact render tree (wrapper, icon, optional text)</li>
+                        <li>Configurable value visibility</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/icon-column-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Icon Column</h3>
-                <p class="problem"><strong>Problem:</strong> Repeated conditional icon/color/tooltip logic in templates.</p>
-                <p class="solution"><strong>Solution:</strong> Mapper delegates (<code>IconMapper</code>, <code>ColorMapper</code>, <code>TooltipMapper</code>) + optional value display.</p>
-                <ul class="bullets">
-                    <li>Status, priority, health indicator examples</li>
-                    <li>Sortable underlying value</li>
-                    <li>Compact render tree (wrapper + icon + optional text)</li>
-                    <li>Configurable value visibility</li>
-                </ul>
-                <NavLink class="btn btn-primary" href="/icon-column-demo">View Demo</NavLink>
+                <div class="feature-header">
+                    <h3>Virtual Scrolling</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Large datasets cause heavy initial render and oversized DOM</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p>Viewport virtualization with lightweight <code>VirtualColumn</code> to minimize per-cell cost</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Visible window with overscan buffering</li>
+                        <li>Estimator: time, DOM, and memory projection</li>
+                        <li>Scroll telemetry (FPS, viewport stats)</li>
+                        <li>Guidance thresholds (&lt;100 skip, &gt;2K essential)</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/virtual-scrolling-demo">View Demo</NavLink>
+                </div>
             </div>
+
             <div class="feature-card">
-                <h3>Ad Hoc Inline Editing (Baseline)</h3>
-                <p class="problem"><strong>Purpose:</strong> Serves as a contrast page showing raw per‑cell <code>EditForm</code> duplication.</p>
-                <p class="solution"><strong>Highlights:</strong> Auto‑save timer + manual validators illustrate motivations for <code>EditableColumn</code>.</p>
-                <ul class="bullets">
-                    <li>Per‑cell <code>EditForm</code> & validators</li>
-                    <li>Debounced auto‑save countdown</li>
-                    <li>Manual change tracking</li>
-                    <li>Comparison reference only</li>
-                </ul>
-                <NavLink class="btn btn-secondary" href="/inline">View Baseline</NavLink>
+                <div class="feature-header">
+                    <h3>Optimized Column</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Problem</strong>
+                        <p>Unnecessary reflection, unstable sequence numbers, and excess wrapping elements inflate cost</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Solution</strong>
+                        <p>Deterministic sequences, compiled accessors, cached CSS classes, and single DOM element per cell</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Benchmark comparisons (reflection vs compiled)</li>
+                        <li>Class string caching speedups</li>
+                        <li>DOM reduction metrics</li>
+                        <li>Estimated full grid render savings</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-primary qg-btn-sm" href="/optimized-column-demo">View Demo</NavLink>
+                </div>
+            </div>
+
+            <div class="feature-card">
+                <div class="feature-header">
+                    <h3>Ad Hoc Inline Editing</h3>
+                </div>
+                <div class="feature-body">
+                    <div class="feature-problem">
+                        <strong>Purpose</strong>
+                        <p>Baseline demonstration of raw per-cell <code>EditForm</code> duplication</p>
+                    </div>
+                    <div class="feature-solution">
+                        <strong>Contrast</strong>
+                        <p>Shows the problem that <code>EditableColumn</code> and <code>MultiStateColumn</code> solve through encapsulation</p>
+                    </div>
+                    <ul class="feature-list">
+                        <li>Manual edit state management</li>
+                        <li>Duplicate validation code</li>
+                        <li>Template-driven approach</li>
+                        <li>Auto-save with debounce timer</li>
+                    </ul>
+                </div>
+                <div class="feature-footer">
+                    <NavLink class="qg-btn qg-btn-secondary qg-btn-sm" href="/inline">View Demo</NavLink>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="architecture">
-        <h2>Architecture Themes</h2>
-        <div class="themes">
-            <div class="theme">
-                <h4>Encapsulation</h4>
-                <p>Move repeated per‑cell behaviors (validation, filtering, formatting, icons, edit state) into focused column components exposing minimal parameters.</p>
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architectural Themes</h2>
+            <p class="qg-section-description">
+                Common patterns across all implementations
+            </p>
+        </div>
+
+        <div class="themes-grid">
+            <div class="theme-card">
+                <h4>Expression Compilation</h4>
+                <p>Compile property access expressions once for 10x+ performance improvement over reflection</p>
             </div>
-            <div class="theme">
-                <h4>Performance Discipline</h4>
-                <p>Compiled property accessors, cached class strings, deterministic sequence numbers, minimal DOM, and virtualization reduce CPU & memory pressure.</p>
+            <div class="theme-card">
+                <h4>State Management</h4>
+                <p>ConditionalWeakTable for memory-safe per-row state without manual cleanup</p>
             </div>
-            <div class="theme">
-                <h4>Declarative Markup</h4>
-                <p>Pages describe intent ("editable", "filterable", "formatted") rather than wiring imperative logic inline—improves readability & reuse.</p>
+            <div class="theme-card">
+                <h4>Validation Orchestration</h4>
+                <p>Async validator composition with error aggregation and debouncing</p>
             </div>
-            <div class="theme">
-                <h4>Observability</h4>
-                <p>Event logs, benchmark cards, telemetry counters, and estimators make behavior & cost visible for tuning.</p>
+            <div class="theme-card">
+                <h4>Event-Driven Architecture</h4>
+                <p>Lifecycle callbacks for extensibility without modifying core components</p>
             </div>
-            <div class="theme">
-                <h4>Extensibility</h4>
-                <p>Each feature layer (validators, formatters, operators, mappers) accepts new implementations without modifying consumers.</p>
+            <div class="theme-card">
+                <h4>Fluent Configuration</h4>
+                <p>Builder patterns for declarative rule and formatter composition</p>
+            </div>
+            <div class="theme-card">
+                <h4>Render Optimization</h4>
+                <p>Deterministic sequence numbers and minimal DOM for efficient updates</p>
             </div>
         </div>
     </section>
-
-    <footer class="footer">
-        <p class="footnote">Navigate to any demo for detailed implementation and source examples.</p>
-    </footer>
 </div>
