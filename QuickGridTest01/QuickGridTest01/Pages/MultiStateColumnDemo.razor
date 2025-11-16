@@ -62,28 +62,32 @@
                         OnSaveResult="@_onSaveResultCallback"
                         OnStateChanged="@_onStateChangedCallback"
                         OnCancelEdit="@_onCancelEditCallback"
-                        Placeholder="Enter name..." />
+                        Placeholder="Enter name..."
+                        Inline="true" />
                     <MultiStateColumn 
                         Property="@(c => c.Email)" 
                         Title="Email"
                         Validators="@_emailValidators"
                         OnSaveAsync="@SaveEmailAsync"
                         OnSaveResult="@_onSaveResultCallback"
-                        Placeholder="user@example.com" />
+                        Placeholder="user@example.com"
+                        Inline="true" />
                     <MultiStateColumn 
                         Property="@(c => c.Phone)" 
                         Title="Phone"
                         Validators="@_phoneValidators"
                         OnSaveAsync="@SavePhoneAsync"
                         OnSaveResult="@_onSaveResultCallback"
-                        Placeholder="555-123-4567" />
+                        Placeholder="555-123-4567"
+                        Inline="true" />
                     <MultiStateColumn 
                         Property="@(c => c.Company)" 
                         Title="Company"
                         Validators="@_companyValidators"
                         OnSaveAsync="@SaveCompanyAsync"
                         OnSaveResult="@_onSaveResultCallback"
-                        Placeholder="Company name..." />
+                        Placeholder="Company name..."
+                        Inline="true" />
                     <PropertyColumn Property="@(c => c.IsActive)" Title="Active" />
                     <PropertyColumn Property="@(c => c.CreatedDate)" Title="Created" Format="yyyy-MM-dd" />
                 </QuickGrid>

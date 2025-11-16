@@ -11,9 +11,12 @@
 ::deep .cell-reading { display: inline-flex; align-items: center; gap: var(--space-4); }
 ::deep .cell-value { flex: 1; }
 
-/* Buttons within cells */
-::deep .btn-edit { padding: var(--space-2) var(--space-4); background: var(--color-text-tertiary); color: var(--color-surface); border: none; border-radius: var(--card-radius); cursor: pointer; font-size: var(--font-size-sm); }
-::deep .btn-edit:hover { background: var(--color-text-secondary); }
+/* Refined Minimalism edit button */
+::deep .btn-edit { display:inline-flex; align-items:center; justify-content:center; width: 1.75rem; height: 1.75rem; padding:0; background: transparent; color: var(--color-text-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--card-radius); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-in-out), color var(--duration-fast) var(--ease-in-out), border-color var(--duration-fast) var(--ease-in-out); }
+::deep .btn-edit:hover { background: var(--color-canvas); color: var(--color-text-secondary); border-color: var(--color-border-emphasis); }
+::deep .btn-edit:focus { outline:none; border-color: var(--color-accent-primary); box-shadow: var(--focus-ring); }
+::deep .btn-edit:active { background: var(--color-surface); color: var(--color-text-primary); }
+::deep .btn-edit .icon-edit { display:block; stroke: currentColor; }
 
 /* Editing state */
 ::deep .cell-editing { display: flex; flex-direction: column; gap: var(--space-4); }

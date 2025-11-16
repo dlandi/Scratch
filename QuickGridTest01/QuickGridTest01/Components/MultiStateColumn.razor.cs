@@ -96,6 +96,12 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     [Parameter]
     public bool IsReadOnly { get; set; }
 
+    /// <summary>
+    /// When true, renders as an inline editor (no explicit edit button). Focus to enter edit state, blur/Enter to save.
+    /// </summary>
+    [Parameter]
+    public bool Inline { get; set; } = false;
+
     #endregion
 
     #region ColumnBase Implementation
@@ -159,19 +165,26 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", $"multistate-cell state-{state.CurrentState.ToString().ToLower()}");
 
-        switch (state.CurrentState)
+        if (Inline)
         {
-            case CellState.Reading:
-                RenderReadingState(builder, item, state);
-                break;
+            RenderInlineCell(builder, item, state);
+        }
+        else
+        {
+            switch (state.CurrentState)
+            {
+                case CellState.Reading:
+                    RenderReadingState(builder, item, state);
+                    break;
 
-            case CellState.Editing:
-                RenderEditingState(builder, item, state);
-                break;
+                case CellState.Editing:
+                    RenderEditingState(builder, item, state);
+                    break;
 
-            case CellState.Loading:
-                RenderLoadingState(builder, item, state);
-                break;
+                case CellState.Loading:
+                    RenderLoadingState(builder, item, state);
+                    break;
+            }
         }
 
         builder.CloseElement(); // div
@@ -180,6 +193,52 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     #endregion
 
     #region Rendering Methods
+
+    private void RenderInlineCell(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
+    {
+        // Single-line inline editor that still drives multi-state transitions.
+        // Focus enters Editing; blur/Enter saves; Escape cancels; Loading shows spinner and disables input.
+        var isLoading = state.CurrentState == CellState.Loading;
+
+        // The input element
+        builder.OpenElement(0, "input");
+        builder.AddAttribute(1, "class", "cell-input" + (state.HasValidationErrors ? " invalid" : ""));
+        builder.AddAttribute(2, "type", "text");
+        builder.AddAttribute(3, "value", FormatValue(state.DraftValue));
+        builder.AddAttribute(4, "placeholder", Placeholder);
+        builder.AddAttribute(5, "disabled", isLoading || IsReadOnly);
+        builder.AddAttribute(6, "onfocus", EventCallback.Factory.Create(this, () => EnterEditAsync(item)));
+        builder.AddAttribute(7, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, state, e)));
+        builder.AddAttribute(8, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => OnKeyDown(item, state, e)));
+        builder.AddAttribute(9, "onblur", EventCallback.Factory.Create(this, () => SaveEditAsync(item, state)));
+        builder.CloseElement();
+
+        if (isLoading)
+        {
+            builder.OpenElement(10, "span");
+            builder.AddAttribute(11, "class", "loading-spinner");
+            builder.AddAttribute(12, "aria-hidden", "true");
+            builder.AddContent(13, "\u231B");
+            builder.CloseElement();
+        }
+
+        // Validation errors
+        if (ShowValidationErrors && state.HasValidationErrors)
+        {
+            builder.OpenElement(20, "div");
+            builder.AddAttribute(21, "class", "validation-errors");
+            builder.AddAttribute(22, "role", "alert");
+            builder.AddAttribute(23, "aria-live", "polite");
+            foreach (var error in state.ValidationErrors)
+            {
+                builder.OpenElement(24, "div");
+                builder.AddAttribute(25, "class", "validation-error");
+                builder.AddContent(26, error);
+                builder.CloseElement();
+            }
+            builder.CloseElement();
+        }
+    }
 
     private void RenderReadingState(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
@@ -192,8 +251,8 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.AddContent(4, FormatValue(state.OriginalValue));
         builder.CloseElement(); // span
 
-        // Edit button (if not read-only)
-        if (!IsReadOnly)
+        // Edit button removed when Inline=true
+        if (!IsReadOnly && !Inline)
         {
             builder.OpenElement(5, "button");
             builder.AddAttribute(6, "class", "btn-edit");
@@ -201,7 +260,14 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             builder.AddAttribute(8, "title", $"Edit {Title ?? "value"}");
             builder.AddAttribute(9, "aria-label", $"Edit {Title ?? "value"}");
             builder.AddAttribute(10, "onclick", EventCallback.Factory.Create(this, () => EnterEditAsync(item)));
-            builder.AddContent(11, "\u270F\uFE0F"); // ?? (Pencil emoji - Unicode)
+            // Minimal inline SVG pencil icon (stroke only, currentColor)
+            builder.OpenElement(11, "svg");
+            builder.AddAttribute(12, "class", "icon-edit");
+            builder.AddAttribute(13, "width", "14");
+            builder.AddAttribute(14, "height", "14");
+            builder.AddAttribute(15, "viewBox", "0 0 14 14");
+            builder.AddMarkupContent(16, "<path d=\"M3 11h8M11.2 3.8l-6.9 6.9L3 11l.3-1.3 6.9-6.9 1-1c.4-.4 1-.4 1.4 0 .4.4.4 1 0 1.4l-1.4 1.4z\" stroke=\"currentColor\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />");
+            builder.CloseElement(); // svg
             builder.CloseElement(); // button
         }
 
@@ -238,7 +304,7 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.AddAttribute(16, "aria-label", $"Save {Title ?? "value"}");
         builder.AddAttribute(17, "disabled", state.HasValidationErrors);
         builder.AddAttribute(18, "onclick", EventCallback.Factory.Create(this, () => SaveEditAsync(item, state)));
-        builder.AddContent(19, "\u2713"); // ? (Check mark - Unicode)
+        builder.AddContent(19, "\u2713"); // check
         builder.CloseElement(); // button
 
         // Cancel button
@@ -248,7 +314,7 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.AddAttribute(23, "title", $"Cancel editing {Title ?? "value"}");
         builder.AddAttribute(24, "aria-label", $"Cancel editing {Title ?? "value"}");
         builder.AddAttribute(25, "onclick", EventCallback.Factory.Create(this, () => CancelEditAsync(item, state)));
-        builder.AddContent(26, "\u2717"); // ? (Ballot X - Unicode)
+        builder.AddContent(26, "\u2717"); // X
         builder.CloseElement(); // button
 
         builder.CloseElement(); // div.cell-actions
@@ -284,7 +350,7 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.OpenElement(5, "span");
         builder.AddAttribute(6, "class", "loading-spinner");
         builder.AddAttribute(7, "aria-hidden", "true");
-        builder.AddContent(8, "\u231B"); // ? (Hourglass - Unicode)
+        builder.AddContent(8, "\u231B"); // Hourglass
         builder.CloseElement(); // span
 
         builder.OpenElement(9, "span");
