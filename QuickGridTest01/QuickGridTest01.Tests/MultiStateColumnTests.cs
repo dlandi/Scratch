@@ -1,7 +1,6 @@
 using Bunit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
-using QuickGridTest01.MultiState.Component;
 using QuickGridTest01.MultiState.Core;
 using QuickGridTest01.MultiState.Demo;
 using QuickGridTest01.MultiState.Validation;

@@ -2,11 +2,12 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using QuickGridTest01.MultiState.Component;
 using QuickGridTest01.MultiState.Core;
 using QuickGridTest01.MultiState.Validation;
 using System.Linq.Expressions;
 
-namespace QuickGridTest01.MultiState.Component;
+namespace QuickGridTest01.MultiState;
 
 /// <summary>
 /// A QuickGrid column that supports inline editing with multiple states (Reading, Editing, Loading).
