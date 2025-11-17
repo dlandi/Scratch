@@ -11,70 +11,145 @@ using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.CustomColumns;
 
+/// <summary>
+/// Inline-editable QuickGrid column with validation, debouncing, and commit semantics.
+/// Uses compiled accessors and <see cref="TypeTraits{T}"/> for high-performance rendering and input handling.
+/// </summary>
+/// <typeparam name="TGridItem">Row item type.</typeparam>
+/// <typeparam name="TValue">Property value type.</typeparam>
 public enum EditorKind
 {
+    /// <summary>Automatically select editor based on <see cref="TypeTraits{T}"/> and provided options.</summary>
     Auto,
+    /// <summary>Plain text input.</summary>
     Text,
+    /// <summary>Numeric input.</summary>
     Number,
+    /// <summary>Checkbox input.</summary>
     Checkbox,
+    /// <summary>Date input (yyyy-MM-dd).</summary>
     Date,
+    /// <summary>Date/time local input (yyyy-MM-ddTHH:mm).</summary>
     DateTimeLocal,
+    /// <summary>Time input (HH:mm).</summary>
     Time,
+    /// <summary>Multiline text input.</summary>
     TextArea,
+    /// <summary>Dropdown select.</summary>
     Select,
+    /// <summary>Radio button group.</summary>
     RadioGroup
 }
 
+/// <summary>
+/// Represents a selectable option for select/radio editors.
+/// </summary>
 public record SelectOption<T>(T Value, string Text, bool Disabled = false);
 
-public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
+/// <summary>
+/// QuickGrid column that renders a value and allows inline editing with optional validation.
+/// </summary>
+public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDisposable
 {
+    /// <summary>
+    /// Expression selecting the bound property to display/edit. Required.
+    /// </summary>
     [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+
+    /// <summary>Custom validators invoked when validation runs.</summary>
     [Parameter] public List<IValidator<TValue>> Validators { get; set; } = new();
+
+    /// <summary>Display format string applied to <see cref="IFormattable"/> values.</summary>
     [Parameter] public string? Format { get; set; }
+
+    /// <summary>Explicit HTML input type override (e.g., "text", "number").</summary>
     [Parameter] public string? InputType { get; set; }
+
+    /// <summary>Callback raised when a value is committed (saved or inline-commit).</summary>
     [Parameter] public EventCallback<CellValueChangedArgs<TGridItem, object>> OnValueChanged { get; set; }
+
+    /// <summary>When true, validates on input events instead of deferred save.</summary>
     [Parameter] public bool ValidateOnChange { get; set; } = true;
+
+    /// <summary>Optional display-only template for read mode.</summary>
     [Parameter] public RenderFragment<TValue>? DisplayTemplate { get; set; }
+
+    /// <summary>When true, always renders the editor (no explicit edit toggle).</summary>
     [Parameter] public bool Inline { get; set; } = false;
+
+    /// <summary>When true, applies DataAnnotations validation attributes on the bound property.</summary>
     [Parameter] public bool UseDataAnnotations { get; set; } = false;
+
+    /// <summary>Debounce delay (ms) for oninput validation/commit in inline mode.</summary>
     [Parameter] public int DebounceMilliseconds { get; set; } = 0;
+
+    /// <summary>When true, commits valid changes automatically in inline mode.</summary>
     [Parameter] public bool CommitOnInput { get; set; } = true;
 
-    // New editor configuration parameters
+    /// <summary>Explicit editor kind. Defaults to <see cref="EditorKind.Auto"/>.</summary>
     [Parameter] public EditorKind Editor { get; set; } = EditorKind.Auto;
+
+    /// <summary>Explicit options for select/radio editors. When provided, forces select/radio editor.</summary>
     [Parameter] public IEnumerable<SelectOption<TValue>>? Options { get; set; }
+
+    /// <summary>Optional function that maps option values to display text.</summary>
     [Parameter] public Func<TValue?, string>? OptionText { get; set; }
+
+    /// <summary>When true, enum types render as select/radio (otherwise text/number).</summary>
     [Parameter] public bool EnumAsSelect { get; set; } = true;
+
+    /// <summary>When true for string values, uses a textarea.</summary>
     [Parameter] public bool UseTextArea { get; set; } = false;
+
+    /// <summary>Number of rows for textarea.</summary>
     [Parameter] public int TextAreaRows { get; set; } = 3;
+
+    /// <summary>Input placeholder text.</summary>
     [Parameter] public string? Placeholder { get; set; }
+
+    /// <summary>HTML input step attribute.</summary>
     [Parameter] public string? Step { get; set; }
+
+    /// <summary>HTML input min attribute.</summary>
     [Parameter] public string? Min { get; set; }
+
+    /// <summary>HTML input max attribute.</summary>
     [Parameter] public string? Max { get; set; }
+
+    /// <summary>Culture override for formatting/parsing where applicable.</summary>
     [Parameter] public CultureInfo? Culture { get; set; }
 
+    // Internal state
     private readonly Dictionary<TGridItem, EditState<TValue>> _editStates = new();
     private readonly Dictionary<TGridItem, System.Threading.Timer> _debounceTimers = new();
 
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
-    private Func<TGridItem, TValue>? _compiledProperty;
-    private Action<TGridItem, TValue>? _propertySetter;
+    private Func<TGridItem, TValue>? _compiledProperty; // getter
+    private Action<TGridItem, TValue>? _propertySetter; // setter
     private Func<TGridItem, string?>? _cellTextFunc;
     private GridSort<TGridItem>? _sortBuilder;
     private List<ValidationAttribute>? _dataAnnotationAttributes;
     private PropertyInfo? _boundPropertyInfo;
 
-    // Cache enum options per TValue
+    // Precomputed CSS classes for hot paths
+    private static readonly string CssDisplay = "editable-cell display-mode";
+    private static readonly string CssEditValid = "editable-cell edit-mode";
+    private static readonly string CssEditInvalid = "editable-cell edit-mode invalid";
+    private static readonly string CssInlineValid = "editable-cell inline-mode";
+    private static readonly string CssInlineInvalid = "editable-cell inline-mode invalid";
+
+    // Cached enum options per TValue
     private static readonly IReadOnlyList<SelectOption<TValue>> s_enumOptions =
         TypeTraits<TValue>.IsEnum ? TypeTraits<TValue>.BuildEnumOptions() : Array.Empty<SelectOption<TValue>>();
 
+    /// <inheritdoc />
     public override GridSort<TGridItem>? SortBy
     {
         get => _sortBuilder;
         set => _sortBuilder = value;
     }
 
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         if (Property is null)
@@ -84,6 +159,7 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnInitialized();
     }
 
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         if (Title is null && Property.Body is MemberExpression titleExpr)
@@ -94,8 +170,8 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         if (_lastProperty != Property)
         {
             _lastProperty = Property;
-            _compiledProperty = Property.Compile();
-            _propertySetter = BuildPropertySetter();
+            _compiledProperty = Accessors.CreateGetter(Property);
+            _propertySetter = Accessors.CreateSetter(Property);
 
             if (Property.Body is MemberExpression memberExpression && memberExpression.Member is PropertyInfo pi)
             {
@@ -128,14 +204,14 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnParametersSet();
     }
 
+    /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
         var state = GetOrCreateEditState(item);
 
-        // Inline mode: ensure we have captured initial model value (value types may be default/non-null so previous logic failed)
+        // Inline: seed current value once
         if (Inline && _compiledProperty is not null && !state.IsInitialized)
         {
-            // Capture without forcing edit semantics; treat as initialized current value but keep IsEditing true for inline rendering lifecycle
             state.BeginEdit(_compiledProperty(item));
         }
 
@@ -151,7 +227,8 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     {
         int seq = 0;
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "editable-cell display-mode");
+        builder.SetKey(item);
+        builder.AddAttribute(seq++, "class", CssDisplay);
         builder.AddAttribute(seq++, "onclick:stopPropagation", true);
         builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, _ => EnterEditMode(item)));
         builder.AddAttribute(seq++, "ondblclick", EventCallback.Factory.Create<MouseEventArgs>(this, _ => EnterEditMode(item)));
@@ -177,7 +254,8 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     {
         int seq = 0;
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", $"editable-cell edit-mode {(state.IsValid ? string.Empty : "invalid")}");
+        builder.SetKey(item);
+        builder.AddAttribute(seq++, "class", state.IsValid ? CssEditValid : CssEditInvalid);
         builder.AddAttribute(seq++, "onclick:stopPropagation", true);
         RenderEditor(builder, ref seq, item, state, includeAutofocus: true);
         builder.OpenElement(seq++, "div");
@@ -210,10 +288,10 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     private void RenderInlineEditor(RenderTreeBuilder builder, TGridItem item, EditState<TValue> state)
     {
-        // Initialization moved to CellContent; remove previous conditional
         int seq = 0;
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", $"editable-cell inline-mode {(state.IsValid ? string.Empty : "invalid")}");
+        builder.SetKey(item);
+        builder.AddAttribute(seq++, "class", state.IsValid ? CssInlineValid : CssInlineInvalid);
         builder.AddAttribute(seq++, "onclick:stopPropagation", true);
         RenderEditor(builder, ref seq, item, state, includeAutofocus: false, cssClass: "edit-input seamless-input");
         RenderValidationFeedback(builder, ref seq, state);
@@ -266,7 +344,6 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         }
         else
         {
-            // Checkbox uses checked and onchange
             var isChecked = false;
             if (state.CurrentValue is not null && TypeTraits<TValue>.Kind == ValueKind.Boolean)
             {
@@ -488,7 +565,6 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     private async Task CommitValueAsync(TGridItem item, EditState<TValue> state)
     {
-        // Assume caller is already on the Blazor dispatcher (timer callback is wrapped in InvokeAsync).
         var oldValue = _compiledProperty!(item);
         _propertySetter!(item, state.CurrentValue!);
         var propertyName = Title ?? _boundPropertyInfo?.Name ?? "Value";
@@ -500,7 +576,6 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             PropertyName = propertyName
         });
         if (Inline) state.OriginalValue = state.CurrentValue;
-        // Force re-render so parent change log updates immediately.
         StateHasChanged();
     }
 
@@ -554,15 +629,6 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         });
     }
 
-    private Action<TGridItem, TValue>? BuildPropertySetter()
-    {
-        if (Property.Body is not MemberExpression memberExpression) return null;
-        var parameter = Property.Parameters[0];
-        var valueParameter = Expression.Parameter(typeof(TValue), "value");
-        var assign = Expression.Assign(memberExpression, valueParameter);
-        return Expression.Lambda<Action<TGridItem, TValue>>(assign, parameter, valueParameter).Compile();
-    }
-
     private async Task OnKeyDown(TGridItem item, KeyboardEventArgs e)
     {
         if (Inline)
@@ -608,12 +674,32 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         }
         catch { }
     }
+
+    /// <summary>
+    /// Disposes any outstanding debounce timers to avoid timer root leaks.
+    /// </summary>
+    public void Dispose()
+    {
+        foreach (var t in _debounceTimers.Values)
+            t.Dispose();
+        _debounceTimers.Clear();
+    }
 }
 
+/// <summary>
+/// Event payload describing a committed value change from the column.
+/// </summary>
 public class CellValueChangedArgs<TGridItem, TValue>
 {
+    /// <summary>The affected item (row) whose value changed.</summary>
     public TGridItem Item { get; set; } = default!;
+
+    /// <summary>Old value captured at edit-begin or prior commit.</summary>
     public TValue OldValue { get; set; } = default!;
+
+    /// <summary>New value after commit.</summary>
     public TValue NewValue { get; set; } = default!;
+
+    /// <summary>Property name used for display/logging.</summary>
     public string PropertyName { get; set; } = string.Empty;
 }

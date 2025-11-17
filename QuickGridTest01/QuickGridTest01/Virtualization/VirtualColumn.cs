@@ -8,38 +8,36 @@ using QuickGridTest01.Infrastructure;
 namespace QuickGridTest01.CustomColumns;
 
 /// <summary>
-/// Column optimized for virtual scrolling scenarios.
-/// Key optimizations:
-/// - Lightweight rendering (minimal overhead per cell)
-/// - No per-item state tracking
-/// - Efficient compiled accessors
-/// - Pre-computed formatting
+/// Column optimized for virtual scrolling scenarios with minimal per-cell overhead.
+/// Compiles accessors and a formatter once and uses <see cref="TypeTraits{T}"/> for fast date/time formatting.
 /// </summary>
 public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
-    // Configuration
+    /// <summary>Expression selecting the value to display. Required.</summary>
     [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+    /// <summary>Optional format string applied to <see cref="IFormattable"/> values.</summary>
     [Parameter] public string? Format { get; set; }
+    /// <summary>Optional custom formatter that overrides <see cref="Format"/>.</summary>
     [Parameter] public Func<TValue, string>? CustomFormatter { get; set; }
+    /// <summary>Optional CSS class applied to a wrapper span. If null/empty, renders text-only for minimal DOM.</summary>
     [Parameter] public string? CssClass { get; set; }
 
-    // Compiled accessors (critical for virtualization performance)
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
     private Func<TGridItem, TValue>? _compiledAccessor;
     private Func<TGridItem, string>? _compiledFormatter;
     
-    // Sorting
     private GridSort<TGridItem>? _sortBuilder;
 
-    // Cached type info
     private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
 
+    /// <inheritdoc />
     public override GridSort<TGridItem>? SortBy
     {
         get => _sortBuilder;
         set => _sortBuilder = value;
     }
 
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
         if (Property is null)
@@ -51,22 +49,20 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnInitialized();
     }
 
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        // Infer title from property if not set
         if (Title is null && Property.Body is MemberExpression memberExpression)
         {
             Title = memberExpression.Member.Name;
         }
 
-        // Compile accessors once (not on every render!)
         if (_lastProperty != Property)
         {
             _lastProperty = Property;
             _compiledAccessor = Property.Compile();
             _compiledFormatter = BuildFormatter();
 
-            // Build sort
             if (Sortable ?? false)
             {
                 _sortBuilder = GridSort<TGridItem>.ByAscending(Property);
@@ -76,41 +72,30 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnParametersSet();
     }
 
-    /// <summary>
-    /// Ultra-lightweight cell rendering for virtualization.
-    /// Critical: This is called frequently during scrolling.
-    /// Must be as fast as possible.
-    /// </summary>
+    /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
         if (_compiledFormatter is null)
             return;
 
-        // Direct formatted access - no allocations, no computation
         var formatted = _compiledFormatter(item);
 
-        // Minimal DOM
         if (!string.IsNullOrEmpty(CssClass))
         {
             builder.OpenElement(0, "span");
+            builder.SetKey(item);
             builder.AddAttribute(1, "class", CssClass);
             builder.AddContent(2, formatted);
             builder.CloseElement();
         }
         else
         {
-            // Even more minimal - just text
             builder.AddContent(0, formatted);
         }
     }
 
-    /// <summary>
-    /// Builds a compiled formatter function.
-    /// Called once during initialization, not on every render.
-    /// </summary>
     private Func<TGridItem, string> BuildFormatter()
     {
-        // Use custom formatter if provided
         if (CustomFormatter is not null)
         {
             return item =>
@@ -120,7 +105,6 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             };
         }
 
-        // Use format string if provided
         if (!string.IsNullOrEmpty(Format))
         {
             return item =>
@@ -134,7 +118,6 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             };
         }
 
-        // Default formatting: keep behavior for most types, but use stable date/time formatting for speed/consistency
         return item =>
         {
             var value = _compiledAccessor!(item);
@@ -142,7 +125,6 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
             if (s_kind is ValueKind.Date or ValueKind.Time or ValueKind.DateTime)
             {
-                // Use invariant stable formats for date/time to avoid per-call culture lookups
                 return TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
             }
 

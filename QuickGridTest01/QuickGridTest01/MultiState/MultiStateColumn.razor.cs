@@ -7,16 +7,16 @@ using QuickGridTest01.MultiState.Core;
 using QuickGridTest01.MultiState.Validation;
 using System.Linq.Expressions;
 using System.Globalization;
-using QuickGridTest01.Infrastructure; // Added for TypeTraits
+using QuickGridTest01.Infrastructure; // Added for TypeTraits + Accessors
 
 namespace QuickGridTest01.MultiState;
 
 /// <summary>
-/// A QuickGrid column that supports inline editing with multiple states (Reading, Editing, Loading).
-/// Includes validation, event callbacks, and optimistic UI updates.
+/// A QuickGrid column that supports inline editing with multiple states (Reading, Editing, Loading) and validation.
+/// Provides optimistic updates and event hooks for advanced scenarios.
 /// </summary>
-/// <typeparam name="TGridItem">The type of data item displayed in the grid row</typeparam>
-/// <typeparam name="TValue">The type of the property value being edited</typeparam>
+/// <typeparam name="TGridItem">Row item type.</typeparam>
+/// <typeparam name="TValue">Property value type.</typeparam>
 public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDisposable
     where TGridItem : class
 {
@@ -27,81 +27,55 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     #region Parameters
 
-    /// <summary>
-    /// Gets or sets the property expression for the column.
-    /// </summary>
+    /// <summary>Expression that selects the property for this column. Required.</summary>
     [Parameter, EditorRequired]
     public Expression<Func<TGridItem, TValue>>? Property { get; set; }
 
-    /// <summary>
-    /// Gets or sets the list of validators for this column.
-    /// </summary>
+    /// <summary>Validators executed during draft validation.</summary>
     [Parameter]
     public List<IValidator<TValue>>? Validators { get; set; }
 
-    /// <summary>
-    /// Gets or sets the save callback (returns success and optional error message).
-    /// </summary>
+    /// <summary>Asynchronous save handler (server-side validation, etc.). Return success and optional error message.</summary>
     [Parameter]
     public Func<TGridItem, TValue, Task<(bool Success, string? Error)>>? OnSaveAsync { get; set; }
 
-    /// <summary>
-    /// Gets or sets the event callback fired before editing begins (cancellable).
-    /// </summary>
+    /// <summary>Raised before entering edit mode; can cancel the edit operation.</summary>
     [Parameter]
     public EventCallback<BeforeEditEventArgs<TGridItem, TValue>> OnBeforeEdit { get; set; }
 
-    /// <summary>
-    /// Gets or sets the event callback fired when value is changing.
-    /// </summary>
+    /// <summary>Raised when the draft value changes.</summary>
     [Parameter]
     public EventCallback<ValueChangingEventArgs<TGridItem, TValue>> OnValueChanging { get; set; }
 
-    /// <summary>
-    /// Gets or sets the event callback fired after save completes.
-    /// </summary>
+    /// <summary>Raised after save completes (success or failure).</summary>
     [Parameter]
     public EventCallback<SaveResultEventArgs<TGridItem, TValue>> OnSaveResult { get; set; }
 
-    /// <summary>
-    /// Gets or sets the event callback fired when state transitions occur.
-    /// </summary>
+    /// <summary>Raised on state transitions (Reading, Editing, Loading).</summary>
     [Parameter]
     public EventCallback<StateTransitionEventArgs<TGridItem>> OnStateChanged { get; set; }
 
-    /// <summary>
-    /// Gets or sets the event callback fired when edit is cancelled.
-    /// </summary>
+    /// <summary>Raised when editing is cancelled.</summary>
     [Parameter]
     public EventCallback<CancelEditEventArgs<TGridItem, TValue>> OnCancelEdit { get; set; }
 
-    /// <summary>
-    /// Gets or sets the format string for displaying values.
-    /// </summary>
+    /// <summary>Optional format string used for display and editor value.</summary>
     [Parameter]
     public string? Format { get; set; }
 
-    /// <summary>
-    /// Gets or sets whether to show validation errors inline.
-    /// </summary>
+    /// <summary>When true, renders validation errors under the cell.</summary>
     [Parameter]
     public bool ShowValidationErrors { get; set; } = true;
 
-    /// <summary>
-    /// Gets or sets the placeholder text for empty inputs.
-    /// </summary>
+    /// <summary>Placeholder text for the editor input.</summary>
     [Parameter]
     public string? Placeholder { get; set; }
 
-    /// <summary>
-    /// Gets or sets whether the column is read-only.
-    /// </summary>
+    /// <summary>When true, column is read-only and does not allow editing.</summary>
     [Parameter]
     public bool IsReadOnly { get; set; }
 
-    /// <summary>
-    /// When true, renders as an inline editor (no explicit edit button). Focus to enter edit state, blur/Enter to save.
-    /// </summary>
+    /// <summary>When true, renders as an inline editor (focus to edit, blur/Enter to save).</summary>
     [Parameter]
     public bool Inline { get; set; } = false;
 
@@ -109,50 +83,34 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     #region ColumnBase Implementation
 
-    /// <summary>
-    /// Implement abstract property from ColumnBase
-    /// </summary>
+    /// <inheritdoc />
     public override GridSort<TGridItem>? SortBy
     {
         get => _sortBuilder;
         set => _sortBuilder = value;
     }
 
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
         if (Property == null)
             throw new InvalidOperationException($"{nameof(Property)} parameter is required.");
 
-        // Compile property accessor
-        _compiledGetter = Property.Compile();
+        _compiledGetter = Accessors.CreateGetter(Property);
+        _compiledSetter = Accessors.CreateSetter(Property);
 
-        // Try to compile property setter
-        if (Property.Body is MemberExpression memberExpr)
-        {
-            var param = Expression.Parameter(typeof(TGridItem));
-            var valueParam = Expression.Parameter(typeof(TValue));
-            var assign = Expression.Assign(
-                Expression.Property(param, memberExpr.Member.Name),
-                valueParam);
-            _compiledSetter = Expression.Lambda<Action<TGridItem, TValue>>(assign, param, valueParam).Compile();
-        }
-
-        // Set title if not already set
         if (string.IsNullOrEmpty(Title) && Property.Body is MemberExpression member)
         {
             Title = member.Member.Name;
         }
 
-        // Configure sorting if the column is sortable
         if (Sortable ?? false)
         {
             _sortBuilder = GridSort<TGridItem>.ByAscending(Property);
         }
     }
 
-    /// <summary>
-    /// Implement abstract method from ColumnBase - renders the cell content
-    /// </summary>
+    /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
         var currentValue = _compiledGetter!(item);
@@ -166,6 +124,7 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             };
 
         builder.OpenElement(0, "div");
+        builder.SetKey(item);
         builder.AddAttribute(1, "class", $"multistate-cell state-{state.CurrentState.ToString().ToLower()}");
 
         if (Inline)
@@ -190,18 +149,18 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             }
         }
 
-        builder.CloseElement(); // div
+        builder.CloseElement();
     }
 
     #endregion
 
     #region Rendering Methods
 
+    /// <summary>Renders the inline editor input and optional validation summary.</summary>
     private void RenderInlineCell(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
         var isLoading = state.CurrentState == CellState.Loading;
 
-        // The input element
         builder.OpenElement(0, "input");
         builder.AddAttribute(1, "class", "cell-input" + (state.HasValidationErrors ? " invalid" : ""));
         builder.AddAttribute(2, "type", "text");
@@ -223,7 +182,6 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             builder.CloseElement();
         }
 
-        // Validation errors
         if (ShowValidationErrors && state.HasValidationErrors)
         {
             builder.OpenElement(20, "div");
@@ -241,18 +199,17 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         }
     }
 
+    /// <summary>Renders the reading (display) state with an optional edit button.</summary>
     private void RenderReadingState(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "cell-reading");
 
-        // Display value
         builder.OpenElement(2, "span");
         builder.AddAttribute(3, "class", "cell-value");
         builder.AddContent(4, FormatValue(state.OriginalValue));
-        builder.CloseElement(); // span
+        builder.CloseElement();
 
-        // Edit button removed when Inline=true
         if (!IsReadOnly && !Inline)
         {
             builder.OpenElement(5, "button");
@@ -261,26 +218,25 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             builder.AddAttribute(8, "title", $"Edit {Title ?? "value"}");
             builder.AddAttribute(9, "aria-label", $"Edit {Title ?? "value"}");
             builder.AddAttribute(10, "onclick", EventCallback.Factory.Create(this, () => EnterEditAsync(item)));
-            // Minimal inline SVG pencil icon (stroke only, currentColor)
             builder.OpenElement(11, "svg");
             builder.AddAttribute(12, "class", "icon-edit");
             builder.AddAttribute(13, "width", "14");
             builder.AddAttribute(14, "height", "14");
             builder.AddAttribute(15, "viewBox", "0 0 14 14");
             builder.AddMarkupContent(16, "<path d=\"M3 11h8M11.2 3.8l-6.9 6.9L3 11l.3-1.3 6.9-6.9 1-1c.4-.4 1-.4 1.4 0 .4.4.4 1 0 1.4l-1.4 1.4z\" stroke=\"currentColor\" stroke-width=\"1.3\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" />");
-            builder.CloseElement(); // svg
-            builder.CloseElement(); // button
+            builder.CloseElement();
+            builder.CloseElement();
         }
 
-        builder.CloseElement(); // div
+        builder.CloseElement();
     }
 
+    /// <summary>Renders the editing state with Save/Cancel actions and optional validation errors.</summary>
     private void RenderEditingState(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
         builder.OpenElement(0, "div");
         builder.AddAttribute(1, "class", "cell-editing");
 
-        // Input field
         builder.OpenElement(2, "input");
         builder.AddAttribute(3, "class", "cell-input" + (state.HasValidationErrors ? " invalid" : ""));
         builder.AddAttribute(4, "type", "text");
@@ -291,13 +247,11 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             e => OnInputChanged(item, state, e)));
         builder.AddAttribute(9, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this,
             e => OnKeyDown(item, state, e)));
-        builder.CloseElement(); // input
+        builder.CloseElement();
 
-        // Action buttons
         builder.OpenElement(10, "div");
         builder.AddAttribute(11, "class", "cell-actions");
 
-        // Save button
         builder.OpenElement(12, "button");
         builder.AddAttribute(13, "class", "btn-save");
         builder.AddAttribute(14, "type", "button");
@@ -305,22 +259,20 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.AddAttribute(16, "aria-label", $"Save {Title ?? "value"}");
         builder.AddAttribute(17, "disabled", state.HasValidationErrors);
         builder.AddAttribute(18, "onclick", EventCallback.Factory.Create(this, () => SaveEditAsync(item, state)));
-        builder.AddContent(19, "\u2713"); // check
-        builder.CloseElement(); // button
+        builder.AddContent(19, "\u2713");
+        builder.CloseElement();
 
-        // Cancel button
         builder.OpenElement(20, "button");
         builder.AddAttribute(21, "class", "btn-cancel");
         builder.AddAttribute(22, "type", "button");
         builder.AddAttribute(23, "title", $"Cancel editing {Title ?? "value"}");
         builder.AddAttribute(24, "aria-label", $"Cancel editing {Title ?? "value"}");
         builder.AddAttribute(25, "onclick", EventCallback.Factory.Create(this, () => CancelEditAsync(item, state)));
-        builder.AddContent(26, "\u2717"); // X
-        builder.CloseElement(); // button
+        builder.AddContent(26, "\u2717");
+        builder.CloseElement();
 
-        builder.CloseElement(); // div.cell-actions
+        builder.CloseElement();
 
-        // Validation errors
         if (ShowValidationErrors && state.HasValidationErrors)
         {
             builder.OpenElement(27, "div");
@@ -332,14 +284,15 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
                 builder.OpenElement(31, "div");
                 builder.AddAttribute(32, "class", "validation-error");
                 builder.AddContent(33, error);
-                builder.CloseElement(); // div
+                builder.CloseElement();
             }
-            builder.CloseElement(); // div.validation-errors
+            builder.CloseElement();
         }
 
-        builder.CloseElement(); // div.cell-editing
+        builder.CloseElement();
     }
 
+    /// <summary>Renders the loading state with a small inline busy indicator.</summary>
     private void RenderLoadingState(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
         builder.OpenElement(0, "div");
@@ -351,46 +304,44 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         builder.OpenElement(5, "span");
         builder.AddAttribute(6, "class", "loading-spinner");
         builder.AddAttribute(7, "aria-hidden", "true");
-        builder.AddContent(8, "\u231B"); // Hourglass
-        builder.CloseElement(); // span
+        builder.AddContent(8, "\u231B");
+        builder.CloseElement();
 
         builder.OpenElement(9, "span");
         builder.AddAttribute(10, "class", "loading-text");
         builder.AddContent(11, "Saving...");
-        builder.CloseElement(); // span
+        builder.CloseElement();
 
-        builder.CloseElement(); // div
+        builder.CloseElement();
     }
 
     #endregion
 
     #region Event Handlers
 
+    /// <summary>Begins editing the current row value (fires <see cref="OnBeforeEdit"/> and <see cref="OnStateChanged"/>).</summary>
     private async Task EnterEditAsync(TGridItem item)
     {
         var currentValue = _compiledGetter!(item);
 
-        // Fire before edit event
         var beforeEditArgs = new BeforeEditEventArgs<TGridItem, TValue>(item, currentValue);
         await OnBeforeEdit.InvokeAsync(beforeEditArgs);
 
         if (beforeEditArgs.Cancel)
             return;
 
-        // Get or create state
         var state = await _stateCoordinator.GetOrCreateStateAsync(item, currentValue);
 
-        // Transition to editing
         var oldState = state.CurrentState;
         state.TransitionTo(CellState.Editing);
 
-        // Fire state changed event
         var stateChangedArgs = new StateTransitionEventArgs<TGridItem>(item, oldState, CellState.Editing);
         await OnStateChanged.InvokeAsync(stateChangedArgs);
 
         StateHasChanged();
     }
 
+    /// <summary>Handles text input changes by parsing and validating the draft value.</summary>
     private void OnInputChanged(TGridItem item, MultiState<TValue> state, ChangeEventArgs e)
     {
         var oldValue = state.DraftValue;
@@ -401,12 +352,12 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         var valueChangingArgs = new ValueChangingEventArgs<TGridItem, TValue>(item, oldValue!, state.DraftValue!);
         OnValueChanging.InvokeAsync(valueChangingArgs);
 
-        // Validate
         _ = ValidateAsync(state);
 
         StateHasChanged();
     }
 
+    /// <summary>Responds to Enter/Escape keys to save or cancel the edit.</summary>
     private async Task OnKeyDown(TGridItem item, MultiState<TValue> state, KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
@@ -419,23 +370,21 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         }
     }
 
+    /// <summary>Saves the draft value via <see cref="OnSaveAsync"/> or by writing to the model property.</summary>
     private async Task SaveEditAsync(TGridItem item, MultiState<TValue> state)
     {
-        // Validate
         if (!await ValidateAsync(state))
         {
             StateHasChanged();
             return;
         }
 
-        // Transition to loading
         var oldState = state.CurrentState;
         state.TransitionTo(CellState.Loading);
         var stateChangedArgs = new StateTransitionEventArgs<TGridItem>(item, oldState, CellState.Loading);
         await OnStateChanged.InvokeAsync(stateChangedArgs);
         StateHasChanged();
 
-        // Save
         bool success;
         string? error;
 
@@ -445,22 +394,18 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         }
         else
         {
-            // Default behavior: update property directly
             _compiledSetter?.Invoke(item, state.DraftValue!);
             success = true;
             error = null;
         }
 
-        // Fire save result event
         var saveResultArgs = new SaveResultEventArgs<TGridItem, TValue>(item, state.DraftValue!, success, error);
         await OnSaveResult.InvokeAsync(saveResultArgs);
 
         if (success)
         {
-            // Commit edit
             state.CommitEdit();
 
-            // Transition back to reading
             oldState = state.CurrentState;
             state.TransitionTo(CellState.Reading);
             stateChangedArgs = new StateTransitionEventArgs<TGridItem>(item, oldState, CellState.Reading);
@@ -468,7 +413,6 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         }
         else
         {
-            // Stay in editing state and show error
             state.TransitionTo(CellState.Editing);
             if (!string.IsNullOrEmpty(error))
             {
@@ -480,19 +424,17 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         StateHasChanged();
     }
 
+    /// <summary>Cancels editing and restores the original value.</summary>
     private async Task CancelEditAsync(TGridItem item, MultiState<TValue> state)
     {
         var draftValue = state.DraftValue;
         var originalValue = state.OriginalValue;
 
-        // Cancel edit (restore original value)
         state.CancelEdit();
 
-        // Fire cancel event
         var cancelArgs = new CancelEditEventArgs<TGridItem, TValue>(item, originalValue!, draftValue!);
         await OnCancelEdit.InvokeAsync(cancelArgs);
 
-        // Transition back to reading
         var oldState = state.CurrentState;
         state.TransitionTo(CellState.Reading);
         var stateChangedArgs = new StateTransitionEventArgs<TGridItem>(item, oldState, CellState.Reading);
@@ -505,6 +447,7 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     #region Validation and Formatting
 
+    /// <summary>Validates the current draft value using configured validators.</summary>
     private async Task<bool> ValidateAsync(MultiState<TValue> state)
     {
         state.ValidationErrors.Clear();
@@ -524,21 +467,26 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         return !state.HasValidationErrors;
     }
 
+    /// <summary>
+    /// Formats a value for display/editor using <see cref="Format"/> when provided, otherwise using
+    /// <see cref="TypeTraits{T}.FormatForInput(T, object?, CultureInfo)"/> for stable dates/times.
+    /// </summary>
     private string FormatValue(TValue? value)
     {
         if (value == null)
             return string.Empty;
 
         if (!string.IsNullOrEmpty(Format) && value is IFormattable formattable)
-            return formattable.ToString(Format, null);
+            return formattable.ToString(Format, null) ?? string.Empty;
 
-        return value.ToString() ?? string.Empty;
+        return TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
     }
 
     #endregion
 
     #region IDisposable
 
+    /// <summary>Disposes any transient resources allocated by the coordinator.</summary>
     public void Dispose()
     {
         _stateCoordinator?.Dispose();

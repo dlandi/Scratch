@@ -1,65 +1,94 @@
 using System;
 using System.Globalization;
+using System.Linq.Expressions;
 using QuickGridTest01.CustomColumns;
 
 namespace QuickGridTest01.Infrastructure
 {
     /// <summary>
-    /// Describes the primitive "shape" of a generic value type <typeparamref name="T"/>.
+    /// Describes the primitive shape/category of a generic value type <typeparamref name="T"/>,
+
+    /// allowing fast switching between formatting and parsing behaviors without repeated reflection.
     /// </summary>
     /// <remarks>
-    /// This enum is used by <see cref="TypeTraits{T}"/> to quickly route parsing/formatting logic
-    /// without repeatedly consulting reflection APIs (e.g., <c>typeof(T)</c>, <see cref="Type.IsEnum"/>,
-    /// or <see cref="Nullable.GetUnderlyingType(Type)"/>). The value is computed once per closed generic type
-    /// and then reused across the application for fast type decisions in hot paths (like input parsing and
-    /// QuickGrid cell rendering).
+    /// The values represent common UI/editor-relevant groupings. They are intentionally coarse-grained
+    /// to keep hot-path branching cheap while still providing high-quality input/output behavior.
     /// </remarks>
     internal enum ValueKind
     {
+        /// <summary>Boolean values (true/false).</summary>
         Boolean,
+        /// <summary>Date-only semantic values (e.g., <see cref="DateOnly"/>).</summary>
         Date,
+        /// <summary>Time-only semantic values (e.g., <see cref="TimeOnly"/>).</summary>
         Time,
+        /// <summary>DateTime semantic values (e.g., <see cref="DateTime"/>).</summary>
         DateTime,
+        /// <summary>32-bit integral numeric values (<see cref="int"/>).</summary>
         Int32,
+        /// <summary>64-bit integral numeric values (<see cref="long"/>).</summary>
         Int64,
+        /// <summary>High-precision decimal numeric values (<see cref="decimal"/>).</summary>
         Decimal,
+        /// <summary>Double-precision floating point values (<see cref="double"/>).</summary>
         Double,
+        /// <summary>Single-precision floating point values (<see cref="float"/>).</summary>
         Single,
+        /// <summary>Enumeration types (including nullable enums).</summary>
         Enum,
+        /// <summary>Strings.</summary>
         String,
+        /// <summary>Any other value not covered by the specific categories.</summary>
         Other
     }
 
     /// <summary>
-    /// Provides cached type information and helpers for <typeparamref name="T"/> that are computed once per closed
-    /// generic type and reused. This eliminates repeated calls to reflection (e.g., <c>typeof(T)</c>,
-    /// <see cref="Nullable.GetUnderlyingType(Type)"/>, and <see cref="Type.IsEnum"/>) throughout hot paths.
+    /// Provides cached type information and helpers for <typeparamref name="T"/> that are computed once per
+    /// closed generic type and reused. This eliminates repeated calls to reflection in rendering and input hot paths.
     /// </summary>
+    /// <typeparam name="T">The value type that the cached traits apply to.</typeparam>
     /// <remarks>
-    /// Why not just use typeof each time?
-    /// - While <c>typeof(T)</c> is itself cheap, the additional checks we usually perform next (nullable unwrap,
-    ///   enum inspection, numeric/date categorization) tend to be repeated in many places (formatting, parsing,
-    ///   editor selection). Centralizing these into a single static cache per <typeparamref name="T"/> ensures
-    ///   they are computed once and reused.
-    ///
-    /// What about reflection inside this class?
-    /// - The minimal use of reflection (e.g., <see cref="Nullable.GetUnderlyingType(Type)"/>, 
-    ///   <see cref="Enum.GetNames(Type)"/>, and <see cref="Type.MakeGenericType(Type[])"/>) happens once per
-    ///   closed generic type when the type is first used. This is an amortized cost, after which all lookups are
-    ///   simple field reads and switch statements.
-    ///
-    /// Where is it useful?
-    /// - Blazor/QuickGrid inputs need to parse/format values and choose appropriate editors frequently.
-    ///   Using <see cref="TypeTraits{T}"/> avoids repeating those decisions and reduces branching/allocations.
+    /// Initialization is performed exactly once per closed generic type by the CLR and is thread-safe by design.
+    /// After initialization, lookups are simple static field reads and switch statements.
     /// </remarks>
     internal static class TypeTraits<T>
     {
+        /// <summary>
+        /// The generic type parameter <typeparamref name="T"/> as a <see cref="Type"/> instance.
+        /// </summary>
         public static readonly Type Type = typeof(T);
+
+        /// <summary>
+        /// When <typeparamref name="T"/> is nullable, contains the underlying non-nullable type; otherwise <c>null</c>.
+        /// </summary>
         public static readonly Type? NullableUnderlying = Nullable.GetUnderlyingType(Type);
+
+        /// <summary>
+        /// The non-nullable representation of <typeparamref name="T"/> (same as <see cref="Type"/> when not nullable).
+        /// </summary>
         public static readonly Type NonNullableType = NullableUnderlying ?? Type;
+
+        /// <summary>
+        /// Indicates whether <typeparamref name="T"/> is a nullable type (i.e., <c>Nullable&lt;&gt;</c>).
+        /// </summary>
         public static readonly bool IsNullable = NullableUnderlying is not null;
+
+        /// <summary>
+        /// Indicates whether the non-nullable representation is an enum type.
+        /// </summary>
         public static readonly bool IsEnum = NonNullableType.IsEnum;
+
+        /// <summary>
+        /// A cheap, precomputed categorization of <typeparamref name="T"/> used to drive parsing/formatting logic.
+        /// </summary>
         public static readonly ValueKind Kind = ComputeKind(NonNullableType);
+
+        /// <summary>
+        /// Cached delegate that boxes a non-nullable value into its corresponding <c>Nullable&lt;&gt;</c> wrapper and
+        /// returns it as <see cref="object"/>. This avoids using <see cref="Activator.CreateInstance(Type, object[])"/>
+        /// on hot paths when dealing with nullable values.
+        /// </summary>
+        private static readonly Func<object, object>? s_nullableBoxer = CreateNullableBoxer();
 
         private static ValueKind ComputeKind(Type t)
         {
@@ -78,12 +107,13 @@ namespace QuickGridTest01.Infrastructure
         }
 
         /// <summary>
-        /// Formats a value for use in HTML input elements using stable, culture-invariant formats where required.
+        /// Formats a value of <typeparamref name="T"/> for use in HTML input elements using stable, culture-invariant
+        /// formats where required (e.g., date/time). For non-special types, falls back to <see cref="object.ToString"/>.
         /// </summary>
         /// <param name="value">The value to format.</param>
-        /// <param name="kindOverride">Optional explicit editor kind that affects Date vs DateTimeLocal rendering.</param>
-        /// <param name="culture">The culture for formatting where applicable (numeric fallback uses invariant).</param>
-        /// <returns>String representation for the input's <c>value</c> attribute.</returns>
+        /// <param name="kindOverride">Optional explicit editor kind that affects Date vs DateTimeLocal formatting.</param>
+        /// <param name="culture">Culture for numeric formatting when applicable (dates use invariant formats).</param>
+        /// <returns>String representation appropriate for the input element's <c>value</c> attribute.</returns>
         public static string FormatForInput(T? value, object? kindOverride, CultureInfo culture)
         {
             if (value is null) return string.Empty;
@@ -114,8 +144,12 @@ namespace QuickGridTest01.Infrastructure
         }
 
         /// <summary>
-        /// Converts a value to a stable option string for <c>&lt;option value&gt;</c> or radio values.
+        /// Converts a value of <typeparamref name="T"/> to a stable string suitable for <c>&lt;option value&gt;</c>
+        /// attributes and radio input values, using invariant formats for date/time and numeric kinds.
         /// </summary>
+        /// <param name="value">The value to convert.</param>
+        /// <param name="culture">Culture for numeric formatting when applicable (dates use invariant formats).</param>
+        /// <returns>A stable, culture-invariant string representation for option values.</returns>
         public static string ToOptionValueString(T? value, CultureInfo culture)
         {
             if (value is null) return string.Empty;
@@ -142,12 +176,17 @@ namespace QuickGridTest01.Infrastructure
         }
 
         /// <summary>
-        /// Attempts to parse an event value (from Blazor <c>ChangeEventArgs.Value</c>) into <typeparamref name="T"/>.
+        /// Attempts to parse a raw event value (from <see cref="Microsoft.AspNetCore.Components.ChangeEventArgs.Value"/>)
+        /// into <typeparamref name="T"/> using fast, non-throwing paths for common kinds. For empty strings, returns
+        /// <c>true</c> and sets <paramref name="parsed"/> to default (null for reference/nullable types).
         /// </summary>
-        /// <param name="eventValue">The raw event value (bool or string).</param>
-        /// <param name="culture">The culture to use for parsing where applicable.</param>
-        /// <param name="parsed">The parsed value, or default when parsing fails/empty.</param>
-        /// <returns>True if a parse attempt was made (even if resulting in default), false for unexpected failures.</returns>
+        /// <param name="eventValue">The raw event value (often <see cref="string"/> or <see cref="bool"/>).</param>
+        /// <param name="culture">Culture for numeric parsing when applicable.</param>
+        /// <param name="parsed">Receives the parsed value when parsing succeeds or empty input is provided.</param>
+        /// <returns>
+        /// <c>true</c> when a parse attempt occurred (including empty-to-default); <c>false</c> only for unexpected
+        /// failures (e.g., invalid enum name) where the value cannot be produced.
+        /// </returns>
         public static bool TryParseFromEventValue(object? eventValue, CultureInfo culture, out T? parsed)
         {
             if (Kind == ValueKind.Boolean)
@@ -174,64 +213,85 @@ namespace QuickGridTest01.Infrastructure
                 return true;
             }
 
-            try
+            switch (Kind)
             {
-                switch (Kind)
+                case ValueKind.Enum:
                 {
-                    case ValueKind.Enum:
+                    try
                     {
                         var ev = Enum.Parse(NonNullableType, s, ignoreCase: true);
                         object boxed = ev;
-                        if (IsNullable) boxed = CreateNullable(NonNullableType, ev);
+                        if (IsNullable && s_nullableBoxer is not null) boxed = s_nullableBoxer(ev);
                         parsed = (T)boxed;
                         return true;
                     }
-                    case ValueKind.Date:
+                    catch
                     {
-                        if (DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-                        { parsed = (T)(object)d; return true; }
-                        parsed = default; return true;
+                        parsed = default;
+                        return false;
                     }
-                    case ValueKind.Time:
-                    {
-                        if (TimeOnly.TryParseExact(s, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var tm))
-                        { parsed = (T)(object)tm; return true; }
-                        parsed = default; return true;
-                    }
-                    case ValueKind.DateTime:
-                    {
-                        if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt))
-                        { parsed = (T)(object)dt; return true; }
-                        parsed = default; return true;
-                    }
-                    case ValueKind.Int32:
-                        parsed = (T)(object)int.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return true;
-                    case ValueKind.Int64:
-                        parsed = (T)(object)long.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return true;
-                    case ValueKind.Decimal:
-                        parsed = (T)(object)decimal.Parse(s, NumberStyles.Number, CultureInfo.InvariantCulture); return true;
-                    case ValueKind.Double:
-                        parsed = (T)(object)double.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return true;
-                    case ValueKind.Single:
-                        parsed = (T)(object)float.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return true;
-                    case ValueKind.String:
-                        parsed = (T)(object)s; return true;
-                    default:
-                        parsed = (T)Convert.ChangeType(s, NonNullableType, CultureInfo.InvariantCulture);
-                        if (IsNullable) parsed = (T)CreateNullable(NonNullableType, parsed!);
-                        return true;
                 }
-            }
-            catch
-            {
-                parsed = default;
-                return false;
+                case ValueKind.Date:
+                {
+                    if (DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                    { parsed = (T)(object)d; return true; }
+                    parsed = default; return true;
+                }
+                case ValueKind.Time:
+                {
+                    if (TimeOnly.TryParseExact(s, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var tm))
+                    { parsed = (T)(object)tm; return true; }
+                    parsed = default; return true;
+                }
+                case ValueKind.DateTime:
+                {
+                    if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt))
+                    { parsed = (T)(object)dt; return true; }
+                    parsed = default; return true;
+                }
+                case ValueKind.Int32:
+                    if (int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i32))
+                    { parsed = (T)(object)i32; return true; }
+                    parsed = default; return false;
+                case ValueKind.Int64:
+                    if (long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var i64))
+                    { parsed = (T)(object)i64; return true; }
+                    parsed = default; return false;
+                case ValueKind.Decimal:
+                    if (decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var dec))
+                    { parsed = (T)(object)dec; return true; }
+                    parsed = default; return false;
+                case ValueKind.Double:
+                    if (double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var dbl))
+                    { parsed = (T)(object)dbl; return true; }
+                    parsed = default; return false;
+                case ValueKind.Single:
+                    if (float.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var fl))
+                    { parsed = (T)(object)fl; return true; }
+                    parsed = default; return false;
+                case ValueKind.String:
+                    parsed = (T)(object)s; return true;
+                default:
+                    try
+                    {
+                        var obj = Convert.ChangeType(s, NonNullableType, CultureInfo.InvariantCulture);
+                        if (IsNullable && s_nullableBoxer is not null) obj = s_nullableBoxer(obj!);
+                        parsed = (T)obj!;
+                        return true;
+                    }
+                    catch
+                    {
+                        parsed = default;
+                        return false;
+                    }
             }
         }
 
         /// <summary>
-        /// Builds the list of <see cref="SelectOption{T}"/> for enum types. For non-enum types returns an empty array.
+        /// Builds an immutable list of <see cref="SelectOption{T}"/> for enum types (including nullable enums).
+        /// For non-enum types, returns <see cref="Array.Empty{T}()"/>.
         /// </summary>
+        /// <returns>An immutable list of enum values and their string names.</returns>
         public static IReadOnlyList<SelectOption<T>> BuildEnumOptions()
         {
             if (!IsEnum) return Array.Empty<SelectOption<T>>();
@@ -241,13 +301,31 @@ namespace QuickGridTest01.Infrastructure
             int i = 0;
             foreach (var v in values)
             {
-                object boxed = v;
-                if (IsNullable) boxed = CreateNullable(NonNullableType, v);
+                object boxed = v!;
+                if (IsNullable && s_nullableBoxer is not null) boxed = s_nullableBoxer(v!);
                 list.Add(new SelectOption<T>((T)boxed, names[i++]));
             }
             return list;
         }
 
+        /// <summary>
+        /// Creates a compiled delegate that wraps a non-nullable <see cref="object"/> into <c>Nullable&lt;NonNullableType&gt;</c>
+        /// and returns it as <see cref="object"/>. Returns <c>null</c> when <typeparamref name="T"/> is not nullable.
+        /// </summary>
+        private static Func<object, object>? CreateNullableBoxer()
+        {
+            if (!IsNullable) return null;
+            var inner = NonNullableType;
+            var ctor = typeof(Nullable<>).MakeGenericType(inner).GetConstructor(new[] { inner })!;
+            var objParam = Expression.Parameter(typeof(object), "o");
+            var newExpr = Expression.New(ctor, Expression.Convert(objParam, inner));
+            var body = Expression.Convert(newExpr, typeof(object));
+            return Expression.Lambda<Func<object, object>>(body, objParam).Compile();
+        }
+
+        /// <summary>
+        /// Legacy helper retained for compatibility; prefer <see cref="s_nullableBoxer"/> for hot paths.
+        /// </summary>
         private static object CreateNullable(Type innerType, object value)
             => Activator.CreateInstance(typeof(Nullable<>).MakeGenericType(innerType), value)!;
     }

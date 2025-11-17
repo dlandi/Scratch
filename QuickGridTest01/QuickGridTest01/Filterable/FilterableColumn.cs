@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Components.Web; // Added for MouseEventArgs
 using System.Linq.Expressions;
 using System.Globalization;
 using QuickGridTest01.Infrastructure; // TypeTraits
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace QuickGridTest01.Filterable;
 
@@ -26,11 +28,13 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     [Parameter] public List<IFilterOperator<TValue>> FilterOperators { get; set; } = new();
     [Parameter] public string? Format { get; set; }
     [Parameter] public bool ShowFilterInHeader { get; set; } = true;
+    [Parameter] public int FilterDebounceMs { get; set; } = 200;
     
     private IFilterOperator<TValue>? _selectedOperator;
     private TValue? _filterValue;
     private bool _hasFilterValue; // tracks if user set a value
     private bool _showFilterUI;
+    private CancellationTokenSource? _filterCts;
     
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
     private Func<TGridItem, TValue>? _compiledProperty;
@@ -243,7 +247,6 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             builder.AddAttribute(sequence++, "value", FormatValueForInput(_filterValue));
         }
         builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
-        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, OnValueChangedAsync));
         builder.CloseElement();
     }
 
@@ -309,6 +312,18 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
             _filterValue = default;
             _hasFilterValue = false;
         }
+
+        _filterCts?.Cancel();
+        _filterCts = new CancellationTokenSource();
+        var token = _filterCts.Token;
+
+        try
+        {
+            await Task.Delay(FilterDebounceMs, token);
+        }
+        catch (TaskCanceledException) { return; }
+
+        if (token.IsCancellationRequested) return;
 
         if (FilterableGrid is not null)
         {

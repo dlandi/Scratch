@@ -8,40 +8,44 @@ using QuickGridTest01.Infrastructure;
 namespace QuickGridTest01.CustomColumns;
 
 /// <summary>
-/// A custom column that displays an icon based on the cell value.
-/// Demonstrates: ColumnBase extension, custom rendering, state management, lifecycle methods.
+/// A custom column that displays an icon (and optional value text) based on the cell value.
+/// Supports memoization for enum domains and uses <see cref="TypeTraits{T}"/> for fast date/time formatting.
 /// </summary>
-/// <typeparam name="TGridItem">The type of data represented by each row</typeparam>
-/// <typeparam name="TValue">The type of the property value</typeparam>
+/// <typeparam name="TGridItem">Row item type.</typeparam>
+/// <typeparam name="TValue">Property value type.</typeparam>
 public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
-    // Column configuration parameters
+    /// <summary>Expression selecting the value to map to an icon. Required.</summary>
     [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
+    /// <summary>Maps a value to a CSS class (e.g., "bi bi-check"). Required.</summary>
     [Parameter] public Func<TValue, string> IconMapper { get; set; } = default!;
+    /// <summary>Optional color mapper for the icon.</summary>
     [Parameter] public Func<TValue, string>? ColorMapper { get; set; }
+    /// <summary>Optional tooltip mapper for the icon/value.</summary>
     [Parameter] public Func<TValue, string>? TooltipMapper { get; set; }
+    /// <summary>When true, renders the value text next to the icon.</summary>
     [Parameter] public bool ShowValue { get; set; } = true;
 
-    // Sorting support
     private GridSort<TGridItem>? _sortBuilder;
 
+    /// <inheritdoc />
     public override GridSort<TGridItem>? SortBy
     {
         get => _sortBuilder;
         set => _sortBuilder = value;
     }
 
-    // State management - compile accessor and detect changes
     private Expression<Func<TGridItem, TValue>>? _lastProperty;
     private Func<TGridItem, TValue>? _compiledGetter;
     private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
+    private static readonly bool s_isEnum = TypeTraits<TValue>.IsEnum;
 
-    /// <summary>
-    /// Lifecycle: Called when component is first initialized
-    /// </summary>
+    // Small memoization cache for enum domains to reduce repeated mappings
+    private readonly Dictionary<TValue, (string icon, string? color, string? tip)> _mapCache = new();
+
+    /// <inheritdoc />
     protected override void OnInitialized()
     {
-        // Validate required parameters
         if (Property is null)
         {
             throw new InvalidOperationException(
@@ -57,13 +61,9 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnInitialized();
     }
 
-    /// <summary>
-    /// Lifecycle: Called when parameters are set/updated
-    /// This is where we detect parameter changes and rebuild state
-    /// </summary>
+    /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        // Set title from property name if not provided
         if (Title is null && Property.Body is MemberExpression me)
         {
             Title = me.Member.Name;
@@ -83,35 +83,38 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnParametersSet();
     }
 
-    /// <summary>
-    /// Core rendering method - defines how cell content is rendered
-    /// </summary>
+    /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
-        // Extract the value from the item
         var value = _compiledGetter!(item);
 
-        // Get mapped values
-        var icon = IconMapper(value);
-        var color = ColorMapper?.Invoke(value) ?? "inherit";
-        var tooltip = TooltipMapper?.Invoke(value) ?? value?.ToString();
+        (string icon, string? color, string? tip) mapped;
+        if (s_isEnum && value is not null)
+        {
+            if (!_mapCache.TryGetValue(value, out mapped))
+            {
+                mapped = (IconMapper(value), ColorMapper?.Invoke(value), TooltipMapper?.Invoke(value));
+                _mapCache[value] = mapped;
+            }
+        }
+        else
+        {
+            mapped = (IconMapper(value), ColorMapper?.Invoke(value), TooltipMapper?.Invoke(value));
+        }
 
-        // Build the cell content
         int sequence = 0;
 
-        // Container span
         builder.OpenElement(sequence++, "span");
+        builder.SetKey(item);
         builder.AddAttribute(sequence++, "class", "icon-column-container");
-        builder.AddAttribute(sequence++, "title", tooltip);
+        builder.AddAttribute(sequence++, "title", mapped.tip ?? value?.ToString());
 
-        // Icon element
         builder.OpenElement(sequence++, "i");
-        builder.AddAttribute(sequence++, "class", icon);
-        builder.AddAttribute(sequence++, "style", $"color: {color}; margin-right: 8px;");
+        builder.AddAttribute(sequence++, "class", mapped.icon);
+        builder.AddAttribute(sequence++, "style", $"color: {mapped.color ?? "inherit"}; margin-right: 8px;");
         builder.AddAttribute(sequence++, "aria-hidden", "true");
-        builder.CloseElement(); // i
+        builder.CloseElement();
 
-        // Optional value text
         if (ShowValue)
         {
             builder.OpenElement(sequence++, "span");
@@ -128,18 +131,14 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             {
                 builder.AddContent(sequence++, value.ToString());
             }
-            builder.CloseElement(); // span
+            builder.CloseElement();
         }
 
-        builder.CloseElement(); // container span
+        builder.CloseElement();
     }
 
-    /// <summary>
-    /// Builds a GridSort for this column
-    /// </summary>
     private GridSort<TGridItem> BuildSort()
     {
-        // Create ascending sort
         return GridSort<TGridItem>
             .ByAscending(Property)
             .ThenAscending(Property);
