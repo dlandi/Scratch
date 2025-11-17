@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Linq;
 using System.Globalization;
+using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.CustomColumns;
 
@@ -63,6 +64,10 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     private GridSort<TGridItem>? _sortBuilder;
     private List<ValidationAttribute>? _dataAnnotationAttributes;
     private PropertyInfo? _boundPropertyInfo;
+
+    // Cache enum options per TValue
+    private static readonly IReadOnlyList<SelectOption<TValue>> s_enumOptions =
+        TypeTraits<TValue>.IsEnum ? TypeTraits<TValue>.BuildEnumOptions() : Array.Empty<SelectOption<TValue>>();
 
     public override GridSort<TGridItem>? SortBy
     {
@@ -263,13 +268,9 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         {
             // Checkbox uses checked and onchange
             var isChecked = false;
-            if (state.CurrentValue is not null)
+            if (state.CurrentValue is not null && TypeTraits<TValue>.Kind == ValueKind.Boolean)
             {
-                var underlying = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-                if (underlying == typeof(bool))
-                {
-                    isChecked = Convert.ToBoolean(state.CurrentValue, CultureInfo.InvariantCulture);
-                }
+                isChecked = Convert.ToBoolean(state.CurrentValue, CultureInfo.InvariantCulture);
             }
             builder.AddAttribute(seq++, "checked", isChecked);
             builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
@@ -388,14 +389,14 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         if (Options is not null)
             return EditorKind.Select;
 
-        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (t == typeof(bool)) return EditorKind.Checkbox;
-        if (t == typeof(DateOnly)) return EditorKind.Date;
-        if (t == typeof(TimeOnly)) return EditorKind.Time;
-        if (t == typeof(DateTime)) return EditorKind.Date;
-        if (t.IsEnum) return EnumAsSelect ? EditorKind.Select : EditorKind.RadioGroup;
-        if (UseTextArea && t == typeof(string)) return EditorKind.TextArea;
-        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float)) return EditorKind.Number;
+        var k = TypeTraits<TValue>.Kind;
+        if (k == ValueKind.Boolean) return EditorKind.Checkbox;
+        if (k == ValueKind.Date) return EditorKind.Date;
+        if (k == ValueKind.Time) return EditorKind.Time;
+        if (k == ValueKind.DateTime) return EditorKind.Date; // default to date unless explicitly DateTimeLocal
+        if (TypeTraits<TValue>.IsEnum) return EnumAsSelect ? EditorKind.Select : EditorKind.RadioGroup;
+        if (UseTextArea && k == ValueKind.String) return EditorKind.TextArea;
+        if (k is ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single) return EditorKind.Number;
         return EditorKind.Text;
     }
 
@@ -417,32 +418,15 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     private string FormatValueForInput(TValue? value, EditorKind? kindOverride = null)
     {
         if (value is null) return string.Empty;
-        var kind = kindOverride ?? GetEffectiveEditorKind();
         var culture = Culture ?? CultureInfo.InvariantCulture;
 
-        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (t == typeof(DateOnly))
+        // Allow instance Format override when value implements IFormattable and a Format was provided
+        if (!string.IsNullOrEmpty(Format) && value is IFormattable f)
         {
-            var d = (DateOnly)(object)value;
-            return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            return f.ToString(Format, null) ?? string.Empty;
         }
-        if (t == typeof(TimeOnly))
-        {
-            var tm = (TimeOnly)(object)value;
-            return tm.ToString("HH:mm", CultureInfo.InvariantCulture);
-        }
-        if (t == typeof(DateTime))
-        {
-            var dt = (DateTime)(object)value;
-            return kind == EditorKind.DateTimeLocal
-                ? dt.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
-                : dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        }
-        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float))
-        {
-            return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
-        }
-        return value.ToString() ?? string.Empty;
+
+        return TypeTraits<TValue>.FormatForInput(value, kindOverride, culture);
     }
 
     private EditState<TValue> GetOrCreateEditState(TGridItem item)
@@ -606,110 +590,21 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     private IEnumerable<SelectOption<TValue>> GetEffectiveOptions()
     {
         if (Options is not null) return Options;
-
-        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (t.IsEnum)
-        {
-            var names = Enum.GetNames(t);
-            var values = Enum.GetValues(t);
-            var list = new List<SelectOption<TValue>>();
-            int i = 0;
-            foreach (var v in values)
-            {
-                var tv = (TValue)Convert.ChangeType(v, t, CultureInfo.InvariantCulture);
-                list.Add(new SelectOption<TValue>(tv, names[i++]));
-            }
-            return list;
-        }
+        if (TypeTraits<TValue>.IsEnum) return s_enumOptions;
         return Enumerable.Empty<SelectOption<TValue>>();
     }
 
     private string ToOptionValueString(TValue? value)
-    {
-        if (value is null) return string.Empty;
-        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (t.IsEnum) return value.ToString() ?? string.Empty; // use enum name
-        if (t == typeof(DateOnly)) return ((DateOnly)(object)value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        if (t == typeof(TimeOnly)) return ((TimeOnly)(object)value).ToString("HH:mm", CultureInfo.InvariantCulture);
-        if (t == typeof(DateTime)) return ((DateTime)(object)value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float))
-            return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
-        return value.ToString() ?? string.Empty;
-    }
+        => TypeTraits<TValue>.ToOptionValueString(value, Culture ?? CultureInfo.InvariantCulture);
 
     private void UpdateStateValueFromEvent(EditState<TValue> state, ChangeEventArgs e)
     {
         try
         {
-            var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-
-            if (t == typeof(bool))
+            if (TypeTraits<TValue>.TryParseFromEventValue(e.Value, Culture ?? CultureInfo.InvariantCulture, out var parsed))
             {
-                bool? parsedBool = null;
-                if (e.Value is bool b) parsedBool = b;
-                else if (e.Value is string sb)
-                {
-                    if (string.IsNullOrWhiteSpace(sb)) parsedBool = null;
-                    else if (sb == "on") parsedBool = true; // checkbox HTML pattern
-                    else if (bool.TryParse(sb, out var pb)) parsedBool = pb;
-                }
-                state.CurrentValue = parsedBool is null
-                    ? default
-                    : (TValue)(object)parsedBool.Value;
-                return;
+                state.CurrentValue = parsed;
             }
-
-            var s = e.Value?.ToString();
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                state.CurrentValue = default;
-                return;
-            }
-
-            if (t.IsEnum)
-            {
-                try
-                {
-                    var ev = Enum.Parse(t, s, ignoreCase: true);
-                    state.CurrentValue = (TValue)ev;
-                }
-                catch { state.CurrentValue = default; }
-                return;
-            }
-
-            if (t == typeof(DateOnly))
-            {
-                if (DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
-                    state.CurrentValue = (TValue)(object)d;
-                else state.CurrentValue = default;
-                return;
-            }
-
-            if (t == typeof(TimeOnly))
-            {
-                if (TimeOnly.TryParseExact(s, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var tm))
-                    state.CurrentValue = (TValue)(object)tm;
-                else state.CurrentValue = default;
-                return;
-            }
-
-            if (t == typeof(DateTime))
-            {
-                // accept both date and datetime-local formats
-                if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt))
-                    state.CurrentValue = (TValue)(object)dt;
-                else state.CurrentValue = default;
-                return;
-            }
-
-            if (t == typeof(int)) { state.CurrentValue = (TValue)(object)int.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return; }
-            if (t == typeof(long)) { state.CurrentValue = (TValue)(object)long.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return; }
-            if (t == typeof(decimal)) { state.CurrentValue = (TValue)(object)decimal.Parse(s, NumberStyles.Number, CultureInfo.InvariantCulture); return; }
-            if (t == typeof(double)) { state.CurrentValue = (TValue)(object)double.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return; }
-            if (t == typeof(float)) { state.CurrentValue = (TValue)(object)float.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return; }
-
-            // default: string or other convertible
-            state.CurrentValue = (TValue)Convert.ChangeType(s, t, CultureInfo.InvariantCulture);
         }
         catch { }
     }

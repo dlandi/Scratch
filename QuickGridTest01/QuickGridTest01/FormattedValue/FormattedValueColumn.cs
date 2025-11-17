@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using System.Linq.Expressions;
 using System.Globalization;
+using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.FormattedValue.Component;
 
@@ -39,6 +40,9 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     private Expression<Func<TGridItem, TValue>>? _lastAssignedProperty;
     private Func<TGridItem, TValue>? _compiledPropertyGetter;
 
+    // Cached kind for optional fallback behavior
+    private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
+
     /// <summary>
     /// Gets or sets the sorting rules for this column.
     /// If not explicitly set, sorting is enabled using the Property expression.
@@ -51,7 +55,6 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         base.OnParametersSet();
 
         // Compile the property expression if it changed
-        // This provides 10x+ performance improvement over repeated compilation
         if (_lastAssignedProperty != Property)
         {
             _lastAssignedProperty = Property;
@@ -84,8 +87,6 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     {
         if (_compiledPropertyGetter == null)
         {
-            // This should never happen due to OnParametersSet validation,
-            // but we handle it defensively
             builder.AddContent(0, string.Empty);
             return;
         }
@@ -93,10 +94,28 @@ public class FormattedValueColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         // Get the property value using the compiled accessor
         var value = _compiledPropertyGetter(item);
 
-        // Format the value using the provided formatter
-        // The Formatter parameter should be a property that creates a new formatter
-        // with CultureInfo.CurrentCulture on each access
-        var formattedValue = Formatter(value);
+        // Prefer the provided formatter
+        string formattedValue;
+        try
+        {
+            formattedValue = Formatter(value);
+        }
+        catch
+        {
+            // Fallback path: format value using TypeTraits for date/time stability
+            if (value is null)
+            {
+                formattedValue = string.Empty;
+            }
+            else if (s_kind is ValueKind.Date or ValueKind.Time or ValueKind.DateTime)
+            {
+                formattedValue = TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                formattedValue = value.ToString() ?? string.Empty;
+            }
+        }
 
         // Render the formatted value
         builder.AddContent(0, formattedValue);

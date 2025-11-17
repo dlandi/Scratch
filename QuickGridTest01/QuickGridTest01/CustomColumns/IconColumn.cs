@@ -1,7 +1,9 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
-using QuickGridTest01.CustomColumns;
+using System.Linq.Expressions;
+using System.Globalization;
+using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.CustomColumns;
 
@@ -14,7 +16,7 @@ namespace QuickGridTest01.CustomColumns;
 public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
     // Column configuration parameters
-    [Parameter] public Func<TGridItem, TValue> Property { get; set; } = default!;
+    [Parameter] public Expression<Func<TGridItem, TValue>> Property { get; set; } = default!;
     [Parameter] public Func<TValue, string> IconMapper { get; set; } = default!;
     [Parameter] public Func<TValue, string>? ColorMapper { get; set; }
     [Parameter] public Func<TValue, string>? TooltipMapper { get; set; }
@@ -29,17 +31,16 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         set => _sortBuilder = value;
     }
 
-    // State management - tracks last property to detect changes
-    private Func<TGridItem, TValue>? _lastProperty;
-    private bool _isInitialized;
+    // State management - compile accessor and detect changes
+    private Expression<Func<TGridItem, TValue>>? _lastProperty;
+    private Func<TGridItem, TValue>? _compiledGetter;
+    private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
 
     /// <summary>
     /// Lifecycle: Called when component is first initialized
     /// </summary>
     protected override void OnInitialized()
     {
-        _isInitialized = true;
-
         // Validate required parameters
         if (Property is null)
         {
@@ -62,21 +63,20 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     /// </summary>
     protected override void OnParametersSet()
     {
-        // Only process after initialization
-        if (!_isInitialized)
+        // Set title from property name if not provided
+        if (Title is null && Property.Body is MemberExpression me)
         {
-            return;
+            Title = me.Member.Name;
         }
 
-        // State management: Detect property changes
         if (_lastProperty != Property)
         {
             _lastProperty = Property;
+            _compiledGetter = Property.Compile();
 
-            // Configure sorting if the column is sortable
             if (Sortable ?? false)
             {
-                _sortBuilder = BuildSort();
+                _sortBuilder = GridSort<TGridItem>.ByAscending(Property);
             }
         }
 
@@ -89,7 +89,7 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
         // Extract the value from the item
-        var value = Property(item);
+        var value = _compiledGetter!(item);
 
         // Get mapped values
         var icon = IconMapper(value);
@@ -116,7 +116,18 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         {
             builder.OpenElement(sequence++, "span");
             builder.AddAttribute(sequence++, "class", "icon-column-value");
-            builder.AddContent(sequence++, value?.ToString() ?? string.Empty);
+            if (value is null)
+            {
+                builder.AddContent(sequence++, string.Empty);
+            }
+            else if (s_kind is ValueKind.Date or ValueKind.Time or ValueKind.DateTime)
+            {
+                builder.AddContent(sequence++, TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                builder.AddContent(sequence++, value.ToString());
+            }
             builder.CloseElement(); // span
         }
 
@@ -125,13 +136,12 @@ public class IconColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     /// <summary>
     /// Builds a GridSort for this column
-    /// Note: This is a simplified implementation - production code would need more robust sorting
     /// </summary>
     private GridSort<TGridItem> BuildSort()
     {
         // Create ascending sort
         return GridSort<TGridItem>
-            .ByAscending(item => Property(item))
-            .ThenAscending(item => item); // Stable sort
+            .ByAscending(Property)
+            .ThenAscending(Property);
     }
 }

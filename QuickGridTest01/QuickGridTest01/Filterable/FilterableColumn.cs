@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web; // Added for MouseEventArgs
 using System.Linq.Expressions;
+using System.Globalization;
+using QuickGridTest01.Infrastructure; // TypeTraits
 
 namespace QuickGridTest01.Filterable;
 
@@ -34,6 +36,10 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     private Func<TGridItem, TValue>? _compiledProperty;
     private Func<TGridItem, string?>? _cellTextFunc;
     private GridSort<TGridItem>? _sortBuilder;
+
+    // Cached type info via TypeTraits
+    private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
+    private static readonly bool s_isEnum = TypeTraits<TValue>.IsEnum;
 
     public override bool HasActiveFilter => _selectedOperator is not null && _hasFilterValue;
 
@@ -243,18 +249,21 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
 
     private string GetInputType()
     {
-        var valueType = typeof(TValue);
-        var underlyingType = Nullable.GetUnderlyingType(valueType) ?? valueType;
-        if (underlyingType == typeof(DateTime)) return "date";
-        if (underlyingType == typeof(int) || underlyingType == typeof(long) || underlyingType == typeof(decimal) || underlyingType == typeof(double)) return "number";
-        if (underlyingType == typeof(bool)) return "checkbox";
-        return "text";
+        // Map ValueKind to HTML input type
+        return s_kind switch
+        {
+            ValueKind.DateTime => "date",
+            ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single => "number",
+            ValueKind.Boolean => "checkbox",
+            _ => "text"
+        };
     }
 
     private string FormatValueForInput(TValue value)
     {
-        if (value is DateTime dt) return dt.ToString("yyyy-MM-dd");
-        return value?.ToString() ?? string.Empty;
+        // Reuse TypeTraits formatting for date/date-time
+        if (value is null) return string.Empty;
+        return TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
     }
 
     private void ToggleFilterUI()
@@ -283,22 +292,16 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
     {
         try
         {
-            var stringValue = e.Value?.ToString();
-            if (string.IsNullOrWhiteSpace(stringValue))
+            // Parse using TypeTraits
+            if (TypeTraits<TValue>.TryParseFromEventValue(e.Value, CultureInfo.InvariantCulture, out var parsed))
             {
-                _filterValue = default;
-                _hasFilterValue = false;
-            }
-            else if (typeof(TValue) == typeof(bool))
-            {
-                object parsed = stringValue == "on" ? true : bool.Parse(stringValue);
-                _filterValue = (TValue)parsed;
-                _hasFilterValue = true;
+                _filterValue = parsed;
+                _hasFilterValue = parsed is not null;
             }
             else
             {
-                _filterValue = (TValue)Convert.ChangeType(stringValue, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
-                _hasFilterValue = true;
+                _filterValue = default;
+                _hasFilterValue = false;
             }
         }
         catch
@@ -342,8 +345,8 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
 
     private List<IFilterOperator<TValue>> GetDefaultOperators()
     {
-        var valueType = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (valueType == typeof(string))
+        // Build default operator set based on ValueKind
+        if (s_kind == ValueKind.String)
         {
             return new List<IFilterOperator<TValue>>
             {
@@ -353,7 +356,7 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
                 (IFilterOperator<TValue>)(object)new StringEndsWithOperator(),
             };
         }
-        if (valueType == typeof(DateTime))
+        if (s_kind == ValueKind.DateTime)
         {
             return new List<IFilterOperator<TValue>>
             {
@@ -362,11 +365,12 @@ public class FilterableColumn<TGridItem, TValue> : FilterableColumnBase<TGridIte
                 (IFilterOperator<TValue>)(object)new DateBeforeOperator(),
             };
         }
-        if (valueType == typeof(bool))
+        if (s_kind == ValueKind.Boolean)
         {
             return new List<IFilterOperator<TValue>> { (IFilterOperator<TValue>)(object)new BooleanEqualsOperator() };
         }
-        if (Nullable.GetUnderlyingType(typeof(TValue)) == null && typeof(TValue).IsValueType && typeof(IComparable<>).MakeGenericType(typeof(TValue)).IsAssignableFrom(typeof(TValue)))
+        // Numeric comparable value kinds
+        if (s_kind is ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single)
         {
             return new List<IFilterOperator<TValue>>
             {

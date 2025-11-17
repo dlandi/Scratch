@@ -6,6 +6,8 @@ using QuickGridTest01.MultiState.Component;
 using QuickGridTest01.MultiState.Core;
 using QuickGridTest01.MultiState.Validation;
 using System.Linq.Expressions;
+using System.Globalization;
+using QuickGridTest01.Infrastructure; // Added for TypeTraits
 
 namespace QuickGridTest01.MultiState;
 
@@ -197,8 +199,6 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     private void RenderInlineCell(RenderTreeBuilder builder, TGridItem item, MultiState<TValue> state)
     {
-        // Single-line inline editor that still drives multi-state transitions.
-        // Focus enters Editing; blur/Enter saves; Escape cancels; Loading shows spinner and disables input.
         var isLoading = state.CurrentState == CellState.Loading;
 
         // The input element
@@ -394,12 +394,11 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     private void OnInputChanged(TGridItem item, MultiState<TValue> state, ChangeEventArgs e)
     {
         var oldValue = state.DraftValue;
-        var newValue = ParseValue(e.Value?.ToString());
-
-        state.DraftValue = newValue;
-
-        // Fire value changing event
-        var valueChangingArgs = new ValueChangingEventArgs<TGridItem, TValue>(item, oldValue!, newValue!);
+        if (TypeTraits<TValue>.TryParseFromEventValue(e.Value, CultureInfo.InvariantCulture, out var parsed))
+        {
+            state.DraftValue = parsed!;
+        }
+        var valueChangingArgs = new ValueChangingEventArgs<TGridItem, TValue>(item, oldValue!, state.DraftValue!);
         OnValueChanging.InvokeAsync(valueChangingArgs);
 
         // Validate
@@ -534,27 +533,6 @@ public class MultiStateColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             return formattable.ToString(Format, null);
 
         return value.ToString() ?? string.Empty;
-    }
-
-    private TValue? ParseValue(string? input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return default;
-
-        var targetType = typeof(TValue);
-        var underlyingType = Nullable.GetUnderlyingType(targetType) ?? targetType;
-
-        try
-        {
-            if (underlyingType == typeof(string))
-                return (TValue)(object)input;
-
-            return (TValue)Convert.ChangeType(input, underlyingType);
-        }
-        catch
-        {
-            return default;
-        }
     }
 
     #endregion

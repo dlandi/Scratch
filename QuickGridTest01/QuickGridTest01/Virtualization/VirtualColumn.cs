@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
 using System.Linq.Expressions;
+using System.Globalization;
+using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.CustomColumns;
 
@@ -28,6 +30,9 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     
     // Sorting
     private GridSort<TGridItem>? _sortBuilder;
+
+    // Cached type info
+    private static readonly ValueKind s_kind = TypeTraits<TValue>.Kind;
 
     public override GridSort<TGridItem>? SortBy
     {
@@ -129,11 +134,19 @@ public class VirtualColumn<TGridItem, TValue> : ColumnBase<TGridItem>
             };
         }
 
-        // Default ToString
+        // Default formatting: keep behavior for most types, but use stable date/time formatting for speed/consistency
         return item =>
         {
             var value = _compiledAccessor!(item);
-            return value?.ToString() ?? string.Empty;
+            if (value is null) return string.Empty;
+
+            if (s_kind is ValueKind.Date or ValueKind.Time or ValueKind.DateTime)
+            {
+                // Use invariant stable formats for date/time to avoid per-call culture lookups
+                return TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
+            }
+
+            return value.ToString() ?? string.Empty;
         };
     }
 }
