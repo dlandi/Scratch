@@ -88,15 +88,21 @@
             <QuickGrid Items="@products" Class="qg-grid">
                 <PropertyColumn Property="@(p => p.Id)" Title="ID" />
 
-                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Product Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
-                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.SKU)" Title="SKU" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="300" Validators="@SkuValidators" OnValueChanged="@OnProductValueChanged" />
+                <!-- Match InlineEditor columns: Name, Price, Stock, Location, In Stock, Release Date, Priority, Description -->
+                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Name)" Title="Name" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="250" Validators="@ProductNameValidators" OnValueChanged="@OnProductValueChanged" />
+
                 <EditableColumn TGridItem="Product" TValue="decimal" Property="@(p => p.Price)" Title="Price" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@PriceValidators" OnValueChanged="@OnProductValueChanged" />
                 <EditableColumn TGridItem="Product" TValue="int" Property="@(p => p.Stock)" Title="Stock" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@StockValidators" OnValueChanged="@OnProductValueChanged" />
-                <EditableColumn TGridItem="Product" TValue="double" Property="@(p => p.Rating)" Title="Rating" Inline="true" UseDataAnnotations="true" InputType="number" DebounceMilliseconds="300" Validators="@RatingValidators" OnValueChanged="@OnProductValueChanged" />
 
-                <TemplateColumn Title="Status" Context="context">
-                    <span class="qg-badge qg-badge-@GetStockLevel(context.Stock)">@GetStockText(context.Stock)</span>
-                </TemplateColumn>
+                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Location)" Title="Location" Inline="true" UseDataAnnotations="true" Options="@LocationOptions" DebounceMilliseconds="0" OnValueChanged="@OnProductValueChanged" />
+
+                <EditableColumn TGridItem="Product" TValue="bool" Property="@(p => p.IsInStock)" Title="In Stock" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="0" OnValueChanged="@OnProductValueChanged" />
+
+                <EditableColumn TGridItem="Product" TValue="DateOnly" Property="@(p => p.ReleaseDate)" Title="Release Date" Inline="true" UseDataAnnotations="true" DebounceMilliseconds="0" OnValueChanged="@OnProductValueChanged" />
+
+                <EditableColumn TGridItem="Product" TValue="Priority" Property="@(p => p.Priority)" Title="Priority" Inline="true" UseDataAnnotations="true" EnumAsSelect="false" DebounceMilliseconds="0" OnValueChanged="@OnProductValueChanged" />
+
+                <EditableColumn TGridItem="Product" TValue="string" Property="@(p => p.Description)" Title="Description" Inline="true" UseDataAnnotations="true" UseTextArea="true" TextAreaRows="2" DebounceMilliseconds="300" OnValueChanged="@OnProductValueChanged" />
             </QuickGrid>
         </div>
     </section>
@@ -122,10 +128,12 @@
                 <h5>Product Validations</h5>
                 <ul>
                     <li><strong>Name:</strong> Required, 3-100 characters</li>
-                    <li><strong>SKU:</strong> Required, pattern: ABC-1234</li>
                     <li><strong>Price:</strong> Positive, max $10,000</li>
                     <li><strong>Stock:</strong> Non-negative, max 9,999</li>
-                    <li><strong>Rating:</strong> Between 0.0 and 5.0</li>
+                    <li><strong>Location:</strong> Required</li>
+                    <li><strong>Release Date:</strong> Required</li>
+                    <li><strong>Priority:</strong> Required</li>
+                    <li><strong>Description:</strong> Max 500 characters</li>
                 </ul>
             </div>
         </div>
@@ -180,6 +188,8 @@
     private IQueryable<Product> products = default!;
     private List<string> _changeLog = new();
 
+    public enum Priority { Low, Medium, High }
+
     // Validator lists
     private static readonly List<IValidator<string>> FirstLastNameValidators = new() { new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 50 } };
     private static readonly List<IValidator<string>> EmailValidators = new() { new RequiredStringValidator(), new EmailValidator() };
@@ -192,6 +202,14 @@
     private static readonly List<IValidator<decimal>> PriceValidators = new() { new RangeValidator<decimal> { Minimum = 0.0m, Maximum = 10000m }, new PositiveNumberValidator<decimal>() };
     private static readonly List<IValidator<int>> StockValidators = new() { new RangeValidator<int> { Minimum = 0, Maximum = 9999 } };
     private static readonly List<IValidator<double>> RatingValidators = new() { new RangeValidator<double> { Minimum = 0.0, Maximum = 5.0 } };
+
+    // Options for Select/Radio
+    private static readonly IEnumerable<SelectOption<string>> LocationOptions = new[]
+    {
+        new SelectOption<string>("LA", "LA"),
+        new SelectOption<string>("NYC", "NYC"),
+        new SelectOption<string>("Wash DC", "Wash DC"),
+    };
 
     protected override void OnInitialized()
     {
@@ -216,11 +234,11 @@
     {
         var productList = new List<Product>
         {
-            new() { Id = 1, Name = "Laptop Pro", SKU = "LAP-1001", Price = 1299.99m, Stock = 45, Rating = 4.5 },
-            new() { Id = 2, Name = "Office Chair", SKU = "CHR-2001", Price = 399.99m, Stock = 23, Rating = 4.2 },
-            new() { Id = 3, Name = "Wireless Mouse", SKU = "MOU-3001", Price = 49.99m, Stock = 150, Rating = 4.7 },
-            new() { Id = 4, Name = "Desk Lamp", SKU = "LMP-4001", Price = 79.99m, Stock = 0, Rating = 4.0 },
-            new() { Id = 5, Name = "USB-C Hub", SKU = "HUB-5001", Price = 89.99m, Stock = 67, Rating = 4.6 },
+            new() { Id = 1, Name = "Laptop Pro", SKU = "LAP-1001", Price = 1299.99m, Stock = 45, Rating = 4.5, Location = "LA", IsInStock = true, ReleaseDate = new DateOnly(2024, 1, 15), Priority = Priority.High, Description = "High-end laptop" },
+            new() { Id = 2, Name = "Office Chair", SKU = "CHR-2001", Price = 399.99m, Stock = 23, Rating = 4.2, Location = "NYC", IsInStock = true, ReleaseDate = new DateOnly(2024, 2, 20), Priority = Priority.Medium, Description = "Ergonomic office chair" },
+            new() { Id = 3, Name = "Wireless Mouse", SKU = "MOU-3001", Price = 49.99m, Stock = 150, Rating = 4.7, Location = "Wash DC", IsInStock = true, ReleaseDate = new DateOnly(2023, 11, 5), Priority = Priority.Low, Description = "Wireless optical mouse" },
+            new() { Id = 4, Name = "Desk Lamp", SKU = "LMP-4001", Price = 79.99m, Stock = 0, Rating = 4.0, Location = "LA", IsInStock = false, ReleaseDate = new DateOnly(2023, 9, 10), Priority = Priority.Medium, Description = "LED desk lamp" },
+            new() { Id = 5, Name = "USB-C Hub", SKU = "HUB-5001", Price = 89.99m, Stock = 67, Rating = 4.6, Location = "NYC", IsInStock = true, ReleaseDate = new DateOnly(2024, 3, 3), Priority = Priority.Medium, Description = "Multi-port hub" },
         };
         products = productList.AsQueryable();
     }
@@ -263,6 +281,11 @@
         [Range(0.0, 10000)] public decimal Price { get; set; }
         [Range(0, 9999)] public int Stock { get; set; }
         [Range(0.0, 5.0)] public double Rating { get; set; }
+        [Required] public string Location { get; set; } = "LA";
+        public bool IsInStock { get; set; }
+        [Required] public DateOnly ReleaseDate { get; set; } = DateOnly.FromDateTime(DateTime.Now);
+        [Required] public Priority Priority { get; set; } = Priority.Medium;
+        [StringLength(500)] public string? Description { get; set; }
     }
 
     private string GetStockLevel(int stock) => stock switch

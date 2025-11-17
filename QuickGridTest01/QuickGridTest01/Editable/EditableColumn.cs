@@ -6,8 +6,25 @@ using System.Linq.Expressions;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Linq;
+using System.Globalization;
 
 namespace QuickGridTest01.CustomColumns;
+
+public enum EditorKind
+{
+    Auto,
+    Text,
+    Number,
+    Checkbox,
+    Date,
+    DateTimeLocal,
+    Time,
+    TextArea,
+    Select,
+    RadioGroup
+}
+
+public record SelectOption<T>(T Value, string Text, bool Disabled = false);
 
 public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 {
@@ -22,6 +39,19 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     [Parameter] public bool UseDataAnnotations { get; set; } = false;
     [Parameter] public int DebounceMilliseconds { get; set; } = 0;
     [Parameter] public bool CommitOnInput { get; set; } = true;
+
+    // New editor configuration parameters
+    [Parameter] public EditorKind Editor { get; set; } = EditorKind.Auto;
+    [Parameter] public IEnumerable<SelectOption<TValue>>? Options { get; set; }
+    [Parameter] public Func<TValue?, string>? OptionText { get; set; }
+    [Parameter] public bool EnumAsSelect { get; set; } = true;
+    [Parameter] public bool UseTextArea { get; set; } = false;
+    [Parameter] public int TextAreaRows { get; set; } = 3;
+    [Parameter] public string? Placeholder { get; set; }
+    [Parameter] public string? Step { get; set; }
+    [Parameter] public string? Min { get; set; }
+    [Parameter] public string? Max { get; set; }
+    [Parameter] public CultureInfo? Culture { get; set; }
 
     private readonly Dictionary<TGridItem, EditState<TValue>> _editStates = new();
     private readonly Dictionary<TGridItem, System.Threading.Timer> _debounceTimers = new();
@@ -182,13 +212,133 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     private void RenderEditor(RenderTreeBuilder builder, ref int seq, TGridItem item, EditState<TValue> state, bool includeAutofocus, string cssClass = "edit-input")
     {
-        var inputType = GetInputType();
+        var kind = GetEffectiveEditorKind();
+        switch (kind)
+        {
+            case EditorKind.Select:
+                RenderSelect(builder, ref seq, item, state, cssClass);
+                break;
+            case EditorKind.RadioGroup:
+                RenderRadioGroup(builder, ref seq, item, state, cssClass);
+                break;
+            case EditorKind.TextArea:
+                RenderTextArea(builder, ref seq, item, state, cssClass);
+                break;
+            default:
+                RenderStandardInput(builder, ref seq, item, state, includeAutofocus, cssClass, kind);
+                break;
+        }
+    }
+
+    private void RenderStandardInput(RenderTreeBuilder builder, ref int seq, TGridItem item, EditState<TValue> state, bool includeAutofocus, string cssClass, EditorKind kind)
+    {
+        var inputType = GetInputType(kind);
         builder.OpenElement(seq++, "input");
         builder.AddAttribute(seq++, "type", inputType);
         builder.AddAttribute(seq++, "class", cssClass);
-        builder.AddAttribute(seq++, "value", FormatValueForInput(state.CurrentValue));
+
+        if (inputType != "checkbox")
+        {
+            builder.AddAttribute(seq++, "value", FormatValueForInput(state.CurrentValue, kind));
+            if (!string.IsNullOrEmpty(Placeholder)) builder.AddAttribute(seq++, "placeholder", Placeholder);
+            if (!string.IsNullOrEmpty(Step)) builder.AddAttribute(seq++, "step", Step);
+            if (!string.IsNullOrEmpty(Min)) builder.AddAttribute(seq++, "min", Min);
+            if (!string.IsNullOrEmpty(Max)) builder.AddAttribute(seq++, "max", Max);
+            var eventName = ValidateOnChange ? "oninput" : "onchange";
+            if (DebounceMilliseconds > 0 && ValidateOnChange)
+            {
+                builder.AddAttribute(seq++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputWithDebounce(item, e)));
+            }
+            else
+            {
+                builder.AddAttribute(seq++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
+            }
+        }
+        else
+        {
+            // Checkbox uses checked and onchange
+            var isChecked = false;
+            if (state.CurrentValue is not null)
+            {
+                var underlying = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+                if (underlying == typeof(bool))
+                {
+                    isChecked = Convert.ToBoolean(state.CurrentValue, CultureInfo.InvariantCulture);
+                }
+            }
+            builder.AddAttribute(seq++, "checked", isChecked);
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
+        }
+
+        if (includeAutofocus) builder.AddAttribute(seq++, "autofocus", true);
+        builder.AddAttribute(seq++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => OnKeyDown(item, e)));
+        builder.CloseElement();
+    }
+
+    private void RenderSelect(RenderTreeBuilder builder, ref int seq, TGridItem item, EditState<TValue> state, string cssClass)
+    {
+        builder.OpenElement(seq++, "select");
+        builder.AddAttribute(seq++, "class", cssClass);
+        if (!string.IsNullOrEmpty(Placeholder)) builder.AddAttribute(seq++, "aria-label", Placeholder);
+        builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
+
+        var opts = GetEffectiveOptions();
+        foreach (var opt in opts)
+        {
+            builder.OpenElement(seq++, "option");
+            var valStr = ToOptionValueString(opt.Value);
+            builder.AddAttribute(seq++, "value", valStr);
+            if (opt.Disabled) builder.AddAttribute(seq++, "disabled", true);
+
+            var isSelected = EqualityComparer<TValue?>.Default.Equals(opt.Value, state.CurrentValue);
+            if (isSelected) builder.AddAttribute(seq++, "selected", true);
+
+            builder.AddContent(seq++, OptionText?.Invoke(opt.Value) ?? opt.Text);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    }
+
+    private void RenderRadioGroup(RenderTreeBuilder builder, ref int seq, TGridItem item, EditState<TValue> state, string cssClass)
+    {
+        var groupName = $"rg-{Title}-{GetHashCode()}-{item?.GetHashCode()}";
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", $"radio-group {cssClass}");
+
+        var opts = GetEffectiveOptions();
+        foreach (var opt in opts)
+        {
+            var valStr = ToOptionValueString(opt.Value);
+            var isChecked = EqualityComparer<TValue?>.Default.Equals(opt.Value, state.CurrentValue);
+
+            builder.OpenElement(seq++, "label");
+            builder.AddAttribute(seq++, "class", "radio-item");
+
+            builder.OpenElement(seq++, "input");
+            builder.AddAttribute(seq++, "type", "radio");
+            builder.AddAttribute(seq++, "name", groupName);
+            builder.AddAttribute(seq++, "value", valStr);
+            if (isChecked) builder.AddAttribute(seq++, "checked", true);
+            if (opt.Disabled) builder.AddAttribute(seq++, "disabled", true);
+            builder.AddAttribute(seq++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
+            builder.CloseElement();
+
+            builder.AddContent(seq++, OptionText?.Invoke(opt.Value) ?? opt.Text);
+            builder.CloseElement(); // label
+        }
+
+        builder.CloseElement();
+    }
+
+    private void RenderTextArea(RenderTreeBuilder builder, ref int seq, TGridItem item, EditState<TValue> state, string cssClass)
+    {
+        builder.OpenElement(seq++, "textarea");
+        builder.AddAttribute(seq++, "class", cssClass);
+        builder.AddAttribute(seq++, "rows", TextAreaRows);
+        if (!string.IsNullOrEmpty(Placeholder)) builder.AddAttribute(seq++, "placeholder", Placeholder);
         var eventName = ValidateOnChange ? "oninput" : "onchange";
-        if (DebounceMilliseconds > 0)
+        if (DebounceMilliseconds > 0 && ValidateOnChange)
         {
             builder.AddAttribute(seq++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputWithDebounce(item, e)));
         }
@@ -196,8 +346,7 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         {
             builder.AddAttribute(seq++, eventName, EventCallback.Factory.Create<ChangeEventArgs>(this, e => OnInputChanged(item, e)));
         }
-        if (includeAutofocus) builder.AddAttribute(seq++, "autofocus", true);
-        builder.AddAttribute(seq++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(this, e => OnKeyDown(item, e)));
+        builder.AddContent(seq++, FormatValueForInput(state.CurrentValue, EditorKind.TextArea));
         builder.CloseElement();
     }
 
@@ -225,20 +374,69 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         }
     }
 
-    private string GetInputType()
+    private EditorKind GetEffectiveEditorKind()
     {
-        if (!string.IsNullOrWhiteSpace(InputType)) return InputType;
+        if (Editor != EditorKind.Auto)
+            return Editor;
+
+        // Options take precedence
+        if (Options is not null)
+            return EditorKind.Select;
+
         var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-        if (t == typeof(DateTime)) return "date";
-        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float)) return "number";
-        if (t == typeof(bool)) return "checkbox";
-        return "text";
+        if (t == typeof(bool)) return EditorKind.Checkbox;
+        if (t == typeof(DateOnly)) return EditorKind.Date;
+        if (t == typeof(TimeOnly)) return EditorKind.Time;
+        if (t == typeof(DateTime)) return EditorKind.Date;
+        if (t.IsEnum) return EnumAsSelect ? EditorKind.Select : EditorKind.RadioGroup;
+        if (UseTextArea && t == typeof(string)) return EditorKind.TextArea;
+        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float)) return EditorKind.Number;
+        return EditorKind.Text;
     }
 
-    private string FormatValueForInput(TValue? value)
+    private string GetInputType(EditorKind kind)
+    {
+        if (!string.IsNullOrWhiteSpace(InputType)) return InputType!;
+
+        return kind switch
+        {
+            EditorKind.Number => "number",
+            EditorKind.Checkbox => "checkbox",
+            EditorKind.Date => "date",
+            EditorKind.DateTimeLocal => "datetime-local",
+            EditorKind.Time => "time",
+            _ => "text"
+        };
+    }
+
+    private string FormatValueForInput(TValue? value, EditorKind? kindOverride = null)
     {
         if (value is null) return string.Empty;
-        if (value is DateTime dt) return dt.ToString("yyyy-MM-dd");
+        var kind = kindOverride ?? GetEffectiveEditorKind();
+        var culture = Culture ?? CultureInfo.InvariantCulture;
+
+        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+        if (t == typeof(DateOnly))
+        {
+            var d = (DateOnly)(object)value;
+            return d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+        if (t == typeof(TimeOnly))
+        {
+            var tm = (TimeOnly)(object)value;
+            return tm.ToString("HH:mm", CultureInfo.InvariantCulture);
+        }
+        if (t == typeof(DateTime))
+        {
+            var dt = (DateTime)(object)value;
+            return kind == EditorKind.DateTimeLocal
+                ? dt.ToString("yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture)
+                : dt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        }
+        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float))
+        {
+            return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        }
         return value.ToString() ?? string.Empty;
     }
 
@@ -400,24 +598,113 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
         }
     }
 
+    private IEnumerable<SelectOption<TValue>> GetEffectiveOptions()
+    {
+        if (Options is not null) return Options;
+
+        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+        if (t.IsEnum)
+        {
+            var names = Enum.GetNames(t);
+            var values = Enum.GetValues(t);
+            var list = new List<SelectOption<TValue>>();
+            int i = 0;
+            foreach (var v in values)
+            {
+                var tv = (TValue)Convert.ChangeType(v, t, CultureInfo.InvariantCulture);
+                list.Add(new SelectOption<TValue>(tv, names[i++]));
+            }
+            return list;
+        }
+        return Enumerable.Empty<SelectOption<TValue>>();
+    }
+
+    private string ToOptionValueString(TValue? value)
+    {
+        if (value is null) return string.Empty;
+        var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+        if (t.IsEnum) return value.ToString() ?? string.Empty; // use enum name
+        if (t == typeof(DateOnly)) return ((DateOnly)(object)value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (t == typeof(TimeOnly)) return ((TimeOnly)(object)value).ToString("HH:mm", CultureInfo.InvariantCulture);
+        if (t == typeof(DateTime)) return ((DateTime)(object)value).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (t == typeof(int) || t == typeof(long) || t == typeof(decimal) || t == typeof(double) || t == typeof(float))
+            return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+        return value.ToString() ?? string.Empty;
+    }
+
     private void UpdateStateValueFromEvent(EditState<TValue> state, ChangeEventArgs e)
     {
         try
         {
+            var t = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+
+            if (t == typeof(bool))
+            {
+                bool? parsedBool = null;
+                if (e.Value is bool b) parsedBool = b;
+                else if (e.Value is string sb)
+                {
+                    if (string.IsNullOrWhiteSpace(sb)) parsedBool = null;
+                    else if (sb == "on") parsedBool = true; // checkbox HTML pattern
+                    else if (bool.TryParse(sb, out var pb)) parsedBool = pb;
+                }
+                state.CurrentValue = parsedBool is null
+                    ? default
+                    : (TValue)(object)parsedBool.Value;
+                return;
+            }
+
             var s = e.Value?.ToString();
             if (string.IsNullOrWhiteSpace(s))
             {
                 state.CurrentValue = default;
+                return;
             }
-            else if (typeof(TValue) == typeof(bool))
+
+            if (t.IsEnum)
             {
-                object parsed = s == "on" ? true : bool.Parse(s);
-                state.CurrentValue = (TValue)parsed;
+                try
+                {
+                    var ev = Enum.Parse(t, s, ignoreCase: true);
+                    state.CurrentValue = (TValue)ev;
+                }
+                catch { state.CurrentValue = default; }
+                return;
             }
-            else
+
+            if (t == typeof(DateOnly))
             {
-                state.CurrentValue = (TValue)Convert.ChangeType(s, Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue));
+                if (DateOnly.TryParseExact(s, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                    state.CurrentValue = (TValue)(object)d;
+                else state.CurrentValue = default;
+                return;
             }
+
+            if (t == typeof(TimeOnly))
+            {
+                if (TimeOnly.TryParseExact(s, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var tm))
+                    state.CurrentValue = (TValue)(object)tm;
+                else state.CurrentValue = default;
+                return;
+            }
+
+            if (t == typeof(DateTime))
+            {
+                // accept both date and datetime-local formats
+                if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var dt))
+                    state.CurrentValue = (TValue)(object)dt;
+                else state.CurrentValue = default;
+                return;
+            }
+
+            if (t == typeof(int)) { state.CurrentValue = (TValue)(object)int.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return; }
+            if (t == typeof(long)) { state.CurrentValue = (TValue)(object)long.Parse(s, NumberStyles.Integer, CultureInfo.InvariantCulture); return; }
+            if (t == typeof(decimal)) { state.CurrentValue = (TValue)(object)decimal.Parse(s, NumberStyles.Number, CultureInfo.InvariantCulture); return; }
+            if (t == typeof(double)) { state.CurrentValue = (TValue)(object)double.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return; }
+            if (t == typeof(float)) { state.CurrentValue = (TValue)(object)float.Parse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture); return; }
+
+            // default: string or other convertible
+            state.CurrentValue = (TValue)Convert.ChangeType(s, t, CultureInfo.InvariantCulture);
         }
         catch { }
     }
