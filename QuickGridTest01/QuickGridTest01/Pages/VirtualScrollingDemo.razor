@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using QuickGridTest01.CustomColumns
 @using System.Diagnostics
+@inject IJSRuntime JS
 
 <PageTitle>Virtual Scrolling Column Demo</PageTitle>
 
@@ -122,23 +123,22 @@
             <div class="metric"><label>Scroll Position:</label><span>@_viewportInfo.ScrollPercentage.ToString("F1")%</span></div>
         </div>
         <div class="scroll-controls">
-            <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(0)">Top</button>
-            <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() / 4)">25%</button>
-            <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() / 2)">50%</button>
-            <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() * 3 / 4)">75%</button>
-            <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() - 1)">Bottom</button>
+            <div class="scroll-label">Scroll To Row</div>
+            <div class="scroll-buttons">
+                <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(0)">Top</button>
+                <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() / 4)">25%</button>
+                <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() / 2)">50%</button>
+                <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() * 3 / 4)">75%</button>
+                <button class="qg-btn qg-btn-secondary qg-btn-sm" @onclick="() => ScrollToRow(_largeDataset.Count() - 1)">Bottom</button>
+            </div>
         </div>
-        <div class="qg-grid-container grid-scroll-container large" @onscroll="OnScroll">
-            <QuickGrid Items="@_largeDataset" Class="qg-grid qg-grid-auto">
-                <Virtualize TItem="DataRow" Items="@_largeDataset.ToList()" Context="row" ItemSize="40" OverscanCount="5">
-                    <tr @key="row.Id">
-                        <td>@row.Id</td>
-                        <td>@row.Name</td>
-                        <td>@row.Category</td>
-                        <td>@row.Value.ToString("C2")</td>
-                        <td>@row.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
-                    </tr>
-                </Virtualize>
+        <div class="qg-grid-container grid-scroll-container large" @onscroll="OnScroll" @ref="_scrollContainerRef">
+            <QuickGrid Items="@_largeDataset" Class="qg-grid qg-grid-auto" Virtualize="true">
+                <PropertyColumn Property="@(r => r.Id)" Title="ID" />
+                <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Name)" Title="Name" />
+                <VirtualColumn TGridItem="DataRow" TValue="string" Property="@(r => r.Category)" Title="Category" />
+                <VirtualColumn TGridItem="DataRow" TValue="decimal" Property="@(r => r.Value)" Format="C2" Title="Value" />
+                <VirtualColumn TGridItem="DataRow" TValue="DateTime" Property="@(r => r.Timestamp)" Format="yyyy-MM-dd HH:mm" Title="Timestamp" />
             </QuickGrid>
         </div>
     </section>
@@ -244,6 +244,11 @@
     private double _virtualRenderTime = 0;
     private int _renderedRowCount = 30;
 
+    // Scrolling support
+    private ElementReference _scrollContainerRef;
+    private IJSObjectReference? _scrollModule;
+    private const int RowHeightPx = 40; // must match CSS row height
+
     protected override void OnInitialized()
     {
         GenerateSmallDataset();
@@ -253,6 +258,14 @@
         StateHasChanged();
         sw.Stop();
         _smallRenderTime = sw.Elapsed.TotalMilliseconds;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _scrollModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/virtualScrollingDemo.js");
+        }
     }
 
     private void GenerateSmallDataset()
@@ -320,11 +333,26 @@
         StateHasChanged();
     }
 
-    private void ScrollToRow(int rowIndex)
+    private async Task ScrollToRow(int rowIndex)
     {
+        // Clamp and compute target offset
+        var total = _largeDataset.Count();
+        if (total == 0) return;
+        rowIndex = Math.Clamp(rowIndex, 0, total - 1);
+        var top = rowIndex * RowHeightPx;
+
+        if (_scrollModule is null)
+        {
+            _scrollModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/virtualScrollingDemo.js");
+        }
+
+        await _scrollModule.InvokeVoidAsync("scrollContainerTo", _scrollContainerRef, top);
+
+        // Update viewport info heuristically
         _viewportInfo.FirstVisibleRow = rowIndex;
-        _viewportInfo.LastVisibleRow = Math.Min(rowIndex + 20, _largeDataset.Count() - 1);
-        _viewportInfo.ScrollPercentage = (rowIndex / (double)_largeDataset.Count()) * 100;
+        _viewportInfo.LastVisibleRow = Math.Min(rowIndex + 20, total - 1);
+        _viewportInfo.TotalRows = total;
+        _viewportInfo.ScrollPercentage = (rowIndex / (double)total) * 100d;
     }
 
     public class DataRow { public int Id { get; set; } public string Name { get; set; } = string.Empty; public string Category { get; set; } = string.Empty; public decimal Value { get; set; } public DateTime Timestamp { get; set; } }

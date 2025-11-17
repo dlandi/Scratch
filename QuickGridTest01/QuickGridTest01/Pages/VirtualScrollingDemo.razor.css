@@ -22,7 +22,9 @@
 .performance-display, .viewport-info { display:flex; flex-wrap:wrap; gap: var(--space-12); padding: var(--space-12); background: var(--color-surface); border-radius: var(--card-radius); border:1px solid var(--color-border-default); }
 
 /* Scroll controls */
-.scroll-controls { display:flex; gap: var(--space-8); margin-bottom: var(--space-12); flex-wrap:wrap; }
+.scroll-controls { display:flex; justify-content:space-between; align-items:center; gap: var(--space-8); margin-bottom: var(--space-12); flex-wrap:wrap; }
+.scroll-label { font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); letter-spacing: var(--letter-spacing-wide); text-transform: uppercase; }
+.scroll-buttons { display:flex; gap: var(--space-8); flex-wrap:wrap; }
 
 /* Grid containers */
 .grid-scroll-container { background: var(--color-surface); border-radius: var(--card-radius); overflow:auto; box-shadow: var(--shadow-xs); }
