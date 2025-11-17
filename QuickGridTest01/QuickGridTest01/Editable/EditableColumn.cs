@@ -126,6 +126,14 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
         var state = GetOrCreateEditState(item);
+
+        // Inline mode: ensure we have captured initial model value (value types may be default/non-null so previous logic failed)
+        if (Inline && _compiledProperty is not null && !state.IsInitialized)
+        {
+            // Capture without forcing edit semantics; treat as initialized current value but keep IsEditing true for inline rendering lifecycle
+            state.BeginEdit(_compiledProperty(item));
+        }
+
         if (Inline)
         {
             RenderInlineEditor(builder, item, state);
@@ -197,10 +205,7 @@ public class EditableColumn<TGridItem, TValue> : ColumnBase<TGridItem>
 
     private void RenderInlineEditor(RenderTreeBuilder builder, TGridItem item, EditState<TValue> state)
     {
-        if (!state.IsEditing && state.OriginalValue is null && _compiledProperty is not null)
-        {
-            state.BeginEdit(_compiledProperty(item));
-        }
+        // Initialization moved to CellContent; remove previous conditional
         int seq = 0;
         builder.OpenElement(seq++, "div");
         builder.AddAttribute(seq++, "class", $"editable-cell inline-mode {(state.IsValid ? string.Empty : "invalid")}");

@@ -47,10 +47,16 @@ public class EditState<TValue>
         ValidationResults.Where(r => !r.IsValid).Select(r => r.ErrorMessage!);
 
     /// <summary>
-    /// Enters edit mode, storing the original value.
+    /// Whether the cell's original value has been captured (initialization complete).
+    /// </summary>
+    public bool IsInitialized { get; private set; }
+
+    /// <summary>
+    /// Captures the original value and enters edit mode (used for initialization or explicit edit).
     /// </summary>
     public void BeginEdit(TValue? value)
     {
+        IsInitialized = true;
         IsEditing = true;
         OriginalValue = value;
         CurrentValue = value;
@@ -86,6 +92,7 @@ public class EditState<TValue>
     /// </summary>
     public void Reset()
     {
+        IsInitialized = false;
         IsEditing = false;
         IsValidating = false;
         CurrentValue = default;
