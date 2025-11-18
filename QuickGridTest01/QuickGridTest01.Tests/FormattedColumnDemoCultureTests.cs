@@ -4,23 +4,15 @@ using QuickGridTest01.Pages;
 using QuickGridTest01.FormattedValue.Formatters;
 using Xunit;
 using System.Globalization;
-using System.Threading;
 
 namespace QuickGridTest01.Tests.FormattedValue.Integration;
 
-/// <summary>
-/// Integration tests for FormattedColumnDemo culture changes.
-/// These tests verify that formatted values update correctly when culture changes.
-/// </summary>
 public class FormattedColumnDemoCultureTests : TestContext
 {
     public FormattedColumnDemoCultureTests()
     {
-        // Reset culture to default for each test
         CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-US");
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
-        
-        // Setup JSInterop for QuickGrid
         JSInterop.Mode = JSRuntimeMode.Loose;
         JSInterop.SetupModule("./_content/Microsoft.AspNetCore.Components.QuickGrid/QuickGrid.razor.js");
     }
@@ -33,8 +25,8 @@ public class FormattedColumnDemoCultureTests : TestContext
         var markup = cut.Markup;
 
         // Assert - Verify page renders
-        Assert.Contains("FormattedValueColumn Demonstration", markup);
-        Assert.Contains("Culture:", markup);
+        Assert.Contains("Formatted Value Column Demo", markup); // current H1
+        Assert.Contains("Culture", markup); // selector label (no colon now)
         Assert.Contains("Financial Transactions", markup);
         Assert.Contains("Product Inventory", markup);
         Assert.Contains("Employee Directory", markup);
@@ -79,41 +71,23 @@ public class FormattedColumnDemoCultureTests : TestContext
                          markup.Contains("$3,500") ||
                          markup.Contains("$800");
         
-        Assert.True(hasUsFormat, $"Should contain US currency format with $ and comma separators. Markup sample: {markup.Substring(0, Math.Min(500, markup.Length))}");
+        Assert.True(hasUsFormat, $"Should contain US currency format. Sample: {markup.Substring(0, Math.Min(400, markup.Length))}");
     }
 
     [Fact]
     public void ChangeCultureProperty_UpdatesCultureInfo()
     {
-        // This test verifies that changing the SelectedCulture property
-        // and calling OnCultureChanged actually updates CultureInfo.CurrentCulture
-        
-        // Arrange
         var cut = RenderComponent<FormattedColumnDemo>();
-        var initialCulture = CultureInfo.CurrentCulture;
-        
-        // Act - Use reflection to change culture
-        var selectedCultureProp = cut.Instance.GetType()
-            .GetProperty("SelectedCulture", 
-                System.Reflection.BindingFlags.NonPublic | 
-                System.Reflection.BindingFlags.Instance);
-        selectedCultureProp?.SetValue(cut.Instance, "de-DE");
-        
-        var onCultureChangedMethod = cut.Instance.GetType()
-            .GetMethod("OnCultureChanged",
-                System.Reflection.BindingFlags.NonPublic |
-                System.Reflection.BindingFlags.Instance);
-        onCultureChangedMethod?.Invoke(cut.Instance, null);
-        
-        var newCulture = CultureInfo.CurrentCulture;
-        
-        // Assert
-        Assert.Equal("de-DE", newCulture.Name);
-        Assert.NotEqual(initialCulture.Name, newCulture.Name);
-    }
+        var initialCulture = CultureInfo.CurrentCulture.Name;
 
-    // The following tests verify that formatters respect CultureInfo.CurrentCulture
-    // These are the CRITICAL tests that prove culture-aware formatting works
+        // Invoke private ApplyCulture directly (avoids StateHasChanged dispatcher constraint)
+        var applyCulture = typeof(FormattedColumnDemo).GetMethod("ApplyCulture", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(applyCulture);
+        applyCulture!.Invoke(cut.Instance, new object[] { "de-DE" });
+
+        Assert.Equal("de-DE", CultureInfo.CurrentCulture.Name);
+        Assert.NotEqual(initialCulture, CultureInfo.CurrentCulture.Name);
+    }
 
     [Fact]
     public void CurrencyFormatter_RespectsCurrentCulture_EnUS()
