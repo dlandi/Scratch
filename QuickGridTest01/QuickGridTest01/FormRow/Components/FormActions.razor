@@ -1,0 +1,170 @@
+@namespace QuickGridTest01.FormRow.Components
+@using QuickGridTest01.FormRow.Core
+@typeparam TGridItem where TGridItem : class
+
+<div class="form-actions @Class">
+    @if (!string.IsNullOrEmpty(Context?.SaveError))
+    {
+        <div class="form-actions-error" role="alert">
+            <i class="bi bi-exclamation-circle"></i>
+            <span>@Context.SaveError</span>
+        </div>
+    }
+    
+    <div class="form-actions-buttons">
+        @if (ShowResetButton && Context?.IsDirty() == true)
+        {
+            <button type="button"
+                    class="@ResetButtonClass"
+                    @onclick="OnResetClick"
+                    disabled="@Context?.IsSaving">
+                @if (!string.IsNullOrEmpty(ResetIcon))
+                {
+                    <i class="@ResetIcon"></i>
+                }
+                <span>@ResetText</span>
+            </button>
+        }
+
+        <button type="button"
+                class="@CancelButtonClass"
+                @onclick="OnCancelClick"
+                disabled="@Context?.IsSaving">
+            @if (!string.IsNullOrEmpty(CancelIcon))
+            {
+                <i class="@CancelIcon"></i>
+            }
+            <span>@CancelText</span>
+        </button>
+
+        <button type="button"
+                class="@SaveButtonClass"
+                @onclick="OnSaveClick"
+                disabled="@IsSaveDisabled">
+            @if (Context?.IsSaving == true)
+            {
+                <span class="form-actions-spinner"></span>
+                <span>@SavingText</span>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(SaveIcon))
+                {
+                    <i class="@SaveIcon"></i>
+                }
+                <span>@SaveText</span>
+            }
+        </button>
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Cascaded form context.
+    /// </summary>
+    [CascadingParameter]
+    public FormRowContext<TGridItem>? Context { get; set; }
+
+    /// <summary>
+    /// Text for the save button. Default: "Save".
+    /// </summary>
+    [Parameter]
+    public string SaveText { get; set; } = "Save";
+
+    /// <summary>
+    /// Text shown while saving. Default: "Saving...".
+    /// </summary>
+    [Parameter]
+    public string SavingText { get; set; } = "Saving...";
+
+    /// <summary>
+    /// Text for the cancel button. Default: "Cancel".
+    /// </summary>
+    [Parameter]
+    public string CancelText { get; set; } = "Cancel";
+
+    /// <summary>
+    /// Text for the reset button. Default: "Reset".
+    /// </summary>
+    [Parameter]
+    public string ResetText { get; set; } = "Reset";
+
+    /// <summary>
+    /// Icon class for save button. Default: "bi bi-check".
+    /// </summary>
+    [Parameter]
+    public string? SaveIcon { get; set; } = "bi bi-check";
+
+    /// <summary>
+    /// Icon class for cancel button. Default: "bi bi-x".
+    /// </summary>
+    [Parameter]
+    public string? CancelIcon { get; set; } = "bi bi-x";
+
+    /// <summary>
+    /// Icon class for reset button. Default: "bi bi-arrow-counterclockwise".
+    /// </summary>
+    [Parameter]
+    public string? ResetIcon { get; set; } = "bi bi-arrow-counterclockwise";
+
+    /// <summary>
+    /// CSS class for save button. Default: "qg-btn qg-btn-primary".
+    /// </summary>
+    [Parameter]
+    public string SaveButtonClass { get; set; } = "qg-btn qg-btn-primary";
+
+    /// <summary>
+    /// CSS class for cancel button. Default: "qg-btn qg-btn-secondary".
+    /// </summary>
+    [Parameter]
+    public string CancelButtonClass { get; set; } = "qg-btn qg-btn-secondary";
+
+    /// <summary>
+    /// CSS class for reset button. Default: "qg-btn qg-btn-ghost".
+    /// </summary>
+    [Parameter]
+    public string ResetButtonClass { get; set; } = "qg-btn qg-btn-ghost";
+
+    /// <summary>
+    /// Disable save when form has validation errors. Default: true.
+    /// </summary>
+    [Parameter]
+    public bool DisableIfInvalid { get; set; } = true;
+
+    /// <summary>
+    /// Show reset button when form is dirty. Default: false.
+    /// </summary>
+    [Parameter]
+    public bool ShowResetButton { get; set; } = false;
+
+    /// <summary>
+    /// Additional CSS class for the actions container.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    private bool IsSaveDisabled =>
+        Context?.IsSaving == true ||
+        (DisableIfInvalid && Context?.HasErrors() == true);
+
+    private async Task OnSaveClick()
+    {
+        if (Context?.SaveAsync != null)
+        {
+            await Context.SaveAsync();
+        }
+    }
+
+    private async Task OnCancelClick()
+    {
+        if (Context?.CancelAsync != null)
+        {
+            await Context.CancelAsync();
+        }
+    }
+
+    private void OnResetClick()
+    {
+        Context?.RevertDraft();
+    }
+}

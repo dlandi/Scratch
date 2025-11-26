@@ -1,0 +1,389 @@
+@page "/formrow-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.FormRow
+@using QuickGridTest01.FormRow.Core
+@using QuickGridTest01.FormRow.Components
+@using QuickGridTest01.FormRow.Events
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>FormRow Column Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">FormRow Column</h1>
+        <p class="qg-page-subtitle">
+            Inline form editing within QuickGrid rows. Supports button, row-click, and custom triggers 
+            with configurable concurrent edit behavior.
+        </p>
+    </header>
+
+    <div class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+        
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4>Form Template</h4>
+                <p>Developer-defined RenderFragment using <code>FormCard</code>, <code>FormSection</code>, 
+                and <code>FormField</code> components for flexible form layouts.</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Auto-Wiring</h4>
+                <p><code>FormField</code> automatically discovers labels, input types, and validation 
+                from property metadata and DataAnnotations.</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Draft State</h4>
+                <p>Changes are tracked in a draft state per row. Original values preserved until 
+                explicit save or cancel.</p>
+            </div>
+            
+            <div class="arch-card">
+                <h4>Overlay Rendering</h4>
+                <p>Form renders as a CSS card overlay on the active row with optional dimming of 
+                inactive rows.</p>
+            </div>
+        </div>
+    </div>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Button Trigger Mode</h2>
+            <p class="qg-section-description">
+                Click the Edit button to open the form overlay. Default concurrent edit behavior blocks 
+                editing multiple rows.
+            </p>
+        </div>
+
+        <div class="demo-controls">
+            <label class="qg-label">Concurrent Edit Behavior:</label>
+            <select class="qg-select" @bind="_concurrentBehavior1">
+                <option value="@ConcurrentEditBehavior.Block">Block</option>
+                <option value="@ConcurrentEditBehavior.CancelCurrent">Cancel Current</option>
+                <option value="@ConcurrentEditBehavior.SaveCurrent">Save Current</option>
+                <option value="@ConcurrentEditBehavior.AllowMultiple">Allow Multiple</option>
+            </select>
+            
+            <label class="inline-checkbox">
+                <input type="checkbox" @bind="_dimInactive1" />
+                <span>Dim inactive rows</span>
+            </label>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_employees" Class="qg-grid qg-form-grid">
+                <PropertyColumn Property="@(e => e.Id)" Title="ID" />
+                <PropertyColumn Property="@(e => e.FirstName)" Title="First Name" />
+                <PropertyColumn Property="@(e => e.LastName)" Title="Last Name" />
+                <PropertyColumn Property="@(e => e.Email)" Title="Email" />
+                <PropertyColumn Property="@(e => e.Department)" Title="Department" />
+                
+                <FormRowColumn TGridItem="DemoEmployee"
+                               TriggerMode="FormTriggerMode.Button"
+                               ConcurrentEditBehavior="@_concurrentBehavior1"
+                               DimInactiveRows="@_dimInactive1"
+                               OnSaveAsync="@SaveEmployeeAsync"
+                               OnSaved="@OnEmployeeSaved"
+                               OnCancelled="@OnEmployeeCancelled"
+                               OnFormStateChanged="@OnFormStateChangedHandler">
+                    <FormTemplate>
+                        <FormCard Title="Edit Employee">
+                            <FormSection Title="Personal Information">
+                                <FormField TGridItem="DemoEmployee" TValue="string" Property="@(e => e.FirstName)" />
+                                <FormField TGridItem="DemoEmployee" TValue="string" Property="@(e => e.LastName)" />
+                            </FormSection>
+                            <FormSection Title="Contact & Work">
+                                <FormField TGridItem="DemoEmployee" TValue="string" Property="@(e => e.Email)" />
+                                <FormField TGridItem="DemoEmployee" TValue="string" Property="@(e => e.Department)" />
+                                <FormField TGridItem="DemoEmployee" TValue="decimal" Property="@(e => e.Salary)" />
+                                <FormField TGridItem="DemoEmployee" TValue="DateTime" Property="@(e => e.HireDate)" />
+                            </FormSection>
+                            <FormActions TGridItem="DemoEmployee" SaveText="Save Changes" />
+                        </FormCard>
+                    </FormTemplate>
+                </FormRowColumn>
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Custom DisplayTemplate</h2>
+            <p class="qg-section-description">
+                Custom display template with multiple action buttons. Uses <code>TriggerMode.Custom</code> 
+                for full control over the edit trigger.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_products" Class="qg-grid qg-form-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                <PropertyColumn Property="@(p => p.Name)" Title="Product Name" />
+                <PropertyColumn Property="@(p => p.Category)" Title="Category" />
+                <PropertyColumn Property="@(p => p.Price)" Title="Price" Format="C2" />
+                <PropertyColumn Property="@(p => p.Stock)" Title="Stock" />
+                
+                <FormRowColumn TGridItem="DemoProduct"
+                               TriggerMode="FormTriggerMode.Custom"
+                               ConcurrentEditBehavior="ConcurrentEditBehavior.CancelCurrent"
+                               OnSaveAsync="@SaveProductAsync"
+                               OnFormStateChanged="@OnProductFormStateChanged">
+                    <DisplayTemplate Context="ctx">
+                        <div class="custom-actions">
+                            <button class="qg-btn qg-btn-primary qg-btn-sm"
+                                    @onclick="@(() => ctx.EnterFormModeAsync())"
+                                    disabled="@(!ctx.CanEnterFormMode)">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="qg-btn qg-btn-ghost qg-btn-sm"
+                                    @onclick="() => DuplicateProduct(ctx.Item)">
+                                <i class="bi bi-files"></i>
+                            </button>
+                            <button class="qg-btn qg-btn-ghost qg-btn-sm text-error"
+                                    @onclick="() => DeleteProduct(ctx.Item)">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </DisplayTemplate>
+                    <FormTemplate>
+                        <FormCard Title="Edit Product">
+                            <FormSection>
+                                <FormField TGridItem="DemoProduct" TValue="string" Property="@(p => p.Name)" />
+                                <FormField TGridItem="DemoProduct" TValue="string" Property="@(p => p.Category)" />
+                            </FormSection>
+                            <FormSection Title="Pricing & Inventory">
+                                <FormField TGridItem="DemoProduct" TValue="decimal" Property="@(p => p.Price)" />
+                                <FormField TGridItem="DemoProduct" TValue="int" Property="@(p => p.Stock)" />
+                            </FormSection>
+                            <FormSection Title="Details">
+                                <FormField TGridItem="DemoProduct" TValue="string" 
+                                           Property="@(p => p.Description)" 
+                                           InputType="textarea" 
+                                           Rows="3" />
+                            </FormSection>
+                            <FormActions TGridItem="DemoProduct" 
+                                         SaveText="Update Product" 
+                                         ShowResetButton="true" />
+                        </FormCard>
+                    </FormTemplate>
+                </FormRowColumn>
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Compact Inline Form</h2>
+            <p class="qg-section-description">
+                Minimal form for quick edits. Uses <code>AllowMultiple</code> concurrent behavior 
+                to edit multiple rows simultaneously.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_contacts" Class="qg-grid qg-form-grid">
+                <PropertyColumn Property="@(c => c.Id)" Title="ID" />
+                <PropertyColumn Property="@(c => c.Name)" Title="Name" />
+                <PropertyColumn Property="@(c => c.Email)" Title="Email" />
+                <PropertyColumn Property="@(c => c.Phone)" Title="Phone" />
+                
+                <FormRowColumn TGridItem="DemoContact"
+                               TriggerMode="FormTriggerMode.Button"
+                               ConcurrentEditBehavior="ConcurrentEditBehavior.AllowMultiple"
+                               DimInactiveRows="false"
+                               EditButtonText=""
+                               EditButtonIcon="bi bi-pencil-square"
+                               OnSaveAsync="@SaveContactAsync"
+                               OnFormStateChanged="@OnContactFormStateChanged">
+                    <FormTemplate>
+                        <FormCard>
+                            <FormSection Columns="2">
+                                <FormField TGridItem="DemoContact" TValue="string" Property="@(c => c.Name)" />
+                                <FormField TGridItem="DemoContact" TValue="string" Property="@(c => c.Email)" />
+                                <FormField TGridItem="DemoContact" TValue="string" Property="@(c => c.Phone)" />
+                            </FormSection>
+                            <FormActions TGridItem="DemoContact" SaveText="Save" CancelText="×" />
+                        </FormCard>
+                    </FormTemplate>
+                </FormRowColumn>
+            </QuickGrid>
+        </div>
+    </section>
+
+    @if (_eventLog.Any())
+    {
+        <section class="qg-section">
+            <div class="qg-section-header">
+                <h2 class="qg-section-title">Event Log</h2>
+                <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLog.Clear()">
+                    Clear Log
+                </button>
+            </div>
+            <div class="event-log">
+                @foreach (var entry in _eventLog.TakeLast(10).Reverse())
+                {
+                    <div class="log-entry">@entry</div>
+                }
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private IQueryable<DemoEmployee> _employees = default!;
+    private IQueryable<DemoProduct> _products = default!;
+    private IQueryable<DemoContact> _contacts = default!;
+    
+    private ConcurrentEditBehavior _concurrentBehavior1 = ConcurrentEditBehavior.Block;
+    private bool _dimInactive1 = true;
+    
+    private List<string> _eventLog = new();
+
+    protected override void OnInitialized()
+    {
+        _employees = new List<DemoEmployee>
+        {
+            new() { Id = 1, FirstName = "Alice", LastName = "Johnson", Email = "alice@example.com", Department = "Engineering", Salary = 95000, HireDate = new DateTime(2020, 3, 15) },
+            new() { Id = 2, FirstName = "Bob", LastName = "Smith", Email = "bob@example.com", Department = "Marketing", Salary = 75000, HireDate = new DateTime(2019, 7, 22) },
+            new() { Id = 3, FirstName = "Carol", LastName = "Williams", Email = "carol@example.com", Department = "Sales", Salary = 82000, HireDate = new DateTime(2021, 1, 10) },
+            new() { Id = 4, FirstName = "David", LastName = "Brown", Email = "david@example.com", Department = "Engineering", Salary = 105000, HireDate = new DateTime(2018, 11, 5) },
+        }.AsQueryable();
+
+        _products = new List<DemoProduct>
+        {
+            new() { Id = 1, Name = "Widget Pro", Category = "Electronics", Price = 299.99m, Stock = 150, Description = "Professional-grade widget with advanced features." },
+            new() { Id = 2, Name = "Gadget Max", Category = "Electronics", Price = 199.99m, Stock = 75, Description = "Maximum performance gadget for everyday use." },
+            new() { Id = 3, Name = "Tool Set Basic", Category = "Hardware", Price = 49.99m, Stock = 200, Description = "Essential tool set for home repairs." },
+        }.AsQueryable();
+
+        _contacts = new List<DemoContact>
+        {
+            new() { Id = 1, Name = "John Doe", Email = "john@example.com", Phone = "555-0101" },
+            new() { Id = 2, Name = "Jane Smith", Email = "jane@example.com", Phone = "555-0102" },
+            new() { Id = 3, Name = "Mike Wilson", Email = "mike@example.com", Phone = "555-0103" },
+        }.AsQueryable();
+    }
+
+    private async Task<(bool, string?)> SaveEmployeeAsync(DemoEmployee employee)
+    {
+        await Task.Delay(500); // Simulate network delay
+        LogEvent($"Saved employee: {employee.FirstName} {employee.LastName}");
+        return (true, null);
+    }
+
+    private async Task<(bool, string?)> SaveProductAsync(DemoProduct product)
+    {
+        await Task.Delay(300);
+        LogEvent($"Saved product: {product.Name}");
+        return (true, null);
+    }
+
+    private async Task<(bool, string?)> SaveContactAsync(DemoContact contact)
+    {
+        await Task.Delay(200);
+        LogEvent($"Saved contact: {contact.Name}");
+        return (true, null);
+    }
+
+    private void OnEmployeeSaved(FormSaveEventArgs<DemoEmployee> args)
+    {
+        LogEvent($"OnSaved fired for: {args.Item.FirstName} ({args.SavedValues.Count} fields)");
+    }
+
+    private void OnEmployeeCancelled(FormCancelEventArgs<DemoEmployee> args)
+    {
+        LogEvent($"OnCancelled fired for: {args.Item.FirstName} (was dirty: {args.WasDirty})");
+    }
+
+    private void OnFormStateChangedHandler(FormStateChangedEventArgs<DemoEmployee> args)
+    {
+        // EventCallback automatically triggers StateHasChanged
+        LogEvent($"Employee form state: {args.OldState} → {args.NewState}");
+    }
+
+    private void OnProductFormStateChanged(FormStateChangedEventArgs<DemoProduct> args)
+    {
+        // EventCallback automatically triggers StateHasChanged
+        LogEvent($"Product form state: {args.OldState} → {args.NewState}");
+    }
+
+    private void OnContactFormStateChanged(FormStateChangedEventArgs<DemoContact> args)
+    {
+        // EventCallback automatically triggers StateHasChanged
+        LogEvent($"Contact form state: {args.OldState} → {args.NewState}");
+    }
+
+    private void DuplicateProduct(DemoProduct product)
+    {
+        LogEvent($"Duplicate clicked: {product.Name}");
+    }
+
+    private void DeleteProduct(DemoProduct product)
+    {
+        LogEvent($"Delete clicked: {product.Name}");
+    }
+
+    private void LogEvent(string message)
+    {
+        _eventLog.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
+        StateHasChanged();
+    }
+
+    // Demo model classes
+    public class DemoEmployee
+    {
+        public int Id { get; set; }
+        
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "First name must be 2-50 characters")]
+        public string FirstName { get; set; } = "";
+        
+        [Required(ErrorMessage = "Last name is required")]
+        public string LastName { get; set; } = "";
+        
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
+        public string Email { get; set; } = "";
+        
+        public string Department { get; set; } = "";
+        
+        [Range(0, 1000000, ErrorMessage = "Salary must be between 0 and 1,000,000")]
+        public decimal Salary { get; set; }
+        
+        public DateTime HireDate { get; set; }
+    }
+
+    public class DemoProduct
+    {
+        public int Id { get; set; }
+        
+        [Required]
+        public string Name { get; set; } = "";
+        
+        public string Category { get; set; } = "";
+        
+        [Range(0.01, 99999.99)]
+        public decimal Price { get; set; }
+        
+        [Range(0, 10000)]
+        public int Stock { get; set; }
+        
+        public string Description { get; set; } = "";
+    }
+
+    public class DemoContact
+    {
+        public int Id { get; set; }
+        
+        [Required]
+        public string Name { get; set; } = "";
+        
+        [EmailAddress]
+        public string Email { get; set; } = "";
+        
+        public string Phone { get; set; } = "";
+    }
+}

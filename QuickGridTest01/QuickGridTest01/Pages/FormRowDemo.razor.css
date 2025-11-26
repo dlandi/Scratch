@@ -1,0 +1,131 @@
+/* FormRowDemo - Component-specific extensions using Refined Minimalism design system */
+
+/* Architecture cards grid */
+.architecture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--space-16);
+    margin-bottom: var(--space-24);
+}
+
+.arch-card {
+    padding: var(--space-16);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--card-radius);
+}
+
+.arch-card h4 {
+    margin: 0 0 var(--space-8) 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+}
+
+.arch-card p {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+}
+
+.arch-card code {
+    background: var(--color-canvas);
+    padding: var(--space-1) var(--space-4);
+    border-radius: 3px;
+    font-size: var(--font-size-xs);
+}
+
+/* Demo controls */
+.demo-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-16);
+    margin-bottom: var(--space-16);
+    padding: var(--space-12);
+    background: var(--color-canvas);
+    border-radius: var(--card-radius);
+}
+
+.demo-controls .qg-select {
+    min-width: 180px;
+}
+
+.inline-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+}
+
+.inline-checkbox input {
+    width: 16px;
+    height: 16px;
+}
+
+/* Custom actions in DisplayTemplate */
+.custom-actions {
+    display: flex;
+    gap: var(--space-6);
+    align-items: center;
+}
+
+.custom-actions .text-error {
+    color: var(--color-error);
+}
+
+.custom-actions .text-error:hover {
+    background-color: var(--color-error-subtle);
+}
+
+/* Event log */
+.event-log {
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border-default);
+    border-radius: var(--card-radius);
+    padding: var(--space-12);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.log-entry {
+    padding: var(--space-4) 0;
+    border-bottom: 1px solid var(--color-border-default);
+    color: var(--color-text-secondary);
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+/* Grid container adjustments for form overlay */
+.qg-grid-container {
+    position: relative;
+    overflow: visible;
+}
+
+/* Ensure form overlay has room to display */
+.qg-form-grid {
+    margin-bottom: var(--space-32);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .demo-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .demo-controls .qg-select {
+        width: 100%;
+    }
+    
+    .custom-actions {
+        flex-direction: column;
+        gap: var(--space-4);
+    }
+}

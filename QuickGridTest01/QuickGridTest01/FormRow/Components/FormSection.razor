@@ -1,0 +1,37 @@
+@namespace QuickGridTest01.FormRow.Components
+
+<div class="form-section @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <h4 class="form-section-title">@Title</h4>
+    }
+    <div class="form-section-content @(Columns > 1 ? $"form-section-columns-{Columns}" : "")">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Optional title for the section.
+    /// </summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Additional CSS classes.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// Number of columns for the grid layout. Default: auto-fit.
+    /// </summary>
+    [Parameter]
+    public int Columns { get; set; } = 0;
+
+    /// <summary>
+    /// The form fields within this section.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+}

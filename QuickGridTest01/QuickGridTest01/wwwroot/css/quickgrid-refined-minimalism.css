@@ -804,3 +804,409 @@ li {
   line-height: var(--line-height-relaxed);
   margin: 0;
 }
+
+/* ============================================================================
+   FORMROW COLUMN STYLES
+   Overlay form rendering within QuickGrid rows
+   Uses the Refined Minimalism design system tokens
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------------
+   Grid-level styles (applied to QuickGrid when FormRowColumn is present)
+   -------------------------------------------------------------------------- */
+
+.qg-form-grid tbody tr {
+    position: relative;
+}
+
+.qg-form-grid.has-active-form tbody tr:not(.form-row-active) td {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity var(--duration-normal, 200ms) var(--ease-in-out, ease);
+}
+
+.qg-form-grid tbody tr.form-row-active {
+    z-index: 11;
+}
+
+/* ----------------------------------------------------------------------------
+   Cell wrapper
+   -------------------------------------------------------------------------- */
+
+.form-row-cell {
+    position: relative;
+    min-width: 80px;
+}
+
+    .form-row-cell.form-dimmed {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    .form-row-cell.form-active {
+        position: static; /* Allow overlay to escape cell bounds */
+    }
+
+/* ----------------------------------------------------------------------------
+   Form overlay (the card that appears over the row)
+   -------------------------------------------------------------------------- */
+
+.form-row-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    min-height: 100%;
+    z-index: 100;
+    /* Card styling */
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-emphasis, #d0d7de);
+    border-radius: var(--card-radius, 6px);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(140, 149, 159, 0.2));
+    padding: var(--space-16, 16px);
+    /* Ensure it covers adjacent cells visually */
+    min-width: max(400px, 100%);
+    transform: translateX(-50%);
+    left: 50%;
+}
+
+    /* Alternative: Below-row expansion (if preferred) */
+    .form-row-overlay.below-row {
+        top: 100%;
+        transform: none;
+        left: 0;
+        margin-top: var(--space-4, 4px);
+    }
+
+/* ----------------------------------------------------------------------------
+   Form Card
+   -------------------------------------------------------------------------- */
+
+.form-card {
+    background: transparent;
+}
+
+.form-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-16, 16px);
+    padding-bottom: var(--space-12, 12px);
+    border-bottom: 1px solid var(--color-border-default, #d0d7de);
+}
+
+.form-card-title {
+    margin: 0;
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1f2328);
+}
+
+.form-card-header-actions {
+    display: flex;
+    gap: var(--space-8, 8px);
+}
+
+.form-card-body {
+    /* Content flows naturally */
+}
+
+.form-card-footer {
+    margin-top: var(--space-16, 16px);
+    padding-top: var(--space-12, 12px);
+    border-top: 1px solid var(--color-border-default, #d0d7de);
+}
+
+/* ----------------------------------------------------------------------------
+   Form Section
+   -------------------------------------------------------------------------- */
+
+.form-section {
+    margin-bottom: var(--space-20, 20px);
+}
+
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+
+.form-section-title {
+    margin: 0 0 var(--space-12, 12px) 0;
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide, 0.05em);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.form-section-content {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-16, 16px) var(--space-20, 20px);
+}
+
+/* Fixed column layouts */
+.form-section-columns-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.form-section-columns-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.form-section-columns-4 {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* ----------------------------------------------------------------------------
+   Form Field
+   -------------------------------------------------------------------------- */
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 4px);
+}
+
+    .form-field.dirty .form-field-label {
+        color: var(--color-accent-primary, #0969da);
+    }
+
+    .form-field.has-errors .form-field-input {
+        border-color: var(--color-error, #cf222e);
+        background-color: var(--color-error-subtle, #ffebe9);
+    }
+
+    .form-field.readonly .form-field-input {
+        background-color: var(--color-canvas, #f6f8fa);
+        cursor: not-allowed;
+    }
+
+    .form-field.disabled .form-field-input {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+/* Label */
+.form-field-label {
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-secondary, #59636e);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 2px);
+}
+
+.form-field-required {
+    color: var(--color-error, #cf222e);
+}
+
+/* Input */
+.form-field-input {
+    width: 100%;
+    padding: var(--space-8, 8px) var(--space-12, 12px);
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-primary, #1f2328);
+    background-color: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #d0d7de);
+    border-radius: var(--card-radius, 6px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out, ease);
+}
+
+    .form-field-input:hover:not(:disabled):not(:read-only) {
+        border-color: var(--color-border-emphasis, #868f99);
+    }
+
+    .form-field-input:focus {
+        outline: none;
+        border-color: var(--color-accent-primary, #0969da);
+        box-shadow: var(--focus-ring, 0 0 0 3px rgba(9, 105, 218, 0.3));
+    }
+
+    .form-field-input::placeholder {
+        color: var(--color-text-disabled, #8c959f);
+    }
+
+    .form-field-input.invalid {
+        border-color: var(--color-error, #cf222e);
+    }
+
+        .form-field-input.invalid:focus {
+            box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.3);
+        }
+
+/* Textarea */
+textarea.form-field-input {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* Select */
+select.form-field-input {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23656d76' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--space-12, 12px) center;
+    padding-right: var(--space-32, 32px);
+}
+
+/* Checkbox wrapper */
+.form-field-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    height: 38px; /* Match input height */
+}
+
+    .form-field-checkbox-wrapper input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+/* Validation errors */
+.form-field-errors {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 2px);
+}
+
+.form-field-error {
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-error, #cf222e);
+}
+
+/* ----------------------------------------------------------------------------
+   Form Actions
+   -------------------------------------------------------------------------- */
+
+.form-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12, 12px);
+    margin-top: var(--space-20, 20px);
+    padding-top: var(--space-16, 16px);
+    border-top: 1px solid var(--color-border-default, #d0d7de);
+}
+
+.form-actions-error {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 8px);
+    padding: var(--space-8, 8px) var(--space-12, 12px);
+    background-color: var(--color-error-subtle, #ffebe9);
+    border: 1px solid var(--color-error-border, #ff8182);
+    border-radius: var(--card-radius, 6px);
+    color: var(--color-error, #cf222e);
+    font-size: var(--font-size-sm, 0.875rem);
+}
+
+.form-actions-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-8, 8px);
+}
+
+.form-actions-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: form-spin 0.75s linear infinite;
+    margin-right: var(--space-4, 4px);
+}
+
+@keyframes form-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ----------------------------------------------------------------------------
+   Row click indicator
+   -------------------------------------------------------------------------- */
+
+.form-row-click-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8, 8px);
+    color: var(--color-text-tertiary, #656d76);
+    cursor: pointer;
+    border-radius: var(--card-radius, 6px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out, ease);
+}
+
+    .form-row-click-indicator:hover {
+        color: var(--color-accent-primary, #0969da);
+        background-color: var(--color-accent-subtle, #ddf4ff);
+    }
+
+/* ----------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .form-row-overlay {
+        min-width: 100%;
+        transform: none;
+        left: 0;
+        padding: var(--space-12, 12px);
+    }
+
+    .form-section-content {
+        grid-template-columns: 1fr;
+    }
+
+    .form-section-columns-2,
+    .form-section-columns-3,
+    .form-section-columns-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions-buttons {
+        flex-direction: column-reverse;
+    }
+
+        .form-actions-buttons button {
+            width: 100%;
+        }
+}
+
+/* ----------------------------------------------------------------------------
+   Animation for form appearance
+   -------------------------------------------------------------------------- */
+
+.form-row-overlay {
+    animation: form-slide-in var(--duration-normal, 200ms) var(--ease-in-out, ease);
+}
+
+@keyframes form-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* For below-row variant */
+.form-row-overlay.below-row {
+    animation-name: form-slide-down;
+}
+
+@keyframes form-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

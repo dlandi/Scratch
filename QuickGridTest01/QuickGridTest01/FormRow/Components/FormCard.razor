@@ -1,0 +1,57 @@
+@namespace QuickGridTest01.FormRow.Components
+
+<div class="form-card @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="form-card-header">
+            <h3 class="form-card-title">@Title</h3>
+            @if (HeaderActions != null)
+            {
+                <div class="form-card-header-actions">
+                    @HeaderActions
+                </div>
+            }
+        </div>
+    }
+    <div class="form-card-body">
+        @ChildContent
+    </div>
+    @if (Footer != null)
+    {
+        <div class="form-card-footer">
+            @Footer
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Optional title displayed in the card header.
+    /// </summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Additional CSS classes for the card.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// The main content of the card (form fields, sections, etc.).
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Optional actions in the header (e.g., close button).
+    /// </summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    /// <summary>
+    /// Optional footer content (alternative to FormActions).
+    /// </summary>
+    [Parameter]
+    public RenderFragment? Footer { get; set; }
+}
