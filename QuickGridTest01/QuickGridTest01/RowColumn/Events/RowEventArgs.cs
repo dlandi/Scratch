@@ -1,0 +1,66 @@
+using QuickGridTest01.RowColumn.Core;
+
+namespace QuickGridTest01.RowColumn.Events;
+
+/// <summary>
+/// Event arguments for row expanded event.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data item</typeparam>
+public class RowExpandedEventArgs<TGridItem> where TGridItem : class
+{
+    /// <summary>
+    /// The item that was expanded.
+    /// </summary>
+    public TGridItem Item { get; init; } = default!;
+}
+
+/// <summary>
+/// Event arguments for row collapsed event.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data item</typeparam>
+public class RowCollapsedEventArgs<TGridItem> where TGridItem : class
+{
+    /// <summary>
+    /// The item that was collapsed.
+    /// </summary>
+    public TGridItem Item { get; init; } = default!;
+}
+
+/// <summary>
+/// Event arguments for the before-expand event (cancellable).
+/// </summary>
+/// <typeparam name="TGridItem">The type of data item</typeparam>
+public class RowBeforeExpandEventArgs<TGridItem> where TGridItem : class
+{
+    /// <summary>
+    /// The item about to be expanded.
+    /// </summary>
+    public TGridItem Item { get; init; } = default!;
+
+    /// <summary>
+    /// Set to true to prevent expanding.
+    /// </summary>
+    public bool Cancel { get; set; }
+}
+
+/// <summary>
+/// Event arguments for row state transitions.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data item</typeparam>
+public class RowStateChangedEventArgs<TGridItem> where TGridItem : class
+{
+    /// <summary>
+    /// The item whose state changed.
+    /// </summary>
+    public TGridItem Item { get; init; } = default!;
+
+    /// <summary>
+    /// The previous state.
+    /// </summary>
+    public RowExpandedState OldState { get; init; }
+
+    /// <summary>
+    /// The new state.
+    /// </summary>
+    public RowExpandedState NewState { get; init; }
+}

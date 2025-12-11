@@ -1,0 +1,83 @@
+@namespace QuickGridTest01.RowColumn.Components
+
+<div class="form-card @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="form-card-header">
+            <h3 class="form-card-title">@Title</h3>
+            <div class="form-card-header-actions">
+                @if (HeaderActions != null)
+                {
+                    @HeaderActions
+                }
+                @if (ShowCloseButton)
+                {
+                    <button type="button" class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="OnCloseClick" title="Close">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+    <div class="form-card-body">
+        @ChildContent
+    </div>
+    @if (FooterContent != null)
+    {
+        <div class="form-card-footer">
+            @FooterContent
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>
+    /// Optional title displayed in the card header.
+    /// </summary>
+    [Parameter]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Additional CSS classes for the card.
+    /// </summary>
+    [Parameter]
+    public string? Class { get; set; }
+
+    /// <summary>
+    /// The main content of the card.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>
+    /// Optional actions in the header (e.g., additional buttons).
+    /// </summary>
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    /// <summary>
+    /// Optional footer content (buttons, etc.).
+    /// </summary>
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    /// <summary>
+    /// Whether to show a close button in the header.
+    /// </summary>
+    [Parameter]
+    public bool ShowCloseButton { get; set; }
+
+    /// <summary>
+    /// Callback when close button is clicked.
+    /// </summary>
+    [Parameter]
+    public Func<Task>? OnClose { get; set; }
+
+    private async Task OnCloseClick()
+    {
+        if (OnClose != null)
+        {
+            await OnClose();
+        }
+    }
+}
