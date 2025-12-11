@@ -41,6 +41,29 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
     #endregion
 
+    #region Parameters - Row Span & Height
+
+    /// <summary>
+    /// Number of row heights the expanded overlay should span. Default: 3.
+    /// Important for virtualization compatibility where all rows must have uniform height.
+    /// </summary>
+    [Parameter]
+    public int ExpandedRowSpan { get; set; } = 3;
+
+    /// <summary>
+    /// Height of each row in pixels. Default: 48.
+    /// Used to calculate total overlay height: ExpandedRowSpan × RowHeight.
+    /// </summary>
+    [Parameter]
+    public int RowHeight { get; set; } = 48;
+
+    /// <summary>
+    /// Gets the calculated height of the expanded overlay in pixels.
+    /// </summary>
+    public int ExpandedHeight => ExpandedRowSpan * RowHeight;
+
+    #endregion
+
     #region Parameters - Templates
 
     /// <summary>
@@ -219,9 +242,10 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
     private void RenderExpandedMode(RenderTreeBuilder builder, ref int seq, TGridItem item, RowExpandedContext<TGridItem> context)
     {
-        // Overlay container - using form-row-overlay class for CSS compatibility
+        // Overlay container positioned below the row with calculated height
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "form-row-overlay");
+        builder.AddAttribute(seq++, "class", "form-row-overlay below-row");
+        builder.AddAttribute(seq++, "style", $"height: {ExpandedHeight}px;");
 
         // Provide cascading context for child components
         builder.OpenComponent<CascadingValue<RowExpandedContext<TGridItem>>>(seq++);

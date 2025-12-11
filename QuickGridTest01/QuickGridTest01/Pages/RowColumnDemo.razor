@@ -1,4 +1,4 @@
-@page "/row-column-demo"
+﻿@page "/row-column-demo"
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using QuickGridTest01.RowColumn
 @using QuickGridTest01.RowColumn.Core
@@ -83,6 +83,8 @@
                            TriggerMode="RowTriggerMode.Button"
                            ConcurrentBehavior="@_concurrentBehavior"
                            DimInactiveRows="@_dimInactiveRows"
+                           ExpandedRowSpan="4"
+                           RowHeight="48"
                            ExpandButtonText="View"
                            ExpandButtonIcon="bi bi-eye"
                            OnExpanded="@OnRowExpanded"
@@ -129,6 +131,8 @@
                 <RowColumn TGridItem="Product"
                            TriggerMode="RowTriggerMode.Custom"
                            ConcurrentBehavior="ConcurrentExpandBehavior.CollapseCurrent"
+                           ExpandedRowSpan="5"
+                           RowHeight="48"
                            OnStateChanged="@OnProductStateChanged">
                     <DisplayTemplate Context="ctx">
                         <div class="custom-actions">
@@ -237,12 +241,12 @@
 
     private void OnStateChangedHandler(RowStateChangedEventArgs<Employee> args)
     {
-        LogEvent($"Employee state: {args.OldState} ? {args.NewState}");
+        LogEvent($"Employee state: {args.OldState} → {args.NewState}");
     }
 
     private void OnProductStateChanged(RowStateChangedEventArgs<Product> args)
     {
-        LogEvent($"Product state: {args.OldState} ? {args.NewState}");
+        LogEvent($"Product state: {args.OldState} → {args.NewState}");
     }
 
     private void DuplicateProduct(Product product)
