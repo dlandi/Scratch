@@ -158,7 +158,7 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
         int seq = 0;
 
-        // Wrapper div with state classes - using form-row-* classes for CSS compatibility
+        // Wrapper div with state classes
         builder.OpenElement(seq++, "div");
         builder.AddAttribute(seq++, "class", BuildCellClass(isExpanded, hasAnyExpanded));
 
@@ -202,9 +202,9 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
         }
         else if (TriggerMode == RowTriggerMode.RowClick)
         {
-            // For row click, we render a subtle indicator or nothing
+            // For row click, we render a subtle indicator
             builder.OpenElement(seq++, "div");
-            builder.AddAttribute(seq++, "class", "form-row-click-indicator");
+            builder.AddAttribute(seq++, "class", "row-click-indicator");
             builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, async _ => await ExpandRowAsync(item)));
             builder.AddAttribute(seq++, "title", canExpand ? "Click to expand" : "Another row is expanded");
             builder.OpenElement(seq++, "i");
@@ -244,7 +244,7 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
     {
         // Overlay container positioned below the row with calculated height
         builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "form-row-overlay below-row");
+        builder.AddAttribute(seq++, "class", "row-overlay");
         builder.AddAttribute(seq++, "style", $"height: {ExpandedHeight}px;");
 
         // Provide cascading context for child components
@@ -258,16 +258,15 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
     private string BuildCellClass(bool isExpanded, bool hasAnyExpanded)
     {
-        // Using form-row-* classes for CSS compatibility with existing FormRow styles
-        var classes = new List<string> { "form-row-cell" };
+        var classes = new List<string> { "row-cell" };
 
         if (isExpanded)
         {
-            classes.Add("form-active");
+            classes.Add("row-expanded");
         }
         else if (hasAnyExpanded && DimInactiveRows)
         {
-            classes.Add("form-dimmed");
+            classes.Add("row-dimmed");
         }
 
         return string.Join(" ", classes);

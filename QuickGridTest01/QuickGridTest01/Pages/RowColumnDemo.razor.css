@@ -109,7 +109,7 @@
 }
 
 /* Ensure overlay has room to display */
-.qg-form-grid {
+.qg-row-grid {
     margin-bottom: var(--space-32);
 }
 

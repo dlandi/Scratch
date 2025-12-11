@@ -1,11 +1,11 @@
 @namespace QuickGridTest01.RowColumn.Components
 
-<div class="form-card @Class">
+<div class="row-card @Class">
     @if (!string.IsNullOrEmpty(Title))
     {
-        <div class="form-card-header">
-            <h3 class="form-card-title">@Title</h3>
-            <div class="form-card-header-actions">
+        <div class="row-card-header">
+            <h3 class="row-card-title">@Title</h3>
+            <div class="row-card-header-actions">
                 @if (HeaderActions != null)
                 {
                     @HeaderActions
@@ -19,12 +19,12 @@
             </div>
         </div>
     }
-    <div class="form-card-body">
+    <div class="row-card-body">
         @ChildContent
     </div>
     @if (FooterContent != null)
     {
-        <div class="form-card-footer">
+        <div class="row-card-footer">
             @FooterContent
         </div>
     }
