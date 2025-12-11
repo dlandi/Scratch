@@ -1,0 +1,153 @@
+namespace QuickGridTest01.RowColumn.Core;
+
+/// <summary>
+/// Manages a data source with dynamic spacer row insertion for expanded overlays.
+/// Wraps the original data and injects spacer rows after expanded items.
+/// </summary>
+/// <typeparam name="T">Entity type implementing IRowIdentifiable</typeparam>
+public class ExpandableGridDataSource<T> where T : class, IRowIdentifiable, new()
+{
+    private readonly List<T> _originalData;
+    private readonly Dictionary<int, int> _expandedRowSpans = new(); // parentId -> spacer count
+    private List<T>? _cachedData;
+    private bool _isDirty = true;
+
+    /// <summary>
+    /// Event fired when the data source changes (spacers added/removed).
+    /// </summary>
+    public event Action? OnDataChanged;
+
+    /// <summary>
+    /// Creates a new expandable data source wrapping the original data.
+    /// </summary>
+    /// <param name="originalData">The original data collection</param>
+    public ExpandableGridDataSource(IEnumerable<T> originalData)
+    {
+        _originalData = originalData.ToList();
+    }
+
+    /// <summary>
+    /// Gets the current data including any spacer rows as IQueryable.
+    /// </summary>
+    public IQueryable<T> Items
+    {
+        get
+        {
+            if (_isDirty || _cachedData == null)
+            {
+                RebuildCache();
+            }
+            return _cachedData!.AsQueryable();
+        }
+    }
+
+    /// <summary>
+    /// Gets the original data without spacers.
+    /// </summary>
+    public IReadOnlyList<T> OriginalData => _originalData;
+
+    /// <summary>
+    /// Gets IDs of all currently expanded rows.
+    /// </summary>
+    public IReadOnlyCollection<int> ExpandedRowIds => _expandedRowSpans.Keys;
+
+    /// <summary>
+    /// Checks if a row is currently expanded.
+    /// </summary>
+    /// <param name="rowId">The row ID to check</param>
+    /// <returns>True if the row is expanded</returns>
+    public bool IsExpanded(int rowId) => _expandedRowSpans.ContainsKey(rowId);
+
+    /// <summary>
+    /// Expands a row by inserting spacer rows after it.
+    /// </summary>
+    /// <param name="rowId">The ID of the row to expand</param>
+    /// <param name="spacerCount">Number of spacer rows to insert (ExpandedRowSpan)</param>
+    public void ExpandRow(int rowId, int spacerCount)
+    {
+        if (rowId < 0)
+            throw new ArgumentException("Cannot expand a spacer row", nameof(rowId));
+
+        if (spacerCount <= 0)
+            return;
+
+        // Add 1 to account for the overlay starting at the row boundary
+        // The overlay covers spacerCount rows, but we need spacerCount + 1 spacers
+        // to push the first real data row below the overlay
+        _expandedRowSpans[rowId] = spacerCount + 1;
+        MarkDirty();
+    }
+
+    /// <summary>
+    /// Collapses a row by removing its spacer rows.
+    /// </summary>
+    /// <param name="rowId">The ID of the row to collapse</param>
+    public void CollapseRow(int rowId)
+    {
+        if (_expandedRowSpans.Remove(rowId))
+        {
+            MarkDirty();
+        }
+    }
+
+    /// <summary>
+    /// Collapses all expanded rows.
+    /// </summary>
+    public void CollapseAll()
+    {
+        if (_expandedRowSpans.Count > 0)
+        {
+            _expandedRowSpans.Clear();
+            MarkDirty();
+        }
+    }
+
+    /// <summary>
+    /// Updates the original data source.
+    /// </summary>
+    /// <param name="newData">The new data collection</param>
+    public void UpdateData(IEnumerable<T> newData)
+    {
+        _originalData.Clear();
+        _originalData.AddRange(newData);
+        MarkDirty();
+    }
+
+    /// <summary>
+    /// Gets the real (non-spacer) item by ID.
+    /// </summary>
+    /// <param name="id">The item ID</param>
+    /// <returns>The item, or null if not found</returns>
+    public T? GetById(int id)
+    {
+        if (id < 0) return null;
+        return _originalData.FirstOrDefault(x => x.Id == id);
+    }
+
+    private void MarkDirty()
+    {
+        _isDirty = true;
+        OnDataChanged?.Invoke();
+    }
+
+    private void RebuildCache()
+    {
+        _cachedData = new List<T>(_originalData.Count + _expandedRowSpans.Values.Sum());
+
+        foreach (var item in _originalData)
+        {
+            _cachedData.Add(item);
+
+            // If this row is expanded, insert spacers after it
+            if (_expandedRowSpans.TryGetValue(item.Id, out int spacerCount))
+            {
+                foreach (var spacer in SpacerRowFactory.CreateSpacers<T>(item.Id, spacerCount))
+                {
+                    _cachedData.Add(spacer);
+                }
+            }
+        }
+
+        _isDirty = false;
+    }
+}

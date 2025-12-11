@@ -1211,3 +1211,37 @@ li {
         padding: var(--space-8, 8px) var(--space-12, 12px);
     }
 }
+
+/* ----------------------------------------------------------------------------
+   Spacer rows - hidden rows that push real data below the overlay
+   -------------------------------------------------------------------------- */
+
+.row-spacer {
+    /* Spacer cells are empty and hidden behind the overlay */
+    visibility: hidden;
+    height: 0;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* Spacer row styling - ensure the entire row is collapsed */
+.qg-row-grid tbody tr:has(.row-spacer) {
+    height: var(--grid-row-height, 36px);
+    visibility: visible; /* Row exists for spacing */
+}
+
+.qg-row-grid tbody tr:has(.row-spacer) td {
+    visibility: hidden;
+    padding: 0 !important;
+    border-bottom: none !important;
+}
+
+/* Alternative: Hide spacer content but maintain row height */
+.qg-row-grid tbody tr.row-spacer-row {
+    pointer-events: none;
+}
+
+.qg-row-grid tbody tr.row-spacer-row td {
+    color: transparent;
+    user-select: none;
+}

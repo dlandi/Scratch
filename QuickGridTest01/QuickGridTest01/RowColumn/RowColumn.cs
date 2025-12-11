@@ -11,9 +11,9 @@ namespace QuickGridTest01.RowColumn;
 /// A QuickGrid column that renders an expandable overlay when a row is activated.
 /// Supports button, row-click, or custom trigger modes with configurable concurrent expand behavior.
 /// </summary>
-/// <typeparam name="TGridItem">The type of data item in the grid</typeparam>
+/// <typeparam name="TGridItem">The type of data item in the grid</typename>
 public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
-    where TGridItem : class
+    where TGridItem : class, IRowIdentifiable, new()
 {
     private readonly RowStateManager<TGridItem> _stateManager = new();
     private GridSort<TGridItem>? _sortBuilder;
@@ -61,6 +61,17 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
     /// Gets the calculated height of the expanded overlay in pixels.
     /// </summary>
     public int ExpandedHeight => ExpandedRowSpan * RowHeight;
+
+    #endregion
+
+    #region Parameters - Data Source
+
+    /// <summary>
+    /// The expandable data source that manages spacer row injection.
+    /// When provided, spacer rows are automatically inserted/removed on expand/collapse.
+    /// </summary>
+    [Parameter]
+    public ExpandableGridDataSource<TGridItem>? DataSource { get; set; }
 
     #endregion
 
@@ -153,6 +164,15 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
+        // Skip content for spacer rows - render empty cell
+        if (item.IsSpacer())
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "class", "row-cell row-spacer");
+            builder.CloseElement();
+            return;
+        }
+
         var isExpanded = _stateManager.IsRowExpanded(item);
         var hasAnyExpanded = _stateManager.HasExpandedRows;
 
@@ -292,6 +312,10 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
     private async Task ExpandRowAsync(TGridItem item)
     {
+        // Don't allow expanding spacer rows
+        if (item.IsSpacer())
+            return;
+
         // Fire before-expand event
         var beforeExpandArgs = new RowBeforeExpandEventArgs<TGridItem> { Item = item };
         await OnBeforeExpand.InvokeAsync(beforeExpandArgs);
@@ -323,6 +347,9 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
             collapseAsync: () => CollapseRowAsync(item)
         );
 
+        // Insert spacer rows if DataSource is provided
+        DataSource?.ExpandRow(item.Id, ExpandedRowSpan);
+
         // Fire state changed event
         await OnStateChanged.InvokeAsync(new RowStateChangedEventArgs<TGridItem>
         {
@@ -344,6 +371,9 @@ public class RowColumn<TGridItem> : ColumnBase<TGridItem>, IDisposable
 
         // Remove from state manager
         await _stateManager.RemoveRowAsync(item);
+
+        // Remove spacer rows if DataSource is provided
+        DataSource?.CollapseRow(item.Id);
 
         // Fire state changed event
         await OnStateChanged.InvokeAsync(new RowStateChangedEventArgs<TGridItem>
