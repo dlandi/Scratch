@@ -1,0 +1,743 @@
+﻿@page "/composable-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Core
+@using QuickGridTest01.ComposableColumns.Features.Formatting
+@using QuickGridTest01.ComposableColumns.Features.Styling
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.CustomColumns
+@using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
+
+<PageTitle>Composable Columns Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Columns</h1>
+        <p class="qg-page-subtitle">
+            A modular column system where features can be composed together.
+            Each feature is a building block that adds specific functionality.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4><i class="bi bi-puzzle"></i> Features</h4>
+                <p>Modular units of functionality that can be added to any column.
+                   Each feature implements <code>IColumnFeature&lt;T&gt;</code>.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-layers"></i> Pipeline</h4>
+                <p>Features are executed in priority order, forming a render pipeline.
+                   Each feature can wrap or modify the output.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-share"></i> Shared Context</h4>
+                <p><code>FeatureContext</code> provides shared state between features.
+                   Features can read/write state and register services.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-building"></i> Builder Pattern</h4>
+                <p>Fluent API for composing columns in code.
+                   Chain features together with <code>WithFeature()</code>.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Basic Composable Column</h2>
+            <p class="qg-section-description">
+                A simple column with auto-title inference and format string features.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_products" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                <PropertyColumn Property="@(p => p.Name)" Title="Name" />
+
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  Format="C2"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="DateTime"
+                                  Property="@(p => p.LastUpdated)"
+                                  Title="Last Updated"
+                                  Format="yyyy-MM-dd"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">With Styling Features</h2>
+            <p class="qg-section-description">
+                Composing IconFeature and ConditionalCssFeature for visual indicators.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_products" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Name)" Title="Product" />
+
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock Level"
+                                  FeatureCollection="@_stockFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="ProductStatus"
+                                  Property="@(p => p.Status)"
+                                  Title="Status"
+                                  FeatureCollection="@_statusFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  FeatureCollection="@_priceFeatures"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Feature Composition Code:</h4>
+            <pre><code>// Stock level with conditional CSS
+var stockFeatures = new IColumnFeature&lt;Product&gt;[]
+{
+    new ConditionalCssFeature&lt;Product, int&gt;
+    {
+        BaseClass = "stock-cell",
+        Rules = [
+            new() { Condition = v =&gt; v == 0, CssClass = "stock-empty" },
+            new() { Condition = v =&gt; v &lt; 10, CssClass = "stock-low" },
+            new() { Condition = v =&gt; v &gt;= 10, CssClass = "stock-ok" }
+        ]
+    }
+};
+
+// Status with icon mapping
+var statusFeatures = new IColumnFeature&lt;Product&gt;[]
+{
+    new IconFeature&lt;Product, ProductStatus&gt;
+    {
+        IconMapper = status =&gt; status switch
+        {
+            ProductStatus.Active =&gt; "bi bi-check-circle-fill",
+            ProductStatus.Discontinued =&gt; "bi bi-x-circle-fill",
+            ProductStatus.ComingSoon =&gt; "bi bi-clock-fill",
+            _ =&gt; "bi bi-question-circle"
+        },
+        ColorMapper = status =&gt; status switch
+        {
+            ProductStatus.Active =&gt; "#22c55e",
+            ProductStatus.Discontinued =&gt; "#ef4444",
+            ProductStatus.ComingSoon =&gt; "#f59e0b",
+            _ =&gt; "#6b7280"
+        }
+    }
+};</code></pre>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Inline Editing Features</h2>
+            <p class="qg-section-description">
+                Cells are always in edit mode with seamless inputs. Focus on a cell to activate it.
+                Changes are committed automatically as you type.
+            </p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_lastEditMessage))
+        {
+            <div class="edit-message">
+                <i class="bi bi-check-circle"></i> @_lastEditMessage
+            </div>
+        }
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_editableProducts" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                  Property="@(p => p.Name)"
+                                  Title="Name (Editable)"
+                                  FeatureCollection="@_nameEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price (Editable)"
+                                  FeatureCollection="@_priceEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock (Editable)"
+                                  FeatureCollection="@_stockEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                  Property="@(p => p.Status)"
+                                  Title="Status (Select)"
+                                  FeatureCollection="@_statusEditFeatures"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Editing Features Code:</h4>
+            <pre><code>// Name with text editing
+var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, string&gt;
+    {
+        Editor = EditorKind.Text,
+        Placeholder = "Enter name...",
+        ItemKey = p =&gt; p.Id,
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, string&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Name changed to '{args.NewValue}'"))
+    }
+};
+
+// Price with currency editing
+var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+    {
+        Editor = EditorKind.Currency,
+        ItemKey = p =&gt; p.Id,
+        Step = "0.01",
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, decimal&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Price changed to {args.NewValue:C2}"))
+    }
+};
+
+// Stock with number editing
+var stockEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, int&gt;
+    {
+        Editor = EditorKind.Number,
+        ItemKey = p =&gt; p.Id,
+        Min = "0",
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, int&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Stock changed to {args.NewValue}"))
+    }
+};
+
+// Status with select dropdown
+var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt
+    {
+        Editor = EditorKind.Select,
+        ItemKey = p =&gt; p.Id,
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, ProductStatus&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Status changed to {args.NewValue}"))
+    }
+};</code></pre>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Feature Priority Order</h2>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_featurePriorities" Class="qg-grid">
+                <PropertyColumn Property="@(f => f.Category)" Title="Category" />
+                <PropertyColumn Property="@(f => f.Priority)" Title="Priority" />
+                <PropertyColumn Property="@(f => f.Description)" Title="Description" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Available Features</h2>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature-category">
+                <h4>Core Features</h4>
+                <ul>
+                    <li><code>AutoTitleFeature</code> - Infers column title from property name</li>
+                    <li><code>CompiledAccessorFeature</code> - Compiles property expression for fast access</li>
+                    <li><code>SortableFeature</code> - Enables column sorting</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Formatting Features</h4>
+                <ul>
+                    <li><code>FormatStringFeature</code> - Applies format strings (C2, N0, yyyy-MM-dd)</li>
+                    <li><code>CustomFormatterFeature</code> - Custom formatter function</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Styling Features</h4>
+                <ul>
+                    <li><code>TooltipFeature</code> - Adds tooltips to cells</li>
+                    <li><code>IconFeature</code> - Displays icons based on value</li>
+                    <li><code>ConditionalCssFeature</code> - Applies CSS classes conditionally</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Editing Features</h4>
+                <ul>
+                    <li><code>InlineEditingFeature</code> - Always-visible seamless editors with built-in debounce</li>
+                </ul>
+            </div>
+
+            <div class="feature-category coming-soon">
+                <h4>Coming Soon</h4>
+                <ul>
+                    <li><code>ValidationFeature</code> - Value validation with error display</li>
+                    <li><code>MemoizationFeature</code> - Caching for performance</li>
+                    <li><code>AsyncSaveFeature</code> - Async save with loading states</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</div>
+
+<style>
+    .architecture-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .arch-card {
+        background: var(--qg-neutral-50, #f9fafb);
+        border: 1px solid var(--qg-neutral-200, #e5e7eb);
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .arch-card h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--qg-primary, #3b82f6);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .arch-card p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--qg-neutral-600, #4b5563);
+        line-height: 1.4;
+    }
+
+    .arch-card code {
+        background: var(--qg-neutral-200, #e5e7eb);
+        padding: 0.1rem 0.3rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .code-preview {
+        background: #1e293b !important;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        margin-top: 1rem;
+        overflow-x: auto;
+        border: 1px solid #334155;
+    }
+
+    .code-preview h4 {
+        color: #94a3b8 !important;
+        margin: 0 0 1rem 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .code-preview pre {
+        margin: 0;
+        padding: 0;
+        background: transparent !important;
+        border: none !important;
+    }
+
+    .code-preview pre code {
+        color: #e2e8f0 !important;
+        background: transparent !important;
+        font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.8rem;
+        line-height: 1.7;
+        display: block;
+        white-space: pre;
+        text-shadow: none !important;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .feature-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .feature-category {
+        background: var(--qg-white, #ffffff);
+        border: 1px solid var(--qg-neutral-200, #e5e7eb);
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .feature-category h4 {
+        margin: 0 0 0.75rem 0;
+        color: var(--qg-neutral-800, #1f2937);
+        font-size: 0.9rem;
+        border-bottom: 1px solid var(--qg-neutral-100, #f3f4f6);
+        padding-bottom: 0.5rem;
+    }
+
+    .feature-category ul {
+        margin: 0;
+        padding-left: 1.25rem;
+    }
+
+    .feature-category li {
+        font-size: 0.8rem;
+        color: var(--qg-neutral-600, #4b5563);
+        margin-bottom: 0.25rem;
+    }
+
+    .feature-category code {
+        background: var(--qg-primary-50, #eff6ff);
+        color: var(--qg-primary-700, #1d4ed8);
+        padding: 0.1rem 0.3rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+    }
+
+    .feature-category.coming-soon {
+        background: var(--qg-neutral-50, #f9fafb);
+        border-style: dashed;
+    }
+
+    .feature-category.coming-soon h4 {
+        color: var(--qg-neutral-500, #6b7280);
+    }
+
+    .feature-category.coming-soon code {
+        background: var(--qg-neutral-100, #f3f4f6);
+        color: var(--qg-neutral-500, #6b7280);
+    }
+
+    /* Conditional CSS classes for stock demo */
+    ::deep .stock-cell {
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+
+    ::deep .stock-empty {
+        background: #fef2f2;
+        color: #dc2626;
+    }
+
+    ::deep .stock-low {
+        background: #fffbeb;
+        color: #d97706;
+    }
+
+    ::deep .stock-ok {
+        background: #f0fdf4;
+        color: #16a34a;
+    }
+
+    /* Editing styles */
+    .edit-message {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    ::deep .composable-editable-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        transition: background-color 0.15s ease;
+    }
+
+    ::deep .composable-editable-cell:hover {
+        background-color: #f3f4f6;
+    }
+
+    ::deep .composable-editable-cell:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+
+    ::deep .composable-edit-icon {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+    }
+
+    ::deep .composable-editable-cell:hover .composable-edit-icon {
+        opacity: 1;
+    }
+
+    ::deep .composable-editor-input {
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        border: 2px solid #3b82f6;
+        border-radius: 0.25rem;
+        font-size: inherit;
+        font-family: inherit;
+        outline: none;
+        background: white;
+    }
+
+    ::deep .composable-editor-input:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    ::deep select.composable-editor-input {
+        cursor: pointer;
+    }
+</style>
+
+@code {
+    private IQueryable<Product> _products = default!;
+    private IQueryable<EditableProduct> _editableProducts = default!;
+    private IQueryable<FeaturePriorityInfo> _featurePriorities = default!;
+    private string _lastEditMessage = "";
+
+    // Feature collections for the demo
+    private IColumnFeature<Product>[] _stockFeatures = default!;
+    private IColumnFeature<Product>[] _statusFeatures = default!;
+    private IColumnFeature<Product>[] _priceFeatures = default!;
+
+    // Editing feature collections
+    private IColumnFeature<EditableProduct>[] _nameEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _priceEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _stockEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _statusEditFeatures = default!;
+
+    protected override void OnInitialized()
+    {
+        InitializeProducts();
+        InitializeFeatures();
+        InitializeEditingFeatures();
+        InitializeFeaturePriorities();
+    }
+
+    private void InitializeProducts()
+    {
+        _products = new List<Product>
+        {
+            new(1, "Widget Pro", 299.99m, 45, ProductStatus.Active, DateTime.Now.AddDays(-5)),
+            new(2, "Gadget Max", 149.50m, 8, ProductStatus.Active, DateTime.Now.AddDays(-2)),
+            new(3, "Tool Basic", 49.99m, 0, ProductStatus.Discontinued, DateTime.Now.AddDays(-30)),
+            new(4, "Device Ultra", 599.00m, 120, ProductStatus.Active, DateTime.Now.AddDays(-1)),
+            new(5, "Component X", 25.00m, 3, ProductStatus.ComingSoon, DateTime.Now.AddDays(-10)),
+            new(6, "Assembly Kit", 89.99m, 67, ProductStatus.Active, DateTime.Now.AddDays(-7))
+        }.AsQueryable();
+
+        _editableProducts = new List<EditableProduct>
+        {
+            new() { Id = 1, Name = "Widget Pro", Price = 299.99m, Stock = 45, Status = ProductStatus.Active },
+            new() { Id = 2, Name = "Gadget Max", Price = 149.50m, Stock = 8, Status = ProductStatus.Active },
+            new() { Id = 3, Name = "Tool Basic", Price = 49.99m, Stock = 0, Status = ProductStatus.Discontinued },
+            new() { Id = 4, Name = "Device Ultra", Price = 599.00m, Stock = 120, Status = ProductStatus.Active }
+        }.AsQueryable();
+    }
+
+    private void InitializeFeatures()
+    {
+        // Stock level with conditional CSS
+        _stockFeatures =
+        [
+            new ConditionalCssFeature<Product, int>
+            {
+                BaseClass = "stock-cell",
+                Rules =
+                [
+                    new() { Condition = v => v == 0, CssClass = "stock-empty" },
+                    new() { Condition = v => v < 10, CssClass = "stock-low" },
+                    new() { Condition = v => v >= 10, CssClass = "stock-ok" }
+                ]
+            }
+        ];
+
+        // Status with icon mapping
+        _statusFeatures =
+        [
+            new IconFeature<Product, ProductStatus>
+            {
+                IconMapper = status => status switch
+                {
+                    ProductStatus.Active => "bi bi-check-circle-fill",
+                    ProductStatus.Discontinued => "bi bi-x-circle-fill",
+                    ProductStatus.ComingSoon => "bi bi-clock-fill",
+                    _ => "bi bi-question-circle"
+                },
+                ColorMapper = status => status switch
+                {
+                    ProductStatus.Active => "#22c55e",
+                    ProductStatus.Discontinued => "#ef4444",
+                    ProductStatus.ComingSoon => "#f59e0b",
+                    _ => "#6b7280"
+                }
+            }
+        ];
+
+        // Price with tooltip
+        _priceFeatures =
+        [
+            new FormatStringFeature<Product, decimal> { Format = "C2" },
+            new TooltipFeature<Product, decimal>
+            {
+                TooltipMapper = price => $"Price: {price:C2} (before tax)"
+            }
+        ];
+    }
+
+    private void InitializeEditingFeatures()
+    {
+        // Name with text editing - with 300ms debounce and validation
+        _nameEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, string>
+            {
+                Editor = EditKind.Text,
+                Placeholder = "Enter name...",
+                ItemKey = p => p.Id,
+                DebounceMilliseconds = 300,
+                ValidateOnChange = true,
+                ShowValidationErrors = true,
+                Validators = [new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 50 }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, string>>(
+                    this, args => HandleValueChanged($"Name changed from '{args.OldValue}' to '{args.NewValue}'"))
+            }
+        ];
+
+        // Price with currency editing - with 300ms debounce and range validation
+        _priceEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, decimal>
+            {
+                Editor = EditKind.Currency,
+                ItemKey = p => p.Id,
+                Step = "0.01",
+                DebounceMilliseconds = 300,
+                ValidateOnChange = true,
+                ShowValidationErrors = true,
+                Validators = [new RangeValidator<decimal> { Minimum = 0.01m, Maximum = 10000m }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, decimal>>(
+                    this, args => HandleValueChanged($"Price changed from {args.OldValue:C2} to {args.NewValue:C2}"))
+            }
+        ];
+
+        // Stock with number editing - with 300ms debounce and min value validation
+        _stockEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, int>
+            {
+                Editor = EditKind.Number,
+                ItemKey = p => p.Id,
+                Min = "0",
+                DebounceMilliseconds = 300,
+                ValidateOnChange = true,
+                ShowValidationErrors = true,
+                Validators = [new MinValueValidator<int> { Minimum = 0 }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, int>>(
+                    this, args => HandleValueChanged($"Stock changed from {args.OldValue} to {args.NewValue}"))
+            }
+        ];
+
+        // Status with select dropdown - no debounce or validation needed for discrete selections
+        _statusEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, ProductStatus>
+            {
+                Editor = EditKind.Select,
+                ItemKey = p => p.Id,
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, ProductStatus>>(
+                    this, args => HandleValueChanged($"Status changed from {args.OldValue} to {args.NewValue}"))
+            }
+        ];
+    }
+
+    private void HandleValueChanged(string message)
+    {
+        _lastEditMessage = message;
+        StateHasChanged();
+    }
+
+    private void InitializeFeaturePriorities()
+    {
+        _featurePriorities = new List<FeaturePriorityInfo>
+        {
+            new("Infrastructure", 0, "Property expression, compiled accessor"),
+            new("Core", 100, "Type traits, auto-title inference"),
+            new("Formatting", 200, "Format string, custom formatter, culture"),
+            new("Styling", 300, "Conditional CSS, icons, tooltips"),
+            new("Editing", 400, "Inline editing, edit state, debounce"),
+            new("Validation", 500, "Validators, data annotations"),
+            new("Events", 600, "Value changed, state changed, before edit"),
+            new("Performance", 700, "Memoization, minimal DOM, set key"),
+            new("Final", 1000, "Final wrapper features")
+        }.AsQueryable();
+    }
+
+    // Demo models
+    public record Product(int Id, string Name, decimal Price, int Stock, ProductStatus Status, DateTime LastUpdated);
+
+    // Editable version with mutable properties
+    public class EditableProduct
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ProductStatus Status { get; set; }
+    }
+
+    public enum ProductStatus
+    {
+        Active,
+        Discontinued,
+        ComingSoon
+    }
+
+    public record FeaturePriorityInfo(string Category, int Priority, string Description);
+}

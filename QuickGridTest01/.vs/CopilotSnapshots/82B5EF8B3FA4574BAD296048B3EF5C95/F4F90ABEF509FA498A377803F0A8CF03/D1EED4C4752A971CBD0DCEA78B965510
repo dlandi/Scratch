@@ -1,0 +1,615 @@
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
+using QuickGridTest01.ComposableColumns.Core;
+
+namespace QuickGridTest01.ComposableColumns.Features.Editing;
+
+/// <summary>
+/// Feature that manages the editing state for a column.
+/// Tracks which item is currently being edited and coordinates with other editing features.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+public class EditStateFeature<TGridItem> : IColumnFeature<TGridItem>
+{
+    public int Priority => FeaturePriority.Editing - 10; // Run before other editing features
+
+    private readonly Dictionary<object, bool> _editingItems = new();
+
+    /// <summary>
+    /// Gets whether any item is currently being edited.
+    /// </summary>
+    public bool IsEditing => _editingItems.Any(kvp => kvp.Value);
+
+    /// <summary>
+    /// Gets the key function to identify items.
+    /// </summary>
+    public Func<TGridItem, object>? ItemKey { get; set; }
+
+    /// <summary>
+    /// Whether only one cell can be edited at a time.
+    /// </summary>
+    public bool SingleEditMode { get; set; } = true;
+
+    /// <summary>
+    /// Event raised when editing begins.
+    /// </summary>
+    public EventCallback<TGridItem> OnBeginEdit { get; set; }
+
+    /// <summary>
+    /// Event raised when editing ends.
+    /// </summary>
+    public EventCallback<TGridItem> OnEndEdit { get; set; }
+
+    public void OnAttach(FeatureContext<TGridItem> context)
+    {
+        // Register this feature as a service so other features can access it
+        context.RegisterService(this);
+    }
+
+    public void OnDetach(FeatureContext<TGridItem> context)
+    {
+        _editingItems.Clear();
+    }
+
+    /// <summary>
+    /// Checks if the specified item is being edited.
+    /// </summary>
+    public bool IsItemEditing(TGridItem item)
+    {
+        var key = GetItemKey(item);
+        return _editingItems.TryGetValue(key, out var editing) && editing;
+    }
+
+    /// <summary>
+    /// Begins editing the specified item.
+    /// </summary>
+    public async Task BeginEditAsync(TGridItem item, FeatureContext<TGridItem> context)
+    {
+        if (SingleEditMode)
+        {
+            // Cancel any other active edits
+            foreach (var key in _editingItems.Keys.ToList())
+            {
+                _editingItems[key] = false;
+            }
+        }
+
+        var itemKey = GetItemKey(item);
+        _editingItems[itemKey] = true;
+
+        context.SetState(FeatureStateKeys.IsEditing, true);
+        context.SetState(FeatureStateKeys.EditingItemId, itemKey);
+
+        if (OnBeginEdit.HasDelegate)
+        {
+            await OnBeginEdit.InvokeAsync(item);
+        }
+
+        context.RequestRefresh?.Invoke();
+    }
+
+    /// <summary>
+    /// Ends editing the specified item.
+    /// </summary>
+    public async Task EndEditAsync(TGridItem item, FeatureContext<TGridItem> context, bool save = true)
+    {
+        var itemKey = GetItemKey(item);
+        _editingItems[itemKey] = false;
+
+        context.SetState(FeatureStateKeys.IsEditing, false);
+        context.SetState<object?>(FeatureStateKeys.EditingItemId, null);
+
+        if (OnEndEdit.HasDelegate)
+        {
+            await OnEndEdit.InvokeAsync(item);
+        }
+
+        context.RequestRefresh?.Invoke();
+    }
+
+    /// <summary>
+    /// Toggles the editing state of the specified item.
+    /// </summary>
+    public async Task ToggleEditAsync(TGridItem item, FeatureContext<TGridItem> context)
+    {
+        if (IsItemEditing(item))
+        {
+            await EndEditAsync(item, context);
+        }
+        else
+        {
+            await BeginEditAsync(item, context);
+        }
+    }
+
+    private object GetItemKey(TGridItem item)
+    {
+        if (ItemKey is not null)
+        {
+            return ItemKey(item);
+        }
+
+        // Fall back to using the item itself as the key
+        return item?.GetHashCode() ?? 0;
+    }
+}
+
+/// <summary>
+/// Feature that provides inline editing capability for a cell.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the value being edited.</typeparam>
+public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridItem>
+{
+    public int Priority => FeaturePriority.Editing;
+
+    private EditStateFeature<TGridItem>? _editStateFeature;
+
+    /// <summary>
+    /// The type of editor to render.
+    /// </summary>
+    public EditorKind Editor { get; set; } = EditorKind.Text;
+
+    /// <summary>
+    /// Placeholder text for the input.
+    /// </summary>
+    public string? Placeholder { get; set; }
+
+    /// <summary>
+    /// Whether to select all text when editing begins.
+    /// </summary>
+    public bool SelectAllOnFocus { get; set; } = true;
+
+    /// <summary>
+    /// Whether to commit changes on blur.
+    /// </summary>
+    public bool CommitOnBlur { get; set; } = true;
+
+    /// <summary>
+    /// Whether to cancel editing on Escape key.
+    /// </summary>
+    public bool CancelOnEscape { get; set; } = true;
+
+    /// <summary>
+    /// Whether to commit on Enter key.
+    /// </summary>
+    public bool CommitOnEnter { get; set; } = true;
+
+    /// <summary>
+    /// Options for select editor type.
+    /// </summary>
+    public IEnumerable<SelectOption<TValue>>? SelectOptions { get; set; }
+
+    /// <summary>
+    /// Minimum value for number editors.
+    /// </summary>
+    public TValue? Min { get; set; }
+
+    /// <summary>
+    /// Maximum value for number editors.
+    /// </summary>
+    public TValue? Max { get; set; }
+
+    /// <summary>
+    /// Step value for number editors.
+    /// </summary>
+    public TValue? Step { get; set; }
+
+    /// <summary>
+    /// CSS class for the editor input.
+    /// </summary>
+    public string? EditorClass { get; set; } = "composable-editor-input";
+
+    /// <summary>
+    /// Callback when value changes.
+    /// </summary>
+    public EventCallback<ValueChangedEventArgs<TGridItem, TValue>> OnValueChanged { get; set; }
+
+    public void OnAttach(FeatureContext<TGridItem> context)
+    {
+        // EditStateFeature will be retrieved during RenderCell since it may be attached later
+    }
+
+    public void OnDetach(FeatureContext<TGridItem> context)
+    {
+        _editStateFeature = null;
+    }
+
+    public void RenderCell(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem> context,
+        Action renderNext)
+    {
+        // Get edit state feature from context (may have been attached after this feature)
+        _editStateFeature ??= context.GetService<EditStateFeature<TGridItem>>();
+
+        var isEditing = _editStateFeature?.IsItemEditing(item) ?? false;
+
+        if (isEditing && context is FeatureContext<TGridItem, TValue> typedContext)
+        {
+            RenderEditor(builder, ref sequence, item, typedContext);
+        }
+        else
+        {
+            // Render clickable display value
+            RenderDisplayValue(builder, ref sequence, item, context, renderNext);
+        }
+    }
+
+    private void RenderDisplayValue(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem> context,
+        Action renderNext)
+    {
+        builder.OpenElement(sequence++, "span");
+        builder.AddAttribute(sequence++, "class", "composable-editable-cell");
+        builder.AddAttribute(sequence++, "tabindex", "0");
+        builder.AddAttribute(sequence++, "role", "button");
+        builder.AddAttribute(sequence++, "title", "Click to edit");
+
+        // Handle click to edit
+        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
+            this, async _ => await StartEditingAsync(item, context)));
+
+        // Handle keyboard activation
+        builder.AddAttribute(sequence++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(
+            this, async e =>
+            {
+                if (e.Key == "Enter" || e.Key == " ")
+                {
+                    await StartEditingAsync(item, context);
+                }
+            }));
+
+        renderNext();
+
+        // Edit indicator icon
+        builder.OpenElement(sequence++, "i");
+        builder.AddAttribute(sequence++, "class", "bi bi-pencil composable-edit-icon");
+        builder.AddAttribute(sequence++, "aria-hidden", "true");
+        builder.CloseElement();
+
+        builder.CloseElement();
+    }
+
+    private void RenderEditor(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context)
+    {
+        TValue currentValue = context.GetValue is not null ? context.GetValue(item) : default!;
+
+        switch (Editor)
+        {
+            case EditorKind.Checkbox:
+                RenderCheckboxEditor(builder, ref sequence, item, context, currentValue);
+                break;
+
+            case EditorKind.Select:
+                RenderSelectEditor(builder, ref sequence, item, context, currentValue);
+                break;
+
+            case EditorKind.TextArea:
+                RenderTextAreaEditor(builder, ref sequence, item, context, currentValue);
+                break;
+
+            default:
+                RenderInputEditor(builder, ref sequence, item, context, currentValue);
+                break;
+        }
+    }
+
+    private void RenderInputEditor(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
+    {
+        builder.OpenElement(sequence++, "input");
+        builder.AddAttribute(sequence++, "type", GetInputType());
+        builder.AddAttribute(sequence++, "class", EditorClass);
+        builder.AddAttribute(sequence++, "value", FormatValue(currentValue));
+
+        if (!string.IsNullOrEmpty(Placeholder))
+        {
+            builder.AddAttribute(sequence++, "placeholder", Placeholder);
+        }
+
+        AddNumericAttributes(builder, ref sequence);
+
+        // Auto-focus
+        builder.AddAttribute(sequence++, "autofocus", true);
+
+        // Handle value change
+        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, async e => await HandleValueChangeAsync(item, context, e.Value?.ToString())));
+
+        // Handle blur
+        if (CommitOnBlur)
+        {
+            builder.AddAttribute(sequence++, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
+                this, async _ => await EndEditingAsync(item, context, true)));
+        }
+
+        // Handle keyboard
+        builder.AddAttribute(sequence++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(
+            this, async e => await HandleKeyDownAsync(item, context, e)));
+
+        builder.CloseElement();
+    }
+
+    private void RenderCheckboxEditor(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
+    {
+        var isChecked = currentValue is bool b && b;
+
+        builder.OpenElement(sequence++, "input");
+        builder.AddAttribute(sequence++, "type", "checkbox");
+        builder.AddAttribute(sequence++, "class", EditorClass);
+        builder.AddAttribute(sequence++, "checked", isChecked);
+
+        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, async e =>
+            {
+                var newValue = e.Value is bool boolVal ? boolVal : false;
+                await HandleValueChangeAsync(item, context, newValue.ToString());
+                await EndEditingAsync(item, context, true);
+            }));
+
+        builder.CloseElement();
+    }
+
+    private void RenderSelectEditor(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
+    {
+        builder.OpenElement(sequence++, "select");
+        builder.AddAttribute(sequence++, "class", EditorClass);
+        builder.AddAttribute(sequence++, "autofocus", true);
+
+        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, async e =>
+            {
+                await HandleValueChangeAsync(item, context, e.Value?.ToString());
+                await EndEditingAsync(item, context, true);
+            }));
+
+        if (SelectOptions is not null)
+        {
+            foreach (var option in SelectOptions)
+            {
+                builder.OpenElement(sequence++, "option");
+                builder.AddAttribute(sequence++, "value", option.Value?.ToString() ?? "");
+
+                if (EqualityComparer<TValue>.Default.Equals(option.Value, currentValue))
+                {
+                    builder.AddAttribute(sequence++, "selected", true);
+                }
+
+                builder.AddContent(sequence++, option.Label);
+                builder.CloseElement();
+            }
+        }
+        else if (typeof(TValue).IsEnum)
+        {
+            // Auto-generate options from enum
+            foreach (var enumValue in Enum.GetValues(typeof(TValue)))
+            {
+                builder.OpenElement(sequence++, "option");
+                builder.AddAttribute(sequence++, "value", enumValue.ToString());
+
+                if (enumValue.Equals(currentValue))
+                {
+                    builder.AddAttribute(sequence++, "selected", true);
+                }
+
+                builder.AddContent(sequence++, enumValue.ToString());
+                builder.CloseElement();
+            }
+        }
+
+        builder.CloseElement();
+    }
+
+    private void RenderTextAreaEditor(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
+    {
+        builder.OpenElement(sequence++, "textarea");
+        builder.AddAttribute(sequence++, "class", EditorClass);
+        builder.AddAttribute(sequence++, "autofocus", true);
+
+        if (!string.IsNullOrEmpty(Placeholder))
+        {
+            builder.AddAttribute(sequence++, "placeholder", Placeholder);
+        }
+
+        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            this, async e => await HandleValueChangeAsync(item, context, e.Value?.ToString())));
+
+        if (CommitOnBlur)
+        {
+            builder.AddAttribute(sequence++, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
+                this, async _ => await EndEditingAsync(item, context, true)));
+        }
+
+        builder.AddContent(sequence++, FormatValue(currentValue));
+        builder.CloseElement();
+    }
+
+    private string GetInputType() => Editor switch
+    {
+        EditorKind.Number or EditorKind.Currency => "number",
+        EditorKind.Date => "date",
+        EditorKind.DateTime => "datetime-local",
+        EditorKind.Email => "email",
+        EditorKind.Url => "url",
+        EditorKind.Tel => "tel",
+        _ => "text"
+    };
+
+    private void AddNumericAttributes(RenderTreeBuilder builder, ref int sequence)
+    {
+        if (Editor is EditorKind.Number or EditorKind.Currency)
+        {
+            if (Min is not null)
+                builder.AddAttribute(sequence++, "min", Min.ToString());
+            if (Max is not null)
+                builder.AddAttribute(sequence++, "max", Max.ToString());
+            if (Step is not null)
+                builder.AddAttribute(sequence++, "step", Step.ToString());
+            else if (Editor == EditorKind.Currency)
+                builder.AddAttribute(sequence++, "step", "0.01");
+        }
+    }
+
+    private static string FormatValue(TValue value)
+    {
+        if (value is null)
+            return string.Empty;
+
+        if (value is DateTime dt)
+            return dt.ToString("yyyy-MM-ddTHH:mm");
+
+        if (value is DateOnly d)
+            return d.ToString("yyyy-MM-dd");
+
+        return value.ToString() ?? string.Empty;
+    }
+
+    private async Task StartEditingAsync(TGridItem item, FeatureContext<TGridItem> context)
+    {
+        if (_editStateFeature is not null)
+        {
+            await _editStateFeature.BeginEditAsync(item, context);
+        }
+    }
+
+    private async Task EndEditingAsync(TGridItem item, FeatureContext<TGridItem> context, bool save)
+    {
+        if (_editStateFeature is not null)
+        {
+            await _editStateFeature.EndEditAsync(item, context, save);
+        }
+    }
+
+    private async Task HandleValueChangeAsync(TGridItem item, FeatureContext<TGridItem, TValue> context, string? newValueString)
+    {
+        if (context.GetValue is null || context.SetValue is null)
+            return;
+
+        var oldValue = context.GetValue(item);
+        var newValue = ParseValue(newValueString);
+
+        if (!EqualityComparer<TValue>.Default.Equals(oldValue, newValue))
+        {
+            context.SetValue(item, newValue!);
+
+            if (OnValueChanged.HasDelegate)
+            {
+                await OnValueChanged.InvokeAsync(new ValueChangedEventArgs<TGridItem, TValue>
+                {
+                    Item = item,
+                    OldValue = oldValue,
+                    NewValue = newValue
+                });
+            }
+        }
+    }
+
+    private async Task HandleKeyDownAsync(TGridItem item, FeatureContext<TGridItem> context, KeyboardEventArgs e)
+    {
+        if (CancelOnEscape && e.Key == "Escape")
+        {
+            await EndEditingAsync(item, context, false);
+        }
+        else if (CommitOnEnter && e.Key == "Enter" && Editor != EditorKind.TextArea)
+        {
+            await EndEditingAsync(item, context, true);
+        }
+    }
+
+    private static TValue? ParseValue(string? stringValue)
+    {
+        if (string.IsNullOrEmpty(stringValue))
+            return default;
+
+        var targetType = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
+
+        try
+        {
+            if (targetType == typeof(string))
+                return (TValue)(object)stringValue;
+
+            if (targetType == typeof(int))
+                return (TValue)(object)int.Parse(stringValue);
+
+            if (targetType == typeof(decimal))
+                return (TValue)(object)decimal.Parse(stringValue);
+
+            if (targetType == typeof(double))
+                return (TValue)(object)double.Parse(stringValue);
+
+            if (targetType == typeof(float))
+                return (TValue)(object)float.Parse(stringValue);
+
+            if (targetType == typeof(bool))
+                return (TValue)(object)bool.Parse(stringValue);
+
+            if (targetType == typeof(DateTime))
+                return (TValue)(object)DateTime.Parse(stringValue);
+
+            if (targetType == typeof(DateOnly))
+                return (TValue)(object)DateOnly.Parse(stringValue);
+
+            if (targetType.IsEnum)
+                return (TValue)Enum.Parse(targetType, stringValue);
+
+            // Fallback to Convert
+            return (TValue)Convert.ChangeType(stringValue, targetType);
+        }
+        catch
+        {
+            return default;
+        }
+    }
+}
+
+/// <summary>
+/// Event args for value changed events.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the value.</typeparam>
+public class ValueChangedEventArgs<TGridItem, TValue>
+{
+    public required TGridItem Item { get; init; }
+    public TValue? OldValue { get; init; }
+    public TValue? NewValue { get; init; }
+}
+
+/// <summary>
+/// Represents an option for select editors.
+/// </summary>
+/// <typeparam name="TValue">The type of the option value.</typeparam>
+public class SelectOption<TValue>
+{
+    public required string Label { get; init; }
+    public TValue? Value { get; init; }
+}

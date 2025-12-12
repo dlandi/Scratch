@@ -1,0 +1,210 @@
+﻿/* LogViewerDemo.razor.css - Scoped styles */
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--qg-bg-secondary, #f8f9fa);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toolbar-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+}
+
+.toolbar-group select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--qg-border, #dee2e6);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.toolbar-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--qg-text-muted, #6c757d);
+}
+
+.grid-container {
+    border: 1px solid var(--qg-border, #dee2e6);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+/* Level badges */
+.level-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.level-debug {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.level-information {
+    background: #cff4fc;
+    color: #055160;
+}
+
+.level-warning {
+    background: #fff3cd;
+    color: #664d03;
+}
+
+.level-error {
+    background: #f8d7da;
+    color: #842029;
+}
+
+.level-fatal {
+    background: #842029;
+    color: #fff;
+}
+
+/* Message preview */
+.message-preview {
+    display: block;
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--qg-font-mono, 'Consolas', 'Monaco', monospace);
+    font-size: 0.875rem;
+}
+
+/* Expanded detail content */
+::deep .log-detail-content {
+    padding: 0.75rem;
+    background: var(--qg-bg-secondary, #f8f9fa);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    max-width: 600px;
+}
+
+::deep .log-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+::deep .log-detail-header .timestamp {
+    font-family: var(--qg-font-mono, 'Consolas', 'Monaco', monospace);
+    color: var(--qg-text-muted, #6c757d);
+}
+
+::deep .log-detail-source,
+::deep .log-detail-message,
+::deep .log-detail-exception,
+::deep .log-detail-properties {
+    margin-top: 0.5rem;
+}
+
+::deep .log-detail-message pre,
+::deep .log-detail-exception pre {
+    margin: 0.25rem 0 0 0;
+    padding: 0.5rem;
+    background: #fff;
+    border: 1px solid var(--qg-border, #dee2e6);
+    border-radius: 4px;
+    font-family: var(--qg-font-mono, 'Consolas', 'Monaco', monospace);
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow: auto;
+}
+
+::deep .exception-text {
+    color: #842029;
+    background: #fff5f5 !important;
+    border-color: #f5c2c7 !important;
+}
+
+::deep .log-detail-properties dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 0.75rem;
+    margin: 0.25rem 0 0 0;
+    padding: 0.5rem;
+    background: #fff;
+    border: 1px solid var(--qg-border, #dee2e6);
+    border-radius: 4px;
+}
+
+::deep .log-detail-properties dt {
+    font-weight: 600;
+    color: var(--qg-text-muted, #6c757d);
+}
+
+::deep .log-detail-properties dd {
+    margin: 0;
+    font-family: var(--qg-font-mono, 'Consolas', 'Monaco', monospace);
+}
+
+/* Log detail column specific styles */
+::deep .log-detail-cell {
+    min-width: 80px;
+}
+
+::deep .log-detail-active {
+    background: var(--qg-bg-highlight, #e7f1ff);
+}
+
+::deep .log-detail-dimmed {
+    opacity: 0.5;
+}
+
+::deep .log-detail-expanded {
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+::deep .log-detail-collapse-btn {
+    margin-top: 0.5rem;
+}
+
+/* Click indicator for RowClick mode */
+::deep .log-detail-click-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+::deep .log-detail-click-indicator:hover {
+    background: var(--qg-bg-hover, #e9ecef);
+}
+
+::deep .log-detail-click-indicator:focus {
+    outline: 2px solid var(--qg-focus-ring, #0d6efd);
+    outline-offset: 2px;
+}

@@ -1,0 +1,169 @@
+﻿using System.Linq.Expressions;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.QuickGrid;
+
+namespace QuickGridTest01.ComposableColumns.Core;
+
+/// <summary>
+/// Shared context that is passed to all features in a composable column.
+/// Contains shared state, services, and utilities that features may need.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+public sealed class FeatureContext<TGridItem>
+{
+    private readonly Dictionary<string, object> _state = new();
+    private readonly Dictionary<Type, object> _services = new();
+
+    /// <summary>
+    /// The column that owns this context.
+    /// </summary>
+    public required ColumnBase<TGridItem> Column { get; init; }
+
+    /// <summary>
+    /// The column title (may be set by AutoTitleFeature or explicitly).
+    /// </summary>
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// CSS class(es) to apply to the column.
+    /// </summary>
+    public string? CssClass { get; set; }
+
+    /// <summary>
+    /// Whether the column is sortable.
+    /// </summary>
+    public bool IsSortable { get; set; }
+
+    /// <summary>
+    /// The sort direction if this column is currently sorted.
+    /// </summary>
+    public SortDirection? CurrentSortDirection { get; set; }
+
+    /// <summary>
+    /// Request the grid to re-render.
+    /// </summary>
+    public Action? RequestRefresh { get; set; }
+
+    /// <summary>
+    /// Gets or sets a named state value.
+    /// </summary>
+    public T? GetState<T>(string key)
+    {
+        return _state.TryGetValue(key, out var value) && value is T typedValue
+            ? typedValue
+            : default;
+    }
+
+    /// <summary>
+    /// Sets a named state value.
+    /// </summary>
+    public void SetState<T>(string key, T value)
+    {
+        if (value is null)
+            _state.Remove(key);
+        else
+            _state[key] = value;
+    }
+
+    /// <summary>
+    /// Checks if a state key exists.
+    /// </summary>
+    public bool HasState(string key) => _state.ContainsKey(key);
+
+    /// <summary>
+    /// Registers a service that features can share.
+    /// </summary>
+    public void RegisterService<TService>(TService service) where TService : class
+    {
+        _services[typeof(TService)] = service;
+    }
+
+    /// <summary>
+    /// Gets a registered service.
+    /// </summary>
+    public TService? GetService<TService>() where TService : class
+    {
+        return _services.TryGetValue(typeof(TService), out var service)
+            ? service as TService
+            : null;
+    }
+
+    /// <summary>
+    /// Clears all state (called on dispose).
+    /// </summary>
+    public void Clear()
+    {
+        _state.Clear();
+        _services.Clear();
+    }
+}
+
+/// <summary>
+/// Extended context with strongly-typed value access.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the property value.</typeparam>
+public sealed class FeatureContext<TGridItem, TValue> : FeatureContext<TGridItem>
+{
+    /// <summary>
+    /// The property expression for this column.
+    /// </summary>
+    public Expression<Func<TGridItem, TValue>>? PropertyExpression { get; set; }
+
+    /// <summary>
+    /// Compiled accessor for getting the property value.
+    /// </summary>
+    public Func<TGridItem, TValue>? GetValue { get; set; }
+
+    /// <summary>
+    /// Compiled setter for setting the property value (for editable columns).
+    /// </summary>
+    public Action<TGridItem, TValue>? SetValue { get; set; }
+
+    /// <summary>
+    /// Format string for displaying the value.
+    /// </summary>
+    public string? Format { get; set; }
+
+    /// <summary>
+    /// Custom formatter function.
+    /// </summary>
+    public Func<TValue, string>? Formatter { get; set; }
+
+    /// <summary>
+    /// Gets the formatted value as a string.
+    /// </summary>
+    public string GetFormattedValue(TGridItem item)
+    {
+        if (GetValue is null)
+            return string.Empty;
+
+        var value = GetValue(item);
+
+        if (Formatter is not null)
+            return Formatter(value);
+
+        if (value is null)
+            return string.Empty;
+
+        if (!string.IsNullOrEmpty(Format) && value is IFormattable formattable)
+            return formattable.ToString(Format, null);
+
+        return value.ToString() ?? string.Empty;
+    }
+}
+
+/// <summary>
+/// Well-known state keys used by features.
+/// </summary>
+public static class FeatureStateKeys
+{
+    public const string PropertyName = "PropertyName";
+    public const string PropertyType = "PropertyType";
+    public const string IsEditing = "IsEditing";
+    public const string EditingItemId = "EditingItemId";
+    public const string ValidationErrors = "ValidationErrors";
+    public const string IsDirty = "IsDirty";
+    public const string OriginalValue = "OriginalValue";
+    public const string CurrentValue = "CurrentValue";
+}

@@ -1,0 +1,56 @@
+﻿/**
+ * LogDetailColumn - Click-outside detection module
+ * 
+ * Provides isolated JavaScript for detecting clicks outside the detail overlay,
+ * enabling automatic collapse when clicking elsewhere on the page.
+ */
+
+/**
+ * Registers a click-outside handler for the specified element.
+ * @param {DotNetObjectReference} dotNetRef - Reference to the Blazor component
+ * @param {string} elementId - The ID of the detail overlay element
+ * @returns {Object|null} Handler reference for cleanup, or null if element not found
+ */
+export function registerClickOutside(dotNetRef, elementId) {
+    // Wait for the element to be rendered
+    const element = document.getElementById(elementId);
+    if (!element) {
+        console.warn(`LogDetailColumn: Element with id '${elementId}' not found`);
+        return null;
+    }
+
+    const handler = (event) => {
+        // Check if click target is outside the detail overlay
+        // Also check if click is on another expand button (allow switching rows)
+        const isOutside = !element.contains(event.target);
+        const isExpandButton = event.target.closest('.log-detail-cell button, .log-detail-click-target');
+        
+        if (isOutside && !isExpandButton) {
+            dotNetRef.invokeMethodAsync('OnClickOutside');
+        }
+    };
+
+    // Use setTimeout to avoid immediate trigger from the expand click itself
+    // Use capture phase to intercept before any stopPropagation
+    setTimeout(() => {
+        document.addEventListener('click', handler, true);
+    }, 0);
+
+    // Return a disposable reference
+    return {
+        _handler: handler,
+        dispose: function() {
+            document.removeEventListener('click', handler, true);
+        }
+    };
+}
+
+/**
+ * Unregisters a click-outside handler.
+ * @param {Object} handlerRef - The handler reference returned by registerClickOutside
+ */
+export function unregisterClickOutside(handlerRef) {
+    if (handlerRef && typeof handlerRef.dispose === 'function') {
+        handlerRef.dispose();
+    }
+}

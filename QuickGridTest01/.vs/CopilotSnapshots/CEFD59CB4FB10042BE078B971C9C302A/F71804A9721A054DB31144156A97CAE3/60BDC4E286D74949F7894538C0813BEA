@@ -1,0 +1,55 @@
+﻿namespace QuickGridTest01.LogDetail.Events;
+
+/// <summary>
+/// Event args for when a log detail row is expanded.
+/// </summary>
+/// <typeparam name="TGridItem">The type of grid item</typeparam>
+/// <typeparam name="TKey">The type of the key</typeparam>
+public class LogDetailExpandedEventArgs<TGridItem, TKey>
+{
+    /// <summary>
+    /// The item that was expanded.
+    /// </summary>
+    public required TGridItem Item { get; init; }
+
+    /// <summary>
+    /// The key used to identify the expanded row.
+    /// </summary>
+    public required TKey Key { get; init; }
+}
+
+/// <summary>
+/// Event args for when a log detail row is collapsed.
+/// </summary>
+/// <typeparam name="TGridItem">The type of grid item</typeparam>
+/// <typeparam name="TKey">The type of the key</typeparam>
+public class LogDetailCollapsedEventArgs<TGridItem, TKey>
+{
+    /// <summary>
+    /// The item that was collapsed.
+    /// </summary>
+    public required TGridItem Item { get; init; }
+
+    /// <summary>
+    /// The key used to identify the collapsed row.
+    /// </summary>
+    public required TKey Key { get; init; }
+}
+
+/// <summary>
+/// Event args for before expanding a log detail row.
+/// Set Cancel = true to prevent expansion.
+/// </summary>
+/// <typeparam name="TGridItem">The type of grid item</typeparam>
+public class LogDetailBeforeExpandEventArgs<TGridItem>
+{
+    /// <summary>
+    /// The item about to be expanded.
+    /// </summary>
+    public required TGridItem Item { get; init; }
+
+    /// <summary>
+    /// Set to true to prevent expansion.
+    /// </summary>
+    public bool Cancel { get; set; }
+}

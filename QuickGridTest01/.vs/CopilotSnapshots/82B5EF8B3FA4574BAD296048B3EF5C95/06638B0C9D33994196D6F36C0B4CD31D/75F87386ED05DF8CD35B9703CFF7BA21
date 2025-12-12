@@ -1,0 +1,357 @@
+﻿/* ==========================================================================
+   Feature Matrix Grid Styles
+   Combines 5 approaches for readable headers:
+   1. Rotated headers (45°)
+   2. Abbreviations with tooltips
+   3. Wider columns for full text
+   4. Sticky first columns + horizontal scroll
+   5. Two-row headers (abbrev + full name)
+   ========================================================================== */
+
+/* Filter controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Option 4: Sticky Columns + Scroll Container
+   ========================================================================== */
+.feature-matrix-wrapper {
+    position: relative;
+}
+
+.feature-matrix-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+}
+
+/* Sticky columns for Category and Feature */
+.feature-matrix-grid .sticky-col {
+    position: sticky;
+    background: var(--qg-white, #ffffff);
+    z-index: 2;
+}
+
+.feature-matrix-grid .sticky-col-1 {
+    left: 0;
+}
+
+.feature-matrix-grid .sticky-col-2 {
+    left: 100px; /* Width of first column */
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Header sticky cells need higher z-index */
+.feature-matrix-grid thead th.sticky-col {
+    z-index: 3;
+}
+
+/* ==========================================================================
+   Option 1 & 3: Rotated Headers with Adequate Width
+   ========================================================================== */
+.feature-matrix-grid {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Extra header height to accommodate rotated text */
+.feature-matrix-grid thead {
+    height: 120px;
+}
+
+.feature-matrix-grid thead th {
+    vertical-align: bottom;
+    padding-bottom: 0.75rem;
+    position: relative;
+}
+
+/* Rotated header columns - adequate width */
+.feature-matrix-grid th.rotated-header-col {
+    width: 60px;
+    min-width: 60px;
+    max-width: 60px;
+    height: 120px;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 0;
+}
+
+/* ==========================================================================
+   Option 2 & 5: Two-Row Header with Abbreviation + Full Name + Tooltip
+   ========================================================================== */
+.rotated-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    padding-bottom: 8px;
+    cursor: help;
+    position: relative;
+    transform: rotate(-45deg);
+    transform-origin: center bottom;
+    white-space: nowrap;
+    margin-left: -10px;
+}
+
+/* Abbreviation badge (always visible) */
+.header-abbrev {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--qg-primary-100, #dbeafe);
+    color: var(--qg-primary-700, #1d4ed8);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+}
+
+/* Full name (visible in rotated layout) */
+.header-full {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--qg-neutral-700, #374151);
+    max-width: 100px;
+    overflow: visible;
+}
+
+/* Tooltip enhancement - native title works, but add visual cue */
+.rotated-header::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: var(--qg-primary-400, #60a5fa);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.rotated-header:hover::after {
+    opacity: 1;
+}
+
+.rotated-header:hover .header-abbrev {
+    background: var(--qg-primary-200, #bfdbfe);
+}
+
+/* ==========================================================================
+   Boolean Icon Cells
+   ========================================================================== */
+.bool-icon-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+.icon-supported {
+    color: var(--qg-success, #22c55e);
+    font-size: 1.1rem;
+}
+
+.icon-not-supported {
+    color: var(--qg-neutral-300, #d1d5db);
+    font-size: 1.1rem;
+}
+
+/* Hover effect on rows */
+.feature-matrix-grid tbody tr:hover .icon-not-supported {
+    color: var(--qg-neutral-400, #9ca3af);
+}
+
+/* ==========================================================================
+   Data Cell Styling
+   ========================================================================== */
+.feature-matrix-grid th,
+.feature-matrix-grid td {
+    text-align: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--qg-neutral-100, #f3f4f6);
+}
+
+.feature-matrix-grid th:first-child,
+.feature-matrix-grid td:first-child,
+.feature-matrix-grid th:nth-child(2),
+.feature-matrix-grid td:nth-child(2) {
+    text-align: left;
+}
+
+/* Category column styling */
+.feature-matrix-grid tbody tr td:first-child {
+    font-weight: 500;
+    color: var(--qg-neutral-500, #6b7280);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    min-width: 100px;
+}
+
+/* Feature name column */
+.feature-matrix-grid tbody tr td:nth-child(2) {
+    min-width: 180px;
+    font-weight: 500;
+    color: var(--qg-neutral-800, #1f2937);
+}
+
+/* Hover effect for feature rows */
+.feature-matrix-grid tbody tr:hover {
+    background-color: var(--qg-neutral-50, #f9fafb);
+}
+
+/* Alternating row colors */
+.feature-matrix-grid tbody tr:nth-child(odd) {
+    background-color: var(--qg-white, #ffffff);
+}
+
+.feature-matrix-grid tbody tr:nth-child(even) {
+    background-color: var(--qg-neutral-25, #fcfcfd);
+}
+
+/* Keep sticky columns colored on hover */
+.feature-matrix-grid tbody tr:hover td.sticky-col {
+    background-color: var(--qg-neutral-50, #f9fafb);
+}
+
+.feature-matrix-grid tbody tr:nth-child(odd) td.sticky-col {
+    background-color: var(--qg-white, #ffffff);
+}
+
+.feature-matrix-grid tbody tr:nth-child(even) td.sticky-col {
+    background-color: var(--qg-neutral-25, #fcfcfd);
+}
+
+/* ==========================================================================
+   Coverage Bar (Feature Count Section)
+   ========================================================================== */
+.coverage-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--qg-neutral-200, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 100px;
+}
+
+.coverage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--qg-primary, #3b82f6), var(--qg-primary-600, #2563eb));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   Legend
+   ========================================================================== */
+.legend-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    background: var(--qg-neutral-50, #f9fafb);
+    border-radius: 0.5rem;
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--qg-neutral-600, #4b5563);
+}
+
+.legend-item i {
+    font-size: 1.25rem;
+}
+
+.legend-hint {
+    font-style: italic;
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+/* ==========================================================================
+   Section spacing
+   ========================================================================== */
+.qg-section + .qg-section {
+    margin-top: 2rem;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 1200px) {
+    .feature-matrix-scroll {
+        max-width: calc(100vw - 300px); /* Account for sidebar */
+    }
+}
+
+@media (max-width: 992px) {
+    .feature-matrix-scroll {
+        max-width: calc(100vw - 40px);
+    }
+    
+    /* Reduce header height on smaller screens */
+    .feature-matrix-grid thead {
+        height: 100px;
+    }
+    
+    .feature-matrix-grid th.rotated-header-col {
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+        height: 100px;
+    }
+    
+    .header-abbrev {
+        width: 24px;
+        height: 24px;
+        font-size: 0.65rem;
+    }
+    
+    .header-full {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .legend-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    /* On very small screens, hide full name, show only abbreviation */
+    .header-full {
+        display: none;
+    }
+    
+    .rotated-header {
+        transform: none;
+        margin-left: 0;
+    }
+    
+    .feature-matrix-grid thead {
+        height: 60px;
+    }
+    
+    .feature-matrix-grid th.rotated-header-col {
+        height: 60px;
+    }
+}

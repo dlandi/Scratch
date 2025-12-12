@@ -1,0 +1,3 @@
+﻿@namespace QuickGridTest01.RowColumn
+@typeparam TGridItem where TGridItem : class
+@inherits Microsoft.AspNetCore.Components.QuickGrid.ColumnBase<TGridItem>

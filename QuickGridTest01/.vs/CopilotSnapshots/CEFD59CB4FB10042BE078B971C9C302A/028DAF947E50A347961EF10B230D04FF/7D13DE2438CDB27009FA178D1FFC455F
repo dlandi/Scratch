@@ -1,0 +1,10 @@
+﻿/*
+* LogDetailColumn Scoped Styles
+* 
+* Note: The primary styles for LogDetailColumn are defined globally in
+* wwwroot/css/quickgrid-refined-minimalism.css because this component
+* renders into QuickGrid's table structure rather than its own root element.
+* 
+* Scoped CSS (::deep) could be used here for component-specific overrides
+* if needed in the future.
+*/

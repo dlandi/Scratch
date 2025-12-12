@@ -1,0 +1,94 @@
+﻿namespace QuickGridTest01.LogDetail.Core;
+
+/// <summary>
+/// Manages single-row expansion state for the log detail view.
+/// Only one row can be expanded at a time for focused detail viewing.
+/// </summary>
+/// <typeparam name="TKey">The type of key used to identify rows (typically string or int)</typeparam>
+public class LogExpansionStateManager<TKey> : IDisposable where TKey : notnull
+{
+    private TKey? _expandedKey;
+    private bool _disposed;
+
+    /// <summary>
+    /// Gets whether any row is currently expanded.
+    /// </summary>
+    public bool HasExpandedRows => _expandedKey is not null;
+
+    /// <summary>
+    /// Gets the currently expanded key, or default if none.
+    /// </summary>
+    public TKey? ExpandedKey => _expandedKey;
+
+    /// <summary>
+    /// Checks if a specific row is expanded.
+    /// </summary>
+    public bool IsExpanded(TKey key) => 
+        _expandedKey is not null && EqualityComparer<TKey>.Default.Equals(_expandedKey, key);
+
+    /// <summary>
+    /// Expands a row by its key. Automatically collapses any previously expanded row.
+    /// </summary>
+    /// <returns>The previously expanded key if any, for cleanup purposes.</returns>
+    public Task<TKey?> ExpandAsync(TKey key, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var previousKey = _expandedKey;
+        _expandedKey = key;
+        return Task.FromResult(previousKey);
+    }
+
+    /// <summary>
+    /// Collapses a row by its key.
+    /// </summary>
+    /// <returns>True if the row was collapsed, false if it wasn't the expanded row.</returns>
+    public Task<bool> CollapseAsync(TKey key, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_expandedKey is not null && EqualityComparer<TKey>.Default.Equals(_expandedKey, key))
+        {
+            _expandedKey = default;
+            return Task.FromResult(true);
+        }
+        return Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// Toggles the expansion state of a row.
+    /// </summary>
+    /// <returns>True if the row is now expanded, false if collapsed.</returns>
+    public Task<bool> ToggleAsync(TKey key, CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_expandedKey is not null && EqualityComparer<TKey>.Default.Equals(_expandedKey, key))
+        {
+            _expandedKey = default;
+            return Task.FromResult(false);
+        }
+        else
+        {
+            _expandedKey = key;
+            return Task.FromResult(true);
+        }
+    }
+
+    /// <summary>
+    /// Collapses all expanded rows (clears the single expanded key).
+    /// </summary>
+    public Task CollapseAllAsync(CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _expandedKey = default;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _expandedKey = default;
+        _disposed = true;
+    }
+}

@@ -1,0 +1,27 @@
+﻿using System;
+using System.Linq.Expressions;
+using System.Reflection;
+
+namespace QuickGridTest01.Infrastructure
+{
+    internal static class Accessors
+    {
+        public static Func<TTarget, TProp> CreateGetter<TTarget, TProp>(Expression<Func<TTarget, TProp>> expr)
+        {
+            if (expr.Body is MemberExpression me && me.Member is PropertyInfo pi && pi.GetMethod is MethodInfo get)
+            {
+                return (Func<TTarget, TProp>)Delegate.CreateDelegate(typeof(Func<TTarget, TProp>), get);
+            }
+            return expr.Compile();
+        }
+
+        public static Action<TTarget, TProp>? CreateSetter<TTarget, TProp>(Expression<Func<TTarget, TProp>> expr)
+        {
+            if (expr.Body is MemberExpression me && me.Member is PropertyInfo pi && pi.SetMethod is MethodInfo set)
+            {
+                return (Action<TTarget, TProp>)Delegate.CreateDelegate(typeof(Action<TTarget, TProp>), set);
+            }
+            return null;
+        }
+    }
+}

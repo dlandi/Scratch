@@ -1,0 +1,341 @@
+﻿/**
+ * LogDetailColumn - Refined Minimalism Styles
+ * 
+ * Styles for the expandable log detail overlay that appears below the master row.
+ * Follows the project's design system tokens for consistency.
+ * 
+ * Key behaviors:
+ * - Single row expansion only
+ * - Overlay positioned below master row, spanning configurable number of rows
+ * - Click outside to close
+ * - Subtle animations for reveal
+ */
+
+/* ============================================================================
+   CELL WRAPPER
+   Container within the QuickGrid cell that holds expand/collapse controls
+   ========================================================================= */
+
+.log-detail-cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+}
+
+.log-detail-cell.log-detail-dimmed {
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity var(--duration-normal, 200ms) var(--ease-in-out);
+}
+
+.log-detail-cell.log-detail-expanded {
+    /* Allow overlay to escape cell bounds */
+    position: static;
+}
+
+/* ============================================================================
+   EXPAND/COLLAPSE CONTROLS
+   Minimal, unobtrusive trigger buttons
+   ========================================================================= */
+
+.log-detail-cell button {
+    /* Reset for minimal appearance */
+    background: transparent;
+    border: none;
+    padding: var(--space-4, 8px) var(--space-8, 16px);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-tertiary, #737373);
+    cursor: pointer;
+    border-radius: var(--card-radius, 4px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out);
+    white-space: nowrap;
+}
+
+.log-detail-cell button:hover {
+    color: var(--color-text-secondary, #525252);
+    background-color: var(--color-canvas, #FAFAF9);
+}
+
+.log-detail-cell button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.log-detail-collapse-trigger {
+    color: var(--color-accent-primary, #2563EB);
+}
+
+.log-detail-collapse-trigger:hover {
+    color: var(--color-accent-primary-hover, #1D4ED8);
+    background-color: var(--color-accent-primary-subtle, #EFF6FF);
+}
+
+/* Row-click mode indicator */
+.log-detail-click-target {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4, 8px);
+    color: var(--color-text-tertiary, #737373);
+    cursor: pointer;
+    border-radius: var(--card-radius, 4px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out);
+}
+
+.log-detail-click-target:hover {
+    color: var(--color-accent-primary, #2563EB);
+    background-color: var(--color-accent-primary-subtle, #EFF6FF);
+}
+
+.log-detail-click-target:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.log-detail-expand-icon {
+    font-size: var(--font-size-xs, 0.75rem);
+}
+
+/* ============================================================================
+   DETAIL OVERLAY
+   Positioned below the master row, spanning multiple rows
+   ========================================================================= */
+
+.log-detail-overlay {
+    /* Position below the row */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    
+    /* Height based on RowSpan parameter (set via CSS variable) */
+    height: calc(var(--row-span, 4) * var(--grid-row-height, 36px));
+    min-height: 120px;
+    max-height: 400px;
+    
+    /* Ensure it covers rows below */
+    z-index: 50;
+    
+    /* Refined minimalist styling */
+    background: var(--color-surface, #FFFFFF);
+    border: 1px solid var(--color-border-emphasis, #D6D3D1);
+    border-top: none; /* Continuous with row above */
+    border-radius: 0 0 var(--card-radius, 4px) var(--card-radius, 4px);
+    box-shadow: var(--shadow-md, 0 2px 6px rgba(0, 0, 0, 0.08));
+    
+    /* Content handling */
+    overflow: auto;
+    padding: var(--space-12, 24px) var(--space-16, 32px);
+    
+    /* Subtle reveal animation */
+    animation: log-detail-reveal var(--duration-normal, 200ms) var(--ease-out);
+}
+
+@keyframes log-detail-reveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================================
+   DETAIL CONTENT TYPOGRAPHY
+   Optimized for log entry display - technical, monospace emphasis
+   ========================================================================= */
+
+.log-detail-overlay {
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-relaxed, 1.625);
+    color: var(--color-text-secondary, #525252);
+}
+
+/* Section labels */
+.log-detail-overlay strong,
+.log-detail-overlay .log-detail-label {
+    display: block;
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    letter-spacing: var(--letter-spacing-wide, 0.02em);
+    text-transform: uppercase;
+    color: var(--color-text-tertiary, #737373);
+    margin-bottom: var(--space-2, 4px);
+}
+
+/* Preformatted content (messages, exceptions) */
+.log-detail-overlay pre {
+    margin: 0 0 var(--space-12, 24px) 0;
+    padding: var(--space-8, 16px) var(--space-12, 24px);
+    background-color: var(--color-canvas, #FAFAF9);
+    border: 1px solid var(--color-border-default, #E7E5E4);
+    border-radius: var(--card-radius, 4px);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm, 0.875rem);
+    line-height: var(--line-height-relaxed, 1.625);
+    color: var(--color-text-primary, #1A1A1A);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+}
+
+.log-detail-overlay pre:last-child {
+    margin-bottom: 0;
+}
+
+/* Exception text - subtle error styling */
+.log-detail-overlay .log-detail-exception pre,
+.log-detail-overlay pre.exception {
+    background-color: var(--color-error-subtle, #FEF2F2);
+    border-color: var(--color-error-border, #FECACA);
+    color: var(--color-error, #DC2626);
+}
+
+/* Properties list (key-value pairs) */
+.log-detail-overlay dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2, 4px) var(--space-12, 24px);
+    margin: 0 0 var(--space-12, 24px) 0;
+    padding: var(--space-8, 16px) var(--space-12, 24px);
+    background-color: var(--color-canvas, #FAFAF9);
+    border: 1px solid var(--color-border-default, #E7E5E4);
+    border-radius: var(--card-radius, 4px);
+}
+
+.log-detail-overlay dt {
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-tertiary, #737373);
+    font-size: var(--font-size-xs, 0.75rem);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide, 0.02em);
+}
+
+.log-detail-overlay dd {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-secondary, #525252);
+}
+
+/* Section spacing */
+.log-detail-overlay > div + div {
+    margin-top: var(--space-8, 16px);
+}
+
+/* ============================================================================
+   HEADER ROW (if used in template)
+   ========================================================================= */
+
+.log-detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 16px);
+    margin-bottom: var(--space-12, 24px);
+    padding-bottom: var(--space-8, 16px);
+    border-bottom: 1px solid var(--color-border-subtle, #F5F5F4);
+}
+
+.log-detail-header .log-detail-timestamp {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-tertiary, #737373);
+}
+
+/* ============================================================================
+   LOG LEVEL BADGES
+   Semantic color coding for log levels
+   ========================================================================= */
+
+.log-detail-level {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1, 2px) var(--space-4, 8px);
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    letter-spacing: var(--letter-spacing-wide, 0.02em);
+    text-transform: uppercase;
+    border-radius: 0.75rem;
+    white-space: nowrap;
+}
+
+.log-detail-level.level-debug {
+    background-color: var(--color-canvas, #FAFAF9);
+    color: var(--color-text-tertiary, #737373);
+    border: 1px solid var(--color-border-default, #E7E5E4);
+}
+
+.log-detail-level.level-information {
+    background-color: var(--color-info-subtle, #F0F9FF);
+    color: var(--color-info, #0284C7);
+    border: 1px solid var(--color-info-border, #BAE6FD);
+}
+
+.log-detail-level.level-warning {
+    background-color: var(--color-warning-subtle, #FFFBEB);
+    color: var(--color-warning, #D97706);
+    border: 1px solid var(--color-warning-border, #FED7AA);
+}
+
+.log-detail-level.level-error {
+    background-color: var(--color-error-subtle, #FEF2F2);
+    color: var(--color-error, #DC2626);
+    border: 1px solid var(--color-error-border, #FECACA);
+}
+
+.log-detail-level.level-fatal {
+    background-color: var(--color-error, #DC2626);
+    color: #FFFFFF;
+    border: 1px solid var(--color-error, #DC2626);
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ========================================================================= */
+
+@media (max-width: 768px) {
+    .log-detail-overlay {
+        padding: var(--space-8, 16px) var(--space-12, 24px);
+        /* On mobile, allow more height */
+        max-height: 60vh;
+    }
+    
+    .log-detail-overlay dl {
+        grid-template-columns: 1fr;
+        gap: var(--space-1, 2px);
+    }
+    
+    .log-detail-overlay dt {
+        margin-top: var(--space-4, 8px);
+    }
+    
+    .log-detail-overlay dt:first-child {
+        margin-top: 0;
+    }
+}
+
+/* ============================================================================
+   GRID-LEVEL OVERRIDES
+   Applied when LogDetailColumn is present in the grid
+   ========================================================================= */
+
+/* Ensure parent row allows overlay to escape */
+.qg-grid tbody tr:has(.log-detail-expanded) {
+    position: relative;
+    z-index: 10;
+}
+
+/* Dim other rows when detail is open (optional via DimCollapsedRows) */
+.qg-grid:has(.log-detail-expanded) tbody tr:not(:has(.log-detail-expanded)) {
+    transition: opacity var(--duration-normal, 200ms) var(--ease-in-out);
+}
+
+.qg-grid:has(.log-detail-expanded) tbody tr:not(:has(.log-detail-expanded)).log-detail-row-dimmed td {
+    opacity: 0.4;
+}

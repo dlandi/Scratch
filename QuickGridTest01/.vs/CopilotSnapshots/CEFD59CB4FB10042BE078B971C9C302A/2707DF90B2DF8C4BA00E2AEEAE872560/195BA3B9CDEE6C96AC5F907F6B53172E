@@ -1,0 +1,135 @@
+﻿/**
+ * LogDetailColumn - JavaScript interop module
+ * 
+ * Provides:
+ * 1. Row click detection for expanding log details
+ * 2. Click-outside detection for collapsing expanded details
+ */
+
+// ============================================================================
+// ROW CLICK DETECTION
+// ============================================================================
+
+/**
+ * Registers a click handler on QuickGrid rows to trigger expansion.
+ * The handler identifies rows by their index and invokes Blazor.
+ * 
+ * @param {DotNetObjectReference} dotNetRef - Reference to the Blazor component
+ * @param {string} gridSelector - CSS selector for the QuickGrid table (e.g., '.log-viewer-grid')
+ * @param {Object} options - Configuration options
+ * @param {boolean} options.doubleClickOnly - If true, only respond to double-clicks
+ * @param {string} options.excludeSelector - Selector for elements that should not trigger row click
+ * @returns {Object|null} Handler reference for cleanup, or null if grid not found
+ */
+export function registerRowClickHandler(dotNetRef, gridSelector, options = {}) {
+    const grid = document.querySelector(gridSelector);
+    if (!grid) {
+        console.warn(`LogDetailColumn: Grid not found with selector '${gridSelector}'`);
+        return null;
+    }
+
+    const tbody = grid.querySelector('tbody');
+    if (!tbody) {
+        console.warn(`LogDetailColumn: No tbody found in grid '${gridSelector}'`);
+        return null;
+    }
+
+    const { doubleClickOnly = false, excludeSelector = null } = options;
+    const eventType = doubleClickOnly ? 'dblclick' : 'click';
+
+    const handler = (event) => {
+        // Find the clicked row
+        const row = event.target.closest('tr');
+        if (!row || !tbody.contains(row)) return;
+
+        // Check if click was on an excluded element (e.g., buttons, links)
+        if (excludeSelector && event.target.closest(excludeSelector)) {
+            return;
+        }
+
+        // Get row index (0-based, relative to visible rows in tbody)
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const rowIndex = rows.indexOf(row);
+
+        if (rowIndex >= 0) {
+            // Invoke Blazor method with the row index
+            dotNetRef.invokeMethodAsync('OnRowClicked', rowIndex);
+        }
+    };
+
+    tbody.addEventListener(eventType, handler);
+
+    return {
+        _handler: handler,
+        _eventType: eventType,
+        _tbody: tbody,
+        dispose: function () {
+            this._tbody.removeEventListener(this._eventType, this._handler);
+        }
+    };
+}
+
+/**
+ * Unregisters the row click handler.
+ * @param {Object} handlerRef - The handler reference returned by registerRowClickHandler
+ */
+export function unregisterRowClickHandler(handlerRef) {
+    if (handlerRef && typeof handlerRef.dispose === 'function') {
+        handlerRef.dispose();
+    }
+}
+
+// ============================================================================
+// CLICK-OUTSIDE DETECTION
+// ============================================================================
+
+/**
+ * Registers a click-outside handler for the specified element.
+ * @param {DotNetObjectReference} dotNetRef - Reference to the Blazor component
+ * @param {string} elementId - The ID of the detail overlay element
+ * @returns {Object|null} Handler reference for cleanup, or null if element not found
+ */
+export function registerClickOutside(dotNetRef, elementId) {
+    // Wait for the element to be rendered
+    const element = document.getElementById(elementId);
+    if (!element) {
+        console.warn(`LogDetailColumn: Element with id '${elementId}' not found`);
+        return null;
+    }
+
+    const handler = (event) => {
+        // Check if click target is outside the detail overlay
+        // Also check if click is on a row (allow row clicks to toggle)
+        const isOutside = !element.contains(event.target);
+        const isRowClick = event.target.closest('tbody tr');
+        const isExpandButton = event.target.closest('.log-detail-cell button, .log-detail-click-target');
+
+        if (isOutside && !isRowClick && !isExpandButton) {
+            dotNetRef.invokeMethodAsync('OnClickOutside');
+        }
+    };
+
+    // Use setTimeout to avoid immediate trigger from the expand click itself
+    // Use capture phase to intercept before any stopPropagation
+    setTimeout(() => {
+        document.addEventListener('click', handler, true);
+    }, 0);
+
+    // Return a disposable reference
+    return {
+        _handler: handler,
+        dispose: function () {
+            document.removeEventListener('click', handler, true);
+        }
+    };
+}
+
+/**
+ * Unregisters a click-outside handler.
+ * @param {Object} handlerRef - The handler reference returned by registerClickOutside
+ */
+export function unregisterClickOutside(handlerRef) {
+    if (handlerRef && typeof handlerRef.dispose === 'function') {
+        handlerRef.dispose();
+    }
+}

@@ -1,0 +1,16 @@
+﻿@*
+    LogDetailColumn - Expandable detail overlay for QuickGrid rows
+
+    This is a generic column component used by QuickGrid. All rendering logic
+    lives in the partial class defined in LogDetailColumn.razor.cs. This .razor
+    file simply declares the generic component type and ties it to that
+    code-behind implementation so QuickGrid instantiates the correct type.
+*@
+@namespace QuickGridTest01.LogDetail
+@typeparam TGridItem where TGridItem : class
+@typeparam TKey where TKey : notnull
+@inherits LogDetailColumn<TGridItem, TKey>
+
+@code {
+    // All logic is implemented in the partial class in LogDetailColumn.razor.cs.
+}

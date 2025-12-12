@@ -1,0 +1,410 @@
+﻿/* ==========================================================================
+   Feature Matrix Grid Styles
+   Combines 5 approaches for readable headers:
+   1. Rotated headers (45°)
+   2. Abbreviations with tooltips
+   3. Wider columns for full text
+   4. Sticky first columns + horizontal scroll
+   5. Two-row headers (abbrev + full name)
+   ========================================================================== */
+
+/* Filter controls */
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ==========================================================================
+   Option 4: Sticky Columns + Scroll Container
+   ========================================================================== */
+.feature-matrix-wrapper {
+    position: relative;
+}
+
+.feature-matrix-scroll {
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding-top: 10px; /* Extra space for rotated headers */
+}
+
+/* Sticky columns for Category and Feature - tightly constrained */
+::deep .feature-matrix-grid td:first-child,
+::deep .feature-matrix-grid th:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--qg-white, #ffffff);
+    z-index: 2;
+    width: 70px;
+    min-width: 70px;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+::deep .feature-matrix-grid td:nth-child(2),
+::deep .feature-matrix-grid th:nth-child(2) {
+    position: sticky;
+    left: 70px;
+    background: var(--qg-white, #ffffff);
+    z-index: 2;
+    width: 130px;
+    min-width: 130px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Header sticky cells need higher z-index */
+::deep .feature-matrix-grid thead th:first-child,
+::deep .feature-matrix-grid thead th:nth-child(2) {
+    z-index: 3;
+    overflow: visible; /* Allow header text to show */
+}
+
+/* ==========================================================================
+   Option 1 & 3: Rotated Headers with Adequate Width
+   ========================================================================== */
+::deep .feature-matrix-grid {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Extra header height to accommodate rotated text */
+::deep .feature-matrix-grid thead {
+    height: 130px; /* Increased from 110px */
+}
+
+::deep .feature-matrix-grid thead th {
+    vertical-align: bottom;
+    padding-bottom: 0.5rem;
+    position: relative;
+    overflow: visible;
+}
+
+/* Rotated header columns - adequate width */
+::deep .feature-matrix-grid th:nth-child(n+3) {
+    width: 55px;
+    min-width: 55px;
+    max-width: 55px;
+    height: 130px;
+    white-space: nowrap;
+    vertical-align: bottom;
+    padding: 0 0.25rem 0.5rem 0.25rem;
+    overflow: visible;
+}
+
+/* ==========================================================================
+   Option 2 & 5: Two-Row Header with Abbreviation + Full Name + Tooltip
+   ========================================================================== */
+.rotated-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 120px;
+    padding-bottom: 4px;
+    cursor: help;
+    position: relative;
+    transform: rotate(-45deg);
+    transform-origin: left bottom;
+    white-space: nowrap;
+    margin-left: 20px;
+}
+
+/* Abbreviation badge (always visible) */
+.header-abbrev {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--qg-primary-100, #dbeafe);
+    color: var(--qg-primary-700, #1d4ed8);
+    border-radius: 5px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-bottom: 3px;
+    flex-shrink: 0;
+}
+
+/* Full name (visible in rotated layout) */
+.header-full {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--qg-neutral-700, #374151);
+    max-width: 90px;
+    overflow: visible;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+/* Tooltip enhancement - native title works, but add visual cue */
+.rotated-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    background: var(--qg-primary-400, #60a5fa);
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.rotated-header:hover::after {
+    opacity: 1;
+}
+
+.rotated-header:hover .header-abbrev {
+    background: var(--qg-primary-200, #bfdbfe);
+}
+
+/* ==========================================================================
+   Boolean Icon Cells
+   ========================================================================== */
+.bool-icon-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.2rem;
+    min-height: 24px;
+}
+
+.icon-supported {
+    color: var(--qg-success, #22c55e);
+    font-size: 0.9rem;
+}
+
+.icon-not-supported {
+    color: var(--qg-neutral-300, #d1d5db);
+    font-size: 0.9rem;
+}
+
+/* Hover effect on rows */
+::deep .feature-matrix-grid tbody tr:hover .icon-not-supported {
+    color: var(--qg-neutral-400, #9ca3af);
+}
+
+/* ==========================================================================
+   Data Cell Styling
+   ========================================================================== */
+::deep .feature-matrix-grid th,
+::deep .feature-matrix-grid td {
+    text-align: center;
+    padding: 0.3rem 0.4rem;
+    border-bottom: 1px solid var(--qg-neutral-100, #f3f4f6);
+}
+
+::deep .feature-matrix-grid th:first-child,
+::deep .feature-matrix-grid td:first-child,
+::deep .feature-matrix-grid th:nth-child(2),
+::deep .feature-matrix-grid td:nth-child(2) {
+    text-align: left;
+    padding-left: 0.5rem;
+}
+
+/* Category column styling */
+::deep .feature-matrix-grid tbody tr td:first-child {
+    font-weight: 600;
+    color: var(--qg-neutral-500, #6b7280);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Feature name column */
+::deep .feature-matrix-grid tbody tr td:nth-child(2) {
+    font-weight: 500;
+    color: var(--qg-neutral-800, #1f2937);
+    font-size: 0.75rem;
+}
+
+/* Hover effect for feature rows */
+::deep .feature-matrix-grid tbody tr:hover {
+    background-color: var(--qg-neutral-50, #f9fafb);
+}
+
+/* Alternating row colors */
+::deep .feature-matrix-grid tbody tr:nth-child(odd) {
+    background-color: var(--qg-white, #ffffff);
+}
+
+::deep .feature-matrix-grid tbody tr:nth-child(even) {
+    background-color: rgba(249, 250, 251, 0.5);
+}
+
+/* Keep sticky columns colored on hover/alt rows */
+::deep .feature-matrix-grid tbody tr:hover td:first-child,
+::deep .feature-matrix-grid tbody tr:hover td:nth-child(2) {
+    background-color: var(--qg-neutral-50, #f9fafb);
+}
+
+::deep .feature-matrix-grid tbody tr:nth-child(odd) td:first-child,
+::deep .feature-matrix-grid tbody tr:nth-child(odd) td:nth-child(2) {
+    background-color: var(--qg-white, #ffffff);
+}
+
+::deep .feature-matrix-grid tbody tr:nth-child(even) td:first-child,
+::deep .feature-matrix-grid tbody tr:nth-child(even) td:nth-child(2) {
+    background-color: rgba(249, 250, 251, 0.5);
+}
+
+/* ==========================================================================
+   Coverage Bar (Feature Count Section)
+   ========================================================================== */
+.coverage-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--qg-neutral-200, #e5e7eb);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 100px;
+}
+
+.coverage-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--qg-primary, #3b82f6), var(--qg-primary-600, #2563eb));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   Legend
+   ========================================================================== */
+.legend-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    padding: 1rem 1.5rem;
+    background: var(--qg-neutral-50, #f9fafb);
+    border-radius: 0.5rem;
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--qg-neutral-600, #4b5563);
+}
+
+.legend-item i {
+    font-size: 1.25rem;
+}
+
+.legend-hint {
+    font-style: italic;
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+/* ==========================================================================
+   Section spacing
+   ========================================================================== */
+.qg-section + .qg-section {
+    margin-top: 2rem;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 1200px) {
+    .feature-matrix-scroll {
+        max-width: calc(100vw - 300px);
+    }
+}
+
+@media (max-width: 992px) {
+    .feature-matrix-scroll {
+        max-width: calc(100vw - 40px);
+    }
+    
+    ::deep .feature-matrix-grid thead {
+        height: 100px;
+    }
+    
+    ::deep .feature-matrix-grid th:nth-child(n+3) {
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+        height: 100px;
+    }
+    
+    .rotated-header {
+        height: 90px;
+    }
+    
+    .header-abbrev {
+        width: 20px;
+        height: 20px;
+        font-size: 0.55rem;
+    }
+    
+    .header-full {
+        font-size: 0.55rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .filter-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .legend-container {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    /* On very small screens, hide full name, show only abbreviation */
+    .header-full {
+        display: none;
+    }
+    
+    .rotated-header {
+        transform: none;
+        margin-left: 0;
+        height: auto;
+    }
+    
+    ::deep .feature-matrix-grid thead {
+        height: 50px;
+    }
+    
+    ::deep .feature-matrix-grid th:nth-child(n+3) {
+        height: 50px;
+    }
+    
+    .feature-matrix-scroll {
+        padding-top: 0;
+    }
+    
+    /* Reduce sticky column widths on mobile */
+    ::deep .feature-matrix-grid td:first-child,
+    ::deep .feature-matrix-grid th:first-child {
+        width: 50px;
+        min-width: 50px;
+        max-width: 50px;
+    }
+    
+    ::deep .feature-matrix-grid td:nth-child(2),
+    ::deep .feature-matrix-grid th:nth-child(2) {
+        left: 50px;
+        width: 90px;
+        min-width: 90px;
+        max-width: 90px;
+    }
+}

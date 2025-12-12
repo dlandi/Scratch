@@ -1,0 +1,471 @@
+﻿using Microsoft.AspNetCore.Components.Rendering;
+using QuickGridTest01.ComposableColumns.Core;
+
+namespace QuickGridTest01.ComposableColumns.Features.Performance;
+
+/// <summary>
+/// Feature that provides memoization (caching) for computed cell values.
+/// Caches formatted values and CSS class strings per item to avoid repeated computations.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the value being memoized.</typeparam>
+public class MemoizationFeature<TGridItem, TValue> : ICellRenderFeature<TGridItem>, IDisposable
+{
+    public int Priority => FeaturePriority.Performance;
+
+    // Cache for formatted values per item key
+    private readonly Dictionary<object, string> _formattedValueCache = new();
+    
+    // Cache for CSS class strings by state combination
+    private readonly Dictionary<object, string> _cssClassCache = new();
+    
+    // Cache for raw values per item key (for change detection)
+    private readonly Dictionary<object, TValue> _valueCache = new();
+    
+    // Statistics
+    private int _cacheHits;
+    private int _cacheMisses;
+    private bool _disposed;
+
+    /// <summary>
+    /// Function to get a unique key for an item.
+    /// If not provided, uses the item's hash code.
+    /// </summary>
+    public Func<TGridItem, object>? ItemKey { get; set; }
+
+    /// <summary>
+    /// Optional custom formatter for values.
+    /// If not provided, uses the context's formatter or ToString().
+    /// </summary>
+    public Func<TValue, string>? Formatter { get; set; }
+
+    /// <summary>
+    /// Optional CSS class builder based on the value.
+    /// Returns additional CSS classes to add based on the value.
+    /// </summary>
+    public Func<TValue, string>? CssClassBuilder { get; set; }
+
+    /// <summary>
+    /// Base CSS class to always include.
+    /// </summary>
+    public string BaseClass { get; set; } = "memoized-cell";
+
+    /// <summary>
+    /// Whether to wrap the content in a div with the computed CSS class.
+    /// </summary>
+    public bool WrapWithDiv { get; set; } = true;
+
+    /// <summary>
+    /// Whether to add a tooltip with the formatted value.
+    /// </summary>
+    public bool ShowTooltip { get; set; } = false;
+
+    /// <summary>
+    /// Maximum cache size. When exceeded, oldest entries are evicted.
+    /// Set to 0 for unlimited cache (not recommended for large datasets).
+    /// </summary>
+    public int MaxCacheSize { get; set; } = 1000;
+
+    /// <summary>
+    /// Whether to track cache statistics.
+    /// </summary>
+    public bool TrackStatistics { get; set; } = false;
+
+    public void OnAttach(FeatureContext<TGridItem> context)
+    {
+        // Store reference for external access
+        context.SetState("MemoizationFeature", this);
+    }
+
+    public void OnDetach(FeatureContext<TGridItem> context)
+    {
+        context.SetState<MemoizationFeature<TGridItem, TValue>?>("MemoizationFeature", null);
+        Dispose();
+    }
+
+    public void RenderCell(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem> context,
+        Action renderNext)
+    {
+        if (context is not FeatureContext<TGridItem, TValue> typedContext)
+        {
+            renderNext();
+            return;
+        }
+
+        var itemKey = GetItemKey(item);
+        var currentValue = typedContext.GetValue is not null ? typedContext.GetValue(item) : default!;
+
+        // Check if value has changed (invalidate cache if so)
+        if (_valueCache.TryGetValue(itemKey, out var cachedValue))
+        {
+            if (!EqualityComparer<TValue>.Default.Equals(cachedValue, currentValue))
+            {
+                // Value changed - invalidate caches for this item
+                InvalidateCache(itemKey);
+            }
+        }
+
+        // Get or compute formatted value
+        var formattedValue = GetOrComputeFormattedValue(itemKey, currentValue, typedContext);
+
+        // Get or compute CSS class
+        var cssClass = GetOrComputeCssClass(itemKey, currentValue);
+
+        // Update value cache for change detection
+        _valueCache[itemKey] = currentValue;
+
+        // Render with memoized values
+        if (WrapWithDiv)
+        {
+            builder.OpenElement(sequence++, "div");
+            builder.SetKey(itemKey);
+            builder.AddAttribute(sequence++, "class", cssClass);
+
+            if (ShowTooltip)
+            {
+                builder.AddAttribute(sequence++, "title", formattedValue);
+            }
+
+            builder.AddContent(sequence++, formattedValue);
+            builder.CloseElement();
+        }
+        else
+        {
+            // Just render the content, let other features handle wrapping
+            builder.AddContent(sequence++, formattedValue);
+        }
+
+        // Don't call renderNext - we've handled the rendering
+    }
+
+    private string GetOrComputeFormattedValue(object itemKey, TValue value, FeatureContext<TGridItem, TValue> context)
+    {
+        if (_formattedValueCache.TryGetValue(itemKey, out var cached))
+        {
+            if (TrackStatistics) _cacheHits++;
+            return cached;
+        }
+
+        if (TrackStatistics) _cacheMisses++;
+
+        // Compute formatted value
+        string formatted;
+        if (Formatter is not null)
+        {
+            formatted = Formatter(value);
+        }
+        else if (context.Formatter is not null)
+        {
+            formatted = context.Formatter(value);
+        }
+        else if (!string.IsNullOrEmpty(context.Format) && value is IFormattable formattable)
+        {
+            formatted = formattable.ToString(context.Format, null);
+        }
+        else
+        {
+            formatted = value?.ToString() ?? string.Empty;
+        }
+
+        // Cache it
+        EnsureCacheCapacity(_formattedValueCache);
+        _formattedValueCache[itemKey] = formatted;
+
+        return formatted;
+    }
+
+    private string GetOrComputeCssClass(object itemKey, TValue value)
+    {
+        if (_cssClassCache.TryGetValue(itemKey, out var cached))
+        {
+            if (TrackStatistics) _cacheHits++;
+            return cached;
+        }
+
+        if (TrackStatistics) _cacheMisses++;
+
+        // Compute CSS class
+        var cssClass = BaseClass;
+        if (CssClassBuilder is not null)
+        {
+            var additionalClasses = CssClassBuilder(value);
+            if (!string.IsNullOrEmpty(additionalClasses))
+            {
+                cssClass = $"{cssClass} {additionalClasses}";
+            }
+        }
+
+        // Cache it
+        EnsureCacheCapacity(_cssClassCache);
+        _cssClassCache[itemKey] = cssClass;
+
+        return cssClass;
+    }
+
+    private void EnsureCacheCapacity<TCache>(Dictionary<object, TCache> cache)
+    {
+        if (MaxCacheSize > 0 && cache.Count >= MaxCacheSize)
+        {
+            // Simple eviction: clear half the cache
+            // In production, consider LRU eviction
+            var keysToRemove = cache.Keys.Take(cache.Count / 2).ToList();
+            foreach (var key in keysToRemove)
+            {
+                cache.Remove(key);
+            }
+        }
+    }
+
+    private void InvalidateCache(object itemKey)
+    {
+        _formattedValueCache.Remove(itemKey);
+        _cssClassCache.Remove(itemKey);
+        _valueCache.Remove(itemKey);
+    }
+
+    private object GetItemKey(TGridItem item)
+    {
+        if (ItemKey is not null)
+            return ItemKey(item);
+
+        return item?.GetHashCode() ?? 0;
+    }
+
+    /// <summary>
+    /// Clears all cached values.
+    /// Call this when the data source changes significantly.
+    /// </summary>
+    public void ClearCache()
+    {
+        _formattedValueCache.Clear();
+        _cssClassCache.Clear();
+        _valueCache.Clear();
+        _cacheHits = 0;
+        _cacheMisses = 0;
+    }
+
+    /// <summary>
+    /// Invalidates the cache for a specific item.
+    /// Call this when a single item's data changes.
+    /// </summary>
+    public void InvalidateItem(TGridItem item)
+    {
+        var key = GetItemKey(item);
+        InvalidateCache(key);
+    }
+
+    /// <summary>
+    /// Gets cache statistics for performance analysis.
+    /// </summary>
+    public MemoizationStats GetStatistics()
+    {
+        return new MemoizationStats
+        {
+            FormattedValueCacheSize = _formattedValueCache.Count,
+            CssClassCacheSize = _cssClassCache.Count,
+            ValueCacheSize = _valueCache.Count,
+            CacheHits = _cacheHits,
+            CacheMisses = _cacheMisses,
+            HitRate = _cacheHits + _cacheMisses > 0 
+                ? (double)_cacheHits / (_cacheHits + _cacheMisses) 
+                : 0
+        };
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        ClearCache();
+
+        GC.SuppressFinalize(this);
+    }
+}
+
+/// <summary>
+/// Statistics about memoization cache usage.
+/// </summary>
+public class MemoizationStats
+{
+    public int FormattedValueCacheSize { get; init; }
+    public int CssClassCacheSize { get; init; }
+    public int ValueCacheSize { get; init; }
+    public int CacheHits { get; init; }
+    public int CacheMisses { get; init; }
+    public double HitRate { get; init; }
+}
+
+/// <summary>
+/// Feature that caches CSS class computations for a small set of state combinations.
+/// Optimized for scenarios with a limited number of distinct states (e.g., boolean flags).
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the value being evaluated.</typeparam>
+public class CachedCssClassFeature<TGridItem, TValue> : ICellRenderFeature<TGridItem>
+{
+    public int Priority => FeaturePriority.Styling;
+
+    // Cache for CSS class strings by computed state key
+    private readonly Dictionary<int, string> _classCache = new();
+
+    /// <summary>
+    /// Base CSS class to always include.
+    /// </summary>
+    public string BaseClass { get; set; } = "";
+
+    /// <summary>
+    /// List of conditional CSS class rules.
+    /// Each rule adds a class when its condition is true.
+    /// </summary>
+    public List<CachedCssRule<TValue>> Rules { get; set; } = [];
+
+    public void OnAttach(FeatureContext<TGridItem> context) { }
+    public void OnDetach(FeatureContext<TGridItem> context) { }
+
+    public void RenderCell(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem> context,
+        Action renderNext)
+    {
+        if (context is not FeatureContext<TGridItem, TValue> typedContext)
+        {
+            renderNext();
+            return;
+        }
+
+        var value = typedContext.GetValue is not null ? typedContext.GetValue(item) : default!;
+        var cssClass = GetCachedCssClass(value);
+
+        // Wrap content with the computed class
+        builder.OpenElement(sequence++, "span");
+        builder.SetKey(item);
+        builder.AddAttribute(sequence++, "class", cssClass);
+
+        // Render the inner content
+        renderNext();
+
+        builder.CloseElement();
+    }
+
+    private string GetCachedCssClass(TValue value)
+    {
+        // Compute a hash key based on which rules match
+        int stateKey = 0;
+        for (int i = 0; i < Rules.Count; i++)
+        {
+            if (Rules[i].Condition(value))
+            {
+                stateKey |= (1 << i);
+            }
+        }
+
+        if (!_classCache.TryGetValue(stateKey, out var cssClass))
+        {
+            // Build the class string
+            cssClass = BaseClass;
+            for (int i = 0; i < Rules.Count; i++)
+            {
+                if ((stateKey & (1 << i)) != 0)
+                {
+                    cssClass = string.IsNullOrEmpty(cssClass) 
+                        ? Rules[i].CssClass 
+                        : $"{cssClass} {Rules[i].CssClass}";
+                }
+            }
+
+            _classCache[stateKey] = cssClass;
+        }
+
+        return cssClass;
+    }
+
+    /// <summary>
+    /// Gets cache statistics.
+    /// </summary>
+    public (int CacheSize, int MaxPossibleSize) GetCacheStats()
+    {
+        var maxSize = 1 << Rules.Count; // 2^n for n rules
+        return (_classCache.Count, maxSize);
+    }
+}
+
+/// <summary>
+/// A rule for cached CSS class computation.
+/// </summary>
+/// <typeparam name="TValue">The type of value to evaluate.</typeparam>
+public class CachedCssRule<TValue>
+{
+    /// <summary>
+    /// Condition that determines if the CSS class should be applied.
+    /// </summary>
+    public required Func<TValue, bool> Condition { get; init; }
+
+    /// <summary>
+    /// CSS class to apply when the condition is true.
+    /// </summary>
+    public required string CssClass { get; init; }
+}
+
+/// <summary>
+/// Feature that uses minimal DOM structure for optimized rendering.
+/// Renders a single element per cell instead of nested wrappers.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+public class MinimalDomFeature<TGridItem> : ICellRenderFeature<TGridItem>
+{
+    public int Priority => FeaturePriority.Final; // Run last to minimize wrapping
+
+    /// <summary>
+    /// The HTML element to use for the cell wrapper.
+    /// Default is "span" for inline, use "div" for block.
+    /// </summary>
+    public string Element { get; set; } = "span";
+
+    /// <summary>
+    /// CSS class to apply to the wrapper element.
+    /// </summary>
+    public string? CssClass { get; set; }
+
+    /// <summary>
+    /// Whether to add a tooltip with the cell content.
+    /// </summary>
+    public bool ShowTooltip { get; set; } = false;
+
+    public void OnAttach(FeatureContext<TGridItem> context) { }
+    public void OnDetach(FeatureContext<TGridItem> context) { }
+
+    public void RenderCell(
+        RenderTreeBuilder builder,
+        ref int sequence,
+        TGridItem item,
+        FeatureContext<TGridItem> context,
+        Action renderNext)
+    {
+        // Single wrapper element - minimal DOM
+        builder.OpenElement(sequence++, Element);
+        builder.SetKey(item);
+
+        if (!string.IsNullOrEmpty(CssClass))
+        {
+            builder.AddAttribute(sequence++, "class", CssClass);
+        }
+
+        if (ShowTooltip)
+        {
+            var content = context.GetFormattedValue(item);
+            builder.AddAttribute(sequence++, "title", content ?? string.Empty);
+        }
+
+        // Render inner content
+        renderNext();
+
+        builder.CloseElement();
+    }
+}

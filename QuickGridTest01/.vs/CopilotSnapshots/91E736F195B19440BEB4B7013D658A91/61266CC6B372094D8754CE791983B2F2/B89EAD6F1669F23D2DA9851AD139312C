@@ -1,0 +1,19 @@
+﻿namespace QuickGridTest01.RowColumn.Core;
+
+/// <summary>
+/// Enables RowColumn to identify real vs spacer rows.
+/// Spacer rows use negative Id values.
+/// </summary>
+public interface IRowIdentifiable
+{
+    /// <summary>
+    /// The unique identifier for this row.
+    /// Real rows have positive IDs, spacer rows have negative IDs.
+    /// </summary>
+    int Id { get; set; }
+
+    /// <summary>
+    /// Returns true if this is a spacer row (Id &lt; 0).
+    /// </summary>
+    bool IsSpacer => Id < 0;
+}

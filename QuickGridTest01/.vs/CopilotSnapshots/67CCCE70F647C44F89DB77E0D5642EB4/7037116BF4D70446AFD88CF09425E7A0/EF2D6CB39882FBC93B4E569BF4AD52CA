@@ -1,0 +1,175 @@
+﻿# RowColumn - Base Class for Row-Spanning QuickGrid Columns
+
+## Overview
+
+`RowColumn<TGridItem>` is a base class that provides the foundation for QuickGrid columns that render overlay content spanning an entire row. It handles:
+
+- **State Management**: Tracking which rows are expanded/collapsed
+- **Trigger Modes**: Button, RowClick, or Custom trigger patterns
+- **Concurrent Behavior**: Block, CollapseCurrent, or AllowMultiple
+- **Visual Feedback**: Row dimming for inactive rows
+- **Event Lifecycle**: OnBeforeExpand, OnExpanded, OnCollapsed, OnStateChanged
+
+## Architecture
+
+```
+RowColumn<TGridItem>  (Base Class)
+├── Manages: Which row(s) are expanded
+├── Provides: CascadingValue<RowExpandedContext<TGridItem>>
+└── Renders: DisplayTemplate (collapsed) OR ExpandedTemplate (expanded)
+    └── RowCard (optional container component)
+```
+
+## Namespace Structure
+
+```
+QuickGridTest01.RowColumn/
+├── Core/                              # Enums, state, contexts
+│   ├── RowTriggerMode.cs              # Button, RowClick, Custom
+│   ├── ConcurrentExpandBehavior.cs    # Block, CollapseCurrent, AllowMultiple
+│   ├── RowExpandedState.cs            # Collapsed, Expanded
+│   ├── RowDisplayContext.cs           # Context for DisplayTemplate
+│   ├── RowExpandedContext.cs          # Context for ExpandedTemplate
+│   └── RowStateManager.cs             # Active row tracking
+├── Events/                            # Event argument classes
+│   └── RowEventArgs.cs                # Before/After expand/collapse events
+├── Components/                        # UI components
+│   ├── RowCard.razor                  # Card container component
+│   └── RowCard.razor.css              # Card styles
+├── RowColumn.cs                       # Main base class
+└── RowColumn.razor.css                # Overlay & dimming styles
+```
+
+## Usage
+
+### Basic Usage
+
+```razor
+<QuickGrid Items="@items" Class="qg-row-grid">
+    <PropertyColumn Property="@(x => x.Name)" />
+    <PropertyColumn Property="@(x => x.Email)" />
+    
+    <RowColumn TGridItem="Person" ExpandButtonText="View Details">
+        <ExpandedTemplate Context="ctx">
+            <RowCard Title="Details" OnClose="ctx.CollapseAsync">
+                <p>Name: @ctx.Item.Name</p>
+                <p>Email: @ctx.Item.Email</p>
+                <p>Address: @ctx.Item.Address</p>
+            </RowCard>
+        </ExpandedTemplate>
+    </RowColumn>
+</QuickGrid>
+```
+
+### Custom Display Template
+
+```razor
+<RowColumn TGridItem="Person" TriggerMode="RowTriggerMode.Custom">
+    <DisplayTemplate Context="ctx">
+        <button class="qg-btn qg-btn-primary qg-btn-sm" 
+                @onclick="ctx.ExpandAsync"
+                disabled="@(!ctx.CanExpand)">
+            <i class="bi bi-eye"></i> View
+        </button>
+    </DisplayTemplate>
+    <ExpandedTemplate Context="ctx">
+        <RowCard Title="Person Details" OnClose="ctx.CollapseAsync">
+            <!-- Content -->
+        </RowCard>
+    </ExpandedTemplate>
+</RowColumn>
+```
+
+### Multiple Rows Expanded
+
+```razor
+<RowColumn TGridItem="Person"
+           ConcurrentBehavior="ConcurrentExpandBehavior.AllowMultiple"
+           DimInactiveRows="false">
+    <ExpandedTemplate Context="ctx">
+        <!-- Content -->
+    </ExpandedTemplate>
+</RowColumn>
+```
+
+## Derived Classes
+
+`RowColumn` is designed to be extended. Key virtual methods:
+
+| Method | Purpose |
+|--------|---------|
+| `OnEnteringExpandedModeAsync(item)` | Set up state before row expands (e.g., create draft) |
+| `OnExitingExpandedModeAsync(item)` | Clean up before row collapses (e.g., discard draft) |
+| `ExpandRowAsync(item)` | Override to customize expand behavior |
+| `CollapseRowAsync(item)` | Override to customize collapse behavior |
+
+### Example: FormRowColumn (Derived)
+
+```csharp
+public class FormRowColumn<TGridItem> : RowColumn<TGridItem>
+{
+    protected override async Task OnEnteringExpandedModeAsync(TGridItem item)
+    {
+        // Create draft state for editing
+        _draftManager.CreateDraft(item);
+    }
+
+    protected override async Task OnExitingExpandedModeAsync(TGridItem item)
+    {
+        // Discard draft if cancelled
+        _draftManager.DiscardDraft(item);
+    }
+}
+```
+
+## Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `TriggerMode` | `RowTriggerMode` | `Button` | How expand is triggered |
+| `ConcurrentBehavior` | `ConcurrentExpandBehavior` | `Block` | Multi-row behavior |
+| `DimInactiveRows` | `bool` | `true` | Dim non-expanded rows |
+| `DisplayTemplate` | `RenderFragment<RowDisplayContext>` | null | Collapsed state content |
+| `ExpandedTemplate` | `RenderFragment<RowExpandedContext>` | **Required** | Expanded state content |
+| `ExpandButtonText` | `string` | `"Expand"` | Button text |
+| `ExpandButtonClass` | `string` | `"qg-btn..."` | Button CSS class |
+| `ExpandButtonIcon` | `string?` | `"bi bi-chevron-down"` | Button icon class |
+
+## Events
+
+| Event | Args | Description |
+|-------|------|-------------|
+| `OnBeforeExpand` | `RowBeforeExpandEventArgs` | Before expand (cancellable) |
+| `OnExpanded` | `RowExpandedEventArgs` | After row expanded |
+| `OnCollapsed` | `RowCollapsedEventArgs` | After row collapsed |
+| `OnStateChanged` | `RowStateChangedEventArgs` | Any state transition |
+
+## Public API
+
+```csharp
+// Properties
+bool HasExpandedRows { get; }
+int ExpandedRowCount { get; }
+
+// Methods
+bool IsRowExpanded(TGridItem item);
+Task ExpandAsync(TGridItem item);
+Task CollapseAsync(TGridItem item);
+Task CollapseAllAsync();
+```
+
+## CSS Classes
+
+| Class | Applied When |
+|-------|--------------|
+| `row-column-cell` | Always on cell wrapper |
+| `row-expanded` | Row is currently expanded |
+| `row-dimmed` | Row is dimmed (another expanded) |
+| `row-overlay` | Expanded content container |
+| `qg-row-grid` | Add to QuickGrid for proper positioning |
+
+## Memory Management
+
+- Uses `ConditionalWeakTable<TGridItem, RowExpandedContext>` for automatic cleanup
+- Implements `IDisposable` for proper resource cleanup
+- State cleaned up when grid items are garbage collected

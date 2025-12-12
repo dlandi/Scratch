@@ -1,0 +1,293 @@
+﻿/* LogViewerDemo.razor.css - Scoped styles for custom log grid with row-spanning details */
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--color-canvas, #f6f8fa);
+    border-radius: var(--card-radius, 6px);
+    margin-bottom: 1rem;
+}
+
+.toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toolbar-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 1rem;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.grid-container {
+    border: 1px solid var(--color-border-default, #d0d7de);
+    border-radius: var(--card-radius, 6px);
+    overflow: hidden;
+    margin-bottom: 1rem;
+    background: var(--color-surface, #fff);
+}
+
+/* Custom log grid layout */
+.log-grid {
+    width: 100%;
+}
+
+.log-grid-header {
+    display: grid;
+    grid-template-columns: 160px 180px 100px 1fr 80px;
+    gap: 0;
+    background: var(--color-canvas, #f6f8fa);
+    border-bottom: 1px solid var(--color-border-emphasis, #868f99);
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide, 0.05em);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.log-grid-header .log-cell {
+    padding: 0.75rem 1rem;
+}
+
+/* Log row */
+.log-row {
+    border-bottom: 1px solid var(--color-border-subtle, #f0f0f0);
+}
+
+.log-row:last-child {
+    border-bottom: none;
+}
+
+.log-row:hover:not(.expanded) {
+    background: var(--color-canvas, #f6f8fa);
+}
+
+.log-row.expanded {
+    background: var(--color-accent-primary-subtle, #ddf4ff);
+}
+
+.log-row-main {
+    display: grid;
+    grid-template-columns: 160px 180px 100px 1fr 80px;
+    gap: 0;
+    align-items: center;
+    min-height: 2.5rem;
+}
+
+.log-cell {
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-secondary, #59636e);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.log-cell.timestamp {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.log-cell.source {
+    font-size: var(--font-size-xs, 0.75rem);
+}
+
+.log-cell.message {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs, 0.75rem);
+}
+
+.log-cell.actions {
+    text-align: center;
+}
+
+/* Level badges */
+.level-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.level-debug {
+    background: var(--color-canvas, #f6f8fa);
+    color: var(--color-text-tertiary, #656d76);
+    border: 1px solid var(--color-border-default, #d0d7de);
+}
+
+.level-information {
+    background: var(--color-info-subtle, #ddf4ff);
+    color: var(--color-info, #0969da);
+    border: 1px solid var(--color-info-border, #80ccff);
+}
+
+.level-warning {
+    background: var(--color-warning-subtle, #fff8c5);
+    color: var(--color-warning, #9a6700);
+    border: 1px solid var(--color-warning-border, #f0c000);
+}
+
+.level-error {
+    background: var(--color-error-subtle, #ffebe9);
+    color: var(--color-error, #cf222e);
+    border: 1px solid var(--color-error-border, #ff8182);
+}
+
+.level-fatal {
+    background: var(--color-error, #cf222e);
+    color: #fff;
+    border: 1px solid var(--color-error, #cf222e);
+}
+
+/* Row detail - SPANS FULL WIDTH BELOW ROW */
+.log-row-detail {
+    padding: 1rem 1.5rem;
+    background: var(--color-surface, #fff);
+    border-top: 1px solid var(--color-border-default, #d0d7de);
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0; 
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    to { 
+        opacity: 1; 
+        max-height: 500px;
+    }
+}
+
+.log-detail-content {
+    max-width: 100%;
+}
+
+.log-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border-subtle, #f0f0f0);
+}
+
+.log-detail-header .detail-timestamp {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.log-detail-source,
+.log-detail-message,
+.log-detail-exception,
+.log-detail-properties {
+    margin-top: 0.75rem;
+    font-size: var(--font-size-sm, 0.875rem);
+}
+
+.log-detail-source strong,
+.log-detail-message strong,
+.log-detail-exception strong,
+.log-detail-properties strong {
+    color: var(--color-text-primary, #1f2328);
+    font-weight: var(--font-weight-medium, 500);
+}
+
+.log-detail-message pre,
+.log-detail-exception pre {
+    margin: 0.5rem 0 0 0;
+    padding: 0.75rem 1rem;
+    background: var(--color-canvas, #f6f8fa);
+    border: 1px solid var(--color-border-default, #d0d7de);
+    border-radius: var(--card-radius, 6px);
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm, 0.875rem);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow: auto;
+    line-height: 1.5;
+}
+
+.log-detail-exception pre.exception-text {
+    color: var(--color-error, #cf222e);
+    background: var(--color-error-subtle, #ffebe9);
+    border-color: var(--color-error-border, #ff8182);
+}
+
+.log-detail-properties dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0.5rem 0 0 0;
+    padding: 0.75rem 1rem;
+    background: var(--color-canvas, #f6f8fa);
+    border: 1px solid var(--color-border-default, #d0d7de);
+    border-radius: var(--card-radius, 6px);
+}
+
+.log-detail-properties dt {
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+.log-detail-properties dd {
+    margin: 0;
+    font-family: var(--font-mono, monospace);
+    color: var(--color-text-secondary, #59636e);
+}
+
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.page-info {
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-tertiary, #656d76);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .log-grid-header,
+    .log-row-main {
+        grid-template-columns: 1fr;
+        gap: 0.25rem;
+    }
+    
+    .log-grid-header {
+        display: none;
+    }
+    
+    .log-cell {
+        padding: 0.25rem 1rem;
+    }
+    
+    .log-cell.timestamp {
+        font-size: var(--font-size-sm, 0.875rem);
+        font-weight: var(--font-weight-medium, 500);
+    }
+    
+    .log-cell::before {
+        content: attr(data-label);
+        font-weight: var(--font-weight-medium, 500);
+        margin-right: 0.5rem;
+        color: var(--color-text-tertiary, #656d76);
+    }
+}

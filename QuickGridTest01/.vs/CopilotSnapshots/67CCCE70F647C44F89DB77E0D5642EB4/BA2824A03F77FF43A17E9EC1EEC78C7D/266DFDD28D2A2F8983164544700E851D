@@ -1,0 +1,2 @@
+﻿@namespace QuickGridTest01.RowColumn
+@typeparam TGridItem where TGridItem : class

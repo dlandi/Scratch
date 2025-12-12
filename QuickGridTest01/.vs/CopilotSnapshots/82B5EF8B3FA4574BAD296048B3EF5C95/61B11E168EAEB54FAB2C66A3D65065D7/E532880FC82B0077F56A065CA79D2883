@@ -1,0 +1,134 @@
+﻿using System.Timers;
+using Microsoft.AspNetCore.Components;
+using QuickGridTest01.ComposableColumns.Core;
+
+namespace QuickGridTest01.ComposableColumns.Features.Editing;
+
+/// <summary>
+/// Feature that debounces value changes to reduce update frequency.
+/// Useful for text input fields where you want to delay server calls.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+/// <typeparam name="TValue">The type of the value being debounced.</typeparam>
+public class DebounceFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisposable
+{
+    private System.Timers.Timer? _debounceTimer;
+    private TGridItem? _pendingItem;
+    private TValue? _pendingOldValue;
+    private TValue? _pendingNewValue;
+    private FeatureContext<TGridItem>? _context;
+    private bool _disposed;
+
+    public int Priority => FeaturePriority.Events - 10; // Run before event features
+
+    /// <summary>
+    /// The debounce delay in milliseconds.
+    /// </summary>
+    public int DelayMilliseconds { get; set; } = 300;
+
+    /// <summary>
+    /// Callback when the debounced value change fires.
+    /// </summary>
+    public EventCallback<ValueChangedEventArgs<TGridItem, TValue>> OnDebouncedValueChanged { get; set; }
+
+    public void OnAttach(FeatureContext<TGridItem> context)
+    {
+        _context = context;
+        context.RegisterService(this);
+
+        _debounceTimer = new System.Timers.Timer(DelayMilliseconds);
+        _debounceTimer.AutoReset = false;
+        _debounceTimer.Elapsed += OnDebounceElapsed;
+    }
+
+    public void OnDetach(FeatureContext<TGridItem> context)
+    {
+        Dispose();
+    }
+
+    /// <summary>
+    /// Queues a value change for debounced processing.
+    /// </summary>
+    public void QueueValueChange(TGridItem item, TValue? oldValue, TValue? newValue)
+    {
+        _pendingItem = item;
+        _pendingOldValue = oldValue;
+        _pendingNewValue = newValue;
+
+        // Reset the timer
+        _debounceTimer?.Stop();
+        _debounceTimer?.Start();
+    }
+
+    /// <summary>
+    /// Immediately flushes any pending debounced value.
+    /// </summary>
+    public async Task FlushAsync()
+    {
+        _debounceTimer?.Stop();
+
+        if (_pendingItem is not null)
+        {
+            await FireDebouncedEventAsync();
+        }
+    }
+
+    /// <summary>
+    /// Cancels any pending debounced value change.
+    /// </summary>
+    public void Cancel()
+    {
+        _debounceTimer?.Stop();
+        _pendingItem = default;
+        _pendingOldValue = default;
+        _pendingNewValue = default;
+    }
+
+    private async void OnDebounceElapsed(object? sender, ElapsedEventArgs e)
+    {
+        await FireDebouncedEventAsync();
+    }
+
+    private async Task FireDebouncedEventAsync()
+    {
+        if (_pendingItem is null)
+            return;
+
+        var item = _pendingItem;
+        var oldValue = _pendingOldValue;
+        var newValue = _pendingNewValue;
+
+        // Clear pending
+        _pendingItem = default;
+        _pendingOldValue = default;
+        _pendingNewValue = default;
+
+        if (OnDebouncedValueChanged.HasDelegate)
+        {
+            await OnDebouncedValueChanged.InvokeAsync(new ValueChangedEventArgs<TGridItem, TValue>
+            {
+                Item = item,
+                OldValue = oldValue,
+                NewValue = newValue
+            });
+        }
+
+        _context?.RequestRefresh?.Invoke();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        if (_debounceTimer is not null)
+        {
+            _debounceTimer.Stop();
+            _debounceTimer.Elapsed -= OnDebounceElapsed;
+            _debounceTimer.Dispose();
+            _debounceTimer = null;
+        }
+
+        GC.SuppressFinalize(this);
+    }
+}
