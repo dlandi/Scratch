@@ -14,6 +14,9 @@ namespace QuickGridTest01.ComposableColumns.Core;
 /// <typeparam name="TValue">The type of the property value for this column.</typeparam>
 public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDisposable
 {
+    [CascadingParameter]
+    public Func<TGridItem, object>? RowKey { get; set; }
+
     private readonly List<IColumnFeature<TGridItem>> _features = [];
     private FeatureContext<TGridItem, TValue>? _context;
     private bool _initialized;
@@ -185,6 +188,7 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         return new FeatureContext<TGridItem, TValue>
         {
             Column = this,
+            EventReceiver = this,
             Title = Title,
             IsSortable = Sortable == true,
             RequestRefresh = StateHasChanged,
@@ -209,6 +213,12 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
+        // Use grid-level RowKey when available to enable safe SetKey
+        if (RowKey is not null)
+        {
+            builder.SetKey(RowKey(item));
+        }
+
         var cellFeatures = GetCellRenderFeatures();
 
         if (cellFeatures.Count == 0)

@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using QuickGridTest01.ComposableColumns.Core;
-using QuickGridTest01.Filterable;
 using QuickGridTest01.Infrastructure;
 
 namespace QuickGridTest01.ComposableColumns.Features.Filtering;
@@ -25,6 +24,7 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
     private bool _showFilterDropdown;
     private CancellationTokenSource? _filterCts;
     private bool _disposed;
+    private FeatureContext<TGridItem>? _context;
 
     /// <summary>
     /// List of filter operators available for this column.
@@ -85,6 +85,8 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
 
     public void OnAttach(FeatureContext<TGridItem> context)
     {
+        _context = context;
+
         // Initialize default operators if not provided
         if (Operators.Count == 0)
         {
@@ -100,6 +102,7 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
     public void OnDetach(FeatureContext<TGridItem> context)
     {
         context.SetState<FilterFeature<TGridItem, TValue>?>("FilterFeature", null);
+        _context = null;
         Dispose();
     }
 
@@ -111,27 +114,26 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
         ref int sequence,
         FeatureContext<TGridItem> context)
     {
+        var baseSeq = sequence;
+        sequence += 50; // Reserve space
+        
         // Filter toggle button
-        builder.OpenElement(sequence++, "button");
-        builder.AddAttribute(sequence++, "type", "button");
-        builder.AddAttribute(sequence++, "class", $"filter-toggle {(HasActiveFilter ? "active" : "")}");
-        builder.AddAttribute(sequence++, "title", HasActiveFilter ? "Filter active - click to modify" : "Click to filter");
-        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
-            this, _ => ToggleDropdown(context)));
-        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+        builder.OpenElement(baseSeq + 0, "button");
+        builder.AddAttribute(baseSeq + 1, "type", "button");
+        builder.AddAttribute(baseSeq + 2, "class", $"filter-toggle {(HasActiveFilter ? "active" : "")}");
+        builder.AddAttribute(baseSeq + 3, "title", HasActiveFilter ? "Filter active - click to modify" : "Click to filter");
+        builder.AddAttribute(baseSeq + 4, "onclick", CreateCallback<MouseEventArgs>(_ => ToggleDropdown(context)));
+        builder.AddAttribute(baseSeq + 5, "onclick:stopPropagation", true);
 
         // Filter icon
-        builder.OpenElement(sequence++, "i");
-        builder.AddAttribute(sequence++, "class", HasActiveFilter ? "bi bi-funnel-fill" : "bi bi-funnel");
+        builder.OpenElement(baseSeq + 6, "i");
+        builder.AddAttribute(baseSeq + 7, "class", HasActiveFilter ? "bi bi-funnel-fill" : "bi bi-funnel");
         builder.CloseElement();
 
         builder.CloseElement();
 
-        // Render dropdown if visible
-        if (_showFilterDropdown)
-        {
-            RenderFilterDropdown(builder, ref sequence, context);
-        }
+        // ALWAYS render dropdown container to maintain stable render tree
+        RenderFilterDropdown(builder, baseSeq + 20, context, _showFilterDropdown);
     }
 
     /// <summary>
@@ -142,9 +144,12 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
         ref int sequence,
         FeatureContext<TGridItem> context)
     {
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", FilterContainerClass);
-        builder.AddAttribute(sequence++, "style", "position: relative;");
+        var baseSeq = sequence;
+        sequence += 100; // Reserve space
+        
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", FilterContainerClass);
+        builder.AddAttribute(baseSeq + 2, "style", "position: relative;");
 
         RenderFilterToggle(builder, ref sequence, context);
 
@@ -160,41 +165,45 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
         FeatureContext<TGridItem> context,
         string? title = null)
     {
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", "filter-toolbar-item");
+        var baseSeq = sequence;
+        sequence += 200; // Reserve space
+        
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", "filter-toolbar-item");
 
         // Label
-        builder.OpenElement(sequence++, "label");
-        builder.AddAttribute(sequence++, "class", "qg-label");
-        builder.AddContent(sequence++, title ?? context.Title ?? "Filter");
+        builder.OpenElement(baseSeq + 2, "label");
+        builder.AddAttribute(baseSeq + 3, "class", "qg-label");
+        builder.AddContent(baseSeq + 4, title ?? context.Title ?? "Filter");
         builder.CloseElement();
 
         // Controls row
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", "filter-toolbar-controls");
+        builder.OpenElement(baseSeq + 10, "div");
+        builder.AddAttribute(baseSeq + 11, "class", "filter-toolbar-controls");
 
         // Operator select
-        RenderOperatorSelect(builder, ref sequence, context);
+        RenderOperatorSelect(builder, baseSeq + 20, context);
 
         // Value input
-        RenderValueInput(builder, ref sequence, context);
+        RenderValueInput(builder, baseSeq + 60, context);
 
-        // Clear button (only show if filter is active)
+        // Clear button (always render the slot, conditionally show content)
+        builder.OpenElement(baseSeq + 100, "span");
         if (HasActiveFilter)
         {
-            builder.OpenElement(sequence++, "button");
-            builder.AddAttribute(sequence++, "type", "button");
-            builder.AddAttribute(sequence++, "class", "btn-filter-clear");
-            builder.AddAttribute(sequence++, "title", "Clear filter");
-            builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
-                this, async _ => await ClearFilterAsync(context)));
+            builder.OpenElement(baseSeq + 101, "button");
+            builder.AddAttribute(baseSeq + 102, "type", "button");
+            builder.AddAttribute(baseSeq + 103, "class", "btn-filter-clear");
+            builder.AddAttribute(baseSeq + 104, "title", "Clear filter");
+            builder.AddAttribute(baseSeq + 105, "onclick", CreateAsyncCallback<MouseEventArgs>(async _ => await ClearFilterAsync(context)));
 
-            builder.OpenElement(sequence++, "i");
-            builder.AddAttribute(sequence++, "class", "bi bi-x-circle");
+            builder.OpenElement(baseSeq + 106, "i");
+            builder.AddAttribute(baseSeq + 107, "class", "bi bi-x-circle");
             builder.CloseElement();
 
             builder.CloseElement();
         }
+        builder.CloseElement();
 
         builder.CloseElement(); // filter-toolbar-controls
         builder.CloseElement(); // filter-toolbar-item
@@ -202,60 +211,68 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
 
     private void RenderFilterDropdown(
         RenderTreeBuilder builder,
-        ref int sequence,
-        FeatureContext<TGridItem> context)
+        int baseSeq,
+        FeatureContext<TGridItem> context,
+        bool dropdownVisible)
     {
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", FilterDropdownClass);
-        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+        // ALWAYS render container to maintain stable render tree
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", FilterDropdownClass);
+        builder.AddAttribute(baseSeq + 2, "style", dropdownVisible ? "" : "display: none;");
+        builder.AddAttribute(baseSeq + 3, "onclick:stopPropagation", true);
 
-        // Operator select
-        RenderOperatorSelect(builder, ref sequence, context);
+        // Only render inner content if visible (for performance)
+        if (dropdownVisible)
+        {
+            // Operator select
+            RenderOperatorSelect(builder, baseSeq + 10, context);
 
-        // Value input
-        RenderValueInput(builder, ref sequence, context);
+            // Value input
+            RenderValueInput(builder, baseSeq + 50, context);
 
-        // Action buttons
-        builder.OpenElement(sequence++, "div");
-        builder.AddAttribute(sequence++, "class", "filter-actions");
+            // Action buttons
+            builder.OpenElement(baseSeq + 90, "div");
+            builder.AddAttribute(baseSeq + 91, "class", "filter-actions");
 
-        builder.OpenElement(sequence++, "button");
-        builder.AddAttribute(sequence++, "type", "button");
-        builder.AddAttribute(sequence++, "class", "btn-filter-apply");
-        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
-            this, async _ => await ApplyFilterAsync(context)));
-        builder.AddContent(sequence++, "Apply");
-        builder.CloseElement();
+            builder.OpenElement(baseSeq + 92, "button");
+            builder.AddAttribute(baseSeq + 93, "type", "button");
+            builder.AddAttribute(baseSeq + 94, "class", "btn-filter-apply");
+            builder.AddAttribute(baseSeq + 95, "onclick", CreateAsyncCallback<MouseEventArgs>(async _ => await ApplyFilterAsync(context)));
+            builder.AddContent(baseSeq + 96, "Apply");
+            builder.CloseElement();
 
-        builder.OpenElement(sequence++, "button");
-        builder.AddAttribute(sequence++, "type", "button");
-        builder.AddAttribute(sequence++, "class", "btn-filter-clear");
-        builder.AddAttribute(sequence++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(
-            this, async _ => await ClearFilterAsync(context)));
-        builder.AddContent(sequence++, "Clear");
-        builder.CloseElement();
+            builder.OpenElement(baseSeq + 97, "button");
+            builder.AddAttribute(baseSeq + 98, "type", "button");
+            builder.AddAttribute(baseSeq + 99, "class", "btn-filter-clear");
+            builder.AddAttribute(baseSeq + 100, "onclick", CreateAsyncCallback<MouseEventArgs>(async _ => await ClearFilterAsync(context)));
+            builder.AddContent(baseSeq + 101, "Clear");
+            builder.CloseElement();
 
-        builder.CloseElement(); // filter-actions
+            builder.CloseElement(); // filter-actions
+        }
+        
         builder.CloseElement(); // dropdown
     }
 
     private void RenderOperatorSelect(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         FeatureContext<TGridItem> context)
     {
-        builder.OpenElement(sequence++, "select");
-        builder.AddAttribute(sequence++, "class", "qg-select filter-operator");
-        builder.AddAttribute(sequence++, "value", _selectedOperator?.Name ?? "");
-        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
-            this, async e => await OnOperatorChangedAsync(e, context)));
+        builder.OpenElement(baseSeq + 0, "select");
+        builder.AddAttribute(baseSeq + 1, "class", "qg-select filter-operator");
+        builder.AddAttribute(baseSeq + 2, "value", _selectedOperator?.Name ?? "");
+        builder.AddAttribute(baseSeq + 3, "onchange", CreateAsyncCallback<ChangeEventArgs>(async e => await OnOperatorChangedAsync(e, context)));
 
+        var opIndex = 0;
         foreach (var op in Operators)
         {
-            builder.OpenElement(sequence++, "option");
-            builder.AddAttribute(sequence++, "value", op.Name);
-            builder.AddContent(sequence++, $"{op.Symbol} {op.Name}");
+            builder.OpenElement(baseSeq + 10, "option");
+            builder.SetKey(opIndex);
+            builder.AddAttribute(baseSeq + 11, "value", op.Name);
+            builder.AddContent(baseSeq + 12, $"{op.Symbol} {op.Name}");
             builder.CloseElement();
+            opIndex++;
         }
 
         builder.CloseElement();
@@ -263,36 +280,30 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
 
     private void RenderValueInput(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         FeatureContext<TGridItem> context)
     {
         var inputType = GetInputType();
 
         if (inputType == "checkbox")
         {
-            builder.OpenElement(sequence++, "input");
-            builder.AddAttribute(sequence++, "type", "checkbox");
-            builder.AddAttribute(sequence++, "class", "filter-checkbox");
-            if (_hasFilterValue && _filterValue is bool b && b)
-            {
-                builder.AddAttribute(sequence++, "checked", true);
-            }
-            builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
-                this, async e => await OnValueChangedAsync(e, context)));
+            builder.OpenElement(baseSeq + 0, "input");
+            builder.AddAttribute(baseSeq + 1, "type", "checkbox");
+            builder.AddAttribute(baseSeq + 2, "class", "filter-checkbox");
+            builder.AddAttribute(baseSeq + 3, "checked", _hasFilterValue && _filterValue is bool b && b);
+            builder.AddAttribute(baseSeq + 4, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+                this, e => OnValueChanged(e, context)));
             builder.CloseElement();
         }
         else
         {
-            builder.OpenElement(sequence++, "input");
-            builder.AddAttribute(sequence++, "type", inputType);
-            builder.AddAttribute(sequence++, "class", "qg-input filter-value");
-            builder.AddAttribute(sequence++, "placeholder", Placeholder);
-            if (_hasFilterValue && _filterValue is not null)
-            {
-                builder.AddAttribute(sequence++, "value", FormatValueForInput(_filterValue));
-            }
-            builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
-                this, async e => await OnValueChangedAsync(e, context)));
+            builder.OpenElement(baseSeq + 0, "input");
+            builder.AddAttribute(baseSeq + 1, "type", inputType);
+            builder.AddAttribute(baseSeq + 2, "class", "qg-input filter-value");
+            builder.AddAttribute(baseSeq + 3, "placeholder", Placeholder);
+            builder.AddAttribute(baseSeq + 4, "value", _hasFilterValue && _filterValue is not null ? FormatValueForInput(_filterValue) : "");
+            builder.AddAttribute(baseSeq + 5, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
+                this, e => OnValueChanged(e, context)));
             builder.CloseElement();
         }
     }
@@ -333,7 +344,7 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
         }
     }
 
-    private async Task OnValueChangedAsync(ChangeEventArgs e, FeatureContext<TGridItem> context)
+    private void OnValueChanged(ChangeEventArgs e, FeatureContext<TGridItem> context)
     {
         try
         {
@@ -354,11 +365,25 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
             _hasFilterValue = false;
         }
 
-        // Debounce the filter change
+        // Cancel any previous debounce timer
         _filterCts?.Cancel();
         _filterCts = new CancellationTokenSource();
         var token = _filterCts.Token;
 
+        // Capture the invoker and refresh delegate at this moment
+        var invoker = context.InvokeAsync;
+        var refresh = context.RequestRefresh;
+
+        // Fire-and-forget with safety checks
+        _ = DebounceAndNotifyAsync(token, invoker, refresh, context);
+    }
+
+    private async Task DebounceAndNotifyAsync(
+        CancellationToken token,
+        Func<Func<Task>, Task>? invoker,
+        Action? refresh,
+        FeatureContext<TGridItem> context)
+    {
         try
         {
             await Task.Delay(DebounceMilliseconds, token);
@@ -368,9 +393,45 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
             return;
         }
 
-        if (token.IsCancellationRequested) return;
+        if (token.IsCancellationRequested || _disposed)
+            return;
 
-        await NotifyFilterChangedAsync(context);
+        // If we have an invoker, use it to marshal to UI thread
+        if (invoker != null)
+        {
+            try
+            {
+                await invoker(async () =>
+                {
+                    if (_disposed) return;
+
+                    // Update filter state
+                    UpdateFilterQuery(context);
+
+                    // Fire callback
+                    if (OnFilterChanged.HasDelegate)
+                    {
+                        await OnFilterChanged.InvokeAsync(new FilterChangedEventArgs<TValue>
+                        {
+                            HasFilter = HasActiveFilter,
+                            Operator = _selectedOperator,
+                            Value = _filterValue
+                        });
+                    }
+
+                    // Request refresh
+                    refresh?.Invoke();
+                });
+            }
+            catch (ObjectDisposedException)
+            {
+                // Component/circuit was disposed - silently ignore
+            }
+            catch (InvalidOperationException)
+            {
+                // Circuit disconnected - silently ignore
+            }
+        }
     }
 
     private async Task ApplyFilterAsync(FeatureContext<TGridItem> context)
@@ -406,6 +467,7 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
             });
         }
 
+        // Explicitly call StateHasChanged
         context.RequestRefresh?.Invoke();
     }
 
@@ -515,6 +577,33 @@ public class FilterFeature<TGridItem, TValue> : IColumnFeature<TGridItem>, IDisp
         _filterCts?.Dispose();
 
         GC.SuppressFinalize(this);
+    }
+
+    private IHandleEvent? GetEventReceiver()
+    {
+        return _context?.GetEventReceiver();
+    }
+
+    private EventCallback<TEventArgs> CreateCallback<TEventArgs>(Action<TEventArgs> handler)
+    {
+        var receiver = GetEventReceiver();
+        if (receiver is not null)
+        {
+            return EventCallback.Factory.Create(receiver, handler);
+        }
+
+        return EventCallback.Factory.Create(this, handler);
+    }
+
+    private EventCallback<TEventArgs> CreateAsyncCallback<TEventArgs>(Func<TEventArgs, Task> handler)
+    {
+        var receiver = GetEventReceiver();
+        if (receiver is not null)
+        {
+            return EventCallback.Factory.Create(receiver, handler);
+        }
+
+        return EventCallback.Factory.Create(this, handler);
     }
 }
 

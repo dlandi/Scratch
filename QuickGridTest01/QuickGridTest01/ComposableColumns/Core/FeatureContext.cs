@@ -20,6 +20,12 @@ public class FeatureContext<TGridItem>
     public required ColumnBase<TGridItem> Column { get; init; }
 
     /// <summary>
+    /// Optional row key selector for this grid item.
+    /// Provided by ComposableGrid/ComposableColumn when RowKey is configured.
+    /// </summary>
+    public Func<TGridItem, object>? RowKey { get; init; }
+
+    /// <summary>
     /// The column title (may be set by AutoTitleFeature or explicitly).
     /// </summary>
     public string? Title { get; set; }
@@ -54,6 +60,23 @@ public class FeatureContext<TGridItem>
     /// Required for timer callbacks and other thread pool operations.
     /// </summary>
     public Func<Func<Task>, Task>? InvokeAsync { get; set; }
+
+    /// <summary>
+    /// Optional event receiver for EventCallback creation.
+    /// When null, falls back to the owning column if it implements IHandleEvent.
+    /// </summary>
+    public IHandleEvent? EventReceiver { get; init; }
+
+    /// <summary>
+    /// Resolves the effective event receiver (explicit receiver or column when available).
+    /// </summary>
+    public IHandleEvent? GetEventReceiver()
+    {
+        if (EventReceiver is not null)
+            return EventReceiver;
+
+        return Column as IHandleEvent;
+    }
 
     /// <summary>
     /// Gets or sets a named state value.

@@ -1,0 +1,28 @@
+@typeparam TGridItem
+
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.AspNetCore.Components
+
+<CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
+    <QuickGrid TGridItem="TGridItem" Items="Items" @attributes="AdditionalAttributes">
+        @ChildContent
+    </QuickGrid>
+</CascadingValue>
+
+@code {
+    /// <summary>
+    /// The data source for the grid.
+    /// </summary>
+    [Parameter] public IQueryable<TGridItem> Items { get; set; } = Array.Empty<TGridItem>().AsQueryable();
+
+    /// <summary>
+    /// Optional row key selector used for SetKey and key-dependent features.
+    /// When null, core will not call SetKey.
+    /// </summary>
+    [Parameter] public Func<TGridItem, object>? RowKey { get; set; }
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+}

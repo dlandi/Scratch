@@ -40,13 +40,13 @@ public class TooltipFeature<TGridItem, TValue> : ICellRenderFeature<TGridItem>
         FeatureContext<TGridItem> context,
         Action renderNext)
     {
+        var baseSeq = sequence;
+        sequence += 10; // Reserve space
+        
         var tooltipText = GetTooltipText(item, context);
 
-        builder.OpenElement(sequence++, "span");
-        if (!string.IsNullOrEmpty(tooltipText))
-        {
-            builder.AddAttribute(sequence++, "title", tooltipText);
-        }
+        builder.OpenElement(baseSeq + 0, "span");
+        builder.AddAttribute(baseSeq + 1, "title", tooltipText ?? "");
         renderNext();
         builder.CloseElement();
     }
@@ -115,31 +115,31 @@ public class IconFeature<TGridItem, TValue> : ICellRenderFeature<TGridItem>
             return;
         }
 
+        var baseSeq = sequence;
+        sequence += 20; // Reserve space
+
         var value = typedContext.GetValue(item);
         var iconClass = IconMapper(value);
         var color = ColorMapper?.Invoke(value);
 
-        builder.OpenElement(sequence++, "span");
-        builder.AddAttribute(sequence++, "class", "icon-cell-container");
-        builder.AddAttribute(sequence++, "style", "display: inline-flex; align-items: center; gap: " + IconSpacing);
+        builder.OpenElement(baseSeq + 0, "span");
+        builder.AddAttribute(baseSeq + 1, "class", "icon-cell-container");
+        builder.AddAttribute(baseSeq + 2, "style", "display: inline-flex; align-items: center; gap: " + IconSpacing);
 
         // Render icon
-        builder.OpenElement(sequence++, "i");
-        builder.AddAttribute(sequence++, "class", iconClass);
-        if (!string.IsNullOrEmpty(color))
-        {
-            builder.AddAttribute(sequence++, "style", $"color: {color}");
-        }
-        builder.AddAttribute(sequence++, "aria-hidden", "true");
+        builder.OpenElement(baseSeq + 3, "i");
+        builder.AddAttribute(baseSeq + 4, "class", iconClass);
+        builder.AddAttribute(baseSeq + 5, "style", !string.IsNullOrEmpty(color) ? $"color: {color}" : "");
+        builder.AddAttribute(baseSeq + 6, "aria-hidden", "true");
         builder.CloseElement(); // i
 
-        // Optionally render value
+        // ALWAYS render the value container to maintain stable render tree
+        builder.OpenElement(baseSeq + 10, "span");
         if (ShowValue)
         {
-            builder.OpenElement(sequence++, "span");
             renderNext();
-            builder.CloseElement();
         }
+        builder.CloseElement();
 
         builder.CloseElement(); // span.icon-cell-container
     }
@@ -181,13 +181,13 @@ public class ConditionalCssFeature<TGridItem, TValue> : ICellRenderFeature<TGrid
         FeatureContext<TGridItem> context,
         Action renderNext)
     {
+        var baseSeq = sequence;
+        sequence += 10; // Reserve space
+        
         var cssClass = BuildCssClass(item, context);
 
-        builder.OpenElement(sequence++, "span");
-        if (!string.IsNullOrEmpty(cssClass))
-        {
-            builder.AddAttribute(sequence++, "class", cssClass);
-        }
+        builder.OpenElement(baseSeq + 0, "span");
+        builder.AddAttribute(baseSeq + 1, "class", cssClass);
         renderNext();
         builder.CloseElement();
     }

@@ -1,0 +1,256 @@
+@typeparam TValue
+@using System.Globalization
+@using QuickGridTest01.ComposableColumns.Features.Filtering
+@using QuickGridTest01.Infrastructure
+@implements IDisposable
+
+<div class="filter-toolbar-item">
+    <label class="qg-label" style="@(string.IsNullOrEmpty(Label) ? "display: none;" : "")">@(Label ?? "")</label>
+
+    <div class="filter-toolbar-controls">
+        <select class="qg-select filter-operator" 
+                value="@_selectedOperatorName"
+                @onchange="OnOperatorChangedAsync">
+            @foreach (var op in Operators)
+            {
+                <option value="@op.Name">@op.Symbol @op.Name</option>
+            }
+        </select>
+
+        <input type="@_inputType"
+               class="@(_inputType == "checkbox" ? "filter-checkbox" : "qg-input filter-value")"
+               placeholder="@Placeholder"
+               value="@_displayValue"
+               checked="@(_inputType == "checkbox" && _value is bool b && b)"
+               @oninput="OnInputChanged"
+               @onchange="OnCheckboxChangedAsync" />
+
+        <span style="@(HasValue ? "" : "display: none;")">
+            <button type="button" 
+                    class="btn-filter-clear" 
+                    title="Clear filter"
+                    @onclick="ClearFilterAsync">
+                <i class="bi bi-x-circle"></i>
+            </button>
+        </span>
+    </div>
+</div>
+
+@code {
+    private CancellationTokenSource? _debounceCts;
+    private TValue? _value;
+    private string _displayValue = "";
+    private string _inputType = "text";
+    private string _selectedOperatorName = "";
+    private IFilterOperator<TValue>? _selectedOperator;
+    private bool _disposed;
+
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Filter...";
+    [Parameter] public int DebounceMs { get; set; } = 300;
+    [Parameter] public List<IFilterOperator<TValue>> Operators { get; set; } = [];
+    [Parameter] public TValue? Value { get; set; }
+    [Parameter] public EventCallback<TValue?> ValueChanged { get; set; }
+    [Parameter] public IFilterOperator<TValue>? SelectedOperator { get; set; }
+    [Parameter] public EventCallback<IFilterOperator<TValue>?> SelectedOperatorChanged { get; set; }
+    [Parameter] public EventCallback<FilterInputEventArgs<TValue>> OnFilterApplied { get; set; }
+
+    public bool HasValue => _value is not null && !EqualityComparer<TValue>.Default.Equals(_value, default);
+
+    protected override void OnInitialized()
+    {
+        _inputType = GetInputType();
+        
+        if (Operators.Count == 0)
+        {
+            Operators = GetDefaultOperators();
+        }
+
+        _selectedOperator = SelectedOperator ?? Operators.FirstOrDefault();
+        _selectedOperatorName = _selectedOperator?.Name ?? "";
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!EqualityComparer<TValue>.Default.Equals(_value, Value))
+        {
+            _value = Value;
+            _displayValue = FormatValue(_value);
+        }
+
+        if (SelectedOperator is not null && SelectedOperator != _selectedOperator)
+        {
+            _selectedOperator = SelectedOperator;
+            _selectedOperatorName = _selectedOperator.Name;
+        }
+    }
+
+    private void OnInputChanged(ChangeEventArgs e)
+    {
+        var rawValue = e.Value?.ToString() ?? "";
+        _displayValue = rawValue;
+
+        if (TypeTraits<TValue>.TryParseFromEventValue(e.Value, CultureInfo.InvariantCulture, out var parsed))
+        {
+            _value = parsed;
+        }
+        else
+        {
+            _value = default;
+        }
+
+        // Cancel any pending debounce and start a new one
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        _debounceCts = new CancellationTokenSource();
+        
+        var token = _debounceCts.Token;
+        _ = DebounceAndApplyAsync(token);
+    }
+
+    private async Task DebounceAndApplyAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(DebounceMs, token);
+            
+            if (!token.IsCancellationRequested && !_disposed)
+            {
+                await ApplyFilterAsync();
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected when debounce is cancelled
+        }
+    }
+
+    private async Task OnCheckboxChangedAsync(ChangeEventArgs e)
+    {
+        if (_inputType != "checkbox") return;
+        
+        if (e.Value is bool boolVal)
+        {
+            _value = (TValue)(object)boolVal;
+        }
+        else
+        {
+            _value = default;
+        }
+
+        await ApplyFilterAsync();
+    }
+
+    private async Task OnOperatorChangedAsync(ChangeEventArgs e)
+    {
+        var operatorName = e.Value?.ToString();
+        _selectedOperator = Operators.FirstOrDefault(op => op.Name == operatorName);
+        _selectedOperatorName = _selectedOperator?.Name ?? "";
+
+        await SelectedOperatorChanged.InvokeAsync(_selectedOperator);
+
+        if (HasValue)
+        {
+            await ApplyFilterAsync();
+        }
+    }
+
+    private async Task ApplyFilterAsync()
+    {
+        if (_disposed) return;
+
+        await ValueChanged.InvokeAsync(_value);
+
+        if (OnFilterApplied.HasDelegate)
+        {
+            await OnFilterApplied.InvokeAsync(new FilterInputEventArgs<TValue>
+            {
+                Value = _value!,
+                Operator = _selectedOperator,
+                HasValue = HasValue
+            });
+        }
+    }
+
+    private async Task ClearFilterAsync()
+    {
+        _value = default;
+        _displayValue = "";
+        
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+        _debounceCts = null;
+
+        await ApplyFilterAsync();
+    }
+
+    private string GetInputType()
+    {
+        var kind = TypeTraits<TValue>.Kind;
+        return kind switch
+        {
+            ValueKind.DateTime => "date",
+            ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single => "number",
+            ValueKind.Boolean => "checkbox",
+            _ => "text"
+        };
+    }
+
+    private static string FormatValue(TValue? value)
+    {
+        if (value is null) return "";
+        return TypeTraits<TValue>.FormatForInput(value, null, CultureInfo.InvariantCulture);
+    }
+
+    private List<IFilterOperator<TValue>> GetDefaultOperators()
+    {
+        var kind = TypeTraits<TValue>.Kind;
+
+        if (kind == ValueKind.String)
+        {
+            return
+            [
+                (IFilterOperator<TValue>)(object)new StringContainsOperator(),
+                (IFilterOperator<TValue>)(object)new StringEqualsOperator(),
+                (IFilterOperator<TValue>)(object)new StringStartsWithOperator(),
+                (IFilterOperator<TValue>)(object)new StringEndsWithOperator(),
+            ];
+        }
+
+        if (kind == ValueKind.DateTime)
+        {
+            return
+            [
+                (IFilterOperator<TValue>)(object)new DateEqualsOperator(),
+                (IFilterOperator<TValue>)(object)new DateAfterOperator(),
+                (IFilterOperator<TValue>)(object)new DateBeforeOperator(),
+            ];
+        }
+
+        if (kind == ValueKind.Boolean)
+        {
+            return [(IFilterOperator<TValue>)(object)new BooleanEqualsOperator()];
+        }
+
+        if (kind is ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single)
+        {
+            return
+            [
+                new NumericEqualsOperator<TValue>(),
+                new NumericGreaterThanOperator<TValue>(),
+                new NumericLessThanOperator<TValue>(),
+            ];
+        }
+
+        return [];
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+    }
+}
