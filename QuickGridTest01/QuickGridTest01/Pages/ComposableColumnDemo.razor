@@ -4,6 +4,9 @@
 @using QuickGridTest01.ComposableColumns.Features.Core
 @using QuickGridTest01.ComposableColumns.Features.Formatting
 @using QuickGridTest01.ComposableColumns.Features.Styling
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.CustomColumns
+@using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
 
 <PageTitle>Composable Columns Demo</PageTitle>
 
@@ -155,6 +158,140 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
 
     <section class="qg-section">
         <div class="qg-section-header">
+            <h2 class="qg-section-title">Inline Editing Features</h2>
+            <p class="qg-section-description">
+                Cells are always in edit mode with seamless inputs. 
+                <strong>Validation occurs when you leave a cell (on blur)</strong>, not while typing.
+                Press Enter to commit, Escape to cancel.
+            </p>
+        </div>
+
+        <div class="validation-rules-panel">
+            <h4>Validation Rules (applied on blur)</h4>
+            <div class="validation-rules-grid">
+                <div class="rule-card">
+                    <strong>Name</strong>
+                    <ul>
+                        <li>Required field</li>
+                        <li>Min 2 characters</li>
+                        <li>Max 50 characters</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Price</strong>
+                    <ul>
+                        <li>Range: $0.01 - $10,000</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Stock</strong>
+                    <ul>
+                        <li>Minimum: 0</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Status</strong>
+                    <ul>
+                        <li>No validation (select)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_lastEditMessage))
+        {
+            <div class="edit-message">
+                <i class="bi bi-check-circle"></i> @_lastEditMessage
+            </div>
+        }
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_editableProducts" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                  Property="@(p => p.Name)"
+                                  Title="Name (Editable)"
+                                  FeatureCollection="@_nameEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price (Editable)"
+                                  FeatureCollection="@_priceEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock (Editable)"
+                                  FeatureCollection="@_stockEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                  Property="@(p => p.Status)"
+                                  Title="Status (Select)"
+                                  FeatureCollection="@_statusEditFeatures"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Editing Features Code:</h4>
+            <pre><code>// Name with text editing
+var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, string&gt;
+    {
+        Editor = EditorKind.Text,
+        Placeholder = "Enter name...",
+        ItemKey = p =&gt; p.Id,
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, string&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Name changed to '{args.NewValue}'"))
+    }
+};
+
+// Price with currency editing
+var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+    {
+        Editor = EditorKind.Currency,
+        ItemKey = p =&gt; p.Id,
+        Step = "0.01",
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, decimal&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Price changed to {args.NewValue:C2}"))
+    }
+};
+
+// Stock with number editing
+var stockEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, int&gt;
+    {
+        Editor = EditorKind.Number,
+        ItemKey = p =&gt; p.Id,
+        Min = "0",
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, int&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Stock changed to {args.NewValue}"))
+    }
+};
+
+// Status with select dropdown
+var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt
+    {
+        Editor = EditorKind.Select,
+        ItemKey = p =&gt; p.Id,
+        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, ProductStatus&gt;&gt;(
+            this, args =&gt; HandleValueChanged($"Status changed to {args.NewValue}"))
+    }
+};</code></pre>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
             <h2 class="qg-section-title">Feature Priority Order</h2>
         </div>
 
@@ -199,13 +336,20 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
                 </ul>
             </div>
 
+            <div class="feature-category">
+                <h4>Editing Features</h4>
+                <ul>
+                    <li><code>InlineEditingFeature</code> - Always-visible seamless editors with built-in debounce and validation</li>
+                    <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
+                    <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, <code>EmailValidator</code>, etc.</li>
+                </ul>
+            </div>
+
             <div class="feature-category coming-soon">
                 <h4>Coming Soon</h4>
                 <ul>
-                    <li><code>InlineEditingFeature</code> - Inline cell editing</li>
-                    <li><code>ValidationFeature</code> - Value validation</li>
-                    <li><code>DebounceFeature</code> - Debounced input handling</li>
                     <li><code>MemoizationFeature</code> - Caching for performance</li>
+                    <li><code>AsyncSaveFeature</code> - Async save with loading states</li>
                 </ul>
             </div>
         </div>
@@ -360,21 +504,124 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
         background: #f0fdf4;
         color: #16a34a;
     }
+
+    /* Editing styles */
+    .edit-message {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #166534;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .validation-rules-panel {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .validation-rules-panel h4 {
+        margin: 0 0 0.75rem 0;
+        color: #475569;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .validation-rules-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .rule-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+    }
+
+    .rule-card strong {
+        display: block;
+        color: #1e293b;
+        font-size: 0.8rem;
+        margin-bottom: 0.375rem;
+    }
+
+    .rule-card ul {
+        margin: 0;
+        padding-left: 1rem;
+        list-style-type: disc;
+    }
+
+    .rule-card li {
+        color: #64748b;
+        font-size: 0.75rem;
+        line-height: 1.4;
+    }
+
+    /* Validation styles */
+    ::deep .validation-errors {
+        margin-top: 0.25rem;
+    }
+
+    ::deep .validation-error {
+        color: #dc2626;
+        font-size: 0.75rem;
+        padding: 0.125rem 0;
+    }
+
+    ::deep .editable-cell.invalid {
+        background-color: #fef2f2;
+        border-left: 3px solid #dc2626;
+        padding-left: 0.5rem;
+    }
+
+    ::deep .editable-cell.inline-mode.invalid input,
+    ::deep .editable-cell.inline-mode.invalid select {
+        border-color: #dc2626;
+    }
+
+    ::deep .editable-cell.dirty {
+        background-color: #fffbeb;
+        border-left: 3px solid #f59e0b;
+        padding-left: 0.5rem;
+    }
+
+    ::deep .editable-cell.inline-mode.dirty input,
+    ::deep .editable-cell.inline-mode.dirty select {
+        border-color: #f59e0b;
+    }
 </style>
 
 @code {
     private IQueryable<Product> _products = default!;
+    private IQueryable<EditableProduct> _editableProducts = default!;
     private IQueryable<FeaturePriorityInfo> _featurePriorities = default!;
+    private string _lastEditMessage = "";
 
     // Feature collections for the demo
     private IColumnFeature<Product>[] _stockFeatures = default!;
     private IColumnFeature<Product>[] _statusFeatures = default!;
     private IColumnFeature<Product>[] _priceFeatures = default!;
 
+    // Editing feature collections
+    private IColumnFeature<EditableProduct>[] _nameEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _priceEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _stockEditFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _statusEditFeatures = default!;
+
     protected override void OnInitialized()
     {
         InitializeProducts();
         InitializeFeatures();
+        InitializeEditingFeatures();
         InitializeFeaturePriorities();
     }
 
@@ -388,6 +635,14 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
             new(4, "Device Ultra", 599.00m, 120, ProductStatus.Active, DateTime.Now.AddDays(-1)),
             new(5, "Component X", 25.00m, 3, ProductStatus.ComingSoon, DateTime.Now.AddDays(-10)),
             new(6, "Assembly Kit", 89.99m, 67, ProductStatus.Active, DateTime.Now.AddDays(-7))
+        }.AsQueryable();
+
+        _editableProducts = new List<EditableProduct>
+        {
+            new() { Id = 1, Name = "Widget Pro", Price = 299.99m, Stock = 45, Status = ProductStatus.Active },
+            new() { Id = 2, Name = "Gadget Max", Price = 149.50m, Stock = 8, Status = ProductStatus.Active },
+            new() { Id = 3, Name = "Tool Basic", Price = 49.99m, Stock = 0, Status = ProductStatus.Discontinued },
+            new() { Id = 4, Name = "Device Ultra", Price = 599.00m, Stock = 120, Status = ProductStatus.Active }
         }.AsQueryable();
     }
 
@@ -441,6 +696,91 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
         ];
     }
 
+    private void InitializeEditingFeatures()
+    {
+        // Name with text editing and validation
+        _nameEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, string>
+            {
+                Editor = EditKind.Text,
+                Placeholder = "Enter name...",
+                ItemKey = p => p.Id,
+                ShowValidationErrors = true,
+                Validators = [new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 50 }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, string>>(
+                    this, args => HandleValueChanged($"Name changed from '{args.OldValue}' to '{args.NewValue}'")),
+                OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, string>>(
+                    this, args => HandleValidationCompleted("Name", args.IsValid, args.Errors))
+            }
+        ];
+
+        // Price with currency editing and range validation
+        _priceEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, decimal>
+            {
+                Editor = EditKind.Currency,
+                ItemKey = p => p.Id,
+                Step = "0.01",
+                ShowValidationErrors = true,
+                Validators = [new RangeValidator<decimal> { Minimum = 0.01m, Maximum = 10000m }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, decimal>>(
+                    this, args => HandleValueChanged($"Price changed from {args.OldValue:C2} to {args.NewValue:C2}")),
+                OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, decimal>>(
+                    this, args => HandleValidationCompleted("Price", args.IsValid, args.Errors))
+            }
+        ];
+
+        // Stock with number editing and min value validation
+        _stockEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, int>
+            {
+                Editor = EditKind.Number,
+                ItemKey = p => p.Id,
+                Min = "0",
+                ShowValidationErrors = true,
+                Validators = [new MinValueValidator<int> { Minimum = 0 }],
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, int>>(
+                    this, args => HandleValueChanged($"Stock changed from {args.OldValue} to {args.NewValue}")),
+                OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, int>>(
+                    this, args => HandleValidationCompleted("Stock", args.IsValid, args.Errors))
+            }
+        ];
+
+        // Status with select dropdown - no validation needed for discrete selections
+        _statusEditFeatures =
+        [
+            new InlineEditingFeature<EditableProduct, ProductStatus>
+            {
+                Editor = EditKind.Select,
+                ItemKey = p => p.Id,
+                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, ProductStatus>>(
+                    this, args => HandleValueChanged($"Status changed from {args.OldValue} to {args.NewValue}"))
+            }
+        ];
+    }
+
+    private void HandleValueChanged(string message)
+    {
+        _lastEditMessage = message;
+        StateHasChanged();
+    }
+
+    private void HandleValidationCompleted(string field, bool isValid, List<string> errors)
+    {
+        if (isValid)
+        {
+            _lastEditMessage = $"{field}: Valid ?";
+        }
+        else
+        {
+            _lastEditMessage = $"{field}: Invalid - {string.Join(", ", errors)}";
+        }
+        StateHasChanged();
+    }
+
     private void InitializeFeaturePriorities()
     {
         _featurePriorities = new List<FeaturePriorityInfo>
@@ -459,6 +799,16 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
 
     // Demo models
     public record Product(int Id, string Name, decimal Price, int Stock, ProductStatus Status, DateTime LastUpdated);
+
+    // Editable version with mutable properties
+    public class EditableProduct
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public decimal Price { get; set; }
+        public int Stock { get; set; }
+        public ProductStatus Status { get; set; }
+    }
 
     public enum ProductStatus
     {

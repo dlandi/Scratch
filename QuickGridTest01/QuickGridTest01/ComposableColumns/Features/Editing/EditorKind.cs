@@ -1,0 +1,62 @@
+namespace QuickGridTest01.ComposableColumns.Features.Editing;
+
+/// <summary>
+/// Defines the type of editor to use for inline editing.
+/// </summary>
+public enum EditorKind
+{
+    /// <summary>
+    /// Standard text input.
+    /// </summary>
+    Text,
+
+    /// <summary>
+    /// Numeric input with increment/decrement.
+    /// </summary>
+    Number,
+
+    /// <summary>
+    /// Date picker input.
+    /// </summary>
+    Date,
+
+    /// <summary>
+    /// Date and time picker input.
+    /// </summary>
+    DateTime,
+
+    /// <summary>
+    /// Checkbox for boolean values.
+    /// </summary>
+    Checkbox,
+
+    /// <summary>
+    /// Dropdown select for enum or predefined options.
+    /// </summary>
+    Select,
+
+    /// <summary>
+    /// Multi-line text area.
+    /// </summary>
+    TextArea,
+
+    /// <summary>
+    /// Email input with validation.
+    /// </summary>
+    Email,
+
+    /// <summary>
+    /// URL input with validation.
+    /// </summary>
+    Url,
+
+    /// <summary>
+    /// Telephone input.
+    /// </summary>
+    Tel,
+
+    /// <summary>
+    /// Currency input (number with 2 decimal places).
+    /// </summary>
+    Currency
+}

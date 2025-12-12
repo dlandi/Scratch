@@ -40,9 +40,20 @@ public class FeatureContext<TGridItem>
     public SortDirection? CurrentSortDirection { get; set; }
 
     /// <summary>
-    /// Request the grid to re-render.
+    /// Request the grid to re-render. May be synchronous or async depending on context.
     /// </summary>
     public Action? RequestRefresh { get; set; }
+
+    /// <summary>
+    /// Request the grid to re-render asynchronously. Use this when calling from async contexts.
+    /// </summary>
+    public Func<Task>? RequestRefreshAsync { get; set; }
+
+    /// <summary>
+    /// Invokes an async action on the UI thread (dispatcher).
+    /// Required for timer callbacks and other thread pool operations.
+    /// </summary>
+    public Func<Func<Task>, Task>? InvokeAsync { get; set; }
 
     /// <summary>
     /// Gets or sets a named state value.

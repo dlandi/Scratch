@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -18,6 +19,7 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     private bool _initialized;
     private bool _disposed;
     private GridSort<TGridItem>? _sortBy;
+    private Expression<Func<TGridItem, TValue>>? _lastProperty;
 
     // Cached sorted lists for rendering
     private List<ICellRenderFeature<TGridItem>>? _cellRenderFeatures;
@@ -111,28 +113,33 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     protected override void OnParametersSet()
     {
-        if (!_initialized)
-        {
-            Initialize();
-            _initialized = true;
-        }
-
         // Update context with current parameters
         Context.PropertyExpression = Property;
         Context.Format = Format;
         Context.Formatter = Formatter;
         Context.Title = Title;
 
-        // Compile property accessor if we have a property expression
-        if (Property is not null && Context.GetValue is null)
+        // Compile property accessor if property changed
+        if (Property is not null && Property != _lastProperty)
         {
+            _lastProperty = Property;
             Context.GetValue = Property.Compile();
 
-            // Extract property name for auto-title and other features
-            if (Property.Body is MemberExpression memberExpr)
+            // Create setter if possible
+            if (Property.Body is MemberExpression memberExpr && memberExpr.Member is PropertyInfo propInfo)
             {
-                Context.SetState(FeatureStateKeys.PropertyName, memberExpr.Member.Name);
+                Context.SetState(FeatureStateKeys.PropertyName, propInfo.Name);
                 Context.SetState(FeatureStateKeys.PropertyType, typeof(TValue));
+
+                // Bill setter expression
+                if (propInfo.CanWrite)
+                {
+                    var param = Property.Parameters[0];
+                    var valueParam = Expression.Parameter(typeof(TValue), "value");
+                    var assign = Expression.Assign(memberExpr, valueParam);
+                    var setter = Expression.Lambda<Action<TGridItem, TValue>>(assign, param, valueParam);
+                    Context.SetValue = setter.Compile();
+                }
             }
 
             // Set up sorting if enabled
@@ -143,24 +150,30 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             }
         }
 
-        // Add features from FeatureCollection parameter
-        if (FeatureCollection is not null)
+        // Add features from FeatureCollection parameter (only once)
+        if (FeatureCollection is not null && !_initialized)
         {
             foreach (var feature in FeatureCollection)
             {
                 if (!_features.Contains(feature))
                 {
                     _features.Add(feature);
-                    feature.OnAttach(Context);
                 }
             }
             InvalidateFeatureCache();
+        }
+
+        // Initialize features if not done yet
+        if (!_initialized)
+        {
+            Initialize();
+            _initialized = true;
         }
     }
 
     private void Initialize()
     {
-        // Attach all initial features
+        // Attach all features
         foreach (var feature in _features)
         {
             feature.OnAttach(Context);
@@ -174,7 +187,9 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             Column = this,
             Title = Title,
             IsSortable = Sortable == true,
-            RequestRefresh = () => StateHasChanged()
+            RequestRefresh = StateHasChanged,
+            RequestRefreshAsync = () => InvokeAsync(StateHasChanged),
+            InvokeAsync = async action => await InvokeAsync(action)
         };
     }
 
