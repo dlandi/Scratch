@@ -5,6 +5,7 @@
 @using QuickGridTest01.ComposableColumns.Features.Formatting
 @using QuickGridTest01.ComposableColumns.Features.Styling
 @using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.ComposableColumns.Features.Filtering
 @using QuickGridTest01.CustomColumns
 @using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
 
@@ -154,6 +155,64 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
     }
 };</code></pre>
         </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Filtering Features</h2>
+            <p class="qg-section-description">
+                Filter data with type-aware operators. Filters are applied client-side with debouncing.
+            </p>
+        </div>
+
+        <div class="filter-toolbar">
+            @{
+                var seq = 0;
+                _nameFilter?.RenderFilterToolbar(__builder, ref seq, _nameFilterContext!, "Name");
+            }
+            @{
+                seq = 0;
+                _priceFilter?.RenderFilterToolbar(__builder, ref seq, _priceFilterContext!, "Price");
+            }
+            @{
+                seq = 0;
+                _stockFilter?.RenderFilterToolbar(__builder, ref seq, _stockFilterContext!, "Stock");
+            }
+            @if (_hasActiveFilters)
+            {
+                <button class="btn-clear-all-filters" @onclick="ClearAllFilters">
+                    <i class="bi bi-x-circle"></i> Clear All Filters
+                </button>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(_filterMessage))
+        {
+            <div class="filter-message">
+                <i class="bi bi-funnel-fill"></i> @_filterMessage
+            </div>
+        }
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@FilteredProducts" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                <PropertyColumn Property="@(p => p.Name)" Title="Name" Sortable="true" />
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  Format="C2"
+                                  Sortable="true" />
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock"
+                                  Sortable="true" />
+                <PropertyColumn Property="@(p => p.Status)" Title="Status" Sortable="true" />
+            </QuickGrid>
+        </div>
+
+        <p class="filter-result-count">
+            Showing @FilteredProducts.Count() of @_products.Count() products
+        </p>
     </section>
 
     <section class="qg-section">
@@ -337,9 +396,18 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
             </div>
 
             <div class="feature-category">
+                <h4>Filtering Features</h4>
+                <ul>
+                    <li><code>FilterFeature</code> - Type-aware column filtering with operators</li>
+                    <li><code>FilterCoordinator</code> - Manages multiple column filters</li>
+                    <li>Built-in operators: Contains, Equals, Greater Than, Less Than, etc.</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
                 <h4>Editing Features</h4>
                 <ul>
-                    <li><code>InlineEditingFeature</code> - Always-visible seamless editors with built-in debounce and validation</li>
+                    <li><code>InlineEditingFeature</code> - Always-visible seamless editors with validation</li>
                     <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
                     <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, <code>EmailValidator</code>, etc.</li>
                 </ul>
@@ -598,6 +666,79 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
     ::deep .editable-cell.inline-mode.dirty select {
         border-color: #f59e0b;
     }
+
+    /* Filter toolbar styles */
+    .filter-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: flex-end;
+        padding: 1rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-toolbar-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .filter-toolbar-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    ::deep .filter-operator {
+        min-width: 120px;
+    }
+
+    ::deep .filter-value {
+        min-width: 150px;
+    }
+
+    .btn-filter-clear,
+    .btn-clear-all-filters {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+        border-radius: 0.375rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .btn-filter-clear:hover,
+    .btn-clear-all-filters:hover {
+        background: #fecaca;
+        border-color: #fca5a5;
+    }
+
+    .filter-message {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1e40af;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .filter-result-count {
+        margin-top: 0.75rem;
+        font-size: 0.8rem;
+        color: #64748b;
+    }
 </style>
 
 @code {
@@ -605,11 +746,39 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
     private IQueryable<EditableProduct> _editableProducts = default!;
     private IQueryable<FeaturePriorityInfo> _featurePriorities = default!;
     private string _lastEditMessage = "";
+    private string _filterMessage = "";
 
     // Feature collections for the demo
     private IColumnFeature<Product>[] _stockFeatures = default!;
     private IColumnFeature<Product>[] _statusFeatures = default!;
     private IColumnFeature<Product>[] _priceFeatures = default!;
+
+    // Filter features
+    private FilterFeature<Product, string>? _nameFilter;
+    private FilterFeature<Product, decimal>? _priceFilter;
+    private FilterFeature<Product, int>? _stockFilter;
+    private FeatureContext<Product, string>? _nameFilterContext;
+    private FeatureContext<Product, decimal>? _priceFilterContext;
+    private FeatureContext<Product, int>? _stockFilterContext;
+    private bool _hasActiveFilters => (_nameFilter?.HasActiveFilter ?? false) || 
+                                       (_priceFilter?.HasActiveFilter ?? false) || 
+                                       (_stockFilter?.HasActiveFilter ?? false);
+
+    // Filtered products query
+    private IQueryable<Product> FilteredProducts
+    {
+        get
+        {
+            var result = _products;
+            if (_nameFilter?.HasActiveFilter == true)
+                result = _nameFilter.ApplyFilter(result);
+            if (_priceFilter?.HasActiveFilter == true)
+                result = _priceFilter.ApplyFilter(result);
+            if (_stockFilter?.HasActiveFilter == true)
+                result = _stockFilter.ApplyFilter(result);
+            return result;
+        }
+    }
 
     // Editing feature collections
     private IColumnFeature<EditableProduct>[] _nameEditFeatures = default!;
@@ -621,6 +790,7 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
     {
         InitializeProducts();
         InitializeFeatures();
+        InitializeFilterFeatures();
         InitializeEditingFeatures();
         InitializeFeaturePriorities();
     }
@@ -694,6 +864,89 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
                 TooltipMapper = price => $"Price: {price:C2} (before tax)"
             }
         ];
+    }
+
+    private void InitializeFilterFeatures()
+    {
+        // Create typed filter contexts with proper PropertyExpressions
+        _nameFilterContext = new FeatureContext<Product, string>
+        {
+            Column = null!,
+            Title = "Name",
+            RequestRefresh = StateHasChanged,
+            PropertyExpression = p => p.Name
+        };
+
+        _priceFilterContext = new FeatureContext<Product, decimal>
+        {
+            Column = null!,
+            Title = "Price",
+            RequestRefresh = StateHasChanged,
+            PropertyExpression = p => p.Price
+        };
+
+        _stockFilterContext = new FeatureContext<Product, int>
+        {
+            Column = null!,
+            Title = "Stock",
+            RequestRefresh = StateHasChanged,
+            PropertyExpression = p => p.Stock
+        };
+
+        // Name filter (string - contains, equals, starts with, ends with)
+        _nameFilter = new FilterFeature<Product, string>
+        {
+            Placeholder = "Filter by name...",
+            DebounceMilliseconds = 300,
+            OnFilterChanged = EventCallback.Factory.Create<FilterChangedEventArgs<string>>(
+                this, args => HandleFilterChanged("Name", args))
+        };
+        _nameFilter.OnAttach(_nameFilterContext);
+
+        // Price filter (decimal - numeric operators)
+        _priceFilter = new FilterFeature<Product, decimal>
+        {
+            Placeholder = "Filter by price...",
+            DebounceMilliseconds = 300,
+            OnFilterChanged = EventCallback.Factory.Create<FilterChangedEventArgs<decimal>>(
+                this, args => HandleFilterChanged("Price", args))
+        };
+        _priceFilter.OnAttach(_priceFilterContext);
+
+        // Stock filter (int - numeric operators)
+        _stockFilter = new FilterFeature<Product, int>
+        {
+            Placeholder = "Filter by stock...",
+            DebounceMilliseconds = 300,
+            OnFilterChanged = EventCallback.Factory.Create<FilterChangedEventArgs<int>>(
+                this, args => HandleFilterChanged("Stock", args))
+        };
+        _stockFilter.OnAttach(_stockFilterContext);
+    }
+
+    private void HandleFilterChanged<T>(string field, FilterChangedEventArgs<T> args)
+    {
+        if (args.HasFilter)
+        {
+            _filterMessage = $"Filtering {field} by {args.Operator?.Name}: {args.Value}";
+        }
+        else
+        {
+            _filterMessage = "";
+        }
+        StateHasChanged();
+    }
+
+    private void ClearAllFilters()
+    {
+        if (_nameFilterContext is not null)
+            _nameFilter?.ClearFilterAsync(_nameFilterContext);
+        if (_priceFilterContext is not null)
+            _priceFilter?.ClearFilterAsync(_priceFilterContext);
+        if (_stockFilterContext is not null)
+            _stockFilter?.ClearFilterAsync(_stockFilterContext);
+        _filterMessage = "All filters cleared";
+        StateHasChanged();
     }
 
     private void InitializeEditingFeatures()
@@ -789,10 +1042,11 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
             new("Core", 100, "Type traits, auto-title inference"),
             new("Formatting", 200, "Format string, custom formatter, culture"),
             new("Styling", 300, "Conditional CSS, icons, tooltips"),
-            new("Editing", 400, "Inline editing, edit state, debounce"),
-            new("Validation", 500, "Validators, data annotations"),
-            new("Events", 600, "Value changed, state changed, before edit"),
-            new("Performance", 700, "Memoization, minimal DOM, set key"),
+            new("Filtering", 400, "Type-aware filters, inline filters"),
+            new("Editing", 500, "Inline editing, edit state, debounce"),
+            new("Validation", 600, "Validators, data annotations"),
+            new("Events", 700, "Value changed, state changed, before edit"),
+            new("Performance", 800, "Memoization, minimal DOM, set key"),
             new("Final", 1000, "Final wrapper features")
         }.AsQueryable();
     }
