@@ -213,12 +213,6 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     /// <inheritdoc />
     protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
     {
-        // Use grid-level RowKey when available to enable safe SetKey
-        if (RowKey is not null)
-        {
-            builder.SetKey(RowKey(item));
-        }
-
         var cellFeatures = GetCellRenderFeatures();
 
         if (cellFeatures.Count == 0)

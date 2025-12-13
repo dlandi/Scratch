@@ -1,0 +1,72 @@
+@page "/filter-test-3"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Filtering
+
+<PageTitle>Filter Test 3 - With ComposableColumn</PageTitle>
+
+<h1>Filter Test 3 - With ComposableColumn (No Features)</h1>
+<p>This page tests filtering with ComposableGrid + ComposableColumn (no FeatureCollection).</p>
+
+<div class="filter-section" style="margin-bottom: 1rem;">
+    <FilterInput TValue="string"
+                 Label="Filter by Name"
+                 Placeholder="Type to filter..."
+                 DebounceMs="300"
+                 OnFilterApplied="OnFilterApplied" />
+</div>
+
+<div class="filter-status" style="margin-bottom: 1rem; padding: 0.5rem; background: #f0f0f0;">
+    Current filter: "@_nameFilter" | Has filter: @(!string.IsNullOrEmpty(_nameFilter))
+</div>
+
+<div class="grid-section">
+    <ComposableGrid TGridItem="TestItem" Items="@FilteredItems" RowKey="x => x.Id">
+        <ComposableColumn TGridItem="TestItem" TValue="int" Property="x => x.Id" Title="ID" />
+        <ComposableColumn TGridItem="TestItem" TValue="string" Property="x => x.Name" Title="Name" />
+        <ComposableColumn TGridItem="TestItem" TValue="decimal" Property="x => x.Value" Title="Value" Format="C2" />
+    </ComposableGrid>
+</div>
+
+<p>Showing @FilteredItems.Count() of @_items.Count() items</p>
+
+@code {
+    private string _nameFilter = "";
+    private List<TestItem> _items = [];
+
+    private IQueryable<TestItem> FilteredItems
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_nameFilter))
+                return _items.AsQueryable();
+            
+            return _items
+                .Where(x => x.Name.Contains(_nameFilter, StringComparison.OrdinalIgnoreCase))
+                .AsQueryable();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        _items =
+        [
+            new(1, "Apple", 1.50m),
+            new(2, "Banana", 0.75m),
+            new(3, "Cherry", 2.00m),
+            new(4, "Date", 3.00m),
+            new(5, "Elderberry", 4.50m),
+            new(6, "Fig", 2.25m),
+            new(7, "Grape", 1.25m),
+            new(8, "Honeydew", 3.50m),
+        ];
+    }
+
+    private void OnFilterApplied(FilterInputEventArgs<string> args)
+    {
+        _nameFilter = args.Value ?? "";
+        StateHasChanged();
+    }
+
+    public record TestItem(int Id, string Name, decimal Value);
+}
