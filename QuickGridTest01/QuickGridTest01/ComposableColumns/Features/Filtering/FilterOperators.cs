@@ -360,4 +360,21 @@ public class BooleanEqualsOperator : FilterOperatorBase<bool>
     }
 }
 
+public class BooleanNotEqualsOperator : FilterOperatorBase<bool>
+{
+    public override string Name => "IsNot";
+    public override string Symbol => "?";
+
+    public override IQueryable<TItem> Apply<TItem>(
+        IQueryable<TItem> source,
+        Expression<Func<TItem, bool>> propertyExpression,
+        bool filterValue)
+    {
+        var predicate = BuildPredicate(propertyExpression,
+            value => value != filterValue);
+        
+        return source.Where(predicate);
+    }
+}
+
 #endregion

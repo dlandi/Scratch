@@ -210,6 +210,9 @@ public class FilterFeature<TGridItem, TValue> : IGridFilterFeature<TGridItem>, I
         "LessThanOrEqual" => "LTE",
         "After" => "After",
         "Before" => "Before",
+        "On Date" => "On",
+        "Is" => "Is",
+        "IsNot" => "Not",
         _ => name.Length > 5 ? name[..5] : name
     };
 
@@ -360,7 +363,11 @@ public class FilterFeature<TGridItem, TValue> : IGridFilterFeature<TGridItem>, I
 
         if (kind == ValueKind.Boolean)
         {
-            return [(IFilterOperator<TValue>)(object)new BooleanEqualsOperator()];
+            return 
+            [
+                (IFilterOperator<TValue>)(object)new BooleanEqualsOperator(),
+                (IFilterOperator<TValue>)(object)new BooleanNotEqualsOperator(),
+            ];
         }
 
         if (kind is ValueKind.Int32 or ValueKind.Int64 or ValueKind.Decimal or ValueKind.Double or ValueKind.Single)

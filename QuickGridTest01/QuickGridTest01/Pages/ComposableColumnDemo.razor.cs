@@ -29,6 +29,8 @@ public partial class ComposableColumnDemo
     private IColumnFeature<Product>[] _nameFilterFeatures = default!;
     private IColumnFeature<Product>[] _priceFilterFeatures = default!;
     private IColumnFeature<Product>[] _stockFilterFeatures = default!;
+    private IColumnFeature<Product>[] _dateFilterFeatures = default!;
+    private IColumnFeature<Product>[] _inStockFilterFeatures = default!;
 
     // Editing feature collections
     private IColumnFeature<EditableProduct>[] _nameEditFeatures = default!;
@@ -49,12 +51,12 @@ public partial class ComposableColumnDemo
     {
         _products = new List<Product>
         {
-            new(1, "Widget Pro", 299.99m, 45, ProductStatus.Active, DateTime.Now.AddDays(-5)),
-            new(2, "Gadget Max", 149.50m, 8, ProductStatus.Active, DateTime.Now.AddDays(-2)),
-            new(3, "Tool Basic", 49.99m, 0, ProductStatus.Discontinued, DateTime.Now.AddDays(-30)),
-            new(4, "Device Ultra", 599.00m, 120, ProductStatus.Active, DateTime.Now.AddDays(-1)),
-            new(5, "Component X", 25.00m, 3, ProductStatus.ComingSoon, DateTime.Now.AddDays(-10)),
-            new(6, "Assembly Kit", 89.99m, 67, ProductStatus.Active, DateTime.Now.AddDays(-7))
+            new(1, "Widget Pro", 299.99m, 45, ProductStatus.Active, DateTime.Now.AddDays(-5), true),
+            new(2, "Gadget Max", 149.50m, 8, ProductStatus.Active, DateTime.Now.AddDays(-2), true),
+            new(3, "Tool Basic", 49.99m, 0, ProductStatus.Discontinued, DateTime.Now.AddDays(-30), false),
+            new(4, "Device Ultra", 599.00m, 120, ProductStatus.Active, DateTime.Now.AddDays(-1), true),
+            new(5, "Component X", 25.00m, 3, ProductStatus.ComingSoon, DateTime.Now.AddDays(-10), true),
+            new(6, "Assembly Kit", 89.99m, 67, ProductStatus.Active, DateTime.Now.AddDays(-7), true)
         }.AsQueryable();
 
         _editableProducts = new List<EditableProduct>
@@ -69,9 +71,11 @@ public partial class ComposableColumnDemo
     private void InitializeFilterFeatures()
     {
         // Simply add FilterFeature to columns - grid handles the rest
-        _nameFilterFeatures = [new FilterFeature<Product, string> { Placeholder = "Filter by name..." }];
-        _priceFilterFeatures = [new FilterFeature<Product, decimal> { Placeholder = "Filter by price..." }];
-        _stockFilterFeatures = [new FilterFeature<Product, int> { Placeholder = "Filter by stock..." }];
+        _nameFilterFeatures = [new FilterFeature<Product, string> { Placeholder = "Name..." }];
+        _priceFilterFeatures = [new FilterFeature<Product, decimal> { Placeholder = "Price..." }];
+        _stockFilterFeatures = [new FilterFeature<Product, int> { Placeholder = "Stock..." }];
+        _dateFilterFeatures = [new FilterFeature<Product, DateTime> { Placeholder = "Date..." }];
+        _inStockFilterFeatures = [new FilterFeature<Product, bool>()];
     }
 
     private void InitializeFeatures()
@@ -226,8 +230,8 @@ public partial class ComposableColumnDemo
         }.AsQueryable();
     }
 
-    // Demo models
-    public record Product(int Id, string Name, decimal Price, int Stock, ProductStatus Status, DateTime LastUpdated);
+    // Demo models - Added InStock boolean for boolean filter demo
+    public record Product(int Id, string Name, decimal Price, int Stock, ProductStatus Status, DateTime LastUpdated, bool InStock);
 
     // Editable version with mutable properties
     public class EditableProduct

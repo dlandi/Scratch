@@ -186,16 +186,19 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
                                   Title="Stock"
                                   Sortable="true"
                                   FeatureCollection="@_stockFilterFeatures" />
-                <ComposableColumn TGridItem="Product" TValue="ProductStatus"
-                                  Property="@(p => p.Status)"
-                                  Title="Status"
-                                  Sortable="true" />
+                <ComposableColumn TGridItem="Product" TValue="DateTime"
+                                  Property="@(p => p.LastUpdated)"
+                                  Title="Updated"
+                                  Format="yyyy-MM-dd"
+                                  Sortable="true"
+                                  FeatureCollection="@_dateFilterFeatures" />
+                <ComposableColumn TGridItem="Product" TValue="bool"
+                                  Property="@(p => p.InStock)"
+                                  Title="In Stock"
+                                  Sortable="true"
+                                  FeatureCollection="@_inStockFilterFeatures" />
             </ComposableGrid>
         </div>
-
-        <p class="filter-result-count">
-            Total products: @_products.Count()
-        </p>
 
         <div class="code-preview">
             <h4>Feature Composition Code:</h4>
@@ -203,34 +206,21 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
 // The grid auto-detects filter features and:
 // 1. Renders a filter toolbar above the grid
 // 2. Applies all active filters to the data
-// 3. Provides "Clear All" when filters are active
+// 3. Shows "X of Y" count when filters are active
+// 4. Provides "Clear All" button
 
-_nameFilterFeatures = [
-    new FilterFeature&lt;Product, string&gt; 
-    { 
-        Placeholder = "Filter by name..." 
-    }
-];
+// String filter - auto-detects: Contains, Equals, StartsWith, EndsWith
+_nameFilterFeatures = [new FilterFeature&lt;Product, string&gt; { Placeholder = "Name..." }];
 
-_priceFilterFeatures = [
-    new FilterFeature&lt;Product, decimal&gt; 
-    { 
-        Placeholder = "Filter by price...",
-        DebounceMilliseconds = 300
-    }
-];
+// Numeric filters - auto-detects: Equals, GreaterThan, LessThan
+_priceFilterFeatures = [new FilterFeature&lt;Product, decimal&gt; { Placeholder = "Price..." }];
+_stockFilterFeatures = [new FilterFeature&lt;Product, int&gt; { Placeholder = "Stock..." }];
 
-_stockFilterFeatures = [
-    new FilterFeature&lt;Product, int&gt; 
-    { 
-        Placeholder = "Filter by stock..." 
-    }
-];
+// DateTime filter - auto-detects: Equals, After, Before
+_dateFilterFeatures = [new FilterFeature&lt;Product, DateTime&gt; { Placeholder = "Date..." }];
 
-// Type-aware operators are auto-detected:
-// - String: Contains, Equals, StartsWith, EndsWith
-// - Numeric: Equals, GreaterThan, LessThan
-// - DateTime: Equals, After, Before</code></pre>
+// Boolean filter - renders as checkbox
+_inStockFilterFeatures = [new FilterFeature&lt;Product, bool&gt;()];</code></pre>
         </div>
     </section>
 

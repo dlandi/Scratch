@@ -16,6 +16,7 @@
                 <div class="filter-toolbar-actions">
                     @if (HasActiveFilters)
                     {
+                        <span class="filter-count">@FilteredCount of @TotalCount</span>
                         <button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
                             <i class="bi bi-x-circle"></i> Clear
                         </button>
@@ -51,7 +52,7 @@
     /// <summary>
     /// Gets the filtered items after applying all active filters.
     /// </summary>
-    private IQueryable<TGridItem> FilteredItems
+    public IQueryable<TGridItem> FilteredItems
     {
         get
         {
@@ -65,6 +66,16 @@
             return result;
         }
     }
+
+    /// <summary>
+    /// Gets the total count of items before filtering.
+    /// </summary>
+    public int TotalCount => Items.Count();
+
+    /// <summary>
+    /// Gets the count of items after filtering.
+    /// </summary>
+    public int FilteredCount => FilteredItems.Count();
 
     /// <summary>
     /// Gets whether any filter is currently active.

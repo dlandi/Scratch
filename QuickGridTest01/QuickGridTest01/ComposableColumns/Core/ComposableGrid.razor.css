@@ -64,6 +64,11 @@
     width: 70px;
 }
 
+/* Date inputs */
+.composable-grid-filter-toolbar input[type="date"].filter-value {
+    width: 110px;
+}
+
 /* Checkbox for boolean filters */
 .composable-grid-filter-toolbar .filter-checkbox {
     width: 1.125rem;
@@ -93,6 +98,14 @@
     margin-left: auto;
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+}
+
+/* Filter count display */
+.composable-grid-filter-toolbar .filter-count {
+    font-size: 0.75rem;
+    color: #6c757d;
+    white-space: nowrap;
 }
 
 /* Clear All button */
