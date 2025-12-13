@@ -18,7 +18,8 @@
         <h1 class="qg-page-title">Composable Columns</h1>
         <p class="qg-page-subtitle">
             A modular column system where features can be composed together.
-            Each feature is a building block that adds specific functionality.
+            Each feature is a building block that adds specific functionality like styling, filtering, or editing.
+            Features implement <code>IColumnFeature&lt;T&gt;</code> and are composed via <code>FeatureCollection</code>.
         </p>
     </header>
 
@@ -31,25 +32,26 @@
             <div class="arch-card">
                 <h4><i class="bi bi-puzzle"></i> Features</h4>
                 <p>Modular units of functionality that can be added to any column.
-                   Each feature implements <code>IColumnFeature&lt;T&gt;</code>.</p>
+                   Implements <code>IColumnFeature&lt;T&gt;</code>, <code>ICellRenderFeature&lt;T&gt;</code>, 
+                   or <code>IGridFilterFeature&lt;T&gt;</code>.</p>
             </div>
 
             <div class="arch-card">
                 <h4><i class="bi bi-layers"></i> Pipeline</h4>
-                <p>Features are executed in priority order, forming a render pipeline.
-                   Each feature can wrap or modify the output.</p>
+                <p>Cell render features execute in priority order, forming a render pipeline.
+                   Each feature can wrap or modify the cell output.</p>
             </div>
 
             <div class="arch-card">
                 <h4><i class="bi bi-share"></i> Shared Context</h4>
                 <p><code>FeatureContext</code> provides shared state between features.
-                   Features can read/write state and register services.</p>
+                   Includes property expression, formatter, and event receiver.</p>
             </div>
 
             <div class="arch-card">
-                <h4><i class="bi bi-building"></i> Builder Pattern</h4>
-                <p>Fluent API for composing columns in code.
-                   Chain features together with <code>WithFeature()</code>.</p>
+                <h4><i class="bi bi-grid-3x3"></i> Grid Integration</h4>
+                <p><code>ComposableGrid</code> coordinates features across columns.
+                   Auto-renders filter toolbars and applies grid-level filtering.</p>
             </div>
         </div>
     </section>
@@ -147,13 +149,6 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
             ProductStatus.Discontinued =&gt; "bi bi-x-circle-fill",
             ProductStatus.ComingSoon =&gt; "bi bi-clock-fill",
             _ =&gt; "bi bi-question-circle"
-        },
-        ColorMapper = status =&gt; status switch
-        {
-            ProductStatus.Active =&gt; "#22c55e",
-            ProductStatus.Discontinued =&gt; "#ef4444",
-            ProductStatus.ComingSoon =&gt; "#f59e0b",
-            _ =&gt; "#6b7280"
         }
     }
 };</code></pre>
@@ -164,60 +159,33 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
         <div class="qg-section-header">
             <h2 class="qg-section-title">Filtering Features</h2>
             <p class="qg-section-description">
-                Filter data with type-aware operators. Filters are applied client-side with debouncing.
+                <strong>Grid-integrated filtering:</strong> Add <code>FilterFeature</code> to any column and 
+                <code>ComposableGrid</code> automatically renders a filter toolbar and applies filters to the data.
+                Type-aware operators, debounced input, and coordinated "Clear All" functionality.
             </p>
         </div>
 
-        <div class="filter-toolbar">
-            <FilterInput TValue="string"
-                         Label="Name"
-                         Placeholder="Filter by name..."
-                         DebounceMs="300"
-                         OnFilterApplied="OnNameFilterApplied" />
-
-            <FilterInput TValue="decimal"
-                         Label="Price"
-                         Placeholder="Filter by price..."
-                         DebounceMs="300"
-                         OnFilterApplied="OnPriceFilterApplied" />
-
-            <FilterInput TValue="int"
-                         Label="Stock"
-                         Placeholder="Filter by stock..."
-                         DebounceMs="300"
-                         OnFilterApplied="OnStockFilterApplied" />
-
-            @* Always render button container for stable structure *@
-            <span style="@(_hasActiveFilters ? "" : "display: none;")">
-                <button class="btn-clear-all-filters" @onclick="ClearAllFilters">
-                    <i class="bi bi-x-circle"></i> Clear All Filters
-                </button>
-            </span>
-        </div>
-
-        @* Always render message container for stable structure *@
-        <div class="filter-message" style="@(!string.IsNullOrEmpty(_filterMessage) ? "" : "display: none;")">
-            <i class="bi bi-funnel-fill"></i> @_filterMessage
-        </div>
-
         <div class="qg-grid-container">
-            <ComposableGrid TGridItem="Product" Items="@FilteredProducts" RowKey="p => p.Id" Class="qg-grid">
+            <ComposableGrid @ref="_filterGrid" TGridItem="Product" Items="@_products" RowKey="p => p.Id" Class="qg-grid">
                 <ComposableColumn TGridItem="Product" TValue="int"
                                   Property="@(p => p.Id)"
                                   Title="ID" />
                 <ComposableColumn TGridItem="Product" TValue="string"
                                   Property="@(p => p.Name)"
                                   Title="Name"
-                                  Sortable="true" />
+                                  Sortable="true"
+                                  FeatureCollection="@_nameFilterFeatures" />
                 <ComposableColumn TGridItem="Product" TValue="decimal"
                                   Property="@(p => p.Price)"
                                   Title="Price"
                                   Format="C2"
-                                  Sortable="true" />
+                                  Sortable="true"
+                                  FeatureCollection="@_priceFilterFeatures" />
                 <ComposableColumn TGridItem="Product" TValue="int"
                                   Property="@(p => p.Stock)"
                                   Title="Stock"
-                                  Sortable="true" />
+                                  Sortable="true"
+                                  FeatureCollection="@_stockFilterFeatures" />
                 <ComposableColumn TGridItem="Product" TValue="ProductStatus"
                                   Property="@(p => p.Status)"
                                   Title="Status"
@@ -226,12 +194,44 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
         </div>
 
         <p class="filter-result-count">
-            @{
-                var filteredCount = FilteredProducts.Count();
-                var totalCount = _products.Count();
-            }
-            Showing @filteredCount of @totalCount products
+            Total products: @_products.Count()
         </p>
+
+        <div class="code-preview">
+            <h4>Feature Composition Code:</h4>
+            <pre><code>// Simply add FilterFeature to columns - grid handles the rest!
+// The grid auto-detects filter features and:
+// 1. Renders a filter toolbar above the grid
+// 2. Applies all active filters to the data
+// 3. Provides "Clear All" when filters are active
+
+_nameFilterFeatures = [
+    new FilterFeature&lt;Product, string&gt; 
+    { 
+        Placeholder = "Filter by name..." 
+    }
+];
+
+_priceFilterFeatures = [
+    new FilterFeature&lt;Product, decimal&gt; 
+    { 
+        Placeholder = "Filter by price...",
+        DebounceMilliseconds = 300
+    }
+];
+
+_stockFilterFeatures = [
+    new FilterFeature&lt;Product, int&gt; 
+    { 
+        Placeholder = "Filter by stock..." 
+    }
+];
+
+// Type-aware operators are auto-detected:
+// - String: Contains, Equals, StartsWith, EndsWith
+// - Numeric: Equals, GreaterThan, LessThan
+// - DateTime: Equals, After, Before</code></pre>
+        </div>
     </section>
 
     <section class="qg-section">
@@ -276,7 +276,6 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
             </div>
         </div>
 
-        @* Always render message container for stable structure *@
         <div class="edit-message" style="@(!string.IsNullOrEmpty(_lastEditMessage) ? "" : "display: none;")">
             <i class="bi bi-check-circle"></i> @_lastEditMessage
         </div>
@@ -315,7 +314,7 @@ var statusFeatures = new IColumnFeature&lt;Product&gt;[]
 
         <div class="code-preview">
             <h4>Editing Features Code:</h4>
-            <pre><code>// Name with text editing
+            <pre><code>// Name with text editing and validation
 var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
 {
     new InlineEditingFeature&lt;EditableProduct, string&gt;
@@ -323,8 +322,11 @@ var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
         Editor = EditorKind.Text,
         Placeholder = "Enter name...",
         ItemKey = p =&gt; p.Id,
-        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, string&gt;&gt;(
-            this, args =&gt; HandleValueChanged($"Name changed to '{args.NewValue}'"))
+        ShowValidationErrors = true,
+        Validators = [
+            new RequiredStringValidator(), 
+            new StringLengthValidator { MinLength = 2, MaxLength = 50 }
+        ]
     }
 };
 
@@ -336,33 +338,7 @@ var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
         Editor = EditorKind.Currency,
         ItemKey = p =&gt; p.Id,
         Step = "0.01",
-        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, decimal&gt;&gt;(
-            this, args =&gt; HandleValueChanged($"Price changed to {args.NewValue:C2}"))
-    }
-};
-
-// Stock with number editing
-var stockEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
-{
-    new InlineEditingFeature&lt;EditableProduct, int&gt;
-    {
-        Editor = EditorKind.Number,
-        ItemKey = p =&gt; p.Id,
-        Min = "0",
-        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, int&gt;&gt;(
-            this, args =&gt; HandleValueChanged($"Stock changed to {args.NewValue}"))
-    }
-};
-
-// Status with select dropdown
-var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
-{
-    new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt
-    {
-        Editor = EditorKind.Select,
-        ItemKey = p =&gt; p.Id,
-        OnValueChanged = EventCallback.Factory.Create&lt;ValueChangedEventArgs&lt;EditableProduct, ProductStatus&gt;&gt;(
-            this, args =&gt; HandleValueChanged($"Status changed to {args.NewValue}"))
+        Validators = [new RangeValidator&lt;decimal&gt; { Minimum = 0.01m, Maximum = 10000m }]
     }
 };</code></pre>
         </div>
@@ -417,9 +393,11 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
             <div class="feature-category">
                 <h4>Filtering Features</h4>
                 <ul>
-                    <li><code>FilterFeature</code> - Type-aware column filtering with operators</li>
-                    <li><code>FilterCoordinator</code> - Manages multiple column filters</li>
-                    <li>Built-in operators: Contains, Equals, Greater Than, Less Than, etc.</li>
+                    <li><code>FilterFeature&lt;TGridItem, TValue&gt;</code> - Grid-integrated column filtering</li>
+                    <li><code>IGridFilterFeature&lt;TGridItem&gt;</code> - Interface for grid-coordinated filters</li>
+                    <li>Auto-renders toolbar when columns have filter features</li>
+                    <li>Type-aware operators: Contains, Equals, StartsWith, GreaterThan, etc.</li>
+                    <li>Debounced input with configurable delay</li>
                 </ul>
             </div>
 
@@ -428,15 +406,16 @@ var statusEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
                 <ul>
                     <li><code>InlineEditingFeature</code> - Always-visible seamless editors with validation</li>
                     <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
-                    <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, <code>EmailValidator</code>, etc.</li>
+                    <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, etc.</li>
                 </ul>
             </div>
 
             <div class="feature-category coming-soon">
                 <h4>Coming Soon</h4>
                 <ul>
+                    <li><code>RowExpandFeature</code> - Expandable row details</li>
+                    <li><code>SelectEditorFeature</code> - Dropdown select editor</li>
                     <li><code>MemoizationFeature</code> - Caching for performance</li>
-                    <li><code>AsyncSaveFeature</code> - Async save with loading states</li>
                 </ul>
             </div>
         </div>

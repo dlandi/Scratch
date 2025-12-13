@@ -1,0 +1,63 @@
+@page "/filter-test-4"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Filtering
+
+<PageTitle>Filter Test 4 - Grid-Integrated Filter</PageTitle>
+
+<h1>Filter Test 4 - Grid-Integrated Filter</h1>
+<p>This page demonstrates the <strong>integrated filtering</strong> where:</p>
+<ul>
+    <li>Columns declare they want filtering via <code>FilterFeature</code></li>
+    <li><code>ComposableGrid</code> auto-renders the filter toolbar</li>
+    <li>Grid automatically applies all active filters to the data</li>
+</ul>
+
+<div class="grid-section">
+    <ComposableGrid TGridItem="TestItem" Items="@_items" RowKey="x => x.Id" Class="qg-grid">
+        <ComposableColumn TGridItem="TestItem" TValue="int" 
+                          Property="x => x.Id" 
+                          Title="ID" />
+        <ComposableColumn TGridItem="TestItem" TValue="string" 
+                          Property="x => x.Name" 
+                          Title="Name"
+                          FeatureCollection="@_nameFeatures" />
+        <ComposableColumn TGridItem="TestItem" TValue="decimal" 
+                          Property="x => x.Value" 
+                          Title="Value" 
+                          Format="C2"
+                          FeatureCollection="@_valueFeatures" />
+        <ComposableColumn TGridItem="TestItem" TValue="int" 
+                          Property="x => x.Stock" 
+                          Title="Stock"
+                          FeatureCollection="@_stockFeatures" />
+    </ComposableGrid>
+</div>
+
+<p style="margin-top: 1rem;">Total source items: @_items.Count()</p>
+
+@code {
+    private IQueryable<TestItem> _items = Array.Empty<TestItem>().AsQueryable();
+    
+    // Feature collections - only need to add FilterFeature to enable filtering
+    private IColumnFeature<TestItem>[] _nameFeatures = [new FilterFeature<TestItem, string>()];
+    private IColumnFeature<TestItem>[] _valueFeatures = [new FilterFeature<TestItem, decimal>()];
+    private IColumnFeature<TestItem>[] _stockFeatures = [new FilterFeature<TestItem, int>()];
+
+    protected override void OnInitialized()
+    {
+        _items = new List<TestItem>
+        {
+            new(1, "Apple", 1.50m, 100),
+            new(2, "Banana", 0.75m, 150),
+            new(3, "Cherry", 2.00m, 50),
+            new(4, "Date", 3.00m, 25),
+            new(5, "Elderberry", 4.50m, 10),
+            new(6, "Fig", 2.25m, 75),
+            new(7, "Grape", 1.25m, 200),
+            new(8, "Honeydew", 3.50m, 30),
+        }.AsQueryable();
+    }
+
+    public record TestItem(int Id, string Name, decimal Value, int Stock);
+}

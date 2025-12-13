@@ -17,6 +17,11 @@ public static class FeaturePriority
     public const int Core = 100;
 
     /// <summary>
+    /// Filtering features (filter state, filter application).
+    /// </summary>
+    public const int Filtering = 150;
+
+    /// <summary>
     /// Formatting features (format string, custom formatter, culture).
     /// </summary>
     public const int Formatting = 200;

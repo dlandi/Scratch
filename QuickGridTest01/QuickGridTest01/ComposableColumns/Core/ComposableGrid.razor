@@ -3,13 +3,36 @@
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.AspNetCore.Components
 
-<CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
-    <QuickGrid TGridItem="TGridItem" Items="Items" @attributes="AdditionalAttributes">
-        @ChildContent
-    </QuickGrid>
+<CascadingValue Value="this" TValue="ComposableGrid<TGridItem>">
+    <CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
+        @* Render filter toolbar if any columns have filter features *@
+        @if (_filterFeatures.Count > 0)
+        {
+            <div class="composable-grid-filter-toolbar">
+                @foreach (var filter in _filterFeatures)
+                {
+                    @FilterInputFragment(filter)
+                }
+                <div class="filter-toolbar-actions">
+                    @if (HasActiveFilters)
+                    {
+                        <button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
+                            <i class="bi bi-x-circle"></i> Clear
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+
+        <QuickGrid TGridItem="TGridItem" Items="FilteredItems" @attributes="AdditionalAttributes">
+            @ChildContent
+        </QuickGrid>
+    </CascadingValue>
 </CascadingValue>
 
 @code {
+    private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
+
     /// <summary>
     /// The data source for the grid.
     /// </summary>
@@ -17,7 +40,6 @@
 
     /// <summary>
     /// Optional row key selector used for SetKey and key-dependent features.
-    /// When null, core will not call SetKey.
     /// </summary>
     [Parameter] public Func<TGridItem, object>? RowKey { get; set; }
 
@@ -25,4 +47,77 @@
 
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets the filtered items after applying all active filters.
+    /// </summary>
+    private IQueryable<TGridItem> FilteredItems
+    {
+        get
+        {
+            var result = Items;
+
+            foreach (var filter in _filterFeatures.Where(f => f.HasActiveFilter))
+            {
+                result = filter.ApplyFilter(result);
+            }
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Gets whether any filter is currently active.
+    /// </summary>
+    public bool HasActiveFilters => _filterFeatures.Any(f => f.HasActiveFilter);
+
+    /// <summary>
+    /// Registers a filter feature with the grid.
+    /// Called by ComposableColumn when it detects a filter feature.
+    /// </summary>
+    internal void RegisterFilter(IGridFilterFeature<TGridItem> filter)
+    {
+        if (!_filterFeatures.Contains(filter))
+        {
+            _filterFeatures.Add(filter);
+            filter.OnFilterChanged += OnFilterChangedAsync;
+
+            // Trigger re-render to show the filter toolbar
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Unregisters a filter feature from the grid.
+    /// </summary>
+    internal void UnregisterFilter(IGridFilterFeature<TGridItem> filter)
+    {
+        if (_filterFeatures.Remove(filter))
+        {
+            filter.OnFilterChanged -= OnFilterChangedAsync;
+        }
+    }
+
+    private async Task OnFilterChangedAsync()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Clears all active filters.
+    /// </summary>
+    public async Task ClearAllFiltersAsync()
+    {
+        foreach (var filter in _filterFeatures)
+        {
+            await filter.ClearFilterAsync();
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private RenderFragment FilterInputFragment(IGridFilterFeature<TGridItem> filter) => builder =>
+    {
+        var seq = 0;
+        filter.RenderFilterInput(builder, ref seq);
+    };
 }

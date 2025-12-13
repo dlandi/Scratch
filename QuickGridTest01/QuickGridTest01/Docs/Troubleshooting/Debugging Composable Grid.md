@@ -4,7 +4,7 @@
 
 This document catalogs the runtime errors encountered while developing the Composable Grid system for Blazor Server, along with all attempted fixes and their outcomes.
 
-**Status: ? RESOLVED** - Root cause identified and fixed.
+**Status: ? RESOLVED** - Root cause identified and fixed. Grid-integrated filtering now working.
 
 ---
 
@@ -46,8 +46,6 @@ protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
 According to Blazor's `RenderTreeBuilder` documentation:
 > **`SetKey()` must be called immediately AFTER `OpenElement()` or `OpenComponent()`**
 
-Calling `SetKey()` at the wrong time corrupts the internal render tree structure, causing the "pooled instance" error when Blazor tries to diff the trees.
-
 ### The Fix
 
 Remove the incorrect `SetKey()` call:
@@ -70,41 +68,64 @@ protected override void CellContent(RenderTreeBuilder builder, TGridItem item)
 ```
 
 ### File Modified
-- `ComposableColumns/Core/ComposableColumn.cs` - Removed incorrect `SetKey()` call from `CellContent()` method
+- `ComposableColumns/Core/ComposableColumn.cs` - Removed incorrect `SetKey()` call
 
 ---
 
-## Isolation Testing Process
+## Grid-Integrated Filtering Implementation ?
 
-We used a systematic isolation approach to find the root cause:
+### Architecture
 
-| Test | Components Used | Result |
-|------|-----------------|--------|
-| Filter Test 1 | Plain `<input>` + `QuickGrid` | ? Works |
-| Filter Test 2 | `FilterInput.razor` + `QuickGrid` | ? Works |
-| Filter Test 3 | `FilterInput.razor` + `ComposableGrid` + `ComposableColumn` (no features) | ? Failed ? ? Fixed |
+The filtering system now uses a **grid-integrated approach** where:
 
-This process eliminated:
-- ? QuickGrid itself
-- ? Blazor Server's IQueryable handling
-- ? `FilterInput.razor` component
-- ? POCO-based features
-- ? **Identified `ComposableColumn.CellContent()` as the culprit**
+1. **Columns declare filtering** via `FilterFeature<TGridItem, TValue>` in `FeatureCollection`
+2. **Grid auto-detects filters** and renders a toolbar automatically
+3. **Grid applies all active filters** to the source data
+4. **No manual filter state management** required in parent components
+
+### Key Components
+
+| Component | Role |
+|-----------|------|
+| `IGridFilterFeature<TGridItem>` | Interface for grid-integrated filters |
+| `FilterFeature<TGridItem, TValue>` | Implements filter logic and renders UI |
+| `ComposableGrid` | Detects filters, renders toolbar, applies filters |
+| `ComposableColumn` | Registers filter features with grid |
+
+### Usage Example
+
+```razor
+<ComposableGrid TGridItem="Product" Items="@_products">
+    <ComposableColumn TGridItem="Product" TValue="string"
+                      Property="@(p => p.Name)"
+                      Title="Name"
+                      FeatureCollection="@_nameFilterFeatures" />
+</ComposableGrid>
+
+@code {
+    // Just add FilterFeature - grid handles the rest!
+    private IColumnFeature<Product>[] _nameFilterFeatures = 
+        [new FilterFeature<Product, string>()];
+}
+```
+
+### Key Implementation Details
+
+1. **Filter Registration Timing**: `ComposableColumn` registers filters with grid in `OnParametersSet()` after cascading parameter is available
+2. **Re-render Trigger**: `ComposableGrid.RegisterFilter()` calls `StateHasChanged()` to show toolbar
+3. **Filter Application**: `ComposableGrid.FilteredItems` property applies all active filters
 
 ---
 
-## Previous Attempted Fixes (Before Root Cause Found)
+## Test Pages
 
-These fixes were not the root cause but may still provide value:
-
-### Attempt 1-6: Various Fixes
-- Fixed sequence numbers
-- CSS hiding for conditional elements
-- CancellationTokenSource for debouncing
-- Simplified bindings
-- Exception handling
-
-**Note:** While not the root cause, some of these are still best practices and remain in the codebase.
+| Page | Purpose | Status |
+|------|---------|--------|
+| `/filter-test` | Plain input + QuickGrid baseline | ? Works |
+| `/filter-test-2` | FilterInput component + QuickGrid | ? Works |
+| `/filter-test-3` | ComposableColumn without features | ? Works |
+| `/filter-test-4` | Grid-integrated FilterFeature | ? Works |
+| `/composable-demo` | Full demo with all features | ? Works |
 
 ---
 
@@ -116,32 +137,19 @@ These fixes were not the root cause but may still provide value:
 // ? CORRECT - SetKey immediately after OpenElement
 builder.OpenElement(0, "div");
 builder.SetKey(item.Id);
-builder.AddAttribute(1, "class", "my-class");
-builder.CloseElement();
 
 // ? WRONG - SetKey before any element
 builder.SetKey(item.Id);  // CRASH!
 builder.OpenElement(0, "div");
 ```
 
-### Other Best Practices
+### Best Practices
 
 1. **Use fixed sequence numbers in conditionals**
 2. **Always render containers, hide with CSS**
 3. **Use `SetKey` for loops with dynamic items**
-4. **Use `CancellationTokenSource` for debouncing (not `Timer`)**
-
----
-
-## Test Pages Created
-
-| Page | Purpose | Status |
-|------|---------|--------|
-| `/filter-test` | Plain input + QuickGrid | ? Works |
-| `/filter-test-2` | FilterInput + QuickGrid | ? Works |
-| `/filter-test-3` | FilterInput + ComposableGrid + ComposableColumn | ? Works (after fix) |
+4. **Use `CancellationTokenSource` for debouncing**
 
 ---
 
 *Last Updated: December 13, 2024*
-*Resolution: Removed incorrect `SetKey()` call in `ComposableColumn.CellContent()`*

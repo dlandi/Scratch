@@ -17,6 +17,9 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     [CascadingParameter]
     public Func<TGridItem, object>? RowKey { get; set; }
 
+    [CascadingParameter]
+    public ComposableGrid<TGridItem>? Grid { get; set; }
+
     private readonly List<IColumnFeature<TGridItem>> _features = [];
     private FeatureContext<TGridItem, TValue>? _context;
     private bool _initialized;
@@ -172,6 +175,9 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             Initialize();
             _initialized = true;
         }
+
+        // Register filter features with grid (may not be available on first pass)
+        RegisterFilterFeaturesWithGrid();
     }
 
     private void Initialize()
@@ -181,6 +187,25 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         {
             feature.OnAttach(Context);
         }
+    }
+
+    private bool _filtersRegistered;
+
+    private void RegisterFilterFeaturesWithGrid()
+    {
+        // Only register once, and only if Grid is available
+        if (_filtersRegistered || Grid is null)
+            return;
+
+        foreach (var feature in _features)
+        {
+            if (feature is IGridFilterFeature<TGridItem> filterFeature)
+            {
+                Grid.RegisterFilter(filterFeature);
+            }
+        }
+
+        _filtersRegistered = true;
     }
 
     private FeatureContext<TGridItem, TValue> CreateContext()
@@ -263,9 +288,15 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         if (_disposed) return;
         _disposed = true;
 
-        // Detach all features
+        // Unregister filter features and detach all features
         foreach (var feature in _features)
         {
+            // Unregister filter features from the grid
+            if (feature is IGridFilterFeature<TGridItem> filterFeature && Grid is not null)
+            {
+                Grid.UnregisterFilter(filterFeature);
+            }
+
             feature.OnDetach(Context);
         }
 

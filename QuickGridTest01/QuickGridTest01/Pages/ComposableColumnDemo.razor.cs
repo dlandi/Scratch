@@ -16,56 +16,19 @@ public partial class ComposableColumnDemo
     private IQueryable<EditableProduct> _editableProducts = default!;
     private IQueryable<FeaturePriorityInfo> _featurePriorities = default!;
     private string _lastEditMessage = "";
-    private string _filterMessage = "";
 
-    // Feature collections for the demo
+    // Grid reference for filtering section
+    private ComposableGrid<Product>? _filterGrid;
+
+    // Feature collections for styling demo
     private IColumnFeature<Product>[] _stockFeatures = default!;
     private IColumnFeature<Product>[] _statusFeatures = default!;
     private IColumnFeature<Product>[] _priceFeatures = default!;
 
-    // Filter state - using simple values instead of FilterFeature POCOs
-    private string? _nameFilterValue;
-    private decimal _priceFilterValue;
-    private int _stockFilterValue;
-    private IFilterOperator<string>? _nameFilterOperator;
-    private IFilterOperator<decimal>? _priceFilterOperator;
-    private IFilterOperator<int>? _stockFilterOperator;
-    private bool _hasPriceFilter;
-    private bool _hasStockFilter;
-
-    private bool _hasActiveFilters => 
-        !string.IsNullOrEmpty(_nameFilterValue) || 
-        _hasPriceFilter || 
-        _hasStockFilter;
-
-    // Filtered products query - applies filters inline
-    private IQueryable<Product> FilteredProducts
-    {
-        get
-        {
-            var result = _products;
-            
-            // Apply name filter
-            if (!string.IsNullOrEmpty(_nameFilterValue) && _nameFilterOperator is not null)
-            {
-                result = _nameFilterOperator.Apply(result, p => p.Name, _nameFilterValue);
-            }
-            
-            // Apply price filter
-            if (_hasPriceFilter && _priceFilterOperator is not null)
-            {
-                result = _priceFilterOperator.Apply(result, p => p.Price, _priceFilterValue);
-            }
-            
-            // Apply stock filter
-            if (_hasStockFilter && _stockFilterOperator is not null)
-            {
-                result = _stockFilterOperator.Apply(result, p => p.Stock, _stockFilterValue);
-            }
-            
-            return result;
-        }
-    }
+    // Filter feature collections - grid auto-renders toolbar when these are present
+    private IColumnFeature<Product>[] _nameFilterFeatures = default!;
+    private IColumnFeature<Product>[] _priceFilterFeatures = default!;
+    private IColumnFeature<Product>[] _stockFilterFeatures = default!;
 
     // Editing feature collections
     private IColumnFeature<EditableProduct>[] _nameEditFeatures = default!;
@@ -77,6 +40,7 @@ public partial class ComposableColumnDemo
     {
         InitializeProducts();
         InitializeFeatures();
+        InitializeFilterFeatures();
         InitializeEditingFeatures();
         InitializeFeaturePriorities();
     }
@@ -102,50 +66,12 @@ public partial class ComposableColumnDemo
         }.AsQueryable();
     }
 
-    // Filter event handlers
-    private void OnNameFilterApplied(FilterInputEventArgs<string> args)
+    private void InitializeFilterFeatures()
     {
-        _nameFilterValue = args.Value;
-        _nameFilterOperator = args.Operator;
-        UpdateFilterMessage("Name", args.HasValue, args.Operator?.Name, args.Value);
-    }
-
-    private void OnPriceFilterApplied(FilterInputEventArgs<decimal> args)
-    {
-        _priceFilterValue = args.Value;
-        _priceFilterOperator = args.Operator;
-        _hasPriceFilter = args.HasValue;
-        UpdateFilterMessage("Price", args.HasValue, args.Operator?.Name, args.HasValue ? args.Value.ToString("C2") : null);
-    }
-
-    private void OnStockFilterApplied(FilterInputEventArgs<int> args)
-    {
-        _stockFilterValue = args.Value;
-        _stockFilterOperator = args.Operator;
-        _hasStockFilter = args.HasValue;
-        UpdateFilterMessage("Stock", args.HasValue, args.Operator?.Name, args.HasValue ? args.Value.ToString() : null);
-    }
-
-    private void UpdateFilterMessage(string field, bool hasValue, string? operatorName, string? value)
-    {
-        if (hasValue && !string.IsNullOrEmpty(value))
-        {
-            _filterMessage = $"Filtering {field} by {operatorName}: {value}";
-        }
-        else
-        {
-            _filterMessage = "";
-        }
-    }
-
-    private void ClearAllFilters()
-    {
-        _nameFilterValue = null;
-        _priceFilterValue = 0;
-        _stockFilterValue = 0;
-        _hasPriceFilter = false;
-        _hasStockFilter = false;
-        _filterMessage = "All filters cleared";
+        // Simply add FilterFeature to columns - grid handles the rest
+        _nameFilterFeatures = [new FilterFeature<Product, string> { Placeholder = "Filter by name..." }];
+        _priceFilterFeatures = [new FilterFeature<Product, decimal> { Placeholder = "Filter by price..." }];
+        _stockFilterFeatures = [new FilterFeature<Product, int> { Placeholder = "Filter by stock..." }];
     }
 
     private void InitializeFeatures()
