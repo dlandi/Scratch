@@ -1,12 +1,12 @@
 # Features
-````````
+
 
 This is the description of what the code block changes:
 Create a comprehensive features matrix documenting all custom QuickGrid columns and their capabilities
 
 This is the code block that represents the suggested code change:
 
-````````markdown
+
 # Custom QuickGrid Columns - Features Matrix
 
 This document provides a comprehensive overview of all custom QuickGrid column implementations in this application, comparing their features and capabilities.
