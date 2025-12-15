@@ -38,12 +38,18 @@ public partial class ComposableColumnDemo
     private IColumnFeature<EditableProduct>[] _stockEditFeatures = default!;
     private IColumnFeature<EditableProduct>[] _statusEditFeatures = default!;
 
+    // New editor type demo features
+    private IColumnFeature<EditableProduct>[] _autoNameFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _autoPriceFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _radioStatusFeatures = default!;
+
     protected override void OnInitialized()
     {
         InitializeProducts();
         InitializeFeatures();
         InitializeFilterFeatures();
         InitializeEditingFeatures();
+        InitializeNewEditorFeatures();
         InitializeFeaturePriorities();
     }
 
@@ -181,20 +187,60 @@ public partial class ComposableColumnDemo
             }
         ];
 
-        // Status with select dropdown - no validation needed for discrete selections
-        _statusEditFeatures =
-        [
-            new InlineEditingFeature<EditableProduct, ProductStatus>
-            {
-                Editor = EditKind.Select,
-                ItemKey = p => p.Id,
-                OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, ProductStatus>>(
-                    this, args => HandleValueChanged($"Status changed from {args.OldValue} to {args.NewValue}"))
-            }
-        ];
-    }
+            // Status with select dropdown - no validation needed for discrete selections
+            _statusEditFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, ProductStatus>
+                {
+                    Editor = EditKind.Select,
+                    ItemKey = p => p.Id,
+                    OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, ProductStatus>>(
+                        this, args => HandleValueChanged($"Status changed from {args.OldValue} to {args.NewValue}"))
+                }
+            ];
+        }
 
-    private void HandleValueChanged(string message)
+        private void InitializeNewEditorFeatures()
+        {
+            // Auto-detect editor from property type
+            _autoNameFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, string>
+                {
+                    Editor = EditKind.Auto, // Detects Text from string
+                    ItemKey = p => p.Id,
+                    Placeholder = "Auto-detected text..."
+                }
+            ];
+
+            _autoPriceFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, decimal>
+                {
+                    Editor = EditKind.Auto, // Detects Number from decimal
+                    ItemKey = p => p.Id
+                }
+            ];
+
+            // RadioGroup for enum values
+            _radioStatusFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, ProductStatus>
+                {
+                    Editor = EditKind.RadioGroup,
+                    ItemKey = p => p.Id,
+                    OptionText = s => s switch
+                    {
+                        ProductStatus.Active => "? Active",
+                        ProductStatus.Discontinued => "? Discontinued",
+                        ProductStatus.ComingSoon => "? Coming Soon",
+                        _ => s.ToString()
+                    }
+                }
+            ];
+        }
+
+        private void HandleValueChanged(string message)
     {
         _lastEditMessage = message;
         StateHasChanged();

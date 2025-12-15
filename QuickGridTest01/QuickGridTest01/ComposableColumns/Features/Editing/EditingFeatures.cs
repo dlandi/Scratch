@@ -1,7 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using QuickGridTest01.ComposableColumns.Core;
+using QuickGridTest01.ComposableColumns.Infrastructure;
+
+// Alias to avoid conflict with local ValidationResult
+using DataAnnotationsValidationResult = System.ComponentModel.DataAnnotations.ValidationResult;
 
 namespace QuickGridTest01.ComposableColumns.Features.Editing;
 
@@ -19,13 +25,17 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     // Track current values per item for dirty checking
     private readonly Dictionary<object, TValue> _originalValues = new();
     private readonly Dictionary<object, TValue> _currentValues = new();
-    
+
     // Track validation state per item
     private readonly Dictionary<object, List<ValidationResult>> _validationResults = new();
-    
+
     // Track which items are currently being edited (have focus)
     private readonly HashSet<object> _editingItems = new();
-    
+
+    // Cached DataAnnotation validation attributes discovered from the property
+    private ValidationAttribute[]? _dataAnnotationAttributes;
+    private string? _propertyName;
+
     private bool _disposed;
 
     /// <summary>
@@ -69,9 +79,22 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     public bool ShowValidationErrors { get; set; } = true;
 
     /// <summary>
+    /// Whether to use DataAnnotations attributes for validation.
+    /// When true, validation attributes on the property (Required, StringLength, Range, etc.) 
+    /// will be discovered and used for validation on blur.
+    /// </summary>
+    public bool UseDataAnnotations { get; set; } = false;
+
+    /// <summary>
     /// Options for select editor type.
     /// </summary>
     public IEnumerable<SelectOption<TValue>>? SelectOptions { get; set; }
+
+    /// <summary>
+    /// Custom function to get display text for an option value.
+    /// When provided, this is used instead of SelectOption.Label.
+    /// </summary>
+    public Func<TValue, string>? OptionText { get; set; }
 
     /// <summary>
     /// Minimum value for number editors.
@@ -87,6 +110,11 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// Step value for number editors.
     /// </summary>
     public string? Step { get; set; }
+
+    /// <summary>
+    /// Number of rows for TextArea editor. Default is 3.
+    /// </summary>
+    public int Rows { get; set; } = 3;
 
     /// <summary>
     /// Function to get a unique key for an item.
@@ -105,10 +133,36 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
 
     public void OnAttach(FeatureContext<TGridItem> context)
     {
-        // Nothing to do on attach
+        // Discover DataAnnotation attributes if enabled
+        if (UseDataAnnotations && context is FeatureContext<TGridItem, TValue> typedContext)
+        {
+            DiscoverDataAnnotationAttributes(typedContext);
+        }
     }
 
-    public void OnDetach(FeatureContext<TGridItem> context)
+    /// <summary>
+    /// Discovers DataAnnotation validation attributes from the property expression.
+    /// </summary>
+    private void DiscoverDataAnnotationAttributes(FeatureContext<TGridItem, TValue> context)
+    {
+        if (context.PropertyExpression is null)
+            return;
+
+            // Extract property info from the expression
+            if (context.PropertyExpression.Body is System.Linq.Expressions.MemberExpression memberExpr &&
+                memberExpr.Member is System.Reflection.PropertyInfo propertyInfo)
+            {
+                _propertyName = propertyInfo.Name;
+
+                // Get all ValidationAttribute instances from the property
+                _dataAnnotationAttributes = propertyInfo
+                    .GetCustomAttributes(typeof(ValidationAttribute), inherit: true)
+                    .Cast<ValidationAttribute>()
+                    .ToArray();
+            }
+        }
+
+        public void OnDetach(FeatureContext<TGridItem> context)
     {
         Dispose();
     }
@@ -244,7 +298,9 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
-        switch (Editor)
+        var effectiveEditor = GetEffectiveEditorKind();
+
+        switch (effectiveEditor)
         {
             case EditorKind.Checkbox:
                 RenderCheckboxEditor(builder, baseSeq, item, context, currentValue);
@@ -256,6 +312,10 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
 
             case EditorKind.TextArea:
                 RenderTextAreaEditor(builder, baseSeq, item, context, currentValue);
+                break;
+
+            case EditorKind.RadioGroup:
+                RenderRadioGroupEditor(builder, baseSeq, item, context, currentValue);
                 break;
 
             default:
@@ -352,35 +412,44 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                 builder.OpenElement(baseSeq + 10, "option");
                 builder.SetKey(optionIndex);
                 builder.AddAttribute(baseSeq + 11, "value", option.Value?.ToString() ?? "");
-                
+
                 var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
                 if (isSelected)
                 {
                     builder.AddAttribute(baseSeq + 12, "selected", true);
                 }
-                
-                builder.AddContent(baseSeq + 13, option.Label);
+
+                // Use OptionText mapper if provided, otherwise use Label
+                var displayText = OptionText is not null && option.Value is not null 
+                    ? OptionText(option.Value) 
+                    : option.Label;
+                builder.AddContent(baseSeq + 13, displayText);
                 builder.CloseElement();
                 optionIndex++;
             }
         }
-        else if (typeof(TValue).IsEnum)
+        else if (TypeTraits<TValue>.IsEnum)
         {
-            var enumValues = Enum.GetValues(typeof(TValue));
+            // Use TypeTraits to build enum options
+            var enumOptions = TypeTraits<TValue>.BuildEnumOptions();
             var optionIndex = 0;
-            foreach (var enumValue in enumValues)
+            foreach (var option in enumOptions)
             {
                 builder.OpenElement(baseSeq + 10, "option");
                 builder.SetKey(optionIndex);
-                builder.AddAttribute(baseSeq + 11, "value", enumValue.ToString());
-                
-                var isSelected = enumValue.Equals(currentValue);
+                builder.AddAttribute(baseSeq + 11, "value", option.Value?.ToString() ?? "");
+
+                var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
                 if (isSelected)
                 {
                     builder.AddAttribute(baseSeq + 12, "selected", true);
                 }
-                
-                builder.AddContent(baseSeq + 13, enumValue.ToString());
+
+                // Use OptionText mapper if provided, otherwise use Text from TypeTraits
+                var displayText = OptionText is not null && option.Value is not null
+                    ? OptionText(option.Value)
+                    : option.Text;
+                builder.AddContent(baseSeq + 13, displayText);
                 builder.CloseElement();
                 optionIndex++;
             }
@@ -399,46 +468,137 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         builder.OpenElement(baseSeq + 0, "textarea");
         builder.AddAttribute(baseSeq + 1, "class", EditorClass);
         builder.AddAttribute(baseSeq + 2, "placeholder", Placeholder ?? "");
+        builder.AddAttribute(baseSeq + 3, "rows", Rows);
 
-        builder.AddAttribute(baseSeq + 3, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
+        builder.AddAttribute(baseSeq + 4, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
             context.EventReceiver ?? (object)this, e => HandleInput(item, e.Value?.ToString())));
 
-        builder.AddAttribute(baseSeq + 4, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
+        builder.AddAttribute(baseSeq + 5, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
             context.EventReceiver ?? (object)this, _ => HandleFocus(item)));
 
-        builder.AddAttribute(baseSeq + 5, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
+        builder.AddAttribute(baseSeq + 6, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
             context.EventReceiver ?? (object)this, async _ => await HandleBlurAsync(item, context)));
 
-        builder.AddContent(baseSeq + 6, FormatValue(currentValue));
+        builder.AddContent(baseSeq + 7, FormatValue(currentValue));
         builder.CloseElement();
     }
 
-    private string GetInputType() => Editor switch
+    private void RenderRadioGroupEditor(
+        RenderTreeBuilder builder,
+            int baseSeq,
+            TGridItem item,
+            FeatureContext<TGridItem, TValue> context,
+            TValue currentValue)
+        {
+            builder.OpenElement(baseSeq + 0, "div");
+            builder.AddAttribute(baseSeq + 1, "class", "radio-group");
+            builder.AddAttribute(baseSeq + 2, "role", "radiogroup");
+
+                    // Get options - either from SelectOptions or build from enum values
+                    IEnumerable<SelectOption<TValue>> options;
+                    if (SelectOptions is not null)
+                    {
+                        options = SelectOptions;
+                    }
+                    else if (TypeTraits<TValue>.IsEnum)
+                    {
+                        // Build options from enum using TypeTraits, converting to local SelectOption type
+                        options = TypeTraits<TValue>.BuildEnumOptions()
+                            .Select(o => new SelectOption<TValue> { Value = o.Value, Label = o.Text });
+                    }
+                    else
+                    {
+                        options = [];
+                    }
+
+                    var optionIndex = 0;
+                    foreach (var option in options)
+                    {
+                        var radioId = $"radio_{GetItemKey(item)}_{optionIndex}";
+                        var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
+
+                        builder.OpenElement(baseSeq + 10, "label");
+                        builder.SetKey(optionIndex);
+                        builder.AddAttribute(baseSeq + 11, "class", "radio-option");
+
+                        builder.OpenElement(baseSeq + 12, "input");
+                        builder.AddAttribute(baseSeq + 13, "type", "radio");
+                        builder.AddAttribute(baseSeq + 14, "id", radioId);
+                        builder.AddAttribute(baseSeq + 15, "name", $"radio_{GetItemKey(item)}");
+                        builder.AddAttribute(baseSeq + 16, "value", option.Value?.ToString() ?? "");
+                        builder.AddAttribute(baseSeq + 17, "checked", isSelected);
+
+                        builder.AddAttribute(baseSeq + 18, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+                            context.EventReceiver ?? (object)this, async e =>
+                            {
+                                HandleInput(item, e.Value?.ToString());
+                                await ValidateAndCommitAsync(item, context);
+                            }));
+
+                        builder.CloseElement(); // input
+
+                        // Use OptionText mapper if provided, otherwise use Label
+                        var displayText = OptionText is not null && option.Value is not null
+                            ? OptionText(option.Value)
+                            : option.Label;
+                        builder.OpenElement(baseSeq + 19, "span");
+                        builder.AddContent(baseSeq + 20, displayText);
+                        builder.CloseElement(); // span
+
+                        builder.CloseElement(); // label
+                        optionIndex++;
+                    }
+
+                    builder.CloseElement(); // div
+                }
+
+            /// <summary>
+            /// Gets the effective editor kind, resolving Auto to a specific editor based on TypeTraits.
+            /// </summary>
+            private EditorKind GetEffectiveEditorKind()
     {
-        EditorKind.Number or EditorKind.Currency => "number",
-        EditorKind.Date => "date",
-        EditorKind.DateTime => "datetime-local",
-        EditorKind.Email => "email",
-        EditorKind.Url => "url",
-        EditorKind.Tel => "tel",
-        _ => "text"
-    };
+        if (Editor != EditorKind.Auto)
+            return Editor;
 
-    private static string FormatValue(TValue value)
-    {
-        if (value is null)
-            return string.Empty;
-
-        if (value is DateTime dt)
-            return dt.ToString("yyyy-MM-ddTHH:mm");
-
-        if (value is DateOnly d)
-            return d.ToString("yyyy-MM-dd");
-
-        return value.ToString() ?? string.Empty;
+        // Use TypeTraits to infer the appropriate editor
+        return TypeTraits<TValue>.Kind switch
+        {
+            ValueKind.Boolean => EditorKind.Checkbox,
+            ValueKind.Date => EditorKind.Date,
+            ValueKind.Time => EditorKind.Time,
+            ValueKind.DateTime => EditorKind.DateTime,
+            ValueKind.Int32 or ValueKind.Int64 => EditorKind.Number,
+            ValueKind.Decimal or ValueKind.Double or ValueKind.Single => EditorKind.Number,
+            ValueKind.Enum => EditorKind.Select,
+            ValueKind.String => EditorKind.Text,
+            _ => EditorKind.Text
+        };
     }
 
-    private object GetItemKey(TGridItem item)
+    private string GetInputType()
+    {
+        var effectiveEditor = GetEffectiveEditorKind();
+        return effectiveEditor switch
+        {
+            EditorKind.Number or EditorKind.Currency => "number",
+            EditorKind.Date => "date",
+            EditorKind.DateTime => "datetime-local",
+                    EditorKind.Time => "time",
+                    EditorKind.Email => "email",
+                    EditorKind.Url => "url",
+                    EditorKind.Tel => "tel",
+                    _ => "text"
+                };
+            }
+
+            private string FormatValue(TValue value)
+            {
+                // Use TypeTraits for fast, cached formatting with editor-specific handling
+                var effectiveEditor = GetEffectiveEditorKind();
+                return TypeTraits<TValue>.FormatForInput(value, effectiveEditor, CultureInfo.InvariantCulture);
+            }
+
+            private object GetItemKey(TGridItem item)
     {
         if (ItemKey is not null)
             return ItemKey(item);
@@ -452,9 +612,13 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     private void HandleInput(TGridItem item, string? newValueString)
     {
         var itemKey = GetItemKey(item);
-        var newValue = ParseValue(newValueString);
-        _currentValues[itemKey] = newValue!;
-        
+
+        // Use TypeTraits for fast, cached parsing
+        if (TypeTraits<TValue>.TryParseFromEventValue(newValueString, CultureInfo.InvariantCulture, out var parsed))
+        {
+            _currentValues[itemKey] = parsed!;
+        }
+
         // Clear previous validation errors while editing
         _validationResults[itemKey] = [];
     }
@@ -488,54 +652,57 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     private async Task ValidateAndCommitAsync(TGridItem item, FeatureContext<TGridItem, TValue> context)
     {
         if (_disposed) return;
-        
+
         var itemKey = GetItemKey(item);
-        
+
         if (!_currentValues.TryGetValue(itemKey, out var currentValue))
             return;
 
         try
         {
-            // Run validation if there are validators
+            var results = new List<ValidationResult>();
+
+            // Run custom validators
             if (Validators.Count > 0)
             {
-                var results = new List<ValidationResult>();
                 foreach (var validator in Validators)
                 {
                     var result = await validator.ValidateAsync(currentValue);
                     results.Add(result);
                 }
+            }
 
-                _validationResults[itemKey] = results;
-                var allValid = results.All(r => r.IsValid);
+            // Run DataAnnotation validators
+            if (UseDataAnnotations && _dataAnnotationAttributes is not null && _dataAnnotationAttributes.Length > 0)
+            {
+                var dataAnnotationResults = ValidateWithDataAnnotations(item, currentValue);
+                results.AddRange(dataAnnotationResults);
+            }
 
-                // Fire validation completed event
-                if (OnValidationCompleted.HasDelegate)
-                {
-                    await OnValidationCompleted.InvokeAsync(new ValidationCompletedEventArgs<TGridItem, TValue>
-                    {
-                        Item = item,
-                        Value = currentValue,
-                        IsValid = allValid,
-                        Errors = results.Where(r => !r.IsValid).Select(r => r.ErrorMessage ?? "Invalid").ToList()
-                    });
-                }
+            _validationResults[itemKey] = results;
+            var allValid = results.Count == 0 || results.All(r => r.IsValid);
 
-                // Only commit if valid
-                if (allValid)
+            // Fire validation completed event
+            if (OnValidationCompleted.HasDelegate)
+            {
+                await OnValidationCompleted.InvokeAsync(new ValidationCompletedEventArgs<TGridItem, TValue>
                 {
-                    await CommitValueAsync(item, context, currentValue);
-                }
-                else
-                {
-                    // Refresh to show errors
-                    await SafeRefreshAsync(context);
-                }
+                    Item = item,
+                    Value = currentValue,
+                    IsValid = allValid,
+                    Errors = results.Where(r => !r.IsValid).Select(r => r.ErrorMessage ?? "Invalid").ToList()
+                });
+            }
+
+            // Only commit if valid
+            if (allValid)
+            {
+                await CommitValueAsync(item, context, currentValue);
             }
             else
             {
-                // No validators, just commit
-                await CommitValueAsync(item, context, currentValue);
+                // Refresh to show errors
+                await SafeRefreshAsync(context);
             }
         }
         catch (ObjectDisposedException)
@@ -546,6 +713,33 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         {
             // Circuit disconnected - ignore
         }
+    }
+
+    /// <summary>
+    /// Validates a value using discovered DataAnnotation attributes.
+    /// </summary>
+    private List<ValidationResult> ValidateWithDataAnnotations(TGridItem item, TValue? value)
+    {
+        var results = new List<ValidationResult>();
+
+        if (_dataAnnotationAttributes is null || _dataAnnotationAttributes.Length == 0)
+            return results;
+
+        var validationContext = new ValidationContext(item!)
+        {
+            MemberName = _propertyName
+        };
+
+        foreach (var attribute in _dataAnnotationAttributes)
+        {
+            var validationResult = attribute.GetValidationResult(value, validationContext);
+            if (validationResult is not null && validationResult != DataAnnotationsValidationResult.Success)
+            {
+                results.Add(ValidationResult.Failure(validationResult.ErrorMessage ?? "Validation failed"));
+            }
+        }
+
+        return results;
     }
 
     /// <summary>
@@ -670,57 +864,12 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             // Component/circuit was disposed - ignore
         }
         catch (InvalidOperationException)
-        {
-            // Circuit disconnected - ignore
+            {
+                // Circuit disconnected - ignore
+            }
         }
-    }
 
-    private static TValue? ParseValue(string? stringValue)
-    {
-        if (string.IsNullOrEmpty(stringValue))
-            return default;
-
-        var targetType = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
-
-        try
-        {
-            if (targetType == typeof(string))
-                return (TValue)(object)stringValue;
-
-            if (targetType == typeof(int))
-                return (TValue)(object)int.Parse(stringValue);
-
-            if (targetType == typeof(decimal))
-                return (TValue)(object)decimal.Parse(stringValue);
-
-            if (targetType == typeof(double))
-                return (TValue)(object)double.Parse(stringValue);
-
-            if (targetType == typeof(float))
-                return (TValue)(object)float.Parse(stringValue);
-
-            if (targetType == typeof(bool))
-                return (TValue)(object)bool.Parse(stringValue);
-
-            if (targetType == typeof(DateTime))
-                return (TValue)(object)DateTime.Parse(stringValue);
-
-            if (targetType == typeof(DateOnly))
-                return (TValue)(object)DateOnly.Parse(stringValue);
-
-            if (targetType.IsEnum)
-                return (TValue)Enum.Parse(targetType, stringValue);
-
-            // Fallback to Convert
-            return (TValue)Convert.ChangeType(stringValue, targetType);
-        }
-        catch
-        {
-            return default;
-        }
-    }
-
-    public void Dispose()
+        public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
@@ -763,8 +912,25 @@ public class ValidationCompletedEventArgs<TGridItem, TValue>
 /// Represents an option for select editors.
 /// </summary>
 /// <typeparam name="TValue">The type of the option value.</typeparam>
+/// <remarks>
+/// Note: This type uses 'Label' for display text to maintain backward compatibility.
+/// The Infrastructure.SelectOption&lt;T&gt; uses 'Text' instead. 
+/// Consider migrating to the Infrastructure type in a future version.
+/// </remarks>
 public class SelectOption<TValue>
 {
+    /// <summary>
+    /// Display text for the option (backward compatible name).
+    /// </summary>
     public required string Label { get; init; }
+
+    /// <summary>
+    /// Alias for Label to align with Infrastructure.SelectOption&lt;T&gt;.Text.
+    /// </summary>
+    public string Text => Label;
+
+    /// <summary>
+    /// The value of the option.
+    /// </summary>
     public TValue? Value { get; init; }
 }

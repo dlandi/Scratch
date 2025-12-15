@@ -327,26 +327,99 @@ var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
     {
         Editor = EditorKind.Currency,
         ItemKey = p =&gt; p.Id,
-        Step = "0.01",
-        Validators = [new RangeValidator&lt;decimal&gt; { Minimum = 0.01m, Maximum = 10000m }]
-    }
-};</code></pre>
-        </div>
-    </section>
+                Step = "0.01",
+                Validators = [new RangeValidator&lt;decimal&gt; { Minimum = 0.01m, Maximum = 10000m }]
+            }
+        };</code></pre>
+                </div>
+            </section>
 
-    <section class="qg-section">
-        <div class="qg-section-header">
-            <h2 class="qg-section-title">Feature Priority Order</h2>
-        </div>
+            <section class="qg-section">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">New Editor Types: Auto &amp; RadioGroup</h2>
+                    <p class="qg-section-description">
+                        <strong>EditorKind.Auto</strong> automatically detects the appropriate editor from the property type.
+                        <strong>EditorKind.RadioGroup</strong> renders enum values as radio buttons for quick selection.
+                    </p>
+                </div>
 
-        <div class="qg-grid-container">
-            <QuickGrid Items="@_featurePriorities" Class="qg-grid">
-                <PropertyColumn Property="@(f => f.Category)" Title="Category" />
-                <PropertyColumn Property="@(f => f.Priority)" Title="Priority" />
-                <PropertyColumn Property="@(f => f.Description)" Title="Description" />
-            </QuickGrid>
-        </div>
-    </section>
+                <div class="qg-grid-container">
+                    <ComposableGrid TGridItem="EditableProduct" Items="@_editableProducts" RowKey="p => p.Id" Class="qg-grid">
+                        <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                          Property="@(p => p.Id)"
+                                          Title="ID" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                          Property="@(p => p.Name)"
+                                          Title="Name (Auto)"
+                                          FeatureCollection="@_autoNameFeatures" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                          Property="@(p => p.Price)"
+                                          Title="Price (Auto)"
+                                          FeatureCollection="@_autoPriceFeatures" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                          Property="@(p => p.Status)"
+                                          Title="Status (Radio)"
+                                          FeatureCollection="@_radioStatusFeatures" />
+                    </ComposableGrid>
+                </div>
+
+                <div class="code-preview">
+                    <h4>Auto Detection &amp; RadioGroup Code:</h4>
+                    <pre><code>// Auto detects Text editor from string property
+        var autoNameFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, string&gt;
+            {
+                Editor = EditorKind.Auto,  // Detects Text from string
+                ItemKey = p =&gt; p.Id
+            }
+        };
+
+        // Auto detects Number editor from decimal property
+        var autoPriceFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+            {
+                Editor = EditorKind.Auto,  // Detects Number from decimal
+                ItemKey = p =&gt; p.Id
+            }
+        };
+
+        // RadioGroup for enum - renders all values as radio buttons
+        var radioStatusFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt;
+            {
+                Editor = EditorKind.RadioGroup,  // Radio buttons instead of dropdown
+                ItemKey = p =&gt; p.Id,
+                OptionText = s =&gt; s switch  // Custom display text
+                {
+                    ProductStatus.Active =&gt; "? Active",
+                    ProductStatus.Discontinued =&gt; "? Discontinued",
+                    ProductStatus.ComingSoon =&gt; "? Coming Soon",
+                    _ =&gt; s.ToString()
+                }
+            }
+        };</code></pre>
+                </div>
+            </section>
+
+            <section class="qg-section">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">Feature Priority Order</h2>
+                </div>
+
+                <div class="qg-grid-container">
+                    <QuickGrid Items="@_featurePriorities" Class="qg-grid">
+                        <PropertyColumn Property="@(f => f.Category)" Title="Category" />
+                        <PropertyColumn Property="@(f => f.Priority)" Title="Priority" />
+                        <PropertyColumn Property="@(f => f.Description)" Title="Description" />
+                    </QuickGrid>
+                </div>
+            </section>
 
     <section class="qg-section">
         <div class="qg-section-header">
@@ -391,23 +464,28 @@ var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
                 </ul>
             </div>
 
-            <div class="feature-category">
-                <h4>Editing Features</h4>
-                <ul>
-                    <li><code>InlineEditingFeature</code> - Always-visible seamless editors with validation</li>
-                    <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
-                    <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, etc.</li>
-                </ul>
-            </div>
+                        <div class="feature-category">
+                            <h4>Editing Features</h4>
+                            <ul>
+                                <li><code>InlineEditingFeature</code> - Always-visible seamless editors with validation</li>
+                                <li><code>EditorKind.Auto</code> - Automatic editor detection from property type</li>
+                                <li><code>EditorKind.RadioGroup</code> - Radio button selection for enums</li>
+                                <li><code>UseDataAnnotations</code> - Automatic validation from [Required], [Range], etc.</li>
+                                <li><code>Rows</code> - Configurable textarea height</li>
+                                <li><code>OptionText</code> - Custom display text mapper for select/radio options</li>
+                                <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
+                                <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, etc.</li>
+                            </ul>
+                        </div>
 
-            <div class="feature-category coming-soon">
-                <h4>Coming Soon</h4>
-                <ul>
-                    <li><code>RowExpandFeature</code> - Expandable row details</li>
-                    <li><code>SelectEditorFeature</code> - Dropdown select editor</li>
-                    <li><code>MemoizationFeature</code> - Caching for performance</li>
-                </ul>
+                        <div class="feature-category coming-soon">
+                            <h4>Coming Soon</h4>
+                            <ul>
+                                <li><code>RowExpandFeature</code> - Expandable row details</li>
+                                <li><code>FormRowFeature</code> - Form-based row editing</li>
+                                <li><code>MemoizationFeature</code> - Caching for performance</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
             </div>
-        </div>
-    </section>
-</div>

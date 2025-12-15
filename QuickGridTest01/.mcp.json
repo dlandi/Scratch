@@ -1,0 +1,11 @@
+{
+  "inputs": [],
+  "servers": {
+    "time-tracker": {
+      "type": "stdio",
+      "command": "C:\\GitHub\\Time-Tracker-MCP-Tool\\publish\\win-x64\\TimeTrackerMcp.exe",
+      "args": [],
+      "env": {}
+    }
+  }
+}
