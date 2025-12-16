@@ -1,0 +1,107 @@
+﻿# Inline Editing Polish Specification (Backlog)
+
+## Document Information
+
+| Attribute | Value |
+|-----------|-------|
+| Version | 0.1 |
+| Status | 💤 BACKLOG |
+| Created | 2025-12-16 |
+| Target Framework | ASP.NET 9 Blazor Server |
+| Namespace | `QuickGridTest01.ComposableColumns.Features.Editing` |
+| Branch | `Composable_WIP` |
+
+> Captures **Phase A – Inline Editing polish** from the ComposableColumns parity plan. Work is optional and queued behind higher-priority items.
+
+---
+
+## 1. Purpose
+
+Enhance the composable inline editing experience (`InlineEditingFeature<TItem, TValue>`) with optional observability hooks (change log, analytics) and UX refinements inspired by the legacy `EditableColumn` demo, while keeping the on-blur validation philosophy.
+
+---
+
+## 2. Scope
+
+- Applies to `InlineEditingFeature` and supporting validators/components within `QuickGridTest01.ComposableColumns.*`.
+- Focus on telemetry/change-log hooks, validation summaries, and demo updates.
+- Must preserve existing behavior: always-on editors, on-blur validation, no debounce timers.
+
+Out of scope:
+- New editor types (already delivered).
+- Debounce-based auto-save (explicitly avoided per product guidance).
+- Formatter/culture work (tracked separately in `FormattingParity.md`).
+
+---
+
+## 3. Current State
+
+| Aspect | Legacy Demo (`EditableColumn`) | Composable Feature | Gap |
+|--------|--------------------------------|--------------------|-----|
+| Change Log | Real-time log panel showing edits, saves, cancels | None | No built-in event stream/logging |
+| Analytics Hooks | Counters for saves/cancels/errors | None | Need optional callbacks/metrics |
+| Validation Summary | Side panel showing rule descriptions / results | Not provided | Could expose helper component |
+
+Conclusion: core editing works, but there is no optional logging/analytics UX equivalent to the handcrafted demo.
+
+---
+
+## 4. Goals & Success Criteria
+
+1. **Event Hooks:** Provide optional events or services to capture edit lifecycle (value change, validation result, commit/cancel) for logging/analytics.
+2. **Demo Experience:** Update `ComposableColumnDemo.razor` (or new sample) to showcase change-log UI using the hooks.
+3. **Reusable UX Shell (Optional):** A small shared component (or markup pattern) that renders the active validation rule list plus the latest validation result for the focused cell. It should be purely presentational (bound to read-only data supplied by event hooks) so teams can host it wherever they like or replace it with their own UX. The shell also needs simple placement options (e.g., top, right, left, bottom of the grid) so the event-viewer/summary overlay can be positioned per layout requirements. Think of it the same way the legacy `RowColumn` separates column-level triggers from the grid-level overlay: columns raise events, while the shared shell beside the grid consumes those events and renders once.
+
+Success indicators:
+- ✅ Developers can subscribe to edit events via feature parameters or DI services without touching legacy components.
+- ✅ Demo shows change log similar to `EditableColumnDemo` but powered by composable features.
+- ✅ On-blur validation remains the default; no debouncing timers introduced.
+
+---
+
+## 5. Proposed Approach
+
+| Task ID | Objective | Deliverables |
+|---------|-----------|--------------|
+| A1.1 | Enumerate existing callbacks | List current `InlineEditingFeature` events (`OnValueChanged`, `OnValidationCompleted`, etc.) and where they fire |
+| A1.2 | Map lifecycle scenarios | Document edit flows (start, change, blur success/fail, cancel) with expected events |
+| A1.3 | Identify gaps | Produce gap report noting missing events or payload data for commit/cancel/validation states |
+| A2.1 | Draft payload contracts | Define structs/records carrying item key, old/new value, validation state, timestamps |
+| A2.2 | Choose opt-in mechanism | Decide between additional `EventCallback` parameters, DI observer service, or both; specify cancellation semantics |
+| A2.3 | Observer responsibilities | Outline `IEditEventObserver` members (subscribe/unsubscribe, telemetry hooks) and threading guidance |
+| A3.1 | Implement new callbacks | Add optional callbacks/observer wiring into `InlineEditingFeature` with guards to avoid extra work when not used |
+| A3.2 | Add tests | Create unit/integration tests verifying event order, payload data, and opt-in performance behavior |
+| A3.3 | Telemetry safeguards | Ensure events respect on-blur policy, avoid debounce timers, and honor feature-level cancellation tokens |
+| A4.1 | Scenario verification | Run checklist across happy path, validation failure, cancel, and concurrent edits to ensure all events fire |
+| A4.2 | Coverage matrix | Publish matrix mapping lifecycle scenarios to events for documentation and future regression tests |
+| A5.1 | Observer implementation | Provide lightweight `IEditEventObserver` sample plus DI registration guidance |
+| A5.2 | Extension helpers | Add optional extension methods/utilities to wire observers/change-log stores consistently |
+| B1.1 | Demo data plumbing | Extend `ComposableColumnDemo.razor(.cs)` with state to hold event stream, counters, and placement setting |
+| B1.2 | Event binding | Hook demo columns to new callbacks/observer and populate the change-log store |
+| B2.1 | Placement API | Introduce placement enum/parameters (Top/Right/Left/Bottom) for the grid-level overlay |
+| B2.2 | Layout styles | Provide CSS/layout guidance so the overlay can snap to the selected position responsively |
+| B3.1 | Change-log UI | Render log list, counters, and filters consuming the shared placement API |
+| B3.2 | Reset & export affordances | Add clear/export buttons to demonstrate how consumers might manage the event stream |
+| B4.1 | InlineEditorFeatures doc update | Document new callbacks, observer pattern, and demo usage |
+| B4.2 | Parity spec cross-link | Update `ComposableColumnsParity_01.md` (and release notes if any) to reference the new capabilities |
+| C1.1 (Optional) | Validation DTO definition | Specify rule descriptors, severities, and latest result payload contract |
+| C1.2 (Optional) | Emission strategy | Decide how validation data flows from features to the reusable shell (events vs shared service) |
+| C2.1 (Optional) | Shell component build | Implement presentational component/razor fragment honoring placement API and binding to read-only validation data |
+| C2.2 (Optional) | Sample styling | Provide neutral styles/themes and accessibility notes for the validation shell |
+
+---
+
+## 6. Risks & Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Event spam impacting performance | Low | Events opt-in only; no default logging |
+| Feature bloat in `InlineEditingFeature` | Medium | Keep hooks thin; consider DI-based observer to avoid extra parameters |
+| UX duplication | Low | Reuse existing validation panels where possible |
+
+---
+
+## 7. Priority & Next Steps
+
+- **Priority:** Low / optional polish.
+- **Next Step:** None at this time. Revisit when higher-priority composable work is complete or when edit analytics become a requirement.

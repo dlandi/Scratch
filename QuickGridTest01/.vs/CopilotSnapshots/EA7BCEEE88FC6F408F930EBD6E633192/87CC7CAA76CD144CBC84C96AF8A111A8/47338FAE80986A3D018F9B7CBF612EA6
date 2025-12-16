@@ -1,0 +1,314 @@
+﻿.architecture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.arch-card {
+    background: var(--qg-neutral-50, #f9fafb);
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.arch-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--qg-primary, #3b82f6);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.arch-card p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--qg-neutral-600, #4b5563);
+    line-height: 1.4;
+}
+
+.arch-card code {
+    background: var(--qg-neutral-200, #e5e7eb);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.code-preview {
+    background: #1e293b !important;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid #334155;
+}
+
+.code-preview h4 {
+    color: #94a3b8 !important;
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.code-preview pre {
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+}
+
+.code-preview pre code {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    display: block;
+    white-space: pre;
+    text-shadow: none !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.feature-category {
+    background: var(--qg-white, #ffffff);
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.feature-category h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--qg-neutral-800, #1f2937);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--qg-neutral-100, #f3f4f6);
+    padding-bottom: 0.5rem;
+}
+
+.feature-category ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.feature-category li {
+    font-size: 0.8rem;
+    color: var(--qg-neutral-600, #4b5563);
+    margin-bottom: 0.25rem;
+}
+
+.feature-category code {
+    background: var(--qg-primary-50, #eff6ff);
+    color: var(--qg-primary-700, #1d4ed8);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.feature-category.coming-soon {
+    background: var(--qg-neutral-50, #f9fafb);
+    border-style: dashed;
+}
+
+.feature-category.coming-soon h4 {
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+.feature-category.coming-soon code {
+    background: var(--qg-neutral-100, #f3f4f6);
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+/* Conditional CSS classes for stock demo */
+::deep .stock-cell {
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+::deep .stock-empty {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+::deep .stock-low {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+::deep .stock-ok {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+/* Editing styles */
+.edit-message {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.validation-rules-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.validation-rules-panel h4 {
+    margin: 0 0 0.75rem 0;
+    color: #475569;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.validation-rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.rule-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+}
+
+.rule-card strong {
+    display: block;
+    color: #1e293b;
+    font-size: 0.8rem;
+    margin-bottom: 0.375rem;
+}
+
+.rule-card ul {
+    margin: 0;
+    padding-left: 1rem;
+    list-style-type: disc;
+}
+
+.rule-card li {
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+/* Validation styles */
+::deep .validation-errors {
+    margin-top: 0.25rem;
+}
+
+::deep .validation-error {
+    color: #dc2626;
+    font-size: 0.75rem;
+    padding: 0.125rem 0;
+}
+
+::deep .editable-cell.invalid {
+    background-color: #fef2f2;
+    border-left: 3px solid #dc2626;
+    padding-left: 0.5rem;
+}
+
+::deep .editable-cell.inline-mode.invalid input,
+::deep .editable-cell.inline-mode.invalid select {
+    border-color: #dc2626;
+}
+
+::deep .editable-cell.dirty {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding-left: 0.5rem;
+}
+
+::deep .editable-cell.inline-mode.dirty input,
+::deep .editable-cell.inline-mode.dirty select {
+    border-color: #f59e0b;
+}
+
+/* Filter toolbar styles */
+.filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    padding: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.filter-toolbar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.filter-toolbar-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+::deep .filter-operator {
+    min-width: 120px;
+}
+
+::deep .filter-value {
+    min-width: 150px;
+}
+
+.btn-filter-clear,
+.btn-clear-all-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 0.375rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-filter-clear:hover,
+.btn-clear-all-filters:hover {
+    background: #fecaca;
+    border-color: #fca5a5;
+}
+
+.filter-message {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.filter-result-count {
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: #64748b;
+}

@@ -1,0 +1,491 @@
+﻿@page "/composable-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Core
+@using QuickGridTest01.ComposableColumns.Features.Formatting
+@using QuickGridTest01.ComposableColumns.Features.Styling
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.ComposableColumns.Features.Filtering
+@using QuickGridTest01.CustomColumns
+@using QuickGridTest01.Filterable
+@using System.Linq.Expressions
+@using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
+
+<PageTitle>Composable Columns Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Columns</h1>
+        <p class="qg-page-subtitle">
+            A modular column system where features can be composed together.
+            Each feature is a building block that adds specific functionality like styling, filtering, or editing.
+            Features implement <code>IColumnFeature&lt;T&gt;</code> and are composed via <code>FeatureCollection</code>.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4><i class="bi bi-puzzle"></i> Features</h4>
+                <p>Modular units of functionality that can be added to any column.
+                   Implements <code>IColumnFeature&lt;T&gt;</code>, <code>ICellRenderFeature&lt;T&gt;</code>, 
+                   or <code>IGridFilterFeature&lt;T&gt;</code>.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-layers"></i> Pipeline</h4>
+                <p>Cell render features execute in priority order, forming a render pipeline.
+                   Each feature can wrap or modify the cell output.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-share"></i> Shared Context</h4>
+                <p><code>FeatureContext</code> provides shared state between features.
+                   Includes property expression, formatter, and event receiver.</p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-grid-3x3"></i> Grid Integration</h4>
+                <p><code>ComposableGrid</code> coordinates features across columns.
+                   Auto-renders filter toolbars and applies grid-level filtering.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Basic Composable Column</h2>
+            <p class="qg-section-description">
+                A simple column with auto-title inference and format string features.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_products" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+                <PropertyColumn Property="@(p => p.Name)" Title="Name" />
+
+
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  Format="C2"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="DateTime"
+                                  Property="@(p => p.LastUpdated)"
+                                  Title="Last Updated"
+                                  Format="yyyy-MM-dd"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">With Styling Features</h2>
+            <p class="qg-section-description">
+                Composing IconFeature and ConditionalCssFeature for visual indicators.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_products" Class="qg-grid">
+                <PropertyColumn Property="@(p => p.Name)" Title="Product" />
+
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock Level"
+                                  FeatureCollection="@_stockFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="ProductStatus"
+                                  Property="@(p => p.Status)"
+                                  Title="Status"
+                                  FeatureCollection="@_statusFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  FeatureCollection="@_priceFeatures"
+                                  Sortable="true" />
+            </QuickGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Feature Composition Code:</h4>
+            <pre><code>// Stock level with conditional CSS
+var stockFeatures = new IColumnFeature&lt;Product&gt;[]
+{
+    new ConditionalCssFeature&lt;Product, int&gt;
+    {
+        BaseClass = "stock-cell",
+        Rules = [
+            new() { Condition = v =&gt; v == 0, CssClass = "stock-empty" },
+            new() { Condition = v =&gt; v &lt; 10, CssClass = "stock-low" },
+            new() { Condition = v =&gt; v &gt;= 10, CssClass = "stock-ok" }
+        ]
+    }
+};
+
+// Status with icon mapping
+var statusFeatures = new IColumnFeature&lt;Product&gt;[]
+{
+    new IconFeature&lt;Product, ProductStatus&gt;
+    {
+        IconMapper = status =&gt; status switch
+        {
+            ProductStatus.Active =&gt; "bi bi-check-circle-fill",
+            ProductStatus.Discontinued =&gt; "bi bi-x-circle-fill",
+            ProductStatus.ComingSoon =&gt; "bi bi-clock-fill",
+            _ =&gt; "bi bi-question-circle"
+        }
+    }
+};</code></pre>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Filtering Features</h2>
+            <p class="qg-section-description">
+                <strong>Grid-integrated filtering:</strong> Add <code>FilterFeature</code> to any column and 
+                <code>ComposableGrid</code> automatically renders a filter toolbar and applies filters to the data.
+                Type-aware operators, debounced input, and coordinated "Clear All" functionality.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <ComposableGrid @ref="_filterGrid" TGridItem="Product" Items="@_products" RowKey="p => p.Id" Class="qg-grid">
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Id)"
+                                  Title="ID" />
+                <ComposableColumn TGridItem="Product" TValue="string"
+                                  Property="@(p => p.Name)"
+                                  Title="Name"
+                                  Sortable="true"
+                                  FeatureCollection="@_nameFilterFeatures" />
+                <ComposableColumn TGridItem="Product" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price"
+                                  Format="C2"
+                                  Sortable="true"
+                                  FeatureCollection="@_priceFilterFeatures" />
+                <ComposableColumn TGridItem="Product" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock"
+                                  Sortable="true"
+                                  FeatureCollection="@_stockFilterFeatures" />
+                <ComposableColumn TGridItem="Product" TValue="DateTime"
+                                  Property="@(p => p.LastUpdated)"
+                                  Title="Updated"
+                                  Format="yyyy-MM-dd"
+                                  Sortable="true"
+                                  FeatureCollection="@_dateFilterFeatures" />
+                <ComposableColumn TGridItem="Product" TValue="bool"
+                                  Property="@(p => p.InStock)"
+                                  Title="In Stock"
+                                  Sortable="true"
+                                  FeatureCollection="@_inStockFilterFeatures" />
+            </ComposableGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Feature Composition Code:</h4>
+            <pre><code>// Simply add FilterFeature to columns - grid handles the rest!
+// The grid auto-detects filter features and:
+// 1. Renders a filter toolbar above the grid
+// 2. Applies all active filters to the data
+// 3. Shows "X of Y" count when filters are active
+// 4. Provides "Clear All" button
+
+// String filter - auto-detects: Contains, Equals, StartsWith, EndsWith
+_nameFilterFeatures = [new FilterFeature&lt;Product, string&gt; { Placeholder = "Name..." }];
+
+// Numeric filters - auto-detects: Equals, GreaterThan, LessThan
+_priceFilterFeatures = [new FilterFeature&lt;Product, decimal&gt; { Placeholder = "Price..." }];
+_stockFilterFeatures = [new FilterFeature&lt;Product, int&gt; { Placeholder = "Stock..." }];
+
+// DateTime filter - auto-detects: Equals, After, Before
+_dateFilterFeatures = [new FilterFeature&lt;Product, DateTime&gt; { Placeholder = "Date..." }];
+
+// Boolean filter - renders as checkbox
+_inStockFilterFeatures = [new FilterFeature&lt;Product, bool&gt;()];</code></pre>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Inline Editing Features</h2>
+            <p class="qg-section-description">
+                Cells are always in edit mode with seamless inputs. 
+                <strong>Validation occurs when you leave a cell (on blur)</strong>, not while typing.
+                Press Enter to commit, Escape to cancel.
+            </p>
+        </div>
+
+        <div class="validation-rules-panel">
+            <h4>Validation Rules (applied on blur)</h4>
+            <div class="validation-rules-grid">
+                <div class="rule-card">
+                    <strong>Name</strong>
+                    <ul>
+                        <li>Required field</li>
+                        <li>Min 2 characters</li>
+                        <li>Max 50 characters</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Price</strong>
+                    <ul>
+                        <li>Range: $0.01 - $10,000</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Stock</strong>
+                    <ul>
+                        <li>Minimum: 0</li>
+                    </ul>
+                </div>
+                <div class="rule-card">
+                    <strong>Status</strong>
+                    <ul>
+                        <li>No validation (select)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="edit-message" style="@(!string.IsNullOrEmpty(_lastEditMessage) ? "" : "display: none;")">
+            <i class="bi bi-check-circle"></i> @_lastEditMessage
+        </div>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="EditableProduct" Items="@_editableProducts" RowKey="p => p.Id" Class="qg-grid">
+                <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                  Property="@(p => p.Id)"
+                                  Title="ID" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                  Property="@(p => p.Name)"
+                                  Title="Name (Editable)"
+                                  FeatureCollection="@_nameEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                  Property="@(p => p.Price)"
+                                  Title="Price (Editable)"
+                                  FeatureCollection="@_priceEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                  Property="@(p => p.Stock)"
+                                  Title="Stock (Editable)"
+                                  FeatureCollection="@_stockEditFeatures"
+                                  Sortable="true" />
+
+                <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                  Property="@(p => p.Status)"
+                                  Title="Status (Select)"
+                                  FeatureCollection="@_statusEditFeatures"
+                                  Sortable="true" />
+            </ComposableGrid>
+        </div>
+
+        <div class="code-preview">
+            <h4>Editing Features Code:</h4>
+            <pre><code>// Name with text editing and validation
+var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, string&gt;
+    {
+        Editor = EditorKind.Text,
+        Placeholder = "Enter name...",
+        ItemKey = p =&gt; p.Id,
+        ShowValidationErrors = true,
+        Validators = [
+            new RequiredStringValidator(), 
+            new StringLengthValidator { MinLength = 2, MaxLength = 50 }
+        ]
+    }
+};
+
+// Price with currency editing
+var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+    {
+        Editor = EditorKind.Currency,
+        ItemKey = p =&gt; p.Id,
+                Step = "0.01",
+                Validators = [new RangeValidator&lt;decimal&gt; { Minimum = 0.01m, Maximum = 10000m }]
+            }
+        };</code></pre>
+                </div>
+            </section>
+
+            <section class="qg-section">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">New Editor Types: Auto &amp; RadioGroup</h2>
+                    <p class="qg-section-description">
+                        <strong>EditorKind.Auto</strong> automatically detects the appropriate editor from the property type.
+                        <strong>EditorKind.RadioGroup</strong> renders enum values as radio buttons for quick selection.
+                    </p>
+                </div>
+
+                <div class="qg-grid-container">
+                    <ComposableGrid TGridItem="EditableProduct" Items="@_editableProducts" RowKey="p => p.Id" Class="qg-grid">
+                        <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                          Property="@(p => p.Id)"
+                                          Title="ID" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                          Property="@(p => p.Name)"
+                                          Title="Name (Auto)"
+                                          FeatureCollection="@_autoNameFeatures" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                          Property="@(p => p.Price)"
+                                          Title="Price (Auto)"
+                                          FeatureCollection="@_autoPriceFeatures" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                          Property="@(p => p.Status)"
+                                          Title="Status (Radio)"
+                                          FeatureCollection="@_radioStatusFeatures" />
+                    </ComposableGrid>
+                </div>
+
+                <div class="code-preview">
+                    <h4>Auto Detection &amp; RadioGroup Code:</h4>
+                    <pre><code>// Auto detects Text editor from string property
+        var autoNameFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, string&gt;
+            {
+                Editor = EditorKind.Auto,  // Detects Text from string
+                ItemKey = p =&gt; p.Id
+            }
+        };
+
+        // Auto detects Number editor from decimal property
+        var autoPriceFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+            {
+                Editor = EditorKind.Auto,  // Detects Number from decimal
+                ItemKey = p =&gt; p.Id
+            }
+        };
+
+        // RadioGroup for enum - renders all values as radio buttons
+        var radioStatusFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+        {
+            new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt;
+            {
+                Editor = EditorKind.RadioGroup,  // Radio buttons instead of dropdown
+                ItemKey = p =&gt; p.Id,
+                OptionText = s =&gt; s switch  // Custom display text
+                {
+                    ProductStatus.Active =&gt; "✓ Active",
+                    ProductStatus.Discontinued =&gt; "✗ Discontinued",
+                    ProductStatus.ComingSoon =&gt; "⏳ Coming Soon",
+                    _ =&gt; s.ToString()
+                }
+            }
+        };</code></pre>
+                </div>
+            </section>
+
+            <section class="qg-section">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">Feature Priority Order</h2>
+                </div>
+
+                <div class="qg-grid-container">
+                    <QuickGrid Items="@_featurePriorities" Class="qg-grid">
+                        <PropertyColumn Property="@(f => f.Category)" Title="Category" />
+                        <PropertyColumn Property="@(f => f.Priority)" Title="Priority" />
+                        <PropertyColumn Property="@(f => f.Description)" Title="Description" />
+                    </QuickGrid>
+                </div>
+            </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Available Features</h2>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature-category">
+                <h4>Core Features</h4>
+                <ul>
+                    <li><code>AutoTitleFeature</code> - Infers column title from property name</li>
+                    <li><code>CompiledAccessorFeature</code> - Compiles property expression for fast access</li>
+                    <li><code>SortableFeature</code> - Enables column sorting</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Formatting Features</h4>
+                <ul>
+                    <li><code>FormatStringFeature</code> - Applies format strings (C2, N0, yyyy-MM-dd)</li>
+                    <li><code>CustomFormatterFeature</code> - Custom formatter function</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Styling Features</h4>
+                <ul>
+                    <li><code>TooltipFeature</code> - Adds tooltips to cells</li>
+                    <li><code>IconFeature</code> - Displays icons based on value</li>
+                    <li><code>ConditionalCssFeature</code> - Applies CSS classes conditionally</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Filtering Features</h4>
+                <ul>
+                    <li><code>FilterFeature&lt;TGridItem, TValue&gt;</code> - Grid-integrated column filtering</li>
+                    <li><code>IGridFilterFeature&lt;TGridItem&gt;</code> - Interface for grid-coordinated filters</li>
+                    <li>Auto-renders toolbar when columns have filter features</li>
+                    <li>Type-aware operators: Contains, Equals, StartsWith, GreaterThan, etc.</li>
+                    <li>Debounced input with configurable delay</li>
+                </ul>
+            </div>
+
+                        <div class="feature-category">
+                            <h4>Editing Features</h4>
+                            <ul>
+                                <li><code>InlineEditingFeature</code> - Always-visible seamless editors with validation</li>
+                                <li><code>EditorKind.Auto</code> - Automatic editor detection from property type</li>
+                                <li><code>EditorKind.RadioGroup</code> - Radio button selection for enums</li>
+                                <li><code>UseDataAnnotations</code> - Automatic validation from [Required], [Range], etc.</li>
+                                <li><code>Rows</code> - Configurable textarea height</li>
+                                <li><code>OptionText</code> - Custom display text mapper for select/radio options</li>
+                                <li>Supports <code>IValidator&lt;T&gt;</code> - Async validators with error messages</li>
+                                <li>Built-in validators: <code>RequiredStringValidator</code>, <code>RangeValidator</code>, etc.</li>
+                            </ul>
+                        </div>
+
+                        <div class="feature-category coming-soon">
+                            <h4>Coming Soon</h4>
+                            <ul>
+                                <li><code>RowExpandFeature</code> - Expandable row details</li>
+                                <li><code>FormRowFeature</code> - Form-based row editing</li>
+                                <li><code>MemoizationFeature</code> - Caching for performance</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
