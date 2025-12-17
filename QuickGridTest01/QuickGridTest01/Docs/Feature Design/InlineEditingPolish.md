@@ -105,8 +105,8 @@ Success indicators:
 |---------|-----------|--------------|
 | B1.1 | Demo data plumbing | Extend `ComposableColumnDemo.razor(.cs)` with state to hold event stream, counters, and placement setting |
 | B1.2 | Event binding | Hook demo columns to new callbacks/observer and populate the change-log store |
-| B2.1 | Layout styles | Provide CSS/layout guidance: (1) Built-in styles for auto-rendered panel (`.composable-grid-with-panel`), (2) Utility classes for manual layouts (`.demo-layout-horizontal`, `.demo-layout-vertical`), (3) Responsive behavior examples |
-| B3.1 | Change-log UI | Build `EditEventViewer` component: consumes `IEditEventStream` via cascading parameter, renders event log with filtering/clearing, supports both auto-render (by grid) and manual placement patterns |
+| B2.1 | Layout styles | **CSS Convention:** Styles in `qgComposable-refined-minimalism.css`. **Already exist:** `.composable-grid-with-panel`, `.event-panel-*`, `.edit-event-viewer`. **Add if needed:** `.demo-layout-horizontal`, `.demo-layout-vertical`. See [CSS Conventions](InlineEditingPolish-CSSConventions.md). |
+| B3.1 | Change-log UI | **COMPLETED in A5.2:** `EditEventViewer.razor` created. Styles in global CSS. **Remaining:** Verify in demo context. |
 | B4.1 | InlineEditorFeatures doc update | Document new callbacks, observer pattern, and demo usage |
 | B4.2 | Parity spec cross-link | Update `ComposableColumnsParity_01.md` (and release notes if any) to reference the new capabilities |
 | B4.3 | Parity state update | Update `ComposableColumnsParity_01.md` Current State table to mark Inline Editing gap as Closed |
@@ -117,7 +117,7 @@ Success indicators:
 |---------|-----------|--------------|
 | C1.1 | Validation event emission | Extend `ValidationFailedEvent` to include `ValidationRuleDescriptor[]` (rule name, description, severity) from validators' `Name` property. Ensure validation success events also publish to stream. |
 | C1.2 | Focused cell tracking | Add mechanism to track currently focused cell for validation summary display (property name, item key) |
-| C2.1 | Shell component build | Create `ValidationSummaryPanel.razor`: consumes `IEditEventStream` via cascading parameter, displays active validators for focused column, shows latest validation result, honors `Placement` parameter |
+| C2.1 | Shell component build | Create `ValidationSummaryPanel.razor`: consumes `IEditEventStream`, displays validators for focused column, shows validation result, honors `Placement`. **No scoped .razor.css** - styles in global CSS. |
 | C2.2 | Sample styling | Provide CSS for validation shell: rule list, pass/fail indicators, severity badges |
 | C2.3 | Shell component tests | Unit tests verifying shell renders validation data correctly and responds to placement settings |
 
