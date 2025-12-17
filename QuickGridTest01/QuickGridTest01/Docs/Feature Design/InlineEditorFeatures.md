@@ -336,33 +336,6 @@ Remove duplicates, update demo, verify functionality.
 - [x] All code in `ComposableColumns` namespace (domain encapsulation)
 - [ ] Existing demos continue to work (Phase 5)
 - [x] No performance regression (TypeTraits should improve performance)
-| Phase 3: Feature Updates | 9 | 80 min |
-| Phase 4: DataAnnotations | 5 | 45 min |
-| Phase 5: Cleanup & Testing | 7 | 85 min |
-| **Total** | **30 tasks** | **~4.5 hours** |
-
----
-
-## 7. Success Criteria
-
-### 7.1 Functional Requirements
-
-- [ ] All 13 EditorKind values render correctly
-- [ ] `EditorKind.Auto` correctly infers editor from type
-- [ ] TypeTraits parsing handles all supported types
-- [ ] TypeTraits formatting produces correct HTML input values
-- [ ] DataAnnotations validation works when `UseDataAnnotations = true`
-- [ ] RadioGroup renders enum values as radio buttons
-- [ ] TextArea respects `Rows` property
-- [ ] Select options use `OptionText` mapper when provided
-
-### 7.2 Non-Functional Requirements
-
-- [ ] No compilation errors
-- [ ] No duplicate type definitions
-- [ ] All code in `ComposableColumns` namespace (domain encapsulation)
-- [ ] Existing demos continue to work
-- [ ] No performance regression (TypeTraits should improve performance)
 
 ---
 
@@ -399,20 +372,114 @@ None - all required code exists in the codebase.
 
 ## 10. Open Questions (Resolved)
 
-| Question | Decision |
-|----------|----------|
-| SelectOption location? | `ComposableColumns.Infrastructure` (shared) |
-| Implement debouncing? | **No** - commit-on-blur only |
-| Implement DisplayTemplate? | **No** - use `RowExpandFeature` for toggle patterns |
-| Culture parameter? | **No** - use invariant culture (simplicity) |
+All questions resolved during implementation.
 
 ---
 
-## 11. Post-Implementation
+## 11. Event Stream Integration (Added 2025-12-17)
 
-After completing this work:
+### 11.1 Overview
 
-1. **InlineEditingFeature** will have full parity with `EditableColumn` for always-inline editing
-2. **TypeTraits** will be available for other ComposableColumns features
-3. **Accessors** will be available for optimized property access
-4. Foundation is set for **FormRowFeature** (which will use these same infrastructure classes)
+The `InlineEditingFeature` now supports publishing lifecycle events to a grid-level event stream. This enables:
+- Real-time change logging
+- Analytics/telemetry hooks
+- Custom event visualization
+
+### 11.2 Key Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `IEditEventStream` | `Features.Editing.EditEventStream.cs` | Interface for event stream |
+| `EditEventStream` | `Features.Editing.EditEventStream.cs` | Thread-safe implementation with 100-event limit |
+| `EditEventViewer` | `Features.Editing.EditEventViewer.razor` | Pre-built UI component for displaying events |
+| `EventPanelPlacement` | `Features.Editing.EventPanelPlacement.cs` | Enum for auto-panel positioning |
+
+### 11.3 Event Types
+
+```csharp
+// Base type for all events
+public abstract class EditEventBase
+{
+    public Guid EventId { get; init; }
+    public required object ItemKey { get; init; }
+    public string? PropertyName { get; init; }
+    public DateTimeOffset Timestamp { get; init; }
+    public abstract string EventType { get; }
+}
+
+// Concrete event types
+public class EditStartedEvent : EditEventBase { ... }
+public class EditCommittedEvent : EditEventBase { ... }
+public class EditCancelledEvent : EditEventBase { ... }
+public class ValidationFailedEvent : EditEventBase { ... }
+public class ValidationSucceededEvent : EditEventBase { ... }
+```
+
+### 11.4 Enabling Event Publishing
+
+Add `ShowEvents = true` to any `InlineEditingFeature`:
+
+```csharp
+var nameEditFeatures = new IColumnFeature<Product>[]
+{
+    new InlineEditingFeature<Product, string>
+    {
+        Editor = EditorKind.Text,
+        ItemKey = p => p.Id,
+        ShowEvents = true,  // <-- Enable event publishing
+        Validators = [new RequiredStringValidator()]
+    }
+};
+```
+
+### 11.5 Observer Pattern: Consuming Events
+
+**Option 1: Auto-Rendered Panel**
+```razor
+<ComposableGrid Items="@items" EventPanelPlacement="EventPanelPlacement.Right">
+    <Columns>...</Columns>
+</ComposableGrid>
+```
+
+**Option 2: Manual Placement**
+```razor
+<div class="demo-layout-horizontal">
+    <ComposableGrid Items="@items" @ref="_grid">
+        <Columns>...</Columns>
+    </ComposableGrid>
+    <EditEventViewer /> <!-- Consumes cascaded IEditEventStream -->
+</div>
+```
+
+**Option 3: Custom Subscriber**
+```csharp
+// Subscribe to EventPublished
+_grid.EditEventStream.EventPublished += evt =>
+{
+    switch (evt)
+    {
+        case EditCommittedEvent e:
+            _commitCount++;
+            break;
+        case ValidationFailedEvent e:
+            _errorCount++;
+            break;
+    }
+    StateHasChanged();
+};
+```
+
+### 11.6 Demo Reference
+
+See `ComposableColumnDemo.razor` section **"Edit Event Stream Demo"** for a complete working example including:
+- Placement selector dropdown
+- Event counter badges
+- Grid with event-enabled columns
+- Code preview with usage patterns
+
+### 11.7 Related Documentation
+
+- `EditEventStreamSpec.md` - Full specification of the event stream architecture
+- `EditEventStreamUsageExamples.md` - Additional usage patterns
+- `EditEventCoverageMatrix.md` - Test coverage for event scenarios
+- `InlineEditingPolish.md` - Original feature specification

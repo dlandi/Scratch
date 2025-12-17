@@ -4,9 +4,10 @@
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.1 |
+| Version | 0.2 |
 | Status | ?? SPEC AUTHORING |
 | Created | 2025-12-16 |
+| Updated | 2025-12-17 |
 | Target Framework | ASP.NET 9 Blazor Server |
 | Namespace | `QuickGridTest01.ComposableColumns` |
 | Branch | `Composable_WIP` |
@@ -36,13 +37,13 @@ This document defines the backlog feature for **ComposableColumns Parity**. The 
 
 | Capability | Legacy Demo | Composable Feature | Gap |
 |------------|-------------|--------------------|-----|
-| Inline editing | `EditableColumnDemo.razor` | `InlineEditingFeature<T>` | Minor (debounce knobs, change log UX) |
+| Inline editing | `EditableColumnDemo.razor` | `InlineEditingFeature<T>` | **Closed** (event stream, change log UI) |
 | Formatting | `FormattedColumnDemo.razor` (`FormattedValueColumn`) | `FormatStringFeature`, `CustomFormatterFeature`, `TooltipFeature` | Medium (runtime culture switchers, formatter catalog) |
 | Styling | `ConditionalStyleDemo.razor`, `IconFeature` samples | `ConditionalCssFeature`, `IconFeature` | Closed |
 | Filtering | `FilterTest4.razor`, `FilterableColumn` | `FilterFeature<T>` + `ComposableGrid` toolbar | Closed |
 | Upcoming pages | See Feature Specs folder (Row expanders, memoization, etc.) | Partial | Medium |
 
-Conclusion: filtering/styling gaps are closed; editing gaps are minimal (on-blur already in place); formatting/culture switching remains the biggest delta.
+Conclusion: filtering/styling/inline editing gaps are closed; formatting/culture switching remains the biggest delta.
 
 ---
 
@@ -105,3 +106,32 @@ Each phase will receive its own execution report similar to `Phase-1-execution-r
 1. Review existing feature specs (`Docs/Feature Design/*.md`) to enumerate remaining demo pages
 2. Create execution plan for Phase B (Formatting parity) referencing this spec
 3. Update backlog/issue tracker with tasks referencing `ComposableColumnsParity_01`
+
+---
+
+## 8. Related Documentation
+
+### 8.1 Inline Editing (Gap Closed)
+
+The inline editing gap has been fully closed with the implementation of the Event Stream feature:
+
+| Document | Description |
+|----------|-------------|
+| [InlineEditingPolish.md](InlineEditingPolish.md) | Full specification for event stream implementation |
+| [InlineEditorFeatures.md](InlineEditorFeatures.md) | InlineEditingFeature gap closure + event stream integration |
+| [EditEventStreamSpec.md](EditEventStreamSpec.md) | Technical specification of IEditEventStream |
+| [EditEventStreamUsageExamples.md](EditEventStreamUsageExamples.md) | Usage patterns and code samples |
+| [EditEventCoverageMatrix.md](EditEventCoverageMatrix.md) | Test coverage for event scenarios |
+
+**Key Capabilities Added:**
+- `ShowEvents` parameter on `InlineEditingFeature` to enable event publishing
+- `IEditEventStream` with `EventPublished` event and `RecentEvents` collection
+- `EditEventViewer` component for displaying change log
+- `EventPanelPlacement` parameter on `ComposableGrid` for auto-rendering
+- Event types: `EditStartedEvent`, `EditCommittedEvent`, `EditCancelledEvent`, `ValidationFailedEvent`, `ValidationSucceededEvent`
+
+**Demo Reference:** See `ComposableColumnDemo.razor` ? "Edit Event Stream Demo" section
+
+### 8.2 Formatting (In Progress)
+
+See [FormattingParity.md](FormattingParity.md) for the formatting gap analysis and work plan.
