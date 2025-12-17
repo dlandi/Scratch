@@ -1,4 +1,4 @@
-# CSS Conventions for InlineEditingPolish
+﻿# CSS Conventions for InlineEditingPolish
 
 > **Note:** This is a companion document to `InlineEditingPolish.md` Section 11.
 > These conventions apply to tasks B2.1, B3.1, C2.1, and C2.2.
