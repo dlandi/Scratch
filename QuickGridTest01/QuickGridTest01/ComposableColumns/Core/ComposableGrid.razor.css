@@ -1,60 +1,17 @@
 /* ComposableGrid scoped styles */
-/* Filter toolbar styles moved to global CSS (quickgrid-refined-minimalism.css) */
-/* to avoid CSS isolation issues with dynamically rendered content */
-
-/* Grid container layouts */
-.composable-grid-container {
-    display: block;
-}
-
-.composable-grid-with-panel {
-    display: flex;
-    gap: 1rem;
-}
-
-.composable-grid-with-panel.horizontal {
-    flex-direction: row;
-}
-
-.composable-grid-main {
-    flex: 1;
-    min-width: 0;
-}
-
-/* Event panel positioning */
-.composable-grid-event-panel {
-    background: #f8f9fa;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.event-panel-top,
-.event-panel-bottom {
-    max-height: 300px;
-    margin-bottom: 1rem;
-}
-
-.event-panel-bottom {
-    margin-bottom: 0;
-    margin-top: 1rem;
-}
-
-.event-panel-left,
-.event-panel-right {
-    width: 300px;
-    flex-shrink: 0;
-    max-height: 600px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 992px) {
-    .composable-grid-with-panel.horizontal {
-        flex-direction: column;
-    }
-
-    .event-panel-left,
-    .event-panel-right {
-        width: 100%;
-        max-height: 250px;
-    }
-}
+/* 
+ * Event panel and layout styles have been moved to global CSS:
+ * wwwroot/css/quickgrid-refined-minimalism.css
+ * 
+ * This ensures:
+ * - Consistent use of design system tokens
+ * - No CSS isolation issues with dynamically rendered content
+ * - Pattern consistency with filter toolbar (also in global CSS)
+ * 
+ * Classes moved:
+ * - .composable-grid-container
+ * - .composable-grid-with-panel
+ * - .composable-grid-main
+ * - .composable-grid-event-panel
+ * - .event-panel-top/bottom/left/right
+ */
