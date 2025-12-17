@@ -1,9 +1,9 @@
-# Phase B Execution Report
+﻿# Phase B Execution Report
 
 ## Session Information
 - **Session Start:** 2025-12-17 09:16:55
-- **Session End:** 2025-12-17 09:23:07
-- **Total Duration:** 6 minutes 12 seconds
+- **Session End:** 2025-12-17 09:28:31
+- **Total Duration:** 11 minutes 36 seconds
 
 ---
 
@@ -75,19 +75,64 @@ Added to `ComposableColumnDemo.razor.cs`:
 
 ---
 
+### B2.1: Layout styles - Add CSS for event demo controls and demo layout utilities
+
+**Start Time:** 2025-12-17 09:27:23  
+**End Time:** 2025-12-17 09:28:31  
+**Duration:** 1 minute 8 seconds
+
+**Implementation Details:**
+
+Added to `wwwroot/css/qgComposable-refined-minimalism.css`:
+
+1. **Event Demo Controls** (`.event-demo-controls`):
+   - Flexbox layout with wrap support
+   - Background and border styling matching design system
+   - Responsive behavior for mobile
+
+2. **Placement Selector** (`.placement-selector`):
+   - Label and select styling
+   - Focus states with primary color ring
+
+3. **Event Counters** (`.event-counters`):
+   - Individual counter badges with icons
+   - Color-coded variants: `.commit` (green), `.cancel` (gray), `.error` (red)
+   - Auto margin-left for right alignment
+
+4. **Reset Button** (`.btn-reset-counters`):
+   - Consistent button styling with hover/active states
+   - Transition effects for smooth interactions
+
+5. **Demo Layout Utilities**:
+   - `.demo-layout-horizontal` - Side-by-side grid and panel
+   - `.demo-layout-vertical` - Stacked grid and panel
+   - Responsive breakpoint at 992px for mobile adaptation
+
+**CSS Convention Compliance:**
+- ✅ All styles added to global `qgComposable-refined-minimalism.css`
+- ✅ Uses design system tokens (--space-*, --color-*, --font-size-*, etc.)
+- ✅ Follows existing naming conventions
+- ✅ No scoped .razor.css files created
+
+**Status:** [x] Complete
+
+---
+
 ## Session Summary
 
 | Task | Status | Duration |
 |------|--------|----------|
-| B1.1 | ? Complete | 1m 30s |
-| B1.2 | ? Complete | 1m 27s |
-| **Total** | **2 tasks** | **6m 12s** |
+| B1.1 | ✅ Complete | 1m 30s |
+| B1.2 | ✅ Complete | 1m 27s |
+| B2.1 | ✅ Complete | 1m 8s |
+| **Total** | **3 tasks** | **11m 36s** |
 
 ### Build Verification
-- **Result:** ? Build succeeded
+- **Result:** ✅ Build succeeded
 - **Warnings:** 432 (all pre-existing BL0005 warnings in test files)
 - **Errors:** 0
 
 ### Files Modified
 - `QuickGridTest01/QuickGridTest01/Pages/ComposableColumnDemo.razor.cs`
 - `QuickGridTest01/QuickGridTest01/Pages/ComposableColumnDemo.razor`
+- `QuickGridTest01/wwwroot/css/qgComposable-refined-minimalism.css`

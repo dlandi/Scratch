@@ -56,5 +56,4 @@ If the terminal command fails or returns no output, abort the task and notify th
 
 **TASK LIST (Phase {Phase}):**
 
-B1.1
-B1.2
+B2.1

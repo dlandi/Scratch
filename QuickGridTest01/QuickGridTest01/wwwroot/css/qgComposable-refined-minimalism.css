@@ -1,5 +1,4 @@
-﻿
-/* ----------------------------------------------------------------------------
+﻿/* ----------------------------------------------------------------------------
    Form Card
    -------------------------------------------------------------------------- */
 
@@ -783,4 +782,160 @@
 
 .event-item.event-failed .event-details {
     color: var(--color-error, #dc3545);
+}
+
+/* ============================================================================
+   EVENT DEMO CONTROLS
+   Styles for the Edit Event Stream Demo section controls
+   ========================================================================= */
+
+.event-demo-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8, 1rem);
+    padding: var(--space-8, 1rem);
+    background: var(--color-canvas, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    margin-bottom: var(--space-8, 1rem);
+}
+
+.placement-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+}
+
+    .placement-selector label {
+        font-size: var(--font-size-sm, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-text-secondary, #525252);
+    }
+
+    .placement-selector select {
+        padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+        font-size: var(--font-size-sm, 0.875rem);
+        border: 1px solid var(--color-border-default, #dee2e6);
+        border-radius: var(--card-radius, 4px);
+        background: var(--color-surface, #ffffff);
+        color: var(--color-text-primary, #1a1a1a);
+        cursor: pointer;
+    }
+
+        .placement-selector select:focus {
+            outline: none;
+            border-color: var(--color-primary, #0d6efd);
+            box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+        }
+
+.event-counters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 1rem);
+    margin-left: auto;
+}
+
+    .event-counters .counter {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 0.25rem);
+        font-size: var(--font-size-sm, 0.875rem);
+        padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+        border-radius: var(--card-radius, 4px);
+        background: var(--color-surface, #ffffff);
+        border: 1px solid var(--color-border-default, #dee2e6);
+    }
+
+    .event-counters .counter.commit {
+        color: var(--color-success, #28a745);
+        border-color: rgba(40, 167, 69, 0.3);
+    }
+
+    .event-counters .counter.cancel {
+        color: var(--color-text-secondary, #525252);
+        border-color: var(--color-border-default, #dee2e6);
+    }
+
+    .event-counters .counter.error {
+        color: var(--color-error, #dc3545);
+        border-color: rgba(220, 53, 69, 0.3);
+    }
+
+.btn-reset-counters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.25rem);
+    padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-secondary, #525252);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    cursor: pointer;
+    transition: all var(--duration-fast, 150ms) ease;
+}
+
+    .btn-reset-counters:hover {
+        background: var(--color-canvas, #f8f9fa);
+        border-color: var(--color-border-hover, #adb5bd);
+    }
+
+    .btn-reset-counters:active {
+        transform: scale(0.98);
+    }
+
+/* ============================================================================
+   DEMO LAYOUT UTILITIES
+   Layout helpers for manual event panel placement in demos
+   ========================================================================= */
+
+.demo-layout-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-8, 1rem);
+}
+
+    .demo-layout-horizontal > .qg-grid-container,
+    .demo-layout-horizontal > .composable-grid-container {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .demo-layout-horizontal > .edit-event-viewer {
+        width: 300px;
+        flex-shrink: 0;
+        max-height: 500px;
+    }
+
+.demo-layout-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8, 1rem);
+}
+
+    .demo-layout-vertical > .edit-event-viewer {
+        max-height: 250px;
+    }
+
+/* Responsive behavior for demo layouts */
+@media (max-width: 992px) {
+    .demo-layout-horizontal {
+        flex-direction: column;
+    }
+
+        .demo-layout-horizontal > .edit-event-viewer {
+            width: 100%;
+            max-height: 250px;
+        }
+
+    .event-demo-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .event-counters {
+        margin-left: 0;
+        flex-wrap: wrap;
+    }
 }
