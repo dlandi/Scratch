@@ -19,6 +19,15 @@ public partial class ComposableColumnDemo
 
     // Grid reference for filtering section
     private ComposableGrid<Product>? _filterGrid;
+    
+    // Grid reference for event stream demo section
+    private ComposableGrid<EditableProduct>? _eventDemoGrid;
+
+    // Event stream demo state
+    private EventPanelPlacement _selectedPlacement = EventPanelPlacement.Right;
+    private int _commitCount;
+    private int _cancelCount;
+    private int _validationErrorCount;
 
     // Feature collections for styling demo
     private IColumnFeature<Product>[] _stockFeatures = default!;
@@ -42,6 +51,12 @@ public partial class ComposableColumnDemo
     private IColumnFeature<EditableProduct>[] _autoNameFeatures = default!;
     private IColumnFeature<EditableProduct>[] _autoPriceFeatures = default!;
     private IColumnFeature<EditableProduct>[] _radioStatusFeatures = default!;
+    
+    // Event stream demo features (ShowEvents enabled)
+    private IColumnFeature<EditableProduct>[] _eventDemoNameFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _eventDemoPriceFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _eventDemoStockFeatures = default!;
+    private IColumnFeature<EditableProduct>[] _eventDemoStatusFeatures = default!;
 
     protected override void OnInitialized()
     {
@@ -50,7 +65,16 @@ public partial class ComposableColumnDemo
         InitializeFilterFeatures();
         InitializeEditingFeatures();
         InitializeNewEditorFeatures();
+        InitializeEventDemoFeatures();
         InitializeFeaturePriorities();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && _eventDemoGrid?.EditEventStream is not null)
+        {
+            _eventDemoGrid.EditEventStream.EventPublished += HandleEventStreamPublished;
+        }
     }
 
     private void InitializeProducts()
@@ -240,6 +264,76 @@ public partial class ComposableColumnDemo
             ];
         }
 
+        private void InitializeEventDemoFeatures()
+        {
+            // Name with event display on edit
+            _eventDemoNameFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, string>
+                {
+                    Editor = EditKind.Text,
+                    Placeholder = "Enter name...",
+                    ItemKey = p => p.Id,
+                    ShowValidationErrors = true,
+                    ShowEvents = true, // Show events in the grid
+                    Validators = [new RequiredStringValidator(), new StringLengthValidator { MinLength = 2, MaxLength = 50 }],
+                    OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, string>>(
+                        this, args => HandleValueChanged($"Name changed from '{args.OldValue}' to '{args.NewValue}'")),
+                    OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, string>>(
+                        this, args => HandleValidationCompleted("Name", args.IsValid, args.Errors))
+                }
+            ];
+
+            // Price with event display on edit
+            _eventDemoPriceFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, decimal>
+                {
+                    Editor = EditKind.Currency,
+                    ItemKey = p => p.Id,
+                    Step = "0.01",
+                    ShowValidationErrors = true,
+                    ShowEvents = true, // Show events in the grid
+                    Validators = [new RangeValidator<decimal> { Minimum = 0.01m, Maximum = 10000m }],
+                    OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, decimal>>(
+                        this, args => HandleValueChanged($"Price changed from {args.OldValue:C2} to {args.NewValue:C2}")),
+                    OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, decimal>>(
+                        this, args => HandleValidationCompleted("Price", args.IsValid, args.Errors))
+                }
+            ];
+
+            // Stock with event display on edit
+            _eventDemoStockFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, int>
+                {
+                    Editor = EditKind.Number,
+                    ItemKey = p => p.Id,
+                    Min = "0",
+                    ShowValidationErrors = true,
+                    ShowEvents = true, // Show events in the grid
+                    Validators = [new MinValueValidator<int> { Minimum = 0 }],
+                    OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, int>>(
+                        this, args => HandleValueChanged($"Stock changed from {args.OldValue} to {args.NewValue}")),
+                    OnValidationCompleted = EventCallback.Factory.Create<ValidationCompletedEventArgs<EditableProduct, int>>(
+                        this, args => HandleValidationCompleted("Stock", args.IsValid, args.Errors))
+                }
+            ];
+
+            // Status with event display on edit
+            _eventDemoStatusFeatures =
+            [
+                new InlineEditingFeature<EditableProduct, ProductStatus>
+                {
+                    Editor = EditKind.Select,
+                    ItemKey = p => p.Id,
+                    ShowEvents = true, // Show events in the grid
+                    OnValueChanged = EventCallback.Factory.Create<ValueChangedEventArgs<EditableProduct, ProductStatus>>(
+                        this, args => HandleValueChanged($"Status changed from {args.OldValue} to {args.NewValue}"))
+                }
+            ];
+        }
+
         private void HandleValueChanged(string message)
     {
         _lastEditMessage = message;
@@ -274,6 +368,33 @@ public partial class ComposableColumnDemo
             new("Performance", 800, "Memoization, minimal DOM, set key"),
             new("Final", 1000, "Final wrapper features")
         }.AsQueryable();
+    }
+
+    // Event counter tracking methods
+    private void HandleEventStreamPublished(EditEventBase evt)
+    {
+        switch (evt)
+        {
+            case EditCommittedEvent:
+                _commitCount++;
+                break;
+            case EditCancelledEvent:
+                _cancelCount++;
+                break;
+            case ValidationFailedEvent:
+                _validationErrorCount++;
+                break;
+        }
+        StateHasChanged();
+    }
+
+    private void ResetEventCounters()
+    {
+        _commitCount = 0;
+        _cancelCount = 0;
+        _validationErrorCount = 0;
+        _eventDemoGrid?.EditEventStream?.Clear();
+        StateHasChanged();
     }
 
     // Demo models - Added InStock boolean for boolean filter demo

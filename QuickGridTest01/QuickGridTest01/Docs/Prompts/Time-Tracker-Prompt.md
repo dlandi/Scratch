@@ -1,4 +1,4 @@
-# Agent Task Execution Prompt
+﻿# Agent Task Execution Prompt
 
 **CONFIGURATION**
 | Variable | Value |
@@ -56,6 +56,5 @@ If the terminal command fails or returns no output, abort the task and notify th
 
 **TASK LIST (Phase {Phase}):**
 
-A4.1
-A5.1
-A5.2
+B1.1
+B1.2

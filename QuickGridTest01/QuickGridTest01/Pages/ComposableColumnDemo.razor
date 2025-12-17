@@ -409,6 +409,98 @@ var priceEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
 
             <section class="qg-section">
                 <div class="qg-section-header">
+                    <h2 class="qg-section-title">Edit Event Stream Demo</h2>
+                    <p class="qg-section-description">
+                        <strong>Grid-integrated event logging:</strong> Enable <code>ShowEvents="true"</code> on editing features 
+                        to publish lifecycle events to an <code>IEditEventStream</code>. Use <code>EventPanelPlacement</code> 
+                        to auto-render the <code>EditEventViewer</code> panel, or manually place it using the cascaded stream.
+                    </p>
+                </div>
+
+                <div class="event-demo-controls">
+                    <div class="placement-selector">
+                        <label>Panel Placement:</label>
+                        <select @bind="_selectedPlacement">
+                            <option value="@EventPanelPlacement.None">None (Manual)</option>
+                            <option value="@EventPanelPlacement.Top">Top</option>
+                            <option value="@EventPanelPlacement.Right">Right</option>
+                            <option value="@EventPanelPlacement.Bottom">Bottom</option>
+                            <option value="@EventPanelPlacement.Left">Left</option>
+                        </select>
+                    </div>
+                    <div class="event-counters">
+                        <span class="counter commit"><i class="bi bi-check-circle"></i> @_commitCount commits</span>
+                        <span class="counter cancel"><i class="bi bi-x-circle"></i> @_cancelCount cancels</span>
+                        <span class="counter error"><i class="bi bi-exclamation-triangle"></i> @_validationErrorCount errors</span>
+                        <button type="button" class="btn-reset-counters" @onclick="ResetEventCounters">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </button>
+                    </div>
+                </div>
+
+                <div class="qg-grid-container">
+                    <ComposableGrid @ref="_eventDemoGrid" TGridItem="EditableProduct" Items="@_editableProducts" 
+                                    RowKey="p => p.Id" Class="qg-grid" 
+                                    EventPanelPlacement="@_selectedPlacement">
+                        <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                          Property="@(p => p.Id)"
+                                          Title="ID" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                                          Property="@(p => p.Name)"
+                                          Title="Name"
+                                          FeatureCollection="@_eventDemoNameFeatures"
+                                          Sortable="true" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                                          Property="@(p => p.Price)"
+                                          Title="Price"
+                                          FeatureCollection="@_eventDemoPriceFeatures"
+                                          Sortable="true" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                                          Property="@(p => p.Stock)"
+                                          Title="Stock"
+                                          FeatureCollection="@_eventDemoStockFeatures"
+                                          Sortable="true" />
+
+                        <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                                          Property="@(p => p.Status)"
+                                          Title="Status"
+                                          FeatureCollection="@_eventDemoStatusFeatures"
+                                          Sortable="true" />
+                    </ComposableGrid>
+                </div>
+
+                <div class="code-preview">
+                    <h4>Event Stream Integration:</h4>
+                    <pre><code>// Enable events on editing features
+var nameEditFeatures = new IColumnFeature&lt;EditableProduct&gt;[]
+{
+    new InlineEditingFeature&lt;EditableProduct, string&gt;
+    {
+        Editor = EditorKind.Text,
+        ItemKey = p =&gt; p.Id,
+        ShowEvents = true,  // Publishes to cascaded IEditEventStream
+        Validators = [new RequiredStringValidator()]
+    }
+};
+
+// Option 1: Auto-render panel with EventPanelPlacement
+&lt;ComposableGrid Items="@@items" EventPanelPlacement="EventPanelPlacement.Right"&gt;
+    ...
+&lt;/ComposableGrid&gt;
+
+// Option 2: Manual panel placement
+&lt;div class="layout-horizontal"&gt;
+    &lt;ComposableGrid Items="@@items"&gt;...&lt;/ComposableGrid&gt;
+    &lt;EditEventViewer /&gt;  @* Consumes cascaded IEditEventStream *@
+&lt;/div&gt;</code></pre>
+                </div>
+            </section>
+
+            <section class="qg-section">
+                <div class="qg-section-header">
                     <h2 class="qg-section-title">Feature Priority Order</h2>
                 </div>
 
