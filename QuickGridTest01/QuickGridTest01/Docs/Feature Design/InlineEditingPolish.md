@@ -1,11 +1,11 @@
-# Inline Editing Polish Specification
+﻿# Inline Editing Polish Specification
 
 ## Document Information
 
 | Attribute | Value |
 |-----------|-------|
 | Version | 1.1 |
-| Status | ? **DESIGN APPROVED � READY FOR IMPLEMENTATION** |
+| Status | ? **DESIGN APPROVED – READY FOR IMPLEMENTATION** |
 | Created | 2025-12-16 |
 | Updated | 2025-12-17 |
 | Target Framework | ASP.NET 9 Blazor Server |
@@ -13,7 +13,7 @@
 | Branch | `Composable_WIP` |
 | Key Decisions | A2.2 (Grid-cascaded stream), B2.1 (Option 5: Auto-panel + manual placement) |
 
-> Captures **Phase A � Inline Editing polish** from the ComposableColumns parity plan. This is the next feature slated for implementation.
+> Captures **Phase A – Inline Editing polish** from the ComposableColumns parity plan. This is the next feature slated for implementation.
 >
 > **Major Decisions Made:**
 > - **Event Mechanism (A2.2):** Grid provides `IEditEventStream` via cascading value; features opt-in with `ShowEvents=true`
@@ -125,24 +125,24 @@ Success indicators:
 
 ## 6. Priority & Next Steps
 
-- **Priority:** High � designated as the next feature to implement.
+- **Priority:** High – designated as the next feature to implement.
 - **Next Step:** Kick off Task A0.1 (baseline feature tests) then proceed through the A-series tasks.
 
 **Recommended Implementation Order:**
 ```
-A0.1 ? A0.2 ? A1.1-A1.3 (discovery)
-       ?
+A0.1 → A0.2 → A1.1-A1.3 (discovery)
+       ↓
 A2.1-A2.2 (contracts + stream details)
-       ?
-A3.1 ? A3.2-A3.7 (implementation + tests)
-       ?
-A4.1 ? A5.1-A5.2 (documentation + grid integration)
-       ?
-B1.1-B1.2 ? B2.1 ? B3.1 (demo + styles + EditEventViewer)
-       ?
+       ↓
+A3.1 → A3.2-A3.7 (implementation + tests)
+       ↓
+A4.1 → A5.1-A5.2 (documentation + grid integration)
+       ↓
+B1.1-B1.2 → B2.1 → B3.1 (demo + styles + EditEventViewer)
+       ↓
 B4.1-B4.3 (documentation updates)
-       ?
-C1.1-C1.2 ? C2.1-C2.3 (ValidationSummaryPanel)
+       ↓
+C1.1-C1.2 → C2.1-C2.3 (ValidationSummaryPanel)
 ```
 
 ---
@@ -165,13 +165,13 @@ C1.1-C1.2 ? C2.1-C2.3 (ValidationSummaryPanel)
 - Fine-grained opt-in per column
 - Zero overhead when not used
 
-**Reference:** See `Task B2.1 Placement API � Deep Dive.md` Option 4 architecture
+**Reference:** See `Task B2.1 Placement API – Deep Dive.md` Option 4 architecture
 
 ---
 
 ### Decision 2: Panel Placement API ? **DECIDED**
 
-**Decision:** Option 5 � Grid-Provided Stream + Optional Auto-Panel
+**Decision:** Option 5 – Grid-Provided Stream + Optional Auto-Panel
 
 **Approach:**
 
@@ -217,7 +217,7 @@ C1.1-C1.2 ? C2.1-C2.3 (ValidationSummaryPanel)
 - **Minimal bloat:** Only +1 optional parameter on grid
 - **No breaking changes:** Default `None` means existing grids unchanged
 
-**Reference:** See `Task B2.1 Placement API � Deep Dive.md` for full 5-option analysis
+**Reference:** See `Task B2.1 Placement API – Deep Dive.md` for full 5-option analysis
 
 ---
 
@@ -294,7 +294,7 @@ public enum Placement
 
 ### For Existing Consumers
 
-**No action required** � all changes are opt-in:
+**No action required** – all changes are opt-in:
 
 - Existing `InlineEditingFeature` usage unchanged (no `ShowEvents` param = no events)
 - Existing `ComposableGrid` usage unchanged (no `EventPanelPlacement` param = no panel)
@@ -343,25 +343,25 @@ All new files created in `QuickGridTest01.ComposableColumns.Features.Editing` na
 
 ```
 QuickGridTest01/
-??? ComposableColumns/
-?   ??? Core/
-?   ?   ??? ComposableGrid.razor          # Modify
-?   ??? Features/
-?       ??? Editing/
-?           ??? EditingFeatures.cs        # Modify (InlineEditingFeature)
-?           ??? Validators.cs             # Existing (IValidator<T>, ValidationResult)
-?           ??? Placement.cs              # New
-?           ??? IEditEventStream.cs       # New
-?           ??? EditEventStream.cs        # New
-?           ??? EditEventBase.cs          # New
-?           ??? EditCommittedEvent.cs     # New
-?           ??? EditCancelledEvent.cs     # New
-?           ??? ValidationFailedEvent.cs  # New
-?           ??? ValidationRuleDescriptor.cs # New
-?           ??? EditEventViewer.razor     # New
-?           ??? ValidationSummaryPanel.razor # New
-??? Pages/
-    ??? ComposableColumnDemo.razor        # Modify
+├── ComposableColumns/
+│   ├── Core/
+│   │   └── ComposableGrid.razor          # Modify
+│   └── Features/
+│       └── Editing/
+│           ├── EditingFeatures.cs        # Modify (InlineEditingFeature)
+│           ├── Validators.cs             # Existing (IValidator<T>, ValidationResult)
+│           ├── Placement.cs              # New
+│           ├── IEditEventStream.cs       # New
+│           ├── EditEventStream.cs        # New
+│           ├── EditEventBase.cs          # New
+│           ├── EditCommittedEvent.cs     # New
+│           ├── EditCancelledEvent.cs     # New
+│           ├── ValidationFailedEvent.cs  # New
+│           ├── ValidationRuleDescriptor.cs # New
+│           ├── EditEventViewer.razor     # New
+│           └── ValidationSummaryPanel.razor # New
+└── Pages/
+    └── ComposableColumnDemo.razor        # Modify
 ```
 
 ## 11. Appendix: CSS Conventions
