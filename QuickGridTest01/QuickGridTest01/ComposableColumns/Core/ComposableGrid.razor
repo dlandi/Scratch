@@ -1,38 +1,79 @@
 @typeparam TGridItem
+@implements IDisposable
 
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.AspNetCore.Components
+@using QuickGridTest01.ComposableColumns.Features.Editing
 
 <CascadingValue Value="this" TValue="ComposableGrid<TGridItem>">
     <CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
-        @* Render filter toolbar if any columns have filter features *@
-        @if (_filterFeatures.Count > 0)
-        {
-            <div class="composable-grid-filter-toolbar">
-                @foreach (var filter in _filterFeatures)
-                {
-                    @FilterInputFragment(filter)
-                }
-                <div class="filter-toolbar-actions">
-                    @if (HasActiveFilters)
-                    {
-                        <span class="filter-count">@FilteredCount of @TotalCount</span>
-                        <button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
-                            <i class="bi bi-x-circle"></i> Clear
-                        </button>
-                    }
+        <CascadingValue Value="_editEventStream" TValue="IEditEventStream">
+            @* Event panel at Top position *@
+            @if (EventPanelPlacement == EventPanelPlacement.Top && _editEventStream is not null)
+            {
+                <div class="composable-grid-event-panel event-panel-top">
+                    <EditEventViewer />
                 </div>
-            </div>
-        }
+            }
 
-        <QuickGrid TGridItem="TGridItem" Items="FilteredItems" @attributes="AdditionalAttributes">
-            @ChildContent
-        </QuickGrid>
+            <div class="@GetGridContainerClass()">
+                @* Event panel at Left position *@
+                @if (EventPanelPlacement == EventPanelPlacement.Left && _editEventStream is not null)
+                {
+                    <div class="composable-grid-event-panel event-panel-left">
+                        <EditEventViewer />
+                    </div>
+                }
+
+                <div class="composable-grid-main">
+                    @* Render filter toolbar if any columns have filter features *@
+                    @if (_filterFeatures.Count > 0)
+                    {
+                        <div class="composable-grid-filter-toolbar">
+                            @foreach (var filter in _filterFeatures)
+                            {
+                                @FilterInputFragment(filter)
+                            }
+                            <div class="filter-toolbar-actions">
+                                @if (HasActiveFilters)
+                                {
+                                    <span class="filter-count">@FilteredCount of @TotalCount</span>
+                                    <button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
+                                        <i class="bi bi-x-circle"></i> Clear
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <QuickGrid TGridItem="TGridItem" Items="FilteredItems" @attributes="AdditionalAttributes">
+                        @ChildContent
+                    </QuickGrid>
+                </div>
+
+                @* Event panel at Right position *@
+                @if (EventPanelPlacement == EventPanelPlacement.Right && _editEventStream is not null)
+                {
+                    <div class="composable-grid-event-panel event-panel-right">
+                        <EditEventViewer />
+                    </div>
+                }
+            </div>
+
+            @* Event panel at Bottom position *@
+            @if (EventPanelPlacement == EventPanelPlacement.Bottom && _editEventStream is not null)
+            {
+                <div class="composable-grid-event-panel event-panel-bottom">
+                    <EditEventViewer />
+                </div>
+            }
+        </CascadingValue>
     </CascadingValue>
 </CascadingValue>
 
 @code {
     private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
+    private EditEventStream? _editEventStream;
 
     /// <summary>
     /// The data source for the grid.
@@ -44,10 +85,36 @@
     /// </summary>
     [Parameter] public Func<TGridItem, object>? RowKey { get; set; }
 
+    /// <summary>
+    /// Where to render the event panel. Default is None (no panel).
+    /// </summary>
+    [Parameter] public EventPanelPlacement EventPanelPlacement { get; set; } = EventPanelPlacement.None;
+
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+    /// <summary>
+    /// Gets the edit event stream for this grid.
+    /// </summary>
+    public IEditEventStream? EditEventStream => _editEventStream;
+
+    protected override void OnInitialized()
+    {
+        // Create the event stream - it's always available for features to use
+        // even if EventPanelPlacement is None (consumers can still use the cascaded value)
+        _editEventStream = new EditEventStream();
+    }
+
+    private string GetGridContainerClass()
+    {
+        return EventPanelPlacement switch
+        {
+            EventPanelPlacement.Left or EventPanelPlacement.Right => "composable-grid-with-panel horizontal",
+            _ => "composable-grid-container"
+        };
+    }
 
     /// <summary>
     /// Gets the filtered items after applying all active filters.
@@ -131,4 +198,9 @@
         var seq = 0;
         filter.RenderFilterInput(builder, ref seq);
     };
+
+    public void Dispose()
+    {
+        _editEventStream?.Dispose();
+    }
 }

@@ -36,6 +36,9 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     private ValidationAttribute[]? _dataAnnotationAttributes;
     private string? _propertyName;
 
+    // Cached reference to the event stream (from cascading parameter)
+    private IEditEventStream? _editEventStream;
+
     private bool _disposed;
 
     /// <summary>
@@ -131,12 +134,25 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// </summary>
     public EventCallback<ValidationCompletedEventArgs<TGridItem, TValue>> OnValidationCompleted { get; set; }
 
+    /// <summary>
+    /// Whether to publish edit lifecycle events to the cascaded IEditEventStream.
+    /// When true, events (commit, cancel, validation) are published to the stream.
+    /// When false (default), no events are published and there is no overhead.
+    /// </summary>
+    public bool ShowEvents { get; set; } = false;
+
     public void OnAttach(FeatureContext<TGridItem> context)
     {
         // Discover DataAnnotation attributes if enabled
         if (UseDataAnnotations && context is FeatureContext<TGridItem, TValue> typedContext)
         {
             DiscoverDataAnnotationAttributes(typedContext);
+        }
+
+        // Capture event stream reference if ShowEvents is enabled
+        if (ShowEvents)
+        {
+            _editEventStream = context.GetService<IEditEventStream>();
         }
     }
 
@@ -166,6 +182,66 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     {
         Dispose();
     }
+
+    #region Event Stream Publishing
+
+    /// <summary>
+    /// Publishes an event to the event stream if ShowEvents is enabled and stream is available.
+    /// </summary>
+    private async Task PublishEventIfEnabledAsync(EditEventBase @event)
+    {
+        // Fast path: skip if not enabled or no stream
+        if (!ShowEvents || _editEventStream is null)
+            return;
+
+        try
+        {
+            await _editEventStream.PublishAsync(@event);
+        }
+        catch
+        {
+            // Swallow exceptions from event publishing to avoid breaking the editing flow
+        }
+    }
+
+    /// <summary>
+    /// Builds validation rule results from the current validators and results.
+    /// </summary>
+    private List<ValidationRuleResult> BuildValidationRuleResults(List<ValidationResult> results)
+    {
+        var ruleResults = new List<ValidationRuleResult>();
+
+        // Map custom validator results
+        for (int i = 0; i < Validators.Count && i < results.Count; i++)
+        {
+            var validator = Validators[i];
+            var result = results[i];
+            ruleResults.Add(new ValidationRuleResult
+            {
+                RuleName = validator.Name,
+                IsValid = result.IsValid,
+                ErrorMessage = result.ErrorMessage,
+                Severity = ValidationSeverity.Error
+            });
+        }
+
+        // Map DataAnnotation results (they come after custom validators)
+        for (int i = Validators.Count; i < results.Count; i++)
+        {
+            var result = results[i];
+            ruleResults.Add(new ValidationRuleResult
+            {
+                RuleName = "DataAnnotation",
+                IsValid = result.IsValid,
+                ErrorMessage = result.ErrorMessage,
+                Severity = ValidationSeverity.Error
+            });
+        }
+
+        return ruleResults;
+    }
+
+    #endregion
 
     public void RenderCell(
         RenderTreeBuilder builder,
@@ -485,82 +561,75 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
 
     private void RenderRadioGroupEditor(
         RenderTreeBuilder builder,
-            int baseSeq,
-            TGridItem item,
-            FeatureContext<TGridItem, TValue> context,
-            TValue currentValue)
+        int baseSeq,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
+    {
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", "radio-group");
+        builder.AddAttribute(baseSeq + 2, "role", "radiogroup");
+
+        IEnumerable<SelectOption<TValue>> options;
+        if (SelectOptions is not null)
         {
-            builder.OpenElement(baseSeq + 0, "div");
-            builder.AddAttribute(baseSeq + 1, "class", "radio-group");
-            builder.AddAttribute(baseSeq + 2, "role", "radiogroup");
+            options = SelectOptions;
+        }
+        else if (TypeTraits<TValue>.IsEnum)
+        {
+            options = TypeTraits<TValue>.BuildEnumOptions()
+                .Select(o => new SelectOption<TValue> { Value = o.Value, Label = o.Text });
+        }
+        else
+        {
+            options = [];
+        }
 
-                    // Get options - either from SelectOptions or build from enum values
-                    IEnumerable<SelectOption<TValue>> options;
-                    if (SelectOptions is not null)
-                    {
-                        options = SelectOptions;
-                    }
-                    else if (TypeTraits<TValue>.IsEnum)
-                    {
-                        // Build options from enum using TypeTraits, converting to local SelectOption type
-                        options = TypeTraits<TValue>.BuildEnumOptions()
-                            .Select(o => new SelectOption<TValue> { Value = o.Value, Label = o.Text });
-                    }
-                    else
-                    {
-                        options = [];
-                    }
+        var optionIndex = 0;
+        foreach (var option in options)
+        {
+            var radioId = $"radio_{GetItemKey(item)}_{optionIndex}";
+            var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
 
-                    var optionIndex = 0;
-                    foreach (var option in options)
-                    {
-                        var radioId = $"radio_{GetItemKey(item)}_{optionIndex}";
-                        var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
+            builder.OpenElement(baseSeq + 10, "label");
+            builder.SetKey(optionIndex);
+            builder.AddAttribute(baseSeq + 11, "class", "radio-option");
 
-                        builder.OpenElement(baseSeq + 10, "label");
-                        builder.SetKey(optionIndex);
-                        builder.AddAttribute(baseSeq + 11, "class", "radio-option");
+            builder.OpenElement(baseSeq + 12, "input");
+            builder.AddAttribute(baseSeq + 13, "type", "radio");
+            builder.AddAttribute(baseSeq + 14, "id", radioId);
+            builder.AddAttribute(baseSeq + 15, "name", $"radio_{GetItemKey(item)}");
+            builder.AddAttribute(baseSeq + 16, "value", option.Value?.ToString() ?? "");
+            builder.AddAttribute(baseSeq + 17, "checked", isSelected);
 
-                        builder.OpenElement(baseSeq + 12, "input");
-                        builder.AddAttribute(baseSeq + 13, "type", "radio");
-                        builder.AddAttribute(baseSeq + 14, "id", radioId);
-                        builder.AddAttribute(baseSeq + 15, "name", $"radio_{GetItemKey(item)}");
-                        builder.AddAttribute(baseSeq + 16, "value", option.Value?.ToString() ?? "");
-                        builder.AddAttribute(baseSeq + 17, "checked", isSelected);
+            builder.AddAttribute(baseSeq + 18, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+                context.EventReceiver ?? (object)this, async e =>
+                {
+                    HandleInput(item, e.Value?.ToString());
+                    await ValidateAndCommitAsync(item, context);
+                }));
 
-                        builder.AddAttribute(baseSeq + 18, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
-                            context.EventReceiver ?? (object)this, async e =>
-                            {
-                                HandleInput(item, e.Value?.ToString());
-                                await ValidateAndCommitAsync(item, context);
-                            }));
+            builder.CloseElement(); // input
 
-                        builder.CloseElement(); // input
+            var displayText = OptionText is not null && option.Value is not null
+                ? OptionText(option.Value)
+                : option.Label;
+            builder.OpenElement(baseSeq + 19, "span");
+            builder.AddContent(baseSeq + 20, displayText);
+            builder.CloseElement(); // span
 
-                        // Use OptionText mapper if provided, otherwise use Label
-                        var displayText = OptionText is not null && option.Value is not null
-                            ? OptionText(option.Value)
-                            : option.Label;
-                        builder.OpenElement(baseSeq + 19, "span");
-                        builder.AddContent(baseSeq + 20, displayText);
-                        builder.CloseElement(); // span
+            builder.CloseElement(); // label
+            optionIndex++;
+        }
 
-                        builder.CloseElement(); // label
-                        optionIndex++;
-                    }
+        builder.CloseElement(); // div
+    }
 
-                    builder.CloseElement(); // div
-                }
-
-            /// <summary>
-            /// Gets the effective editor kind, resolving Auto to a specific editor based on TypeTraits.
-            /// </summary>
-            private EditorKind GetEffectiveEditorKind()
+    private EditorKind GetEffectiveEditorKind()
     {
         if (Editor != EditorKind.Auto)
             return Editor;
 
-        // Use TypeTraits to infer the appropriate editor
         return TypeTraits<TValue>.Kind switch
         {
             ValueKind.Boolean => EditorKind.Checkbox,
@@ -583,22 +652,21 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             EditorKind.Number or EditorKind.Currency => "number",
             EditorKind.Date => "date",
             EditorKind.DateTime => "datetime-local",
-                    EditorKind.Time => "time",
-                    EditorKind.Email => "email",
-                    EditorKind.Url => "url",
-                    EditorKind.Tel => "tel",
-                    _ => "text"
-                };
-            }
+            EditorKind.Time => "time",
+            EditorKind.Email => "email",
+            EditorKind.Url => "url",
+            EditorKind.Tel => "tel",
+            _ => "text"
+        };
+    }
 
-            private string FormatValue(TValue value)
-            {
-                // Use TypeTraits for fast, cached formatting with editor-specific handling
-                var effectiveEditor = GetEffectiveEditorKind();
-                return TypeTraits<TValue>.FormatForInput(value, effectiveEditor, CultureInfo.InvariantCulture);
-            }
+    private string FormatValue(TValue value)
+    {
+        var effectiveEditor = GetEffectiveEditorKind();
+        return TypeTraits<TValue>.FormatForInput(value, effectiveEditor, CultureInfo.InvariantCulture);
+    }
 
-            private object GetItemKey(TGridItem item)
+    private object GetItemKey(TGridItem item)
     {
         if (ItemKey is not null)
             return ItemKey(item);
@@ -613,26 +681,34 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     {
         var itemKey = GetItemKey(item);
 
-        // Use TypeTraits for fast, cached parsing
         if (TypeTraits<TValue>.TryParseFromEventValue(newValueString, CultureInfo.InvariantCulture, out var parsed))
         {
             _currentValues[itemKey] = parsed!;
         }
 
-        // Clear previous validation errors while editing
         _validationResults[itemKey] = [];
     }
 
     /// <summary>
-    /// Handles focus - marks the item as being edited.
+    /// Handles focus - marks the item as being edited and publishes EditStartedEvent.
     /// </summary>
-    private void HandleFocus(TGridItem item)
+    private async void HandleFocus(TGridItem item)
     {
         var itemKey = GetItemKey(item);
         _editingItems.Add(itemKey);
-        
-        // Clear validation errors when starting to edit
         _validationResults[itemKey] = [];
+
+        // Publish edit started event if enabled
+        if (ShowEvents && _editEventStream is not null)
+        {
+            _currentValues.TryGetValue(itemKey, out var currentValue);
+            await PublishEventIfEnabledAsync(new EditStartedEvent
+            {
+                ItemKey = itemKey,
+                PropertyName = _propertyName,
+                CurrentValue = currentValue
+            });
+        }
     }
 
     /// <summary>
@@ -682,7 +758,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             _validationResults[itemKey] = results;
             var allValid = results.Count == 0 || results.All(r => r.IsValid);
 
-            // Fire validation completed event
+            // Fire validation completed callback
             if (OnValidationCompleted.HasDelegate)
             {
                 await OnValidationCompleted.InvokeAsync(new ValidationCompletedEventArgs<TGridItem, TValue>
@@ -694,6 +770,33 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                 });
             }
 
+            // Publish validation event to stream if enabled
+            if (ShowEvents && _editEventStream is not null)
+            {
+                var ruleResults = BuildValidationRuleResults(results);
+                if (allValid)
+                {
+                    await PublishEventIfEnabledAsync(new ValidationSucceededEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        Value = currentValue,
+                        RuleResults = ruleResults
+                    });
+                }
+                else
+                {
+                    await PublishEventIfEnabledAsync(new ValidationFailedEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        AttemptedValue = currentValue,
+                        Errors = results.Where(r => !r.IsValid).Select(r => r.ErrorMessage ?? "Invalid").ToList(),
+                        RuleResults = ruleResults
+                    });
+                }
+            }
+
             // Only commit if valid
             if (allValid)
             {
@@ -701,18 +804,11 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             }
             else
             {
-                // Refresh to show errors
                 await SafeRefreshAsync(context);
             }
         }
-        catch (ObjectDisposedException)
-        {
-            // Component/circuit was disposed - ignore
-        }
-        catch (InvalidOperationException)
-        {
-            // Circuit disconnected - ignore
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     /// <summary>
@@ -767,7 +863,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                 // Update original to new committed value
                 _originalValues[itemKey] = newValue!;
 
-                // Fire the value changed event
+                // Fire the value changed callback
                 if (OnValueChanged.HasDelegate)
                 {
                     await OnValueChanged.InvokeAsync(new ValueChangedEventArgs<TGridItem, TValue>
@@ -777,19 +873,21 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                         NewValue = newValue
                     });
                 }
+
+                // Publish commit event to stream if enabled
+                await PublishEventIfEnabledAsync(new EditCommittedEvent
+                {
+                    ItemKey = itemKey,
+                    PropertyName = _propertyName,
+                    OldValue = originalValue,
+                    NewValue = newValue
+                });
             }
 
-            // Request UI refresh
             await SafeRefreshAsync(context);
         }
-        catch (ObjectDisposedException)
-        {
-            // Component/circuit was disposed - ignore
-        }
-        catch (InvalidOperationException)
-        {
-            // Circuit disconnected - ignore
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     /// <summary>
@@ -814,14 +912,8 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                 context.RequestRefresh?.Invoke();
             }
         }
-        catch (ObjectDisposedException)
-        {
-            // Component/circuit was disposed - ignore
-        }
-        catch (InvalidOperationException)
-        {
-            // Circuit disconnected - ignore
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     private async Task HandleKeyDownAsync(TGridItem item, FeatureContext<TGridItem, TValue> context, KeyboardEventArgs e)
@@ -834,9 +926,11 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         {
             if (e.Key == "Escape")
             {
-                // Clear validation errors
                 _validationResults[itemKey] = [];
                 _editingItems.Remove(itemKey);
+
+                // Capture attempted value before reverting
+                _currentValues.TryGetValue(itemKey, out var attemptedValue);
 
                 // Revert to original value
                 if (_originalValues.TryGetValue(itemKey, out var originalValue))
@@ -847,29 +941,30 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                     {
                         context.SetValue(item, originalValue);
                     }
+
+                    // Publish cancel event to stream if enabled
+                    await PublishEventIfEnabledAsync(new EditCancelledEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        OriginalValue = originalValue,
+                        AttemptedValue = attemptedValue
+                    });
                     
-                    // Request UI refresh
                     await SafeRefreshAsync(context);
                 }
             }
             else if (e.Key == "Enter" && Editor != EditorKind.Select)
             {
-                // Validate and commit immediately
                 _editingItems.Remove(itemKey);
                 await ValidateAndCommitAsync(item, context);
             }
         }
-        catch (ObjectDisposedException)
-        {
-            // Component/circuit was disposed - ignore
-        }
-        catch (InvalidOperationException)
-            {
-                // Circuit disconnected - ignore
-            }
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+    }
 
-        public void Dispose()
+    public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
@@ -912,25 +1007,9 @@ public class ValidationCompletedEventArgs<TGridItem, TValue>
 /// Represents an option for select editors.
 /// </summary>
 /// <typeparam name="TValue">The type of the option value.</typeparam>
-/// <remarks>
-/// Note: This type uses 'Label' for display text to maintain backward compatibility.
-/// The Infrastructure.SelectOption&lt;T&gt; uses 'Text' instead. 
-/// Consider migrating to the Infrastructure type in a future version.
-/// </remarks>
 public class SelectOption<TValue>
 {
-    /// <summary>
-    /// Display text for the option (backward compatible name).
-    /// </summary>
     public required string Label { get; init; }
-
-    /// <summary>
-    /// Alias for Label to align with Infrastructure.SelectOption&lt;T&gt;.Text.
-    /// </summary>
     public string Text => Label;
-
-    /// <summary>
-    /// The value of the option.
-    /// </summary>
     public TValue? Value { get; init; }
 }

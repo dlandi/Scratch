@@ -1,0 +1,175 @@
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@implements IDisposable
+
+<div class="edit-event-viewer">
+    <div class="event-viewer-header">
+        <h4>@Title</h4>
+        <div class="event-viewer-controls">
+            <span class="event-count">@_events.Count events</span>
+            @if (_events.Count > 0)
+            {
+                <button type="button" class="btn-clear-events" @onclick="Clear" title="Clear all events">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            }
+        </div>
+    </div>
+
+    <div class="event-viewer-list">
+        @if (_events.Count == 0)
+        {
+            <div class="event-viewer-empty">
+                <i class="bi bi-inbox"></i>
+                <span>No events yet. Edit a cell to see events.</span>
+            </div>
+        }
+        else
+        {
+            @foreach (var evt in _events.AsEnumerable().Reverse().Take(MaxDisplayEvents))
+            {
+                <div class="event-item @GetEventClass(evt)">
+                    <div class="event-icon">
+                        @GetEventIcon(evt)
+                    </div>
+                    <div class="event-content">
+                        <div class="event-header">
+                            <span class="event-type">@GetEventLabel(evt)</span>
+                            @if (ShowPropertyNames && !string.IsNullOrEmpty(evt.PropertyName))
+                            {
+                                <span class="event-property">@evt.PropertyName</span>
+                            }
+                            @if (ShowTimestamps)
+                            {
+                                <span class="event-time">@evt.Timestamp.ToString("HH:mm:ss")</span>
+                            }
+                        </div>
+                        <div class="event-details">
+                            @GetEventDetails(evt)
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public IEditEventStream? EventStream { get; set; }
+
+    /// <summary>
+    /// Title displayed in the panel header.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Edit Events";
+
+    /// <summary>
+    /// Maximum number of events to display (most recent first).
+    /// </summary>
+    [Parameter]
+    public int MaxDisplayEvents { get; set; } = 50;
+
+    /// <summary>
+    /// Whether to show timestamps for each event.
+    /// </summary>
+    [Parameter]
+    public bool ShowTimestamps { get; set; } = true;
+
+    /// <summary>
+    /// Whether to show property names for each event.
+    /// </summary>
+    [Parameter]
+    public bool ShowPropertyNames { get; set; } = true;
+
+    private readonly List<EditEventBase> _events = new();
+
+    protected override void OnInitialized()
+    {
+        if (EventStream is not null)
+        {
+            EventStream.EventPublished += OnEventPublished;
+
+            // Load existing events from the stream
+            foreach (var evt in EventStream.RecentEvents)
+            {
+                _events.Add(evt);
+            }
+        }
+    }
+
+    private void OnEventPublished(EditEventBase evt)
+    {
+        _events.Add(evt);
+
+        // Trim to keep memory bounded
+        while (_events.Count > 200)
+        {
+            _events.RemoveAt(0);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Clear()
+    {
+        _events.Clear();
+        EventStream?.Clear();
+        StateHasChanged();
+    }
+
+    private static string GetEventClass(EditEventBase evt) => evt switch
+    {
+        EditCommittedEvent => "event-committed",
+        EditCancelledEvent => "event-cancelled",
+        ValidationFailedEvent => "event-failed",
+        ValidationSucceededEvent => "event-succeeded",
+        EditStartedEvent => "event-started",
+        _ => ""
+    };
+
+    private static MarkupString GetEventIcon(EditEventBase evt) => evt switch
+    {
+        EditCommittedEvent => new MarkupString("<i class=\"bi bi-check-circle-fill\"></i>"),
+        EditCancelledEvent => new MarkupString("<i class=\"bi bi-x-circle-fill\"></i>"),
+        ValidationFailedEvent => new MarkupString("<i class=\"bi bi-exclamation-triangle-fill\"></i>"),
+        ValidationSucceededEvent => new MarkupString("<i class=\"bi bi-check2\"></i>"),
+        EditStartedEvent => new MarkupString("<i class=\"bi bi-pencil\"></i>"),
+        _ => new MarkupString("<i class=\"bi bi-circle\"></i>")
+    };
+
+    private static string GetEventLabel(EditEventBase evt) => evt switch
+    {
+        EditCommittedEvent => "Committed",
+        EditCancelledEvent => "Cancelled",
+        ValidationFailedEvent => "Validation Failed",
+        ValidationSucceededEvent => "Validated",
+        EditStartedEvent => "Started",
+        _ => evt.EventType
+    };
+
+    private static string GetEventDetails(EditEventBase evt) => evt switch
+    {
+        EditCommittedEvent e => $"{FormatValue(e.OldValue)} ? {FormatValue(e.NewValue)}",
+        EditCancelledEvent e => $"Reverted to {FormatValue(e.OriginalValue)}",
+        ValidationFailedEvent e => string.Join(", ", e.Errors),
+        ValidationSucceededEvent e => $"Value: {FormatValue(e.Value)}",
+        EditStartedEvent e => $"Editing: {FormatValue(e.CurrentValue)}",
+        _ => ""
+    };
+
+    private static string FormatValue(object? value) => value switch
+    {
+        null => "(null)",
+        string s when string.IsNullOrEmpty(s) => "(empty)",
+        string s => s.Length > 30 ? s[..27] + "..." : s,
+        _ => value.ToString() ?? "(null)"
+    };
+
+    public void Dispose()
+    {
+        if (EventStream is not null)
+        {
+            EventStream.EventPublished -= OnEventPublished;
+        }
+    }
+}
