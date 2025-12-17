@@ -362,3 +362,14 @@ QuickGridTest01/
 ?           ??? ValidationSummaryPanel.razor # New
 ??? Pages/
     ??? ComposableColumnDemo.razor        # Modify
+```
+
+## 11. Appendix: CSS Conventions
+
+See companion document: **[InlineEditingPolish-CSSConventions.md](InlineEditingPolish-CSSConventions.md)**
+
+Key points:
+- All styles go in `wwwroot/css/qgComposable-refined-minimalism.css`
+- No scoped `.razor.css` files for ComposableColumns components
+- Check existing classes before adding new ones
+- Use design tokens for consistency
