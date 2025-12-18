@@ -1,0 +1,73 @@
+@namespace QuickGridTest01.ComposableColumns.Features.Expansion.Components
+
+@typeparam TGridItem where TGridItem : class
+
+<div class="row-card @Class">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="row-card-header">
+            <h3 class="row-card-title">@Title</h3>
+            <div class="row-card-header-actions">
+                @if (HeaderActions != null)
+                {
+                    @HeaderActions
+                }
+                @if (ShowCloseButton)
+                {
+                    <button type="button" class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="OnCloseClick" title="Close">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                }
+            </div>
+        </div>
+    }
+    <div class="row-card-body">
+        @ChildContent
+    </div>
+    @if (FooterContent != null)
+    {
+        <div class="row-card-footer">
+            @FooterContent
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter]
+    public RowExpandedContext<TGridItem>? CascadedContext { get; set; }
+
+    [Parameter]
+    public string? Title { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? HeaderActions { get; set; }
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    [Parameter]
+    public bool ShowCloseButton { get; set; }
+
+    [Parameter]
+    public Func<Task>? OnClose { get; set; }
+
+    private async Task OnCloseClick()
+    {
+        if (OnClose != null)
+        {
+            await OnClose();
+            return;
+        }
+
+        if (CascadedContext?.CollapseAsync != null)
+        {
+            await CascadedContext.CollapseAsync();
+        }
+    }
+}

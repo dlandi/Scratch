@@ -32,6 +32,11 @@ public static class FeaturePriority
     public const int Styling = 300;
 
     /// <summary>
+    /// Expansion features (row expansion / overlays).
+    /// </summary>
+    public const int Expansion = 350;
+
+    /// <summary>
     /// Editing features (inline editing, edit state, debounce).
     /// </summary>
     public const int Editing = 400;

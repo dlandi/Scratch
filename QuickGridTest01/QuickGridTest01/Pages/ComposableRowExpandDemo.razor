@@ -1,0 +1,145 @@
+@page "/composable-row-expand-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Expansion
+@using QuickGridTest01.ComposableColumns.Features.Expansion.Components
+@using QuickGridTest01.ComposableColumns.Features.Expansion.Core
+@using QuickGridTest01.ComposableColumns.Features.Expansion.Data
+@using QuickGridTest01.ComposableColumns.Features.Expansion.Events
+
+<PageTitle>Composable Row Expand Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Row Expansion</h1>
+        <p class="qg-page-subtitle">
+            Demonstrates <code>RowExpandFeature&lt;TGridItem&gt;</code> composed into a <code>ComposableColumn</code>
+            via <code>FeatureCollection</code>.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Demo</h2>
+            <p class="qg-section-description">
+                Total rows: @_dataSource.Items.Count()
+            </p>
+        </div>
+
+        <div class="demo-controls">
+            <label class="qg-label">Concurrent Behavior:</label>
+            <select class="qg-select" @bind="_concurrentBehavior">
+                <option value="@ConcurrentExpandBehavior.Block">Block</option>
+                <option value="@ConcurrentExpandBehavior.CollapseCurrent">Collapse Current</option>
+                <option value="@ConcurrentExpandBehavior.AllowMultiple">Allow Multiple</option>
+            </select>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_dataSource.Items" Class="qg-grid qg-composable-row-grid">
+                <PropertyColumn Property="@(r => r.Id)" Title="ID" />
+                <PropertyColumn Property="@(r => r.Name)" Title="Name" />
+                <PropertyColumn Property="@(r => r.Email)" Title="Email" />
+
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Actions" FeatureCollection="@_features" />
+            </QuickGrid>
+        </div>
+
+        @if (_eventLog.Any())
+        {
+            <div class="qg-section" style="margin-top: 16px;">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">Event Log</h2>
+                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLog.Clear()">Clear</button>
+                </div>
+                <div class="event-log">
+                    @foreach (var entry in _eventLog.TakeLast(10).Reverse())
+                    {
+                        <div class="log-entry">@entry</div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private sealed class DemoRow : IRowIdentifiable
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
+    private ExpandableGridDataSource<DemoRow> _dataSource = default!;
+    private ConcurrentExpandBehavior _concurrentBehavior = ConcurrentExpandBehavior.CollapseCurrent;
+    private readonly List<string> _eventLog = new();
+
+    private IColumnFeature<DemoRow>[] _features = [];
+
+    protected override void OnInitialized()
+    {
+        var rows = new List<DemoRow>
+        {
+            new() { Id = 1, Name = "Alice", Email = "alice@example.com" },
+            new() { Id = 2, Name = "Bob", Email = "bob@example.com" },
+            new() { Id = 3, Name = "Carol", Email = "carol@example.com" },
+            new() { Id = 4, Name = "David", Email = "david@example.com" },
+            new() { Id = 5, Name = "Eva", Email = "eva@example.com" },
+        };
+
+        _dataSource = new ExpandableGridDataSource<DemoRow>(rows);
+        _dataSource.OnDataChanged += () => InvokeAsync(StateHasChanged);
+
+        _features =
+        [
+            new RowExpandFeature<DemoRow>
+            {
+                DataSource = _dataSource,
+                ConcurrentBehavior = _concurrentBehavior,
+                ExpandedRowSpan = 3,
+                RowHeight = 48,
+                OnExpanded = EventCallback.Factory.Create<RowExpandedEventArgs<DemoRow>>(this, OnExpanded),
+                OnCollapsed = EventCallback.Factory.Create<RowCollapsedEventArgs<DemoRow>>(this, OnCollapsed),
+                OnStateChanged = EventCallback.Factory.Create<RowStateChangedEventArgs<DemoRow>>(this, OnStateChanged),
+                ExpandedTemplate = expandedCtx => __builder =>
+                {
+                    __builder.OpenComponent<RowCard<DemoRow>>(0);
+                    __builder.AddAttribute(1, "Title", $"DemoRow: {expandedCtx.Item.Name}");
+                    __builder.AddAttribute(2, "ShowCloseButton", true);
+                    __builder.AddAttribute(3, "OnClose", expandedCtx.CollapseAsync);
+                    __builder.AddAttribute(4, "ChildContent", (RenderFragment)(b =>
+                    {
+                        b.AddMarkupContent(0, $"<p>Expanded content for row {expandedCtx.Item.Id}.</p>");
+                        b.AddMarkupContent(1, "<p>This demo requires binding <code>QuickGrid.Items</code> to <code>DataSource.Items</code> so spacer rows can push content below the overlay.</p>");
+                    }));
+                    __builder.CloseComponent();
+                }
+            }
+        ];
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Keep feature in sync with UI-selected value
+        foreach (var feature in _features.OfType<RowExpandFeature<DemoRow>>())
+        {
+            feature.ConcurrentBehavior = _concurrentBehavior;
+        }
+    }
+
+    private void OnExpanded(RowExpandedEventArgs<DemoRow> args)
+        => Log($"Expanded: {args.Item.Name}");
+
+    private void OnCollapsed(RowCollapsedEventArgs<DemoRow> args)
+        => Log($"Collapsed: {args.Item.Name}");
+
+    private void OnStateChanged(RowStateChangedEventArgs<DemoRow> args)
+        => Log($"State: {args.OldState} ? {args.NewState} for {args.Item.Name}");
+
+    private void Log(string msg)
+    {
+        _eventLog.Add($"[{DateTime.Now:HH:mm:ss}] {msg}");
+        StateHasChanged();
+    }
+}

@@ -1164,3 +1164,51 @@
     width: 280px;
     max-height: 500px;
 }
+
+/* ----------------------------------------------------------------------------
+   COMPOSABLE EXPANSION SELECTOR ALIASES
+   Reuse existing RowColumn rules by adding equivalent selectors.
+   -------------------------------------------------------------------------- */
+
+/* Ensure composable grids get the same row positioning behavior */
+.qg-composable-row-grid tbody tr,
+.qg-row-grid tbody tr {
+    position: relative;
+}
+
+    .qg-composable-row-grid tbody tr.row-active,
+    .qg-row-grid tbody tr.row-active {
+        z-index: 11;
+    }
+
+/* Container must allow overflow for overlay visibility */
+.qg-grid-container:has(.qg-composable-row-grid),
+.qg-grid-container:has(.qg-row-grid) {
+    overflow: visible;
+}
+
+/* Spacer row styling aliases */
+.qg-composable-row-grid tbody tr:has(.row-spacer),
+.qg-row-grid tbody tr:has(.row-spacer) {
+    height: var(--grid-row-height, 36px);
+    visibility: visible;
+}
+
+    .qg-composable-row-grid tbody tr:has(.row-spacer) td,
+    .qg-row-grid tbody tr:has(.row-spacer) td {
+        visibility: hidden;
+        padding: 0 !important;
+        border-bottom: none !important;
+    }
+
+/* Alternative class alias for spacer rows */
+.qg-composable-row-grid tbody tr.row-spacer-row,
+.qg-row-grid tbody tr.row-spacer-row {
+    pointer-events: none;
+}
+
+    .qg-composable-row-grid tbody tr.row-spacer-row td,
+    .qg-row-grid tbody tr.row-spacer-row td {
+        color: transparent;
+        user-select: none;
+    }
