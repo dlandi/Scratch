@@ -4,7 +4,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| Version | 0.3 (Refined) |
+| Version | 0.4 (Critical Feedback Integrated) |
 | Status | Design |
 | Created | 2025 |
 | Target Framework | ASP.NET 9 Blazor Server |
@@ -169,6 +169,21 @@ Collapse:
 1. State transition event (`OnStateChanged: Expanded -> Collapsed`)
 2. `OnCollapsed`
 
+### 3.6 Cancellation Support
+
+All async expand/collapse operations accept an optional `CancellationToken`:
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `ExpandRowAsync` | `Task ExpandRowAsync(TGridItem item, CancellationToken cancellationToken = default)` | Expand with cancellation support |
+| `CollapseRowAsync` | `Task CollapseRowAsync(TGridItem item, CancellationToken cancellationToken = default)` | Collapse with cancellation support |
+| `CollapseAllAsync` | `Task CollapseAllAsync(CancellationToken cancellationToken = default)` | Collapse all with cancellation support |
+
+**Cancellation semantics:**
+- If cancelled before state change: operation aborts, no events fire
+- If cancelled during event callback: `OperationCanceledException` propagates to caller
+- Grid refresh still occurs if state was mutated before cancellation
+
 ---
 
 ## 4. Context Objects
@@ -181,7 +196,16 @@ public class RowDisplayContext<TGridItem> where TGridItem : class
     public TGridItem Item { get; init; } = default!;
     public bool IsAnyRowExpanded { get; init; }
     public bool CanExpand { get; init; }
-    public Func<Task> ExpandAsync { get; init; } = default!;
+    
+    /// <summary>
+    /// Expands the row. Accepts optional cancellation token.
+    /// </summary>
+    public Func<CancellationToken, Task> ExpandAsync { get; init; } = default!;
+    
+    /// <summary>
+    /// Convenience overload without cancellation token.
+    /// </summary>
+    public Task ExpandAsync() => ExpandAsync(CancellationToken.None);
 }
 ```
 
@@ -191,7 +215,16 @@ public class RowDisplayContext<TGridItem> where TGridItem : class
 public class RowExpandedContext<TGridItem> where TGridItem : class
 {
     public TGridItem Item { get; init; } = default!;
-    public Func<Task> CollapseAsync { get; init; } = default!;
+    
+    /// <summary>
+    /// Collapses the row. Accepts optional cancellation token.
+    /// </summary>
+    public Func<CancellationToken, Task> CollapseAsync { get; init; } = default!;
+    
+    /// <summary>
+    /// Convenience overload without cancellation token.
+    /// </summary>
+    public Task CollapseAsync() => CollapseAsync(CancellationToken.None);
 }
 ```
 
@@ -265,6 +298,16 @@ The feature should do the same and then either render expanded overlay or trigge
 
 ### 7.2 RenderCell outline (corrected sequencing)
 
+**`renderNext` invocation strategy:** The expansion feature **replaces** the default cell content entirely when rendering—it does not wrap content from downstream features. Therefore, `renderNext` is intentionally **not called** in the expansion column.
+
+**Rationale:**
+- The expansion column is a dedicated control column (trigger button or expanded overlay)
+- There is no meaningful "inner content" to delegate to downstream features
+- Calling `renderNext` would render property values that don't belong in this column
+
+**Alternative designs considered:**
+- If future requirements need expansion as a *wrapper* around existing content, a separate `RowExpandWrapperFeature` could be created that calls `renderNext` inside the wrapper div
+
 ```csharp
 public void RenderCell(
     RenderTreeBuilder builder,
@@ -277,22 +320,24 @@ public void RenderCell(
     if (IsSpacerRow(item))
     {
         RenderSpacerCell(builder, ref sequence);
-        return;
+        return; // No renderNext - spacer cells are intentionally empty
     }
     
-    var isExpanded = _stateManager.IsRowExpanded(item);
+    var isExpanded = _stateManager.IsRowExpanded(context.RowKey!(item));
     var hasAnyExpanded = _stateManager.HasExpandedRows;
     
     // Wrapper div with state classes
-    builder.OpenElement(sequence, "div");
+    builder.OpenElement(sequence++, "div");
     builder.AddAttribute(sequence++, "class", BuildCellClass(isExpanded, hasAnyExpanded));
     
     if (isExpanded)
-        RenderExpandedMode(builder, ref sequence, item);
+        RenderExpandedMode(builder, ref sequence, item, context);
     else
-        RenderDisplayMode(builder, ref sequence, item, hasAnyExpanded);
+        RenderDisplayMode(builder, ref sequence, item, context, hasAnyExpanded);
     
     builder.CloseElement();
+    
+    // NOTE: renderNext is intentionally NOT called - this feature replaces cell content
 }
 ```
 
@@ -380,6 +425,61 @@ Do not use `*.razor.css` for this feature.
 - `.row-card*`
 - spacer-row selectors (e.g., `.row-spacer`, `.row-spacer-row`, `tr:has(.row-spacer)`)
 
+### 7.7 Animation & Transition Guidance
+
+**CSS Transitions (recommended approach):**
+
+The feature supports CSS-based animations via class transitions. No JavaScript interop is required for basic animations.
+
+**Recommended transition selectors in global stylesheet:**
+
+```css
+/* Fade transition for dimming inactive rows */
+.row-cell {
+    transition: opacity 0.2s ease-in-out;
+}
+
+.row-cell.row-dimmed {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Overlay height transition (optional - may conflict with virtualization) */
+.row-overlay {
+    transition: height 0.3s ease-out;
+    overflow: hidden;
+}
+
+/* Expand button icon rotation */
+.row-click-indicator {
+    transition: transform 0.2s ease;
+}
+
+.row-expanded .row-click-indicator {
+    transform: rotate(90deg);
+}
+```
+
+**Height animation constraints:**
+
+| Scenario | Animation Support |
+|----------|-------------------|
+| Fixed `ExpandedRowSpan` | ✅ CSS `height` transition works |
+| Dynamic content height | ⚠️ Requires JS measurement; consider `max-height` workaround |
+| Virtualized grid | ⚠️ Height transitions may cause scroll jumps; disable or use opacity only |
+
+**No JavaScript interop required for:**
+- Opacity/fade transitions
+- Transform animations (rotate, scale)
+- Fixed-height transitions
+
+**JavaScript interop recommended for:**
+- Measuring dynamic content height before animation
+- Smooth scroll-to-expanded-row behavior
+- Complex choreographed animations
+
+**Implementation note:** If JavaScript interop is added later, it should be optional and the feature must function correctly with CSS-only animations as the default.
+
 ---
 
 ## 8. Expand/Collapse State Machine
@@ -408,83 +508,209 @@ In `RowExpandFeature`, the equivalent is:
 
 This keeps the feature host-agnostic (works in components that expose sync or async refresh pathways).
 
+### 8.4 RowStateManager Key-Based Identity (Migration Requirement)
+
+**Issue:** The existing `RowStateManager<TGridItem>` uses `HashSet<TGridItem>` with **reference equality**. This is incompatible with the `FeatureContext.RowKey` requirement for stable identity.
+
+**Required change for ComposableColumns port:**
+
+The ported `RowStateManager` must:
+1. Accept a `Func<TGridItem, object> keySelector` in its constructor
+2. Use `Dictionary<object, RowExpandedContext<TGridItem>>` instead of `HashSet<TGridItem>`
+3. Key all operations by `keySelector(item)` rather than item reference
+
+```csharp
+public class RowStateManager<TGridItem> : IDisposable where TGridItem : class
+{
+    private readonly Func<TGridItem, object> _keySelector;
+    private readonly Dictionary<object, RowExpandedContext<TGridItem>> _expandedRows = new();
+    private readonly SemaphoreSlim _lock = new(1, 1);
+    
+    public RowStateManager(Func<TGridItem, object> keySelector)
+    {
+        _keySelector = keySelector ?? throw new ArgumentNullException(nameof(keySelector));
+    }
+    
+    public bool IsRowExpanded(TGridItem item) => _expandedRows.ContainsKey(_keySelector(item));
+    public bool IsRowExpanded(object key) => _expandedRows.ContainsKey(key);
+    public bool HasExpandedRows => _expandedRows.Count > 0;
+    
+    // ... rest of implementation keyed by _keySelector(item)
+}
+```
+
+**Initialization:** The feature must pass `context.RowKey!` to the state manager constructor during initialization.
+
+### 8.5 Error Handling Strategy
+
+The feature must handle errors gracefully to prevent grid corruption:
+
+| Scenario | Behavior |
+|----------|----------|
+| `ExpandedTemplate` throws during render | Catch exception, render error placeholder, log to console, do not crash grid |
+| `OnBeforeExpand` callback throws | Propagate exception to caller, do not mutate state |
+| `OnExpanded`/`OnCollapsed` callback throws | Log warning, state already mutated (cannot rollback), continue with refresh |
+| `RowKey` returns null | Throw `InvalidOperationException` with clear message |
+| `context.RowKey` is null | Throw `InvalidOperationException("RowKey must be configured for expansion features")` |
+
+**Error placeholder rendering:**
+
+```csharp
+private void RenderErrorPlaceholder(RenderTreeBuilder builder, ref int seq, Exception ex)
+{
+    builder.OpenElement(seq++, "div");
+    builder.AddAttribute(seq++, "class", "row-expand-error");
+    builder.AddContent(seq++, "Error rendering expanded content");
+    builder.CloseElement();
+    
+    // Log to browser console in development
+    Console.Error.WriteLine($"[RowExpandFeature] Render error: {ex.Message}");
+}
+```
+
+### 8.6 Thread Safety Considerations
+
+**Issue:** The existing `RowStateManager` uses `SemaphoreSlim` for async methods but `IsRowExpanded()` and `HasExpandedRows` are synchronous and not thread-safe.
+
+**Design decision for ComposableColumns port:**
+
+Since Blazor Server uses a single-threaded synchronization context per circuit:
+1. **Read operations** (`IsRowExpanded`, `HasExpandedRows`) do not require locking during render
+2. **Write operations** (`ExpandRow`, `CollapseRow`) must be async and use `SemaphoreSlim`
+3. **Cross-circuit safety** is not a concern (each circuit has its own component tree)
+
+**Implementation guidance:**
+
+```csharp
+// Safe - called from render thread
+public bool IsRowExpanded(object key) => _expandedRows.ContainsKey(key);
+public bool HasExpandedRows => _expandedRows.Count > 0;
+
+// Must be async with locking - mutates state
+public async Task ExpandRowAsync(TGridItem item, CancellationToken ct = default)
+{
+    await _lock.WaitAsync(ct);
+    try
+    {
+        var key = _keySelector(item);
+        if (!_expandedRows.ContainsKey(key))
+        {
+            _expandedRows[key] = CreateContext(item);
+        }
+    }
+    finally
+    {
+        _lock.Release();
+    }
+}
+```
+
+**Warning:** If the feature is ever used in Blazor WebAssembly with Web Workers or in multi-threaded WASM scenarios, additional synchronization may be required.
+
 ---
 
-## 9. RowCard (demo-aligned)
+## 9. RowCard Component
 
-`RowColumnDemo` uses `RowCard` as a convenient overlay content pattern.
+### 9.1 Ownership & Packaging
 
-`RowCard` is optional infrastructure: the expansion feature should not depend on it.
+`RowCard` is **part of the expansion feature package** but its internal definition is **user-customizable**.
 
-**Namespace rule impact:** If `RowCard` is shipped as part of the feature package, its component and any supporting code must live under `QuickGridTest01.ComposableColumns.*`.
+| Aspect | Decision |
+|--------|----------|
+| Shipped with feature | Yes - provides sensible default |
+| User can replace | Yes - via `ExpandedTemplate` parameter |
+| Internal structure customizable | Yes - via `RowCard` parameters and slots |
 
-**Styling location rule:** If `RowCard` styling is part of the expansion feature UX, its CSS must also live in the global stylesheet `wwwroot/css/qgComposable-refined-minimalism.css` (not in a `RowCard.razor.css`).
+**Namespace location:** `QuickGridTest01.ComposableColumns.Features.Expansion.Components.RowCard`
+
+### 9.2 Default RowCard Structure
+
+The default `RowCard` provides a consistent card-like UI for expanded content:
+
+```razor
+@typeparam TGridItem where TGridItem : class
+
+<div class="row-card">
+    <div class="row-card-header">
+        @if (HeaderTemplate != null)
+        {
+            @HeaderTemplate(Item)
+        }
+        else
+        {
+            <span class="row-card-title">@Title</span>
+        }
+        <button class="row-card-close" @onclick="CloseAsync">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <div class="row-card-body">
+        @ChildContent
+    </div>
+    @if (FooterTemplate != null)
+    {
+        <div class="row-card-footer">
+            @FooterTemplate(Item)
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public TGridItem Item { get; set; } = default!;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment<TGridItem>? HeaderTemplate { get; set; }
+    [Parameter] public RenderFragment<TGridItem>? FooterTemplate { get; set; }
+    [CascadingParameter] public RowExpandedContext<TGridItem>? Context { get; set; }
+    
+    private Task CloseAsync() => Context?.CollapseAsync() ?? Task.CompletedTask;
+}
+```
+
+### 9.3 Customization Patterns
+
+**Pattern 1: Use default RowCard with slots**
+
+```razor
+<ComposableColumn TGridItem="Employee">
+    <RowExpandFeature TGridItem="Employee" 
+                      ExpandedTemplate="@(ctx => 
+        @<RowCard Item="ctx.Item" Title="Edit Employee">
+            <EmployeeEditForm Employee="ctx.Item" />
+            <FooterTemplate>
+                <button @onclick="() => SaveAsync(ctx.Item)">Save</button>
+            </FooterTemplate>
+        </RowCard>)" />
+</ComposableColumn>
+```
+
+**Pattern 2: Completely custom expanded content (no RowCard)**
+
+```razor
+<RowExpandFeature TGridItem="Employee" 
+                  ExpandedTemplate="@(ctx => 
+    @<div class="my-custom-expand-ui">
+        <h3>@ctx.Item.Name</h3>
+        <button @onclick="ctx.CollapseAsync">Close</button>
+    </div>)" />
+```
+
+**Pattern 3: Application-specific RowCard replacement**
+
+Users can create their own `MyAppRowCard` component and use it instead of the default.
+
+### 9.4 Styling Rules
+
+**All RowCard CSS must be in the global stylesheet:**
+
+`wwwroot/css/qgComposable-refined-minimalism.css`
+
+**Do not create:** `RowCard.razor.css`
+
+**Required CSS selectors:**
+- `.row-card`
+- `.row-card-header`, `.row-card-title`, `.row-card-close`
+- `.row-card-body`
+- `.row-card-footer`
 
 ---
-
-## 10. Usage Patterns
-
-### 10.1 Overlay-only (no spacer injection)
-
-Use when:
-- The expanded UI is small
-- You don't mind covered rows
-- Your item type cannot represent spacers
-
-### 10.2 Overlay + spacer injection (matches demo)
-
-Use when:
-- Expanded UI is card-like and should not cover subsequent rows
-- Your item type supports spacer rows (`IRowIdentifiable, new()` pattern)
-- Your grid is bound to the injected `ExpandableGridDataSource<T>.Items`
-
----
-
-## 11. Resolved / Updated Open Questions
-
-### 11.1 Spacer row ownership
-
-**Decision:** Keep `ExpandableGridDataSource<T>` as an explicit collaboration object. The feature triggers expand/collapse on it, but the grid owns it.
-
-This matches the demo:
-- Grid binds to `DataSource.Items`
-- Column/feature calls `DataSource.ExpandRow` and `DataSource.CollapseRow`
-
-### 11.2 RowKey fallback
-
-**Decision:** Throw if `context.RowKey` is missing.
-
-Rationale:
-- `GetHashCode`/reference identity is not stable for grid refreshes and can break collapse behavior
-- A stable key is necessary for predictable behavior
-
-### 11.3 Multiple expansion features
-
-**Decision:** Prevent multiple expansion features from attaching to the same column by using the context service registration as a sentinel.
-
----
-
-## 12. Porting Checklist
-
-1. Add `FeaturePriority.Expansion = 350`.
-2. Port `RowTriggerMode`, `ConcurrentExpandBehavior`, `RowExpandedState`.
-3. Port `RowStateManager<T>` and event args.
-4. Move all feature-supporting types under `QuickGridTest01.ComposableColumns.*` namespaces.
-5. Implement `RowExpandFeature<T>` using `FeatureContext` for:
-   - `RowKey`
-   - `RequestRefresh/RequestRefreshAsync`
-   - `InvokeAsync` for any off-thread continuations
-6. Decide spacer strategy for non-`IRowIdentifiable` types (defer; keep existing for v1).
-7. Ensure all required CSS selectors are in `wwwroot/css/qgComposable-refined-minimalism.css` (do not create `*.razor.css` for this feature).
-
----
-
-## 13. Dependencies
-
-All dependencies listed here are expected to be implemented under `QuickGridTest01.ComposableColumns.*`:
-
-- `FeatureContext<TGridItem>`
-- `ICellRenderFeature<TGridItem>`
-- `RowStateManager<TGridItem>`
-- `ExpandableGridDataSource<TGridItem>` (optional, for spacer injection)
-- `SpacerRowFactory` + `IRowIdentifiable` (only when enabling spacers)
