@@ -127,6 +127,14 @@ public class FeatureContext<TGridItem>
     /// </summary>
     public void Clear()
     {
+        foreach (var service in _services.Values)
+        {
+            if (service is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+
         _state.Clear();
         _services.Clear();
     }
