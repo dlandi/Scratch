@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
+using QuickGridTest01.ComposableColumns.Features.Editing;
 
 namespace QuickGridTest01.ComposableColumns.Core;
 
@@ -19,6 +20,9 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     [CascadingParameter]
     public ComposableGrid<TGridItem>? Grid { get; set; }
+
+    [CascadingParameter]
+    public IEditEventStream? EditEventStream { get; set; }
 
     private readonly List<IColumnFeature<TGridItem>> _features = [];
     private FeatureContext<TGridItem, TValue>? _context;
@@ -210,7 +214,7 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     private FeatureContext<TGridItem, TValue> CreateContext()
     {
-        return new FeatureContext<TGridItem, TValue>
+        var context = new FeatureContext<TGridItem, TValue>
         {
             Column = this,
             EventReceiver = this,
@@ -220,6 +224,14 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             RequestRefreshAsync = () => InvokeAsync(StateHasChanged),
             InvokeAsync = async action => await InvokeAsync(action)
         };
+
+        // Register the EditEventStream service if available
+        if (EditEventStream is not null)
+        {
+            context.RegisterService(EditEventStream);
+        }
+
+        return context;
     }
 
     private void InvalidateFeatureCache()

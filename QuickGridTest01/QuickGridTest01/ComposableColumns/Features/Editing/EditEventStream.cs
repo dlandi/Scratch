@@ -180,6 +180,11 @@ public class ValidationFailedEvent : EditEventBase
     /// Detailed validation rule results including rule names and severity.
     /// </summary>
     public IReadOnlyList<ValidationRuleResult> RuleResults { get; init; } = [];
+
+    /// <summary>
+    /// Descriptors for all validation rules that were checked (from validators' Name property).
+    /// </summary>
+    public IReadOnlyList<ValidationRuleDescriptor> RuleDescriptors { get; init; } = [];
 }
 
 /// <summary>
@@ -198,7 +203,24 @@ public class ValidationSucceededEvent : EditEventBase
     /// The validation rules that were checked.
     /// </summary>
     public IReadOnlyList<ValidationRuleResult> RuleResults { get; init; } = [];
+
+    /// <summary>
+    /// Descriptors for all validation rules that were checked (from validators' Name property).
+    /// </summary>
+    public IReadOnlyList<ValidationRuleDescriptor> RuleDescriptors { get; init; } = [];
 }
+
+/// <summary>
+/// Represents the currently focused cell for validation summary display.
+/// </summary>
+/// <param name="PropertyName">The name of the property being edited.</param>
+/// <param name="ItemKey">The key identifying the item being edited.</param>
+/// <param name="RuleDescriptors">The validation rule descriptors for this cell.</param>
+public readonly record struct FocusedCellInfo(
+    string? PropertyName,
+    object? ItemKey,
+    IReadOnlyList<ValidationRuleDescriptor> RuleDescriptors
+);
 
 /// <summary>
 /// Interface for the grid-level edit event stream.
@@ -232,6 +254,22 @@ public interface IEditEventStream : IDisposable
     /// The maximum number of events to retain.
     /// </summary>
     int MaxEvents { get; }
+
+    /// <summary>
+    /// The currently focused cell, if any.
+    /// </summary>
+    FocusedCellInfo? FocusedCell { get; }
+
+    /// <summary>
+    /// Sets the currently focused cell.
+    /// </summary>
+    /// <param name="focusedCell">The focused cell info, or null to clear focus.</param>
+    void SetFocusedCell(FocusedCellInfo? focusedCell);
+
+    /// <summary>
+    /// Raised when the focused cell changes.
+    /// </summary>
+    event Action<FocusedCellInfo?>? FocusedCellChanged;
 }
 
 /// <summary>
@@ -243,6 +281,7 @@ public class EditEventStream : IEditEventStream
     private readonly List<EditEventBase> _events = new();
     private readonly object _lock = new();
     private bool _disposed;
+    private FocusedCellInfo? _focusedCell;
 
     /// <summary>
     /// Creates a new event stream with the specified event limit.
@@ -272,7 +311,43 @@ public class EditEventStream : IEditEventStream
     }
 
     /// <inheritdoc />
+    public FocusedCellInfo? FocusedCell
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _focusedCell;
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public event Action<EditEventBase>? EventPublished;
+
+    /// <inheritdoc />
+    public event Action<FocusedCellInfo?>? FocusedCellChanged;
+
+    /// <inheritdoc />
+    public void SetFocusedCell(FocusedCellInfo? focusedCell)
+    {
+        if (_disposed)
+            return;
+
+        lock (_lock)
+        {
+            _focusedCell = focusedCell;
+        }
+
+        try
+        {
+            FocusedCellChanged?.Invoke(focusedCell);
+        }
+        catch
+        {
+            // Swallow exceptions from event handlers
+        }
+    }
 
     /// <inheritdoc />
     public Task PublishAsync(EditEventBase @event)
@@ -329,10 +404,12 @@ public class EditEventStream : IEditEventStream
         lock (_lock)
         {
             _events.Clear();
+            _focusedCell = null;
         }
 
         // Clear event handlers to prevent memory leaks
         EventPublished = null;
+        FocusedCellChanged = null;
 
         GC.SuppressFinalize(this);
     }

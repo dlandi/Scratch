@@ -205,6 +205,40 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     }
 
     /// <summary>
+    /// Builds validation rule descriptors from the configured validators.
+    /// </summary>
+    private List<ValidationRuleDescriptor> BuildValidationRuleDescriptors()
+    {
+        var descriptors = new List<ValidationRuleDescriptor>();
+
+        // Add descriptors for custom validators
+        foreach (var validator in Validators)
+        {
+            descriptors.Add(new ValidationRuleDescriptor(
+                Name: validator.Name,
+                Description: null, // Could be extended to support Description property on IValidator
+                Severity: ValidationSeverity.Error
+            ));
+        }
+
+        // Add descriptors for DataAnnotation validators
+        if (UseDataAnnotations && _dataAnnotationAttributes is not null)
+        {
+            foreach (var attr in _dataAnnotationAttributes)
+            {
+                var name = attr.GetType().Name.Replace("Attribute", "");
+                descriptors.Add(new ValidationRuleDescriptor(
+                    Name: name,
+                    Description: attr.ErrorMessage,
+                    Severity: ValidationSeverity.Error
+                ));
+            }
+        }
+
+        return descriptors;
+    }
+
+    /// <summary>
     /// Builds validation rule results from the current validators and results.
     /// </summary>
     private List<ValidationRuleResult> BuildValidationRuleResults(List<ValidationResult> results)
@@ -698,9 +732,17 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         _editingItems.Add(itemKey);
         _validationResults[itemKey] = [];
 
-        // Publish edit started event if enabled
+        // Set focused cell for validation summary display
         if (ShowEvents && _editEventStream is not null)
         {
+            var ruleDescriptors = BuildValidationRuleDescriptors();
+            _editEventStream.SetFocusedCell(new FocusedCellInfo(
+                PropertyName: _propertyName,
+                ItemKey: itemKey,
+                RuleDescriptors: ruleDescriptors
+            ));
+
+            // Publish edit started event
             _currentValues.TryGetValue(itemKey, out var currentValue);
             await PublishEventIfEnabledAsync(new EditStartedEvent
             {
@@ -718,6 +760,12 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     {
         var itemKey = GetItemKey(item);
         _editingItems.Remove(itemKey);
+        
+        // Clear focused cell when focus leaves
+        if (ShowEvents && _editEventStream is not null)
+        {
+            _editEventStream.SetFocusedCell(null);
+        }
         
         await ValidateAndCommitAsync(item, context);
     }
@@ -774,6 +822,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             if (ShowEvents && _editEventStream is not null)
             {
                 var ruleResults = BuildValidationRuleResults(results);
+                var ruleDescriptors = BuildValidationRuleDescriptors();
                 if (allValid)
                 {
                     await PublishEventIfEnabledAsync(new ValidationSucceededEvent
@@ -781,7 +830,8 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                         ItemKey = itemKey,
                         PropertyName = _propertyName,
                         Value = currentValue,
-                        RuleResults = ruleResults
+                        RuleResults = ruleResults,
+                        RuleDescriptors = ruleDescriptors
                     });
                 }
                 else
@@ -792,7 +842,8 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                         PropertyName = _propertyName,
                         AttemptedValue = currentValue,
                         Errors = results.Where(r => !r.IsValid).Select(r => r.ErrorMessage ?? "Invalid").ToList(),
-                        RuleResults = ruleResults
+                        RuleResults = ruleResults,
+                        RuleDescriptors = ruleDescriptors
                     });
                 }
             }

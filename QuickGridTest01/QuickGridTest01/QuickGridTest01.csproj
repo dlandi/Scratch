@@ -16,6 +16,8 @@
     <Folder Include="Docs\FormRow Design\" />
     <Folder Include="Docs\Troubleshooting\" />
     <Folder Include="FormattedValue\" />
+    <Folder Include="QuickGridTest01.Tests\" />
+    <Folder Include="QuickGridTest01\ComposableColumns\Features\Editing\" />
   </ItemGroup>
 
 </Project>

@@ -4,9 +4,9 @@
 | Variable | Value |
 |----------|-------|
 | ReportFolder | `Docs/Feature Design/Task Execution Reports/ExecutionReports-InlineEditingPolish/` |
-| ExecutionReport | `Phase-B-ExecutionReport.md` |
+| ExecutionReport | `Phase-C-ExecutionReport.md` |
 | SpecDocument | `InlineEditingPolish.md` |
-| Phase | B |
+| Phase | C |
 
 ---
 

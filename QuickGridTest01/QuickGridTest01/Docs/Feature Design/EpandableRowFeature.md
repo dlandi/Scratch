@@ -1,4 +1,4 @@
-# RowExpandFeature Design Specification
+﻿# RowExpandFeature Design Specification
 
 ## Document Information
 
@@ -26,8 +26,8 @@ This feature serves as the foundation for:
 
 ```
 RowExpandFeature<TGridItem>           (Base: expansion + overlay)
-    ??? FormRowFeature<TGridItem>     (Extends: form semantics)
-    ??? NestedGridFeature<TGridItem, TChildItem>  (Extends: child grid)
+    ├── FormRowFeature<TGridItem>     (Extends: form semantics)
+    └── NestedGridFeature<TGridItem, TChildItem>  (Extends: child grid)
 ```
 
 ### 1.3 Migration Context
@@ -61,22 +61,22 @@ public class RowExpandFeature<TGridItem> : ICellRenderFeature<TGridItem>, IDispo
 
 ```
 ComposableColumns/Features/Expansion/
-??? Core/
-?   ??? RowExpandState.cs              # Collapsed/Expanded enum
-?   ??? RowDisplayContext.cs           # Context for collapsed state
-?   ??? RowExpandedContext.cs          # Context for expanded state
-?   ??? RowStateManager.cs             # Tracks expanded rows
-?   ??? ExpandableGridDataSource.cs    # Spacer row injection
-?   ??? ConcurrentExpandBehavior.cs    # Block/CollapseCurrent/AllowMultiple
-??? Events/
-?   ??? RowBeforeExpandEventArgs.cs
-?   ??? RowExpandedEventArgs.cs
-?   ??? RowCollapsedEventArgs.cs
-?   ??? RowStateChangedEventArgs.cs
-??? Components/
-?   ??? RowCard.razor                  # Reusable card component
-?   ??? RowCard.razor.css
-??? RowExpandFeature.cs                # Main feature implementation
+├── Core/
+│   ├── RowExpandState.cs              # Collapsed/Expanded enum
+│   ├── RowDisplayContext.cs           # Context for collapsed state
+│   ├── RowExpandedContext.cs          # Context for expanded state
+│   ├── RowStateManager.cs             # Tracks expanded rows
+│   ├── ExpandableGridDataSource.cs    # Spacer row injection
+│   └── ConcurrentExpandBehavior.cs    # Block/CollapseCurrent/AllowMultiple
+├── Events/
+│   ├── RowBeforeExpandEventArgs.cs
+│   ├── RowExpandedEventArgs.cs
+│   ├── RowCollapsedEventArgs.cs
+│   └── RowStateChangedEventArgs.cs
+├── Components/
+│   ├── RowCard.razor                  # Reusable card component
+│   └── RowCard.razor.css
+└── RowExpandFeature.cs                # Main feature implementation
 ```
 
 ---
