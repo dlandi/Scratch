@@ -28,11 +28,16 @@
 
         <div class="demo-controls">
             <label class="qg-label">Concurrent Behavior:</label>
-            <select class="qg-select" @bind="_concurrentBehavior">
+            <select class="qg-select" value="@_concurrentBehavior" @onchange="OnConcurrentBehaviorChanged">
                 <option value="@ConcurrentExpandBehavior.Block">Block</option>
                 <option value="@ConcurrentExpandBehavior.CollapseCurrent">Collapse Current</option>
                 <option value="@ConcurrentExpandBehavior.AllowMultiple">Allow Multiple</option>
             </select>
+
+            <label class="inline-checkbox">
+                <input type="checkbox" checked="@_dimInactiveRows" @onchange="OnDimInactiveRowsChanged" />
+                <span>Dim inactive rows</span>
+            </label>
         </div>
 
         <div class="qg-grid-container">
@@ -73,6 +78,7 @@
 
     private ExpandableGridDataSource<DemoRow> _dataSource = default!;
     private ConcurrentExpandBehavior _concurrentBehavior = ConcurrentExpandBehavior.CollapseCurrent;
+    private bool _dimInactiveRows = true;
     private readonly List<string> _eventLog = new();
 
     private IColumnFeature<DemoRow>[] _features = [];
@@ -97,6 +103,7 @@
             {
                 DataSource = _dataSource,
                 ConcurrentBehavior = _concurrentBehavior,
+                DimInactiveRows = _dimInactiveRows,
                 ExpandedRowSpan = 3,
                 RowHeight = 48,
                 OnExpanded = EventCallback.Factory.Create<RowExpandedEventArgs<DemoRow>>(this, OnExpanded),
@@ -119,13 +126,44 @@
         ];
     }
 
-    protected override void OnParametersSet()
+    private void SyncFeatures()
     {
-        // Keep feature in sync with UI-selected value
         foreach (var feature in _features.OfType<RowExpandFeature<DemoRow>>())
         {
             feature.ConcurrentBehavior = _concurrentBehavior;
+            feature.DimInactiveRows = _dimInactiveRows;
         }
+
+        StateHasChanged();
+    }
+
+    private void OnConcurrentBehaviorChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ConcurrentExpandBehavior>(e.Value?.ToString(), out var parsed))
+        {
+            _concurrentBehavior = parsed;
+            SyncFeatures();
+        }
+    }
+
+    private void OnDimInactiveRowsChanged(ChangeEventArgs e)
+    {
+        if (e.Value is bool b)
+        {
+            _dimInactiveRows = b;
+            SyncFeatures();
+        }
+        else if (bool.TryParse(e.Value?.ToString(), out var parsed))
+        {
+            _dimInactiveRows = parsed;
+            SyncFeatures();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Keep feature in sync with initial state / parent re-renders
+        SyncFeatures();
     }
 
     private void OnExpanded(RowExpandedEventArgs<DemoRow> args)

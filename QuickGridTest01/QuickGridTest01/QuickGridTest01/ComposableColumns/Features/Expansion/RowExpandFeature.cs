@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
 using QuickGridTest01.ComposableColumns.Core;
 using QuickGridTest01.ComposableColumns.Features.Expansion.Core;
 using QuickGridTest01.ComposableColumns.Features.Expansion.Data;
@@ -23,9 +24,19 @@ public class RowExpandFeature<TGridItem> : ICellRenderFeature<TGridItem>, IDispo
 
     public int RowHeight { get; set; } = 48;
 
+    public int ExpandedHeight => ExpandedRowSpan * RowHeight;
+
     public RowTriggerMode TriggerMode { get; set; } = RowTriggerMode.Button;
 
     public ConcurrentExpandBehavior ConcurrentBehavior { get; set; } = ConcurrentExpandBehavior.CollapseCurrent;
+
+    public bool DimInactiveRows { get; set; } = true;
+
+    public string ExpandButtonText { get; set; } = "Expand";
+
+    public string ExpandButtonIcon { get; set; } = "";
+
+    public string ExpandButtonClass { get; set; } = "qg-btn qg-btn-primary qg-btn-sm";
 
     public EventCallback<RowBeforeExpandEventArgs<TGridItem>> OnBeforeExpand { get; set; }
 
@@ -58,7 +69,7 @@ public class RowExpandFeature<TGridItem> : ICellRenderFeature<TGridItem>, IDispo
 
     public void RenderCell(RenderTreeBuilder builder, ref int sequence, TGridItem item, FeatureContext<TGridItem> context, Action renderNext)
     {
-        _ = EnsureService(context);
+        var state = EnsureService(context);
 
         if (ExpandedTemplate is null)
             throw new InvalidOperationException("RowExpandFeature requires ExpandedTemplate to be provided.");
@@ -69,7 +80,130 @@ public class RowExpandFeature<TGridItem> : ICellRenderFeature<TGridItem>, IDispo
         if (RowHeight <= 0)
             throw new ArgumentOutOfRangeException(nameof(RowHeight), "RowHeight must be greater than 0.");
 
-        renderNext();
+        // Skip content for spacer rows - render empty cell
+        if (SpacerRowFactory.IsSpacer(item.Id))
+        {
+            builder.OpenElement(sequence++, "div");
+            builder.AddAttribute(sequence++, "class", "row-cell row-spacer");
+            builder.CloseElement();
+            return;
+        }
+
+        var isExpanded = state.IsRowExpanded(item);
+        var hasAnyExpanded = state.HasExpandedRows;
+
+        // Wrapper div with state classes
+        builder.OpenElement(sequence++, "div");
+        builder.AddAttribute(sequence++, "class", BuildCellClass(isExpanded, hasAnyExpanded));
+
+        if (isExpanded && state.TryGetContext(item, out var expandedContext))
+        {
+            // Render the expanded content
+            RenderExpandedMode(builder, ref sequence, item, expandedContext!);
+        }
+        else
+        {
+            // Render display mode (trigger button)
+            RenderDisplayMode(builder, ref sequence, item, hasAnyExpanded, state);
+        }
+
+        builder.CloseElement();
+    }
+
+    private void RenderDisplayMode(RenderTreeBuilder builder, ref int seq, TGridItem item, bool hasAnyExpanded, RowStateManager<TGridItem> state)
+    {
+        var canExpand = CanExpandRow(hasAnyExpanded);
+
+        var displayContext = new RowDisplayContext<TGridItem>
+        {
+            Item = item,
+            IsAnyRowExpanded = hasAnyExpanded,
+            CanExpand = canExpand,
+            ExpandAsync = () => ExpandRowAsync(item)
+        };
+
+        if (TriggerMode == RowTriggerMode.Button)
+        {
+            RenderDefaultExpandButton(builder, ref seq, displayContext);
+        }
+        else if (TriggerMode == RowTriggerMode.RowClick)
+        {
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "class", "row-click-indicator");
+            builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, async _ => await ExpandRowAsync(item)));
+            builder.AddAttribute(seq++, "title", canExpand ? "Click to expand" : "Another row is expanded");
+            builder.OpenElement(seq++, "i");
+            builder.AddAttribute(seq++, "class", "bi bi-chevron-expand");
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+    }
+
+    private void RenderDefaultExpandButton(RenderTreeBuilder builder, ref int seq, RowDisplayContext<TGridItem> context)
+    {
+        builder.OpenElement(seq++, "button");
+        builder.AddAttribute(seq++, "type", "button");
+        builder.AddAttribute(seq++, "class", ExpandButtonClass);
+        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create<MouseEventArgs>(this, async _ => await context.ExpandAsync()));
+        builder.AddAttribute(seq++, "disabled", !context.CanExpand);
+        builder.AddAttribute(seq++, "title", context.CanExpand ? "Expand this row" : "Another row is expanded");
+
+        if (!string.IsNullOrEmpty(ExpandButtonIcon))
+        {
+            builder.OpenElement(seq++, "i");
+            builder.AddAttribute(seq++, "class", ExpandButtonIcon);
+            builder.CloseElement();
+        }
+
+        if (!string.IsNullOrEmpty(ExpandButtonText))
+        {
+            builder.OpenElement(seq++, "span");
+            builder.AddContent(seq++, ExpandButtonText);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    }
+
+    private void RenderExpandedMode(RenderTreeBuilder builder, ref int seq, TGridItem item, RowExpandedContext<TGridItem> context)
+    {
+        // Overlay container positioned below the row with calculated height
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "row-overlay");
+        builder.AddAttribute(seq++, "style", $"height: {ExpandedHeight}px;");
+
+        // Provide cascading context for child components
+        builder.OpenComponent<CascadingValue<RowExpandedContext<TGridItem>>>(seq++);
+        builder.AddComponentParameter(seq++, "Value", context);
+        builder.AddComponentParameter(seq++, "ChildContent", ExpandedTemplate!(context));
+        builder.CloseComponent();
+
+        builder.CloseElement();
+    }
+
+    private string BuildCellClass(bool isExpanded, bool hasAnyExpanded)
+    {
+        var classes = new List<string> { "row-cell" };
+
+        if (isExpanded)
+        {
+            classes.Add("row-expanded");
+        }
+        else if (hasAnyExpanded && DimInactiveRows)
+        {
+            classes.Add("row-dimmed");
+        }
+
+        return string.Join(" ", classes);
+    }
+
+    private bool CanExpandRow(bool hasAnyExpanded)
+    {
+        if (!hasAnyExpanded)
+            return true;
+
+        // When AllowMultiple or CollapseCurrent, other rows can still be expanded
+        return ConcurrentBehavior != ConcurrentExpandBehavior.Block;
     }
 
     public Task ExpandRowAsync(TGridItem item, CancellationToken cancellationToken = default)
