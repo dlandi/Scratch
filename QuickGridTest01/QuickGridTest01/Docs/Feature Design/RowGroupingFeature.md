@@ -1095,7 +1095,6 @@ QuickGridTest01/ComposableColumns/
 
 ## 13. References
 
-- **Design Decisions:** `RowGroupingFeature_DesignDecisions.md` - Documents Q13-Q31 analysis and rationale
 - Discussion: `Docs/Discussion/discussion-MudBlazorFeaturesImplementation.md`
 - Pattern reference: `ExpandableRowFeature.md`
 - MudBlazor docs: [MudDataGrid Grouping](https://mudblazor.com/components/datagrid)
