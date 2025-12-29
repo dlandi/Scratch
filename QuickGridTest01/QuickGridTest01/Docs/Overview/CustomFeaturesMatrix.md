@@ -1,4 +1,4 @@
-# Features
+﻿# Features
 
 
 This is the description of what the code block changes:
@@ -319,6 +319,19 @@ This document provides a comprehensive overview of all custom QuickGrid column i
 - Before/after expand events with cancellation
 
 **Use When:** You need expanded row details that work with virtualization.
+
+---
+
+### RowGrouping (ComposableColumns)
+
+**Purpose:** Group rows with expandable/collapsible group headers.
+
+**Key Features:**
+- Single active grouping (first wins)
+- Group header templates + optional toolbar template
+- Virtualization compatibility via spacer-row injection (Option A), consistent with `RowColumn`/`ExpandableGridDataSource`
+
+**Use When:** You need grouping that works with QuickGrid virtualization without custom slot-window mapping.
 
 ---
 

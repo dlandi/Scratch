@@ -70,6 +70,10 @@ public sealed class GroupingFeature<TGridItem, TValue>
 }
 ```
 
+**Type constraints:**
+- `TGridItem : class` - Required by ComposableColumns architecture
+- `TValue` - No constraint. Works with reference types, value types, and nullable types. Null handling controlled by `NullKeyBehavior` parameter.
+
 **Priority rationale:** Grouping transforms the data shape before other features process it. Group header rows must exist before Core, Filtering, Formatting, Styling, and Editing features run.
 
 > `FeaturePriority.Grouping = 50` must be added before `Core (100)`.
@@ -80,7 +84,7 @@ public sealed class GroupingFeature<TGridItem, TValue>
 |----------|--------|-----------|
 | Activation pattern | **Column-first** | Feature activates when attached to a `ComposableColumn`; registers with `GroupingCoordinator` |
 | Priority | **50** (before Core) | Grouping transforms data shape before other features process |
-| Rendering approach | **Grid-level row interception + CSS spanning** | All artifacts within Grid/ComposableColumns namespace |
+| Rendering approach | **Expansion-style marker/spacer rows + first-column cell feature** | Matches the proven `ComposableRowExpandDemo` mechanics; avoids requiring grid row hooks |
 | Virtualization | **Required** | All ComposableColumn features must support virtualization (rule) |
 | Grouping levels | **Single-level only** | API designed for extensibility; nested grouping deferred |
 | State management | **GroupStateManager<TValue>** | Reuses `RowStateManager` pattern for expand/collapse |
@@ -92,7 +96,7 @@ public sealed class GroupingFeature<TGridItem, TValue>
 │ ComposableGrid<TGridItem>                                       │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ GroupingCoordinator<TGridItem> (in FeatureContext)       │   │
+│  │ GroupingCoordinator<TGridItem> (owned by the grid)       │   │
 │  │  - Tracks columns with GroupingFeature                   │   │
 │  │  - Manages active grouping column                        │   │
 │  │  - Delegates to active feature for state management      │   │
@@ -113,12 +117,27 @@ public sealed class GroupingFeature<TGridItem, TValue>
 
 **Activation Flow:**
 
-1. `GroupingFeature<T,V>.OnAttach()` checks if `GroupingCoordinator` exists in `FeatureContext`
-2. If not, creates and registers `GroupingCoordinator<TGridItem>`
-3. Registers this column's grouping capability with the coordinator
-4. If `IsActive = true`, sets this as the active grouping
-5. Coordinator transforms grid's `Items` to include group headers
-6. `ComposableGrid` discovers coordinator via `FeatureContext` and renders accordingly
+1. `GroupingFeature<T,V>.OnAttach()` requires access to the cascaded `Grid` reference (`ComposableGrid<TGridItem>`).
+2. The feature obtains the grid-scoped `GroupingCoordinator<TGridItem>` from the grid (mirrors the existing filter registration pattern).
+3. **All columns** that include `GroupingFeature` register themselves with the coordinator using a column ID (from GroupBy property name).
+4. The coordinator therefore represents the complete set of *groupable columns* (used by the header UI to offer "Group by" options).
+5. The **first column** that registers a `GroupingFeature` becomes the "Group Header Column" (header-host). It is responsible only for rendering the group header UI. Subsequent grouping-enabled columns do not render the header UI.
+6. If `IsActive = true`, the column requests activation. If multiple columns have `IsActive = true`, the first one wins (deterministic based on column order in markup).
+7. Coordinator (or feature-owned data source) wraps the grid's `Items` via an expansion-style data source that emits **only `TGridItem`** instances.
+8. The transformed sequence injects **group header marker rows** and **group header spacer rows** into `IQueryable<TGridItem>`.
+9. The header-host column uses an `ICellRenderFeature<TGridItem>` to:
+   - Render the group header UI only for the **FIRST** header marker row
+   - Render blank content for header spacer rows
+   - Render blank content for normal data rows (or optionally a small indent/glyph)
+
+**Deterministic grouping activation (no indecision):**
+
+`ComposableGrid<TGridItem>` maintains an internal boolean that represents whether grouping is active. Grouping is active when the grid-scoped coordinator has selected an active grouping column:
+
+- `_hasGroupingFeatures`: at least one column registered grouping with the coordinator
+- `_isGroupingActive`: `_hasGroupingFeatures` is true and `GroupingCoordinator.ActiveGrouping` is not null
+
+When `_isGroupingActive` is true, the grid binds `QuickGrid.Items` to grouped items derived from `FilteredItems`.
 
 ### 2.4 Feature Responsibilities vs Grid Responsibilities
 
@@ -129,9 +148,325 @@ public sealed class GroupingFeature<TGridItem, TValue>
 | GroupBy expression | `GroupingFeature` |
 | Header template | `GroupingFeature` |
 | Expand/collapse state | `GroupStateManager<TValue>` (owned by feature) |
-| Data transformation | `GroupingCoordinator` |
-| Row interception | `ComposableGrid` |
+| Data transformation | `GroupingCoordinator` (or feature-owned grouped data source) |
+| Sorting while grouping active | `ComposableGrid` pipeline + grouping transform (intra-group only) |
+| Row interception | **None required** (QuickGrid renders rows; features render cells) |
 | CSS styling | Global stylesheet |
+
+### 2.4.1 Sorting semantics while grouping is active
+
+Grouping introduces a deterministic data pipeline stage (`FilteredItems → GroupedItems`). Because group headers are represented as marker/spacer rows, **global sorting over the flattened sequence is not permitted**.
+
+**Rule:** When grouping is active, column sorting applies **within each group only**.
+
+- Group ordering is controlled exclusively by `GroupOrder` / `GroupOrderComparer` (or `FirstOccurrence`).
+- Sorting does not re-order groups.
+
+### 2.4.2 Deterministic data pipeline (Filter → Sort → Group)
+
+`ComposableGrid<TGridItem>` defines a deterministic pipeline. Stages may be identity transforms when the corresponding features are not present/active.
+
+- `Items`: original grid input.
+- `FilteredItems`: derived from `Items` when filter features exist/are active; otherwise `FilteredItems = Items`.
+- `SortedItems` (**Option A**): derived from `FilteredItems` when a ComposableColumns sort is active; otherwise `SortedItems = FilteredItems`.
+- `GroupedItems`: derived from `SortedItems` when grouping is active by injecting group header marker + spacer rows.
+
+When grouping is active, `QuickGrid.Items` binds to `GroupedItems`.
+
+#### Pipeline invariants (stage aliasing)
+
+The following invariants remove conditional/indecisive language. Each stage has a single defined input and may be an identity transform when its corresponding feature set is absent/inactive.
+
+- `FilteredItems` always consumes `Items`. If no filters are present/active, `FilteredItems = Items`.
+- `SortedItems` always consumes `FilteredItems`. If no ComposableColumns sort is active, `SortedItems = FilteredItems`.
+- When grouping is inactive, `ItemsForQuickGrid = SortedItems`.
+- When grouping is active, `ItemsForQuickGrid = GroupedItems(SortedItems)`.
+
+### 2.5 Integration Model (No Grid Row Hooks)
+
+Grouping must integrate using the same model proven by `ComposableRowExpandDemo.razor`:
+
+1. **QuickGrid renders rows** from an `IQueryable<TGridItem>`.
+2. Grouping transforms the `Items` sequence by injecting marker/spacer rows that are still `TGridItem` instances.
+3. A dedicated first `ComposableColumn` renders the group header UI using an `ICellRenderFeature<TGridItem>`.
+
+No changes are required to `ComposableGrid` to render custom row types. Virtualization remains compatible because header height is represented as additional fixed-height rows (spacer-row injection).
+
+#### 2.5.1 Marker + Spacer Row Identity
+
+Grouping requires a stable identity scheme similar to `SpacerRowFactory`:
+
+- A **group header marker row** represents the **FIRST** row of the header block (this is the only row that renders the header UI).
+- **Group header spacer rows** represent additional height for `GroupHeaderSlotSpan - 1` rows.
+
+The feature must be able to detect:
+
+- whether a row is a group header marker row
+- whether a row is a group header spacer row
+
+This detection must be deterministic under virtualization.
+
+**Design rule (modelled after Expansion):** The identity scheme must support distinguishing three row kinds at render time:
+
+1. Normal data rows
+2. Group header marker rows (**FIRST** header row of a header block)
+3. Group header spacer rows (additional height rows)
+
+Because ComposableColumns uses per-cell rendering and QuickGrid renders rows directly from `TGridItem`, the feature must be able to perform this detection from the `TGridItem` instance without requiring grid-level row interception.
+
+##### 2.5.1.1 Required item contract
+
+Grouping requires `TGridItem` to implement the same row identity contract used by the Expansion feature:
+
+```csharp
+public interface IRowIdentifiable
+{
+    int Id { get; set; }
+}
+```
+
+##### 2.5.1.2 Group header row id encoding
+
+Grouping introduces a dedicated id encoding scheme for group headers (separate from expansion overlay spacer ids):
+
+- **Normal data row:** `Id > 0`
+- **Any synthetic grouping row:** `Id < 0`
+- **Group header marker row (FIRST):** `Id == EncodeGroupHeaderId(groupId)`
+- **Group header spacer row:** `Id == EncodeGroupHeaderSpacerId(groupId, offset)` where `offset >= 1`
+
+`groupId` is an internal, stable integer identifier for the group within a given grouped data source instance.
+
+##### 2.5.1.3 Required helper API
+
+The grouping feature/data source must expose helper methods analogous to `SpacerRowFactory` so `ICellRenderFeature<TGridItem>` can implement deterministic rendering:
+
+```csharp
+public static class GroupHeaderRowId
+{
+    public static int EncodeGroupHeaderId(int groupId);
+    public static int EncodeGroupHeaderSpacerId(int groupId, int offset);
+
+    public static bool IsGroupingSynthetic(int id);
+    public static bool IsGroupHeaderMarker(int id);
+    public static bool IsGroupHeaderSpacer(int id);
+
+    public static int GetGroupId(int syntheticId);
+    public static int GetSpacerOffset(int syntheticId);
+}
+```
+
+**FIRST row rule:** The header-host column must render header content only when `IsGroupHeaderMarker(item.Id)` is true. It must render blank output for `IsGroupHeaderSpacer(item.Id)`.
+
+##### 2.5.1.4 Stability requirement
+
+The `groupId` mapping must be stable for the duration of the grouped data source instance so that:
+
+- row identity is stable across refreshes caused by expand/collapse
+- spacer rows remain associated with the correct header marker row
+
+If the active grouping column changes ("Group by" selection), a new grouping transformation may be produced and ids may be reallocated.
+
+##### 2.5.1.5 Preferred id allocation strategy (Expansion-aligned)
+
+To keep behavior deterministic across expand/collapse refreshes, the grouped data source should maintain a **cached key→groupId mapping**:
+
+- Store a dictionary keyed by the untyped group key (`object?`) using the active feature's key comparer.
+- Assign a new integer id only when a key is first observed.
+- Reuse prior ids for keys already in the dictionary.
+
+This mirrors Expansion's approach of keeping state in the data source instance (not recomputing identity per render).
+
+#### 2.5.2 Full-width Header UI
+
+The header UI is emitted from the first column's cell feature (similar to how `RowExpandFeature` emits an overlay). The global stylesheet may position the header container so it visually spans the grid.
+
+### 2.6 Feature Lifecycle
+
+The grouping feature follows the ComposableColumns lifecycle. Understanding this timeline is critical for correct implementation.
+
+#### 2.6.1 Initialization Phase
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 1: COMPONENT INITIALIZATION                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 1. ComposableGrid.OnInitialized()                                           │
+│    └─ Creates EditEventStream                                               │
+│    └─ Grid does NOT have Items yet                                          │
+│                                                                             │
+│ 2. ComposableGrid renders ChildContent                                      │
+│    └─ CascadingValue propagates grid reference to columns                   │
+│                                                                             │
+│ 3. ComposableColumn.OnParametersSetAsync() [for each column]                │
+│    └─ Creates FeatureContext<TGridItem, TValue>                             │
+│    └─ Compiles Property expression → Context.GetValue                       │
+│    └─ Calls Initialize() → feature.OnAttach(Context) for each feature       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.2 GroupingFeature Attachment
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2: FEATURE ATTACHMENT (inside OnAttach)                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 4. GroupingFeature.OnAttach(context) called                                 │
+│    │                                                                        │
+│    ├─ Validate context (InvokeAsync, RequestRefreshAsync required)          │
+│    │                                                                        │
+│    ├─ Resolve effective GroupBy:                                            │
+│    │  └─ Use explicit GroupBy parameter if provided                         │
+│    │  └─ Otherwise fall back to context.GetValue (from column Property)     │
+│    │  └─ Throw if neither available                                         │
+│    │                                                                        │
+│    ├─ Get or create GroupingCoordinator<TGridItem> (grid-scoped):           │
+│    │  └─ Use cascaded Grid reference (ComposableGrid<TGridItem>)             │
+│    │  └─ Mirrors existing filter registration pattern                        │
+│    │                                                                        │
+│    ├─ Register this column with coordinator:                                │
+│    │  └─ coordinator.RegisterColumn(columnId, this)                         │
+│    │  └─ Throws if columnId already registered                              │
+│    │                                                                        │
+│    └─ If IsActive && coordinator.ActiveGrouping is null (first wins):       │
+│       └─ coordinator.SetActiveGrouping(columnId)                            │
+│       └─ Create GroupStateManager<TValue>(KeyComparer)                      │
+│       └─ NOTE: State NOT initialized yet (no Items available)               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.3 Rendering Phase
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 3: GRID RENDERING                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 5. ComposableGrid.FilteredItems property accessed                           │
+│    └─ Returns Items with any active filters applied                         │
+│                                                                             │
+│ 6. Owning component binds QuickGrid.Items to grouped data source:           │
+│    └─ dataSource.Items (IQueryable<TGridItem>)                               │
+│                                                                             │
+│ 7. QuickGrid iterates Items                                                  │
+│    └─ Grouped data source lazily rebuilds flattened sequence when dirty      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.4 Data Transformation (First Render)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 4: DATA TRANSFORMATION (inside TransformItems)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 9. Grouped data source rebuild invoked (dirty -> rebuild)                   │
+│    │                                                                        │
+│    ├─ If ActiveGrouping is null:                                            │
+│    │  └─ Emit original items only (no marker/spacer injection)              │
+│    │                                                                        │
+│    ├─ Group items by ActiveGrouping.GroupByUntyped:                         │
+│    │  └─ items.AsEnumerable().GroupBy(item => GroupByUntyped(item))         │
+│    │                                                                        │
+│    ├─ FIRST RENDER ONLY - Initialize state:                                 │
+│    │  └─ Extract all group keys from groups                                 │
+│    │  └─ Feature.InitializeState(allKeys, InitiallyExpanded)                │
+│    │  └─ Sets _isInitialized = true                                         │
+│    │                                                                        │
+│    ├─ Order groups per GroupOrder and NullKeyBehavior                       │
+│    │                                                                        │
+│    └─ For each group:                                                       │
+│       ├─ Emit 1x group header marker row (TGridItem, Id encoded)            │
+│       ├─ Emit (GroupHeaderSlotSpan - 1)x header spacer rows (TGridItem)     │
+│       └─ If isExpanded: emit original group items                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.5 Row Rendering
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 5: ROW RENDERING (grid's render loop)                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 10. QuickGrid renders each TGridItem row                                     │
+│     │                                                                       │
+│     ├─ Header-host column cell feature:                                      │
+│     │  ├─ If IsGroupHeaderMarker(item.Id): render header UI                  │
+│     │  ├─ If IsGroupHeaderSpacer(item.Id): render blank                      │
+│     │  └─ Else: render blank (or optional indent)                            │
+│     │                                                                       │
+│     └─ All other columns: render blank for marker/spacer rows                │
+│        and normal content for data rows                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.6 User Interaction (Expand/Collapse)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 6: USER INTERACTION                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 11. User clicks group header (expand/collapse)                              │
+│     │                                                                       │
+│     ├─ GroupHeaderContext.ToggleAsync() invoked                             │
+│     │  └─ Calls feature.ToggleGroupAsync(key)                               │
+│     │  └─ GroupStateManager.ToggleAsync(typedKey)                           │
+│     │  └─ Updates _expandedGroups HashSet                                   │
+│     │                                                                       │
+│     ├─ Grouped data source marks dirty and raises OnDataChanged             │
+│     │  └─ ComposableGrid invokes InvokeAsync(StateHasChanged)               │
+│     │                                                                       │
+│     └─ Grid re-renders:                                                     │
+│        └─ TransformItems called again                                       │
+│        └─ IsGroupExpanded returns new state                                 │
+│        └─ Collapsed groups: only header emitted                             │
+│        └─ Expanded groups: header + data rows emitted                       │
+│                                                                             │
+│ 12. User clicks Expand All / Collapse All (if ShowExpandCollapseAllButtons) │
+│     └─ Similar flow, but ExpandAllGroupsAsync/CollapseAllGroupsAsync called │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.7 Cleanup
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 7: DISPOSAL                                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 13. Component disposed (page navigation, etc.)                              │
+│     │                                                                       │
+│     ├─ ComposableColumn.Dispose()                                           │
+│     │  └─ Calls feature.Dispose() for each feature                          │
+│     │                                                                       │
+│     ├─ GroupingFeature.Dispose()                                            │
+│     │  └─ Disposes GroupStateManager (releases SemaphoreSlim)               │
+│     │  └─ Clears references                                                 │
+│     │                                                                       │
+│     └─ GroupingCoordinator.Dispose() (via FeatureContext cleanup)           │
+│        └─ Clears _groupableColumns dictionary                               │
+│        └─ Sets ActiveGrouping = null                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 2.6.8 Key Timing Constraints
+
+| Constraint | Reason |
+|------------|--------|
+| State initialization is lazy (Phase 4) | Group keys not available until Items flow through TransformItems |
+| Coordinator created by first GroupingFeature | Ensures single coordinator per grid |
+| First `IsActive = true` wins | Deterministic based on column order in markup |
+| RequestRefreshAsync triggers full re-render | Required for virtualization recalculation |
 
 ---
 
@@ -141,15 +476,17 @@ public sealed class GroupingFeature<TGridItem, TValue>
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `IsActive` | `bool` | `true` | Whether this column's grouping is currently active. Only one column can have active grouping. |
-| `GroupBy` | `Func<TGridItem, TValue>?` | `null` | Expression to extract group key. If null, uses column's `Property`. |
+| `IsActive` | `bool` | `true` | Whether this column's grouping is currently active. Only one column can have active grouping; if multiple specify `IsActive = true`, the first column wins. |
+| `GroupBy` | `Func<TGridItem, TValue>?` | `null` | Expression to extract group key. If null, uses column's `Property` via `FeatureContext.GetValue`. Throws `InvalidOperationException` if neither is available. |
 | `InitiallyExpanded` | `bool` | `true` | Whether groups start expanded or collapsed. |
+| `GroupHeaderSlotSpan` | `int` | `2` | Number of fixed-height virtual slots the group header occupies under QuickGrid `ItemSize` virtualization. Must be `>= 1`. |
 
 ### 3.2 Templates
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `HeaderTemplate` | `RenderFragment<GroupHeaderContext<TGridItem, TValue>>?` | `null` | Custom template for group headers. If null, uses full-featured default. |
+| `ToolbarTemplate` | `RenderFragment<GroupToolbarContext>?` | `null` | Custom template for grouping toolbar controls (Expand All / Collapse All). If null, the grid renders the default grouping toolbar UI when enabled. |
 
 ### 3.3 Sorting & Ordering
 
@@ -161,9 +498,9 @@ public sealed class GroupingFeature<TGridItem, TValue>
 ```csharp
 public enum GroupSortDirection
 {
-    /// <summary>Groups ordered by key ascending (A-Z, 0-9). Shows ▲ chevron.</summary>
+    /// <summary>Groups ordered by key ascending (A-Z, 0-9).</summary>
     Ascending,
-    /// <summary>Groups ordered by key descending (Z-A, 9-0). Shows ▼ chevron.</summary>
+    /// <summary>Groups ordered by key descending (Z-A, 9-0).</summary>
     Descending,
     /// <summary>Groups ordered by first occurrence in source data.</summary>
     FirstOccurrence
@@ -174,7 +511,7 @@ public enum GroupSortDirection
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `FilterBehavior` | `FilterGroupOrder` | `FilterThenGroup` | Order of filter/group operations. |
+| `FilterBehavior` | `FilterGroupOrder` | `FilterThenGroup` | Order of filter/group operations. Note: `ComposableGrid` applies filtering before providing `Items` to QuickGrid, so `GroupThenFilter` is not supported in the current integration model. |
 | `HideEmptyGroups` | `bool` | `true` | Whether to hide groups with 0 items after filtering. |
 
 ```csharp
@@ -192,6 +529,8 @@ public enum FilterGroupOrder
     /// </summary>
     GroupThenFilter
 }
+
+**Implementation constraint:** In the current ComposableColumns architecture, grouping receives the sequence that is bound to the grid. When using `ComposableGrid`, that sequence is already filtered (`FilteredItems`). Therefore, `GroupThenFilter` is reserved for future work that would require an explicit, coordinated data pipeline and is not implemented by this feature.
 ```
 
 ### 3.5 Null Key Handling
@@ -206,14 +545,19 @@ public enum NullKeyBehavior
 {
     /// <summary>Create a separate group for items with null keys.</summary>
     SeparateGroup,
-    /// <summary>Show items with null keys ungrouped at the top.</summary>
+    /// <summary>Show items with null keys ungrouped at the top (as regular data rows, no group header).</summary>
     ShowAtTop,
-    /// <summary>Show items with null keys ungrouped at the bottom.</summary>
+    /// <summary>Show items with null keys ungrouped at the bottom (as regular data rows, no group header).</summary>
     ShowAtBottom,
     /// <summary>Exclude items with null keys from display.</summary>
     Exclude
 }
 ```
+
+**Null Group Sort Position:** When `NullKeyBehavior = SeparateGroup`, the null group position follows `GroupOrder`:
+- `Ascending`: Null group appears **first** (null < all values)
+- `Descending`: Null group appears **last** (null < all values, reversed)
+- `FirstOccurrence`: Null group appears where first null item occurs in source data
 
 ### 3.6 Key Comparison
 
@@ -238,48 +582,72 @@ Passed to `HeaderTemplate`:
 ```csharp
 public record GroupHeaderContext<TGridItem, TValue>(
     /// <summary>The group key value.</summary>
-    TValue Key,
-    
+    TValue? Key,
+
     /// <summary>All items in this group.</summary>
     IReadOnlyList<TGridItem> Items,
-    
+
     /// <summary>Count of items in this group.</summary>
     int Count,
-    
+
     /// <summary>Whether this group is currently expanded.</summary>
     bool IsExpanded,
-    
+
     /// <summary>Async delegate to toggle expand/collapse.</summary>
     Func<Task> ToggleAsync,
-    
+
     /// <summary>Nesting level (0 for top-level, reserved for future nested grouping).</summary>
     int Level,
-    
+
     /// <summary>Label to display for null keys.</summary>
     string NullGroupLabel
+) where TGridItem : class;
+
+### 4.2 GroupToolbarContext
+
+Passed to `ToolbarTemplate` when grouping toolbar controls are enabled:
+
+```csharp
+public record GroupToolbarContext(
+    /// <summary>Async delegate to expand all groups.</summary>
+    Func<Task> ExpandAllAsync,
+
+    /// <summary>Async delegate to collapse all groups.</summary>
+    Func<Task> CollapseAllAsync,
+
+    /// <summary>Whether any group is expanded.</summary>
+    bool HasExpandedGroups,
+
+    /// <summary>Count of expanded groups.</summary>
+    int ExpandedGroupCount
 );
 ```
+```
 
-### 4.2 GroupedRow
+### 4.3 GroupedRow
 
 Discriminated union representing either a header or data row:
 
 ```csharp
-public abstract record GroupedRow<TGridItem>;
+public abstract record GroupedRow<TGridItem>
+    where TGridItem : class;
 
 public record GroupHeaderRow<TGridItem>(
-    object? Key,           // Stored as object per Q21 decision
+    object? Key,           // Stored as object for coordinator compatibility (supports any TValue)
+    IReadOnlyList<TGridItem> Items,
     int Count,
     bool IsExpanded,
     int Level
-) : GroupedRow<TGridItem>;
+) : GroupedRow<TGridItem>
+    where TGridItem : class;
 
 public record DataRow<TGridItem>(
     TGridItem Item
-) : GroupedRow<TGridItem>;
+) : GroupedRow<TGridItem>
+    where TGridItem : class;
 
 /// <summary>
-/// Extension methods for GroupHeaderRow type bridging (per Q31 decision).
+/// Extension methods for GroupHeaderRow to bridge object Key to typed TValue.
 /// </summary>
 public static class GroupHeaderRowExtensions
 {
@@ -309,12 +677,19 @@ internal class GroupingCoordinator<TGridItem> : IDisposable
 
     public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
 
-    // Note: No StateManager property - feature owns state per Q14/Q25 decisions
+    // Note: No StateManager property - feature owns typed GroupStateManager<TValue> internally
 
-    /// <summary>Register a column's grouping capability.</summary>
+    /// <summary>
+    /// Register a column's grouping capability.
+    /// Throws InvalidOperationException if columnId is already registered.
+    /// </summary>
     public void RegisterColumn(string columnId, IGroupingFeature<TGridItem> feature);
 
-    /// <summary>Set which column's grouping is active.</summary>
+    /// <summary>
+    /// Set which column's grouping is active.
+    /// Pass null to disable grouping.
+    /// Throws InvalidOperationException if columnId is not null and not registered.
+    /// </summary>
     public void SetActiveGrouping(string? columnId);
 
     /// <summary>Get total count including group headers (for virtualization).</summary>
@@ -333,49 +708,45 @@ internal class GroupingCoordinator<TGridItem> : IDisposable
 
 ### 5.2 GroupStateManager
 
-Manages expand/collapse state for groups:
+Manages expand/collapse state for groups. Uses a `HashSet<TValue>` internally with thread-safe access via `SemaphoreSlim`. Accepts an optional `IEqualityComparer<TValue>` for custom key comparison.
 
 ```csharp
 public class GroupStateManager<TValue> : IDisposable
 {
-    private readonly HashSet<TValue> _expandedGroups;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly IEqualityComparer<TValue> _comparer;
-    
-    public GroupStateManager(IEqualityComparer<TValue>? comparer = null)
-    {
-        _comparer = comparer ?? EqualityComparer<TValue>.Default;
-        _expandedGroups = new HashSet<TValue>(_comparer);
-    }
-    
+    public GroupStateManager(IEqualityComparer<TValue>? comparer = null);
+
     /// <summary>Whether any group is expanded.</summary>
-    public bool HasExpandedGroups => _expandedGroups.Count > 0;
-    
+    public bool HasExpandedGroups { get; }
+
     /// <summary>Count of expanded groups.</summary>
-    public int ExpandedGroupCount => _expandedGroups.Count;
-    
+    public int ExpandedGroupCount { get; }
+
     /// <summary>Check if a specific group is expanded.</summary>
     public bool IsExpanded(TValue key);
-    
+
     /// <summary>Toggle a group's expand/collapse state.</summary>
     public Task ToggleAsync(TValue key, CancellationToken ct = default);
-    
+
     /// <summary>Expand a specific group.</summary>
     public Task ExpandAsync(TValue key, CancellationToken ct = default);
-    
+
     /// <summary>Collapse a specific group.</summary>
     public Task CollapseAsync(TValue key, CancellationToken ct = default);
-    
+
     /// <summary>Expand all groups.</summary>
     public Task ExpandAllAsync(IEnumerable<TValue> allKeys, CancellationToken ct = default);
-    
+
     /// <summary>Collapse all groups.</summary>
     public Task CollapseAllAsync(CancellationToken ct = default);
-    
+
     /// <summary>Initialize state based on InitiallyExpanded setting.</summary>
     public Task InitializeAsync(IEnumerable<TValue> allKeys, bool initiallyExpanded, CancellationToken ct = default);
+
+    public void Dispose();
 }
 ```
+
+**Initialization Timing:** `InitializeAsync` is called during the first `TransformItems` call when group keys become available. The feature tracks whether initialization has occurred via an internal `_isInitialized` flag. On first call, all discovered keys are initialized based on the `InitiallyExpanded` setting. This lazy initialization is required because group keys are not available at `OnAttach` time—they are derived from `Items` which flow through the grid's rendering pipeline after feature attachment.
 
 ### 5.3 IGroupingFeature Interface
 
@@ -383,10 +754,9 @@ public class GroupStateManager<TValue> : IDisposable
 public interface IGroupingFeature<TGridItem>
     where TGridItem : class
 {
-    // Configuration properties
+    // Configuration properties (object-typed for coordinator compatibility)
     bool IsActive { get; }
     Func<TGridItem, object>? GroupByUntyped { get; }
-    RenderFragment<GroupHeaderContext<TGridItem, object>>? HeaderTemplateUntyped { get; }
     bool InitiallyExpanded { get; }
     GroupSortDirection GroupOrder { get; }
     IComparer<object>? GroupOrderComparerUntyped { get; }
@@ -397,7 +767,10 @@ public interface IGroupingFeature<TGridItem>
     IEqualityComparer<object>? KeyComparerUntyped { get; }
     bool ShowExpandCollapseAllButtons { get; }
 
-    // State management methods (per Q23 decision)
+    // Optional UI template override for grid-level grouping controls
+    RenderFragment<GroupToolbarContext>? ToolbarTemplate { get; }
+
+    // State management methods (delegated from coordinator)
     /// <summary>Toggle a group's expand/collapse state.</summary>
     Task ToggleGroupAsync(object key);
 
@@ -409,8 +782,106 @@ public interface IGroupingFeature<TGridItem>
 
     /// <summary>Collapse all groups.</summary>
     Task CollapseAllGroupsAsync();
+
+    /// <summary>
+    /// Render the group header. Called by grid for each GroupHeaderRow.
+    /// The feature internally casts the object key back to TValue and renders
+    /// either the custom HeaderTemplate (if provided) or the default template.
+    /// This approach avoids RenderFragment covariance issues with generic type parameters.
+    /// </summary>
+    void RenderGroupHeader(
+        Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder,
+        object? key,
+        IReadOnlyList<TGridItem> items,
+        int count,
+        bool isExpanded,
+        int level);
 }
 ```
+
+### 5.4 IGridDataTransformer Interface
+
+New interface for features that transform the grid's data source (placed in `Core/`):
+
+```csharp
+/// <summary>
+/// Interface for features that transform the grid's data source.
+/// Implemented by features that change the shape of data (e.g., grouping, aggregation).
+/// </summary>
+public interface IGridDataTransformer<TGridItem> : IColumnFeature<TGridItem>
+    where TGridItem : class
+{
+    /// <summary>
+    /// Whether this transformer is currently active.
+    /// </summary>
+    bool IsTransformActive { get; }
+
+    /// <summary>
+    /// Gets the coordinator key for registration in FeatureContext.
+    /// </summary>
+    string CoordinatorKey { get; }
+}
+```
+
+### 5.5 Column Identifier
+
+Each groupable column is registered with the coordinator using a unique identifier. The identifier is derived from the `GroupBy` expression by extracting the property name (e.g., "Category", "Status"). If a property name cannot be extracted (e.g., for complex expressions), a sequential fallback ID is generated (e.g., "GroupingColumn_1", "GroupingColumn_2").
+
+---
+
+### 5.6 GroupedGridDataSource
+
+Data source wrapper that the grid iterates when grouping is active:
+
+```csharp
+public class GroupedGridDataSource<TGridItem> 
+    where TGridItem : class
+{
+    private readonly IQueryable<TGridItem> _source;
+    private readonly GroupingCoordinator<TGridItem> _coordinator;
+
+    public GroupedGridDataSource(
+        IQueryable<TGridItem> source, 
+        GroupingCoordinator<TGridItem> coordinator)
+    {
+        _source = source ?? throw new ArgumentNullException(nameof(source));
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    }
+
+    /// <summary>
+    /// Returns grouped items including headers. Grid iterates this.
+    /// </summary>
+    public IEnumerable<GroupedRow<TGridItem>> Items => _coordinator.TransformItems(_source);
+
+    /// <summary>
+    /// Total count for virtualization (headers count as 2 rows each).
+    /// </summary>
+    public int VirtualItemCount => _coordinator.GetVirtualItemCount(_source);
+
+    /// <summary>
+    /// Toggle a group's expand/collapse state and notify listeners.
+    /// This method is async to avoid fire-and-forget calls and to ensure
+    /// state changes complete before virtualization is refreshed.
+    /// </summary>
+    public async Task ToggleGroupAsync(object key)
+    {
+        if (_coordinator.ActiveGrouping is null)
+        {
+            return;
+        }
+
+        await _coordinator.ActiveGrouping.ToggleGroupAsync(key);
+        OnDataChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Raised when group state changes (expand/collapse).
+    /// </summary>
+    public event Action? OnDataChanged;
+}
+```
+
+**Lifecycle:** Created by the grid when it detects a `GroupingCoordinator<TGridItem>` with an active grouping. The grid binds to `Items` for row iteration and `VirtualItemCount` for virtualization.
 
 ---
 
@@ -447,6 +918,7 @@ When `HeaderTemplate` is null, the following default is rendered:
 
 All CSS in `wwwroot/css/qgComposable-refined-minimalism.css`:
 
+
 | Class | Purpose |
 |-------|---------|
 | `.qg-group-header` | Group header row container |
@@ -460,14 +932,22 @@ All CSS in `wwwroot/css/qgComposable-refined-minimalism.css`:
 | `.qg-group-controls` | Expand All / Collapse All button container |
 | `.qg-expand-all` | Expand All button |
 | `.qg-collapse-all` | Collapse All button |
+| `.qg-grid-wrapper` | Wrapper for toolbar support |
+| `.qg-group-toolbar` | Toolbar container |
 
-**Group header row spanning:**
+### 7.1 Styling Requirements
 
-```css
-.qg-group-header {
-    grid-column: 1 / -1; /* Span all columns */
-}
-```
+The complete CSS implementation is in the Implementation Plan. The styles must:
+
+- Use existing CSS variables from the design system (`--space-*`, `--color-*`, `--font-*`, etc.)
+- Support hover, focus, and active states for accessibility
+- Include responsive adjustments for mobile (max-width: 768px)
+- Follow the design token patterns established in `qgComposable-refined-minimalism.css`
+
+**Key dimensional requirements:**
+- Group header height: `GroupHeaderSlotSpan × ItemSize` (default: 2× standard row height for virtualization alignment)
+- Column spanning: `grid-column: 1 / -1`
+- Level indentation: 16px per level (`padding-left: level * 16px`)
 
 ---
 
@@ -476,7 +956,7 @@ All CSS in `wwwroot/css/qgComposable-refined-minimalism.css`:
 Since virtualization is **required**, the implementation must:
 
 1. **Group headers count toward virtual item count**
-   - Each group header counts as 2 virtual rows (80px = 2 × 40px slots)
+   - Each group header counts as `GroupHeaderSlotSpan` virtual slots
 
 2. **Collapsed groups skip their items**
    - When collapsed, group items are excluded from virtualized output
@@ -491,8 +971,8 @@ Since virtualization is **required**, the implementation must:
 
 /// <summary>
 /// Returns the total count including group headers (for virtualization).
-/// Collapsed groups contribute 2 (header only, 80px = 2 slots).
-/// Expanded groups contribute 2 + itemCount (header + items).
+/// Collapsed groups contribute GroupHeaderSlotSpan (header only).
+/// Expanded groups contribute GroupHeaderSlotSpan + itemCount (header + items).
 /// </summary>
 public int GetVirtualItemCount(IQueryable<TGridItem> items);
 
@@ -599,594 +1079,9 @@ QuickGridTest01/ComposableColumns/
 
 ---
 
-## 12. Open Questions (Require Decision)
 
-### Q13: IGridDataTransformer Interface
 
-The spec mentions `IGridDataTransformer<TGridItem>` but this interface doesn't exist.
-
-#### Existing Interfaces in ComposableColumns
-
-| Interface | Purpose | Suitable? |
-|-----------|---------|-----------|
-| `IColumnFeature<TGridItem>` | Base interface with Priority, OnAttach, OnDetach | ✅ Required base |
-| `ICellRenderFeature<TGridItem>` | Cell rendering pipeline | ❌ Not for data transformation |
-| `IHeaderRenderFeature<TGridItem>` | Header rendering | ⚠️ Possibly for Expand/Collapse buttons |
-| `IValueAccessorFeature<TGridItem, TValue>` | Get/Set values | ❌ Not relevant |
-| `ISortingFeature<TGridItem>` | Sort key selector | ❌ Not for data transformation |
-| `IValueChangedFeature<TGridItem, TValue>` | Value change notification | ❌ Not relevant |
-| `IValidationFeature<TGridItem, TValue>` | Validation | ❌ Not relevant |
-
-**Analysis:** None of the existing interfaces handle data transformation. A new interface is needed.
-
-| Option | Description |
-|--------|-------------|
-| **Create new interface** | Define `IGridDataTransformer<T>` for features that transform data |
-| **Remove from signature** | Only implement `IColumnFeature<T>` |
-| **Use marker interface** | Empty interface to signal coordinator pattern usage |
-
-> **DECISION:** ✅ **Create new interface** - `IGridDataTransformer<TGridItem>`
->
-> **Rationale:** Grouping fundamentally transforms the data source. A dedicated interface makes this explicit and allows the grid to discover transformers. This pattern could be reused for future features (e.g., aggregation rows).
-
-```csharp
-/// <summary>
-/// Interface for features that transform the grid's data source.
-/// </summary>
-public interface IGridDataTransformer<TGridItem> : IColumnFeature<TGridItem>
-    where TGridItem : class
-{
-    /// <summary>
-    /// Whether this transformer is currently active.
-    /// </summary>
-    bool IsTransformActive { get; }
-
-    /// <summary>
-    /// Gets the coordinator key for registration in FeatureContext.
-    /// </summary>
-    string CoordinatorKey { get; }
-}
-```
-
-### Q14: Type Erasure in Coordinator
-
-The coordinator needs to work with any `TValue` but stores `GroupStateManager<object>`.
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Object boxing** | Simple, no extra types | Boxing overhead for value types, type safety lost |
-| **Generic coordinator** | Full type safety, no boxing | Requires `TValue` known at registration, complex coordinator management |
-| **Type-safe wrapper** | Type safety internally, clean external API | Extra indirection, slightly more complex |
-
-**Analysis:**
-
-- **Object boxing:** Works but loses compile-time safety. `GroupStateManager<object>` would compare keys using `object.Equals()`, which works but requires careful null handling.
-
-- **Generic coordinator:** Would require `GroupingCoordinator<TGridItem, TValue>`, but the coordinator is stored in `FeatureContext` which doesn't know `TValue`. This creates a chicken-and-egg problem.
-
-- **Type-safe wrapper:** The feature (`GroupingFeature<TGridItem, TValue>`) knows `TValue` and can create a typed `GroupStateManager<TValue>` internally. The coordinator only needs to delegate to the active feature.
-
-> **DECISION:** ✅ **Type-safe wrapper**
->
-> **Implementation:**
-> - `GroupingFeature<TGridItem, TValue>` owns a typed `GroupStateManager<TValue>` internally
-> - `GroupingCoordinator<TGridItem>` (non-generic on `TValue`) delegates to the active feature
-> - Coordinator uses `IGroupingFeature<TGridItem>` interface with `object`-typed accessors for cross-feature communication
-> - Feature implements both typed public API and untyped internal interface
->
-> **Architecture:**
-
-```csharp
-// Feature owns typed state manager
-public sealed class GroupingFeature<TGridItem, TValue> : IGroupingFeature<TGridItem>
-{
-    private GroupStateManager<TValue>? _stateManager;
-
-    // Typed public API
-    public GroupStateManager<TValue> StateManager => _stateManager!;
-
-    // Untyped interface for coordinator
-    Func<TGridItem, object>? IGroupingFeature<TGridItem>.GroupByUntyped 
-        => item => GroupBy!(item)!;
-}
-
-// Coordinator delegates to active feature
-internal class GroupingCoordinator<TGridItem>
-{
-    public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
-
-    // Coordinator doesn't manage state directly - delegates to feature
-}
-```
-
-### Q15: Null Group Position in Sort Order
-
-When `NullKeyBehavior = SeparateGroup`, where does the null group appear?
-
-| Option | Description |
-|--------|-------------|
-| **Always first** | Null group at top regardless of `GroupOrder` |
-| **Always last** | Null group at bottom regardless of `GroupOrder` |
-| **Follow GroupOrder** | Null treated as "less than" all values (first in Ascending, last in Descending) |
-| **Configurable** | Add `NullGroupPosition` parameter |
-
-> **DECISION:** ✅ **Follow GroupOrder**
->
-> **Behavior:**
-> - `GroupOrder = Ascending`: Null group appears **first** (null < all values)
-> - `GroupOrder = Descending`: Null group appears **last** (null < all values, reversed)
-> - `GroupOrder = FirstOccurrence`: Null group appears where first null item occurs
-
-### Q16: Multiple IsActive=true Conflict
-
-What happens if multiple columns have `IsActive = true`?
-
-| Option | Description |
-|--------|-------------|
-| **First wins** | First registered column with `IsActive=true` becomes active |
-| **Last wins** | Last registered column with `IsActive=true` becomes active |
-| **Throw exception** | `InvalidOperationException` at registration |
-| **Log warning** | Log warning, first wins |
-
-> **DECISION:** ✅ **First wins**
->
-> **Behavior:** The first column to register with `IsActive = true` becomes the active grouping. Subsequent columns with `IsActive = true` are registered as "groupable" but not active. No exception or warning (deterministic behavior based on column order in markup).
-
-### Q17: Expand/Collapse All Button Location
-
-Where do the Expand All / Collapse All buttons appear?
-
-| Option | Description |
-|--------|-------------|
-| **Above grid, left** | Toolbar area above grid, left-aligned |
-| **Above grid, right** | Toolbar area above grid, right-aligned |
-| **In grouped column header** | Inside the header cell of the grouped column |
-| **Floating** | Floating button group near first group header |
-
-> **DECISION:** ✅ **Above grid, right**
->
-> **Implementation:** When `ShowExpandCollapseAllButtons = true`, the grid renders a toolbar area above the column headers with the buttons right-aligned. This keeps them visible and accessible regardless of scroll position.
-
-```razor
-<!-- Grid structure with toolbar -->
-<div class="qg-grid-wrapper">
-    @if (ShowGroupingControls)
-    {
-        <div class="qg-group-toolbar">
-            <div class="qg-group-controls">
-                <button class="qg-expand-all">⊞ Expand All</button>
-                <button class="qg-collapse-all">⊟ Collapse All</button>
-            </div>
-        </div>
-    }
-    <div class="qg-grid">...</div>
-</div>
-```
-
-### Q18: Group Header Row Height
-
-What height should group header rows have for virtualization?
-
-**Grid Row Height Analysis:**
-
-From the codebase:
-- `VirtualizationScenario.ItemSize` defaults to `40f` (40px)
-- `VirtualScrollingDemo.razor` documents: "Must match actual row height (40px)"
-- CSS typically uses 40-42px for data rows
-
-| Option | Description |
-|--------|-------------|
-| **Same as data rows** | Use grid's `RowHeight` parameter (40px) |
-| **Fixed height** | Hardcoded value (e.g., 40px) |
-| **Configurable** | Add `GroupHeaderHeight` parameter |
-| **Auto-calculated** | Measure actual rendered height |
-
-> **DECISION:** ✅ **Fixed: 2× row height (80px)**
->
-> **Rationale:** 
-> - Group headers need more visual weight than data rows
-> - Using exactly 2× the row height (40px × 2 = 80px) ensures alignment with virtualization
-> - Virtualization can count group headers as 2 virtual rows
-> - No configuration needed; consistent visual appearance
-
-```csharp
-/// <summary>
-/// Group header height in pixels. Fixed at 2× the standard row height (80px)
-/// to ensure proper virtualization alignment.
-/// </summary>
-internal const int GroupHeaderHeight = 80; // 2 × 40px standard row height
-```
-
-### Q19: ComposableGrid Integration Point
-
-How does `ComposableGrid` know to render group headers?
-
-**Existing Pattern: `ExpandableGridDataSource<T>`**
-
-From the codebase, `ExpandableGridDataSource<T>` provides:
-- `Items` property returns `IQueryable<T>` including spacer rows
-- Spacer rows are identified by negative IDs (`IsSpacer()` check)
-- `ExpandRow(rowId, spacerCount)` injects spacers
-- `CollapseRow(rowId)` removes spacers
-- `OnDataChanged` event for refresh
-
-| Option | Description |
-|--------|-------------|
-| **Override row rendering** | Grid checks coordinator before each row |
-| **Transform Items property** | Coordinator wraps `Items` with grouped sequence |
-| **Render callback** | Grid calls coordinator's render method |
-| **Virtual row injection** | Similar to `ExpandableGridDataSource` spacer pattern |
-
-> **DECISION:** ✅ **Virtual row injection** (leverage existing pattern)
->
-> **Implementation:** Create `GroupedGridDataSource<TGridItem>` following the `ExpandableGridDataSource<T>` pattern:
-> - Wraps original `IQueryable<TGridItem>`
-> - Injects group header marker items
-> - Grid renders marker items as group headers
-> - Handles expand/collapse by including/excluding group items
->
-> **Challenge:** Group headers are not `TGridItem` instances. Solution: Use a discriminated union wrapper or marker interface that the grid can detect.
-
-```csharp
-/// <summary>
-/// Wraps grid items with group headers for virtualized rendering.
-/// </summary>
-public class GroupedGridDataSource<TGridItem> where TGridItem : class
-{
-    public IQueryable<GroupedRow<TGridItem>> Items { get; }
-    public void ToggleGroup(object key);
-    public event Action? OnDataChanged;
-}
-```
-
-### Q20: FilterBehavior vs Priority Conflict
-
-Priority 50 runs before Filtering (150), but `FilterThenGroup` needs filtering first.
-
-**Analysis of Options:**
-
-| Option | How it works | Pros | Cons |
-|--------|--------------|------|------|
-| **Priority doesn't control data flow** | Priority determines feature initialization order, not when data transformations apply | Clean separation of concerns | Requires clear documentation |
-| **Coordinator defers grouping** | Coordinator receives already-filtered `Items` from grid; filtering happens in LINQ before grouping | Simple, leverages existing data flow | Relies on grid's `Items` being pre-filtered |
-| **Change priority to 175** | Grouping runs after filtering | Matches mental model | Breaks "grouping transforms data shape" rationale |
-| **Dual-phase processing** | Feature registers at 50, transforms at render time | Maximum flexibility | Complex, two execution points |
-
-**Key Insight:** The `Items` parameter passed to `ComposableGrid` is already an `IQueryable<TGridItem>`. If filtering features add `.Where()` clauses to this queryable, the grouping coordinator simply receives filtered data. Priority only affects when `OnAttach` runs, not when the data flows.
-
-**Trade-offs:**
-
-1. **If Priority = 50 (before Filtering):**
-   - `OnAttach` runs early, coordinator is ready
-   - When `FilterThenGroup`: Grid's `Items` already filtered by the time coordinator transforms
-   - When `GroupThenFilter`: Coordinator groups all items, filter hides rows within groups
-   - ✅ Works for both behaviors
-
-2. **If Priority = 175 (after Filtering):**
-   - `OnAttach` runs after filter feature attached
-   - Less clear separation: grouping looks like it depends on filtering
-   - ❌ Confusing: priority suggests dependency that doesn't exist
-
-> **DECISION:** ✅ **Keep Priority = 50**
->
-> **Rationale:** Priority controls initialization order (`OnAttach`), not data flow. The `FilterBehavior` parameter controls the actual behavior:
-> - `FilterThenGroup`: Coordinator transforms already-filtered `Items` from grid
-> - `GroupThenFilter`: Coordinator groups all items, filter feature hides non-matching rows within groups
->
-> **Implementation detail:** The coordinator receives `IQueryable<TGridItem>` which may already have `.Where()` clauses applied by filter features. Grouping operates on whatever data flows through.
-
----
-
-### Additional Clarifications (Q21-Q26)
-
-The following clarifications are needed to avoid ambiguity during implementation:
-
-### Q21: GroupedRow Type Parameter
-
-`GroupHeaderRow<TGridItem, TValue>` inherits from `GroupedRow<TGridItem>`, but `TValue` is lost in the base type.
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Store key as `object`** | Simple, coordinator can work with any key type | Boxing for value types, loses type safety |
-| **Add `TValue` to base** | Full type safety throughout | `GroupedRow<TGridItem, TValue>` makes collections hard to type; coordinator can't hold mixed types |
-| **Use pattern matching** | Type safety where needed, flexible base | Requires casting at usage sites, slightly more complex |
-
-**Analysis:**
-
-- The coordinator needs to work with `GroupedRow<TGridItem>` collections without knowing `TValue`
-- The feature knows `TValue` and can pattern-match when rendering
-- Storing key as `object` is consistent with `IGroupingFeature<TGridItem>.GroupByUntyped`
-
-> **DECISION:** ✅ **Store key as `object`**
->
-> **Implementation:** `GroupHeaderRow` stores key as `object` for coordinator compatibility:
-
-```csharp
-public abstract record GroupedRow<TGridItem>;
-
-public record GroupHeaderRow<TGridItem>(
-    object? Key,           // Stored as object for coordinator compatibility
-    int Count,
-    bool IsExpanded,
-    int Level
-) : GroupedRow<TGridItem>;
-
-public record DataRow<TGridItem>(
-    TGridItem Item
-) : GroupedRow<TGridItem>;
-```
->
-> **Rationale:** Consistent with `IGroupingFeature<TGridItem>.GroupByUntyped` pattern. The feature can cast back to `TValue` when creating `GroupHeaderContext<TGridItem, TValue>` for template rendering.
-
-### Q22: Virtualization Row Count for Headers
-
-Group headers are 80px (2× row height). For virtualization counting:
-
-| Option | Description |
-|--------|-------------|
-| **Count as 2 rows** | Header contributes 2 to virtual item count (consistent with height) |
-| **Count as 1 row** | Header contributes 1, but with 2× height (simpler count, complex height) |
-
-> **DECISION:** ✅ **Count as 2 rows**
->
-> **Rationale:** The virtualized grid depends on a constant row height (40px). Counting headers as 2 virtual rows maintains this invariant. The virtualizer sees a flat list where each "slot" is 40px.
->
-> **Implementation:**
-> - Collapsed group: contributes 2 to count (header only, 80px = 2 slots)
-> - Expanded group: contributes 2 + itemCount (header + items)
-
-### Q23: State Manager Access via Interface
-
-The coordinator needs to toggle groups, but `IGroupingFeature` doesn't expose state management.
-
-| Option | Description |
-|--------|-------------|
-| **Add methods to interface** | `Task ToggleGroupAsync(object key)`, `bool IsGroupExpanded(object key)` |
-| **Coordinator calls feature directly** | Cast to typed feature when needed |
-| **Expose state manager** | `IGroupStateManager StateManagerUntyped { get; }` interface property |
-
-> **DECISION:** ✅ **Add methods to interface**
->
-> **Implementation:** Add state management methods directly to `IGroupingFeature<TGridItem>`:
-
-```csharp
-public interface IGroupingFeature<TGridItem>
-{
-    // ... existing properties ...
-
-    /// <summary>Toggle a group's expand/collapse state.</summary>
-    Task ToggleGroupAsync(object key);
-
-    /// <summary>Check if a group is expanded.</summary>
-    bool IsGroupExpanded(object key);
-
-    /// <summary>Expand all groups.</summary>
-    Task ExpandAllGroupsAsync();
-
-    /// <summary>Collapse all groups.</summary>
-    Task CollapseAllGroupsAsync();
-}
-```
-
-### Q24: GroupBy Fallback to Column Property
-
-When `GroupBy` is null, spec says "uses column's `Property`". How does the feature access it?
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Via FeatureContext** | `FeatureContext<TGridItem, TValue>` already has `GetValue` | Requires typed context, which feature has access to |
-| **Required parameter** | No magic, explicit API | Less convenient for common case where grouping uses column's property |
-| **Injected on attach** | Column passes property during `OnAttach` | Adds complexity to attachment protocol |
-
-**Analysis:**
-
-From `FeatureContext.cs`:
-```csharp
-public class FeatureContext<TGridItem, TValue> : FeatureContext<TGridItem>
-{
-    public Func<TGridItem, TValue>? GetValue { get; set; }  // Already available!
-}
-```
-
-The feature receives `FeatureContext<TGridItem, TValue>` during `OnAttach`, which already contains the compiled `GetValue` accessor from the column's `Property` expression. No additional mechanism needed.
-
-> **DECISION:** ✅ **Via FeatureContext**
->
-> **Implementation:** When `GroupBy` is null, use `FeatureContext<TGridItem, TValue>.GetValue`:
-
-```csharp
-public sealed class GroupingFeature<TGridItem, TValue> : IGroupingFeature<TGridItem>
-{
-    [Parameter] public Func<TGridItem, TValue>? GroupBy { get; set; }
-
-    private Func<TGridItem, TValue>? _effectiveGroupBy;
-
-    public void OnAttach(FeatureContext<TGridItem> context)
-    {
-        // Use GroupBy if provided, otherwise fall back to column's property
-        if (context is FeatureContext<TGridItem, TValue> typedContext)
-        {
-            _effectiveGroupBy = GroupBy ?? typedContext.GetValue;
-        }
-        else
-        {
-            _effectiveGroupBy = GroupBy;
-        }
-
-        if (_effectiveGroupBy is null)
-            throw new InvalidOperationException(
-                "GroupBy must be specified or column must have a Property.");
-    }
-}
-```
->
-> **Rationale:** Leverages existing infrastructure. No new mechanisms needed. Falls back gracefully with clear error if neither is available.
-
-### Q25: Coordinator StateManager Property Removal
-
-Q14 decided "Type-safe wrapper" where feature owns state. But Section 5.1 still shows:
-```csharp
-public GroupStateManager<object>? StateManager { get; private set; }
-```
-
-| Option | Description |
-|--------|-------------|
-| **Remove property** | Coordinator has no StateManager; delegates to active feature |
-| **Keep as untyped wrapper** | Coordinator has `IGroupStateManager` for convenience methods |
-
-> **DECISION:** ✅ **Remove property**
->
-> **Rationale:** Per Q14's decision, the feature owns the typed `GroupStateManager<TValue>`. The coordinator delegates to the active feature via `IGroupingFeature<TGridItem>` methods (added in Q23). No need for coordinator to hold state.
->
-> **Updated Section 5.1:**
-
-```csharp
-internal class GroupingCoordinator<TGridItem> : IDisposable
-    where TGridItem : class
-{
-    private readonly Dictionary<string, IGroupingFeature<TGridItem>> _groupableColumns = new();
-
-    public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
-
-    // NO StateManager property - feature owns state, coordinator delegates
-
-    // ... rest of methods ...
-}
-```
-
-### Q26: ShowAtTop/ShowAtBottom Rendering
-
-When `NullKeyBehavior = ShowAtTop` or `ShowAtBottom`, how are ungrouped items rendered?
-
-| Option | Description |
-|--------|-------------|
-| **As regular rows** | Items appear without group header, interleaved with grid |
-| **As special section** | Items appear in a "(Ungrouped)" visual section |
-| **With minimal header** | A header row with just the null label, no expand/collapse |
-
-> **DECISION:** ✅ **As regular rows**
->
-> **Behavior:**
-> - `ShowAtTop`: Items with null keys appear as regular data rows at the top of the grid, before any group headers
-> - `ShowAtBottom`: Items with null keys appear as regular data rows at the bottom of the grid, after all groups
-> - No special header or visual treatment - they're just ungrouped items
->
-> **Rationale:** Simplest implementation. If users want a visual section, they can use `SeparateGroup` with a custom `NullGroupLabel`.
-
----
-
-### Additional Clarifications (Q27-Q31)
-
-Final scan revealed the following items needing clarification:
-
-### Q27: Column Identifier for Registration
-
-The coordinator's `RegisterColumn(string columnId, ...)` method needs a column identifier to distinguish between columns.
-
-| Option | Description |
-|--------|-------------|
-| **Use data model's ID property** | Derive from `TGridItem`'s ID property (e.g., `"Id"`, `"ProductId"`) |
-| **Use GroupBy property name** | Extract from `GroupBy` expression (e.g., `"Category"`) |
-| **Use Title** | `FeatureContext.Title` |
-| **Manufacture sequential ID** | Generate sequential integer ID for each column |
-
-**Analysis:** The data model is expected to have an ID property (either int or GUID). If the data model has no ID property, manufacture a sequential integer ID.
-
-> **DECISION:** ✅ **Use data model's ID property with manufactured fallback**
->
-> **Implementation:** 
-> - Check if `TGridItem` has an `Id`, `ID`, or similar property (int or GUID)
-> - If found, use that property's name as the column identifier
-> - If not found, manufacture a sequential integer ID
->
-> ```csharp
-> private static int _columnIdCounter;
->
-> private string GetColumnId()
-> {
->     // Try to find ID property on TGridItem
->     var idProperty = typeof(TGridItem).GetProperty("Id") 
->                   ?? typeof(TGridItem).GetProperty("ID")
->                   ?? typeof(TGridItem).GetProperties()
->                        .FirstOrDefault(p => p.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase));
->     
->     if (idProperty != null)
->         return idProperty.Name;
->     
->     // Fallback: manufacture sequential ID
->     return $"GroupingColumn_{Interlocked.Increment(ref _columnIdCounter)}";
-> }
-> ```
->
-> **Rationale:** The data model's ID property provides a stable, meaningful identifier that's consistent with how the grid identifies rows.
-
-### Q28: Section 2.3 Diagram Inconsistency
-
-The diagram on lines 98-99 says coordinator "Holds GroupStateManager<TValue>" but Q14/Q25 decided feature owns state.
-
-| Option | Description |
-|--------|-------------|
-| **Update diagram** | Remove "Holds GroupStateManager" line, add "Delegates to active feature" |
-
-> **DECISION:** ✅ **Update diagram**
->
-> Updated in Section 2.3.
-
-### Q29: Section 8 Virtualization Comment
-
-The comment says "Collapsed groups contribute 1" but Q22 decided headers count as **2 rows**.
-
-| Option | Description |
-|--------|-------------|
-| **Update comment** | Change to "Collapsed groups contribute 2 (header only, 80px = 2 slots)" |
-
-> **DECISION:** ✅ **Update comment**
->
-> Updated in Section 8.
-
-### Q30: IGroupingCoordinator Interface
-
-Section 8 defines `IGroupingCoordinator<TGridItem>` interface but Section 5.1 defines `GroupingCoordinator<TGridItem>` class.
-
-| Option | Description |
-|--------|-------------|
-| **Keep interface** | Class implements interface for testability |
-| **Remove interface** | Internal class doesn't need interface |
-| **Rename** | Clarify which is authoritative |
-
-> **DECISION:** ✅ **Remove interface**
->
-> **Rationale:** Internal class doesn't need a separate interface. The class definition in Section 5.1 is authoritative. Section 8 code block updated to use class directly.
-
-### Q31: GroupHeaderContext Type Bridge
-
-`GroupHeaderContext<TGridItem, TValue>` uses typed `TValue Key` but `GroupHeaderRow<TGridItem>` stores `object? Key`.
-
-| Option | Description |
-|--------|-------------|
-| **Document casting** | Feature casts `object` back to `TValue` when creating context |
-| **Add helper method** | `GroupHeaderRow.GetTypedKey<TValue>()` |
-
-> **DECISION:** ✅ **Add helper method**
->
-> **Implementation:** Add extension method to `GroupHeaderRow`:
-
-```csharp
-public static class GroupHeaderRowExtensions
-{
-    /// <summary>
-    /// Gets the key cast to the specified type.
-    /// </summary>
-    public static TValue? GetTypedKey<TGridItem, TValue>(this GroupHeaderRow<TGridItem> row)
-    {
-        return row.Key is TValue typed ? typed : default;
-    }
-}
-```
-
----
-
-## 13. Backlog Items
+## 12. Backlog Items
 
 
 | Item | Priority | Notes |
@@ -1198,8 +1093,9 @@ public static class GroupHeaderRowExtensions
 
 ---
 
-## 14. References
+## 13. References
 
+- **Design Decisions:** `RowGroupingFeature_DesignDecisions.md` - Documents Q13-Q31 analysis and rationale
 - Discussion: `Docs/Discussion/discussion-MudBlazorFeaturesImplementation.md`
 - Pattern reference: `ExpandableRowFeature.md`
 - MudBlazor docs: [MudDataGrid Grouping](https://mudblazor.com/components/datagrid)
