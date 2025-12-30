@@ -70,6 +70,42 @@ public sealed class GroupingFeature<TGridItem, TValue>
 }
 ```
 
+##### 2.5.1.3.1 Encoding contract (normative)
+
+Grouping must use a deterministic, reversible integer encoding for synthetic row ids that:
+
+- always produces **negative** ids for synthetic grouping rows
+- supports extracting `groupId` and (for spacer rows) `offset`
+- supports unambiguous detection of marker vs spacer rows
+- avoids collisions within the supported range
+
+**Bit layout** (31-bit payload + negative sign):
+
+- Synthetic ids are negative. The payload is stored in the low 31 bits of the absolute value.
+- Payload format (from most-significant to least-significant bits):
+
+  - bits 30..24 (7 bits): `kind`
+    - `0x01` = marker row
+    - `0x02` = spacer row
+  - bits 23..8 (16 bits): `groupId`
+    - valid range: `1..65535`
+  - bits 7..0 (8 bits): `offset`
+    - marker rows use `0`
+    - spacer rows use `1..255` and must satisfy `offset <= GroupHeaderSlotSpan - 1`
+
+**Encoding rules:**
+
+- Marker id: `id = -((kind << 24) | (groupId << 8) | 0)` with `kind = 0x01`
+- Spacer id: `id = -((kind << 24) | (groupId << 8) | offset)` with `kind = 0x02`
+
+**Validation / error behavior:**
+
+- For invalid inputs to encoding methods (out of range), the helper must throw `ArgumentOutOfRangeException`.
+- For decode methods (`GetGroupId`, `GetSpacerOffset`) called on non-synthetic ids, the helper must throw `ArgumentException`.
+- For detection methods (`IsGroupingSynthetic`, `IsGroupHeaderMarker`, `IsGroupHeaderSpacer`) invalid ids must return `false`.
+
+**Capacity note:** With this encoding, the maximum supported group count per grouped data source instance is 65,535 groups.
+
 **Type constraints:**
 - `TGridItem : class` - Required by ComposableColumns architecture
 - `TValue` - No constraint. Works with reference types, value types, and nullable types. Null handling controlled by `NullKeyBehavior` parameter.
@@ -123,12 +159,12 @@ public sealed class GroupingFeature<TGridItem, TValue>
 4. The coordinator therefore represents the complete set of *groupable columns* (used by the header UI to offer "Group by" options).
 5. The **first column** that registers a `GroupingFeature` becomes the "Group Header Column" (header-host). It is responsible only for rendering the group header UI. Subsequent grouping-enabled columns do not render the header UI.
 6. If `IsActive = true`, the column requests activation. If multiple columns have `IsActive = true`, the first one wins (deterministic based on column order in markup).
-7. Coordinator (or feature-owned data source) wraps the grid's `Items` via an expansion-style data source that emits **only `TGridItem`** instances.
+7. The grid wraps the grid's `Items` via a grid-owned `GroupedGridDataSource<TGridItem>` that emits **only `TGridItem`** instances.
 8. The transformed sequence injects **group header marker rows** and **group header spacer rows** into `IQueryable<TGridItem>`.
 9. The header-host column uses an `ICellRenderFeature<TGridItem>` to:
    - Render the group header UI only for the **FIRST** header marker row
    - Render blank content for header spacer rows
-   - Render blank content for normal data rows (or optionally a small indent/glyph)
+   - Render blank content for normal data rows
 
 **Deterministic grouping activation (no indecision):**
 
@@ -148,7 +184,7 @@ When `_isGroupingActive` is true, the grid binds `QuickGrid.Items` to grouped it
 | GroupBy expression | `GroupingFeature` |
 | Header template | `GroupingFeature` |
 | Expand/collapse state | `GroupStateManager<TValue>` (owned by feature) |
-| Data transformation | `GroupingCoordinator` (or feature-owned grouped data source) |
+| Data transformation | `GroupingCoordinator` + grid-owned `GroupedGridDataSource<TGridItem>` |
 | Sorting while grouping active | `ComposableGrid` pipeline + grouping transform (intra-group only) |
 | Row interception | **None required** (QuickGrid renders rows; features render cells) |
 | CSS styling | Global stylesheet |
@@ -162,13 +198,30 @@ Grouping introduces a deterministic data pipeline stage (`FilteredItems → Grou
 - Group ordering is controlled exclusively by `GroupOrder` / `GroupOrderComparer` (or `FirstOccurrence`).
 - Sorting does not re-order groups.
 
+#### 2.4.1.1 Concrete sorting suppression mechanism (normative)
+
+This codebase currently supports **two** sorting concepts:
+
+1. **QuickGrid column sorting** via `ColumnBase.SortBy` (driven today by `ComposableColumn.Sortable` setting `SortBy`).
+2. **ComposableColumns sorting** via `ISortingFeature<TGridItem>` (returns a sort function over `IQueryable<TGridItem>`).
+
+When grouping is active, **QuickGrid column sorting must be disabled**, otherwise QuickGrid may reorder the flattened sequence (including marker/spacer rows), violating the grouping identity contract.
+
+**Normative suppression rule:**
+
+- When grouping is active (grid-scoped coordinator has `ActiveGrouping != null`), `ComposableColumn.SortBy` must be `null` for all columns (or otherwise not supplied to QuickGrid).
+- Sorting state is owned by `ComposableGrid<TGridItem>` and materialized as `SortedItems` using the active `ISortingFeature<TGridItem>` state.
+- Grouping consumes `SortedItems` as the per-group item ordering.
+
+**UI implication (deterministic):** while grouping is active, the QuickGrid sort UI (click-to-sort headers) is disabled.
+
 ### 2.4.2 Deterministic data pipeline (Filter → Sort → Group)
 
 `ComposableGrid<TGridItem>` defines a deterministic pipeline. Stages may be identity transforms when the corresponding features are not present/active.
 
 - `Items`: original grid input.
 - `FilteredItems`: derived from `Items` when filter features exist/are active; otherwise `FilteredItems = Items`.
-- `SortedItems` (**Option A**): derived from `FilteredItems` when a ComposableColumns sort is active; otherwise `SortedItems = FilteredItems`.
+- `SortedItems`: derived from `FilteredItems` when a ComposableColumns sort is active; otherwise `SortedItems = FilteredItems`.
 - `GroupedItems`: derived from `SortedItems` when grouping is active by injecting group header marker + spacer rows.
 
 When grouping is active, `QuickGrid.Items` binds to `GroupedItems`.
@@ -182,6 +235,29 @@ The following invariants remove conditional/indecisive language. Each stage has 
 - When grouping is inactive, `ItemsForQuickGrid = SortedItems`.
 - When grouping is active, `ItemsForQuickGrid = GroupedItems(SortedItems)`.
 
+#### 2.4.2.1 Stage ownership (normative)
+
+To ensure deterministic behavior and to prevent tasks from inventing pipeline glue, the pipeline stages are owned by the following components:
+
+- `Items` (input): provided to `ComposableGrid<TGridItem>` by the consumer.
+- `FilteredItems`: owned by `ComposableGrid<TGridItem>` (existing filtering integration).
+- `SortedItems`: owned by `ComposableGrid<TGridItem>` (ComposableColumns sort stage; independent of QuickGrid global sort).
+- `GroupedItems`: owned by the grouping integration (`GroupedGridDataSource<TGridItem>` + `GroupingCoordinator<TGridItem>`), consuming `SortedItems` as input.
+
+#### 2.4.2.2 Sorting authority when grouping is active (normative)
+
+When grouping is active, **QuickGrid must not apply a global sort over the flattened `ItemsForQuickGrid` sequence**, because that could reorder marker/spacer rows relative to data rows and break the grouping contract.
+
+Therefore:
+
+1. `ComposableGrid<TGridItem>` owns the effective sort stage (`SortedItems`).
+2. When grouping is active, the grid must ensure QuickGrid does not apply a global sort by not providing QuickGrid sort state that would reorder the flattened sequence.
+3. Any active sort is applied as **intra-group sorting** during grouping transformation:
+   - The grouping transform orders groups per `GroupOrder` / `GroupOrderComparer`.
+   - Within each group, item ordering uses the current ComposableColumns sort state (the same logic that produced `SortedItems` when grouping is inactive).
+
+**Implication for implementation tasks:** tasks must modify `ComposableGrid<TGridItem>` to make the sort state a grid-owned pipeline stage and to prevent QuickGrid from applying global sorting when grouping is active.
+
 ### 2.5 Integration Model (No Grid Row Hooks)
 
 Grouping must integrate using the same model proven by `ComposableRowExpandDemo.razor`:
@@ -190,7 +266,25 @@ Grouping must integrate using the same model proven by `ComposableRowExpandDemo.
 2. Grouping transforms the `Items` sequence by injecting marker/spacer rows that are still `TGridItem` instances.
 3. A dedicated first `ComposableColumn` renders the group header UI using an `ICellRenderFeature<TGridItem>`.
 
-No changes are required to `ComposableGrid` to render custom row types. Virtualization remains compatible because header height is represented as additional fixed-height rows (spacer-row injection).
+No custom row renderer hooks are required (or permitted). QuickGrid still renders rows directly from `TGridItem`.
+
+#### 2.5.0 Minimal grid markup participation (CSS variables only)
+
+The grid may add a minimal wrapper/attributes in `ComposableGrid` markup **solely** to provide CSS variables used for sizing/alignment.
+
+**Normative rule:** This is limited to **styling support** (e.g., setting `--qg-item-size` from QuickGrid `ItemSize`, and `--qg-group-header-slot-span` from the active grouping feature). It must not introduce any new grid-level row interception or alternative row rendering paths.
+
+This enables default styles to compute header/overlay sizing consistently with virtualization.
+
+#### 2.5.0.1 Coordinator storage + access (Filtering pattern, normative)
+
+To remain consistent with existing feature integration (notably filtering), the grouping coordinator is **grid-owned** and accessed via the cascaded `ComposableGrid<TGridItem>` instance.
+
+- `ComposableGrid<TGridItem>` must own a private field: `_groupingCoordinator`
+- `ComposableGrid<TGridItem>` must expose an `internal` API: `GetOrCreateGroupingCoordinator()` returning `GroupingCoordinator<TGridItem>`
+- `GroupingFeature<TGridItem, TValue>.OnAttach(...)` must call `grid.GetOrCreateGroupingCoordinator()` and register itself
+
+This avoids attempting to use `FeatureContext.RegisterService(...)`, which is column-scoped.
 
 #### 2.5.1 Marker + Spacer Row Identity
 
@@ -223,6 +317,8 @@ public interface IRowIdentifiable
 {
     int Id { get; set; }
 }
+
+**Enforcement (Expansion pattern, normative):** If grouping is active and `TGridItem` does not implement `IRowIdentifiable`, `GroupingFeature<TGridItem, TValue>.OnAttach(...)` must throw `InvalidOperationException`.
 ```
 
 ##### 2.5.1.2 Group header row id encoding
@@ -278,7 +374,33 @@ This mirrors Expansion's approach of keeping state in the data source instance (
 
 #### 2.5.2 Full-width Header UI
 
-The header UI is emitted from the first column's cell feature (similar to how `RowExpandFeature` emits an overlay). The global stylesheet may position the header container so it visually spans the grid.
+The header UI is emitted from the **header-host column's** `ICellRenderFeature<TGridItem>` using the **same overlay positioning model as `RowExpandFeature`** (rendered from within the first column's cell surface, but visually spanning the grid).
+
+##### 2.5.2.1 Rendering responsibility split (normative)
+
+Because the coordinator is not generic over `TValue`, the header-host column feature must not attempt to invoke typed templates directly.
+
+Responsibilities are split as follows:
+
+- **Header-host column cell feature:**
+  - Detects marker/spacer vs data rows via `GroupHeaderRowId`.
+  - Owns overlay placement (RowExpandFeature-style).
+  - Delegates actual UI rendering to the active grouping feature.
+
+- **Active `GroupingFeature<TGridItem, TValue>` (via `IGroupingFeature<TGridItem>`):**
+  - Owns template selection and rendering.
+  - If `HeaderTemplate` is provided, renders it.
+  - Otherwise renders the default header UI.
+
+##### 2.5.2.2 Grouping toolbar location + frequency (normative)
+
+Grouping toolbar controls (Expand All / Collapse All and any future controls):
+
+- Render **once per grid** (not once per group).
+- Are emitted from the header-host column's overlay so they **scroll with grid content** (RowExpandFeature-style).
+- Are gated by the **FIRST marker row rule**: the toolbar is rendered only when the header-host column encounters the **FIRST group header marker row** in the flattened sequence.
+
+If the consumer provides `ToolbarTemplate`, the active grouping feature renders it; otherwise the feature renders the default toolbar UI.
 
 ### 2.6 Feature Lifecycle
 
@@ -315,7 +437,7 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 │                                                                             │
 │ 4. GroupingFeature.OnAttach(context) called                                 │
 │    │                                                                        │
-│    ├─ Validate context (InvokeAsync, RequestRefreshAsync required)          │
+│    ├─ Validate context (InvokeAsync required)                               │
 │    │                                                                        │
 │    ├─ Resolve effective GroupBy:                                            │
 │    │  └─ Use explicit GroupBy parameter if provided                         │
@@ -374,7 +496,7 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 │    │                                                                        │
 │    ├─ FIRST RENDER ONLY - Initialize state:                                 │
 │    │  └─ Extract all group keys from groups                                 │
-│    │  └─ Feature.InitializeState(allKeys, InitiallyExpanded)                │
+│    │  └─ Feature initializes expand/collapse state via `GroupStateManager.InitializeAsync(allKeys, InitiallyExpanded)`
 │    │  └─ Sets _isInitialized = true                                         │
 │    │                                                                        │
 │    ├─ Order groups per GroupOrder and NullKeyBehavior                       │
@@ -399,7 +521,7 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 │     ├─ Header-host column cell feature:                                      │
 │     │  ├─ If IsGroupHeaderMarker(item.Id): render header UI                  │
 │     │  ├─ If IsGroupHeaderSpacer(item.Id): render blank                      │
-│     │  └─ Else: render blank (or optional indent)                            │
+│     │  └─ Else: render blank                                                  │
 │     │                                                                       │
 │     └─ All other columns: render blank for marker/spacer rows                │
 │        and normal content for data rows                                      │
@@ -466,7 +588,7 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 | State initialization is lazy (Phase 4) | Group keys not available until Items flow through TransformItems |
 | Coordinator created by first GroupingFeature | Ensures single coordinator per grid |
 | First `IsActive = true` wins | Deterministic based on column order in markup |
-| RequestRefreshAsync triggers full re-render | Required for virtualization recalculation |
+| Grouped data source `OnDataChanged` triggers full re-render | Single refresh authority for grouping state changes (avoids double-refresh loops) |
 
 ---
 
@@ -531,6 +653,8 @@ public enum FilterGroupOrder
 }
 
 **Implementation constraint:** In the current ComposableColumns architecture, grouping receives the sequence that is bound to the grid. When using `ComposableGrid`, that sequence is already filtered (`FilteredItems`). Therefore, `GroupThenFilter` is reserved for future work that would require an explicit, coordinated data pipeline and is not implemented by this feature.
+
+**Runtime behavior (normative):** If `FilterBehavior = FilterGroupOrder.GroupThenFilter` is configured, `GroupingFeature<TGridItem, TValue>.OnAttach(...)` must throw `NotSupportedException` with a message indicating that `GroupThenFilter` is not supported in the current `ComposableGrid` integration model.
 ```
 
 ### 3.5 Null Key Handling
@@ -624,42 +748,11 @@ public record GroupToolbarContext(
 ```
 ```
 
-### 4.3 GroupedRow
+### 4.3 Row rendering model (no union row type)
 
-Discriminated union representing either a header or data row:
+This feature does not introduce a `GroupedRow<TGridItem>` union type.
 
-```csharp
-public abstract record GroupedRow<TGridItem>
-    where TGridItem : class;
-
-public record GroupHeaderRow<TGridItem>(
-    object? Key,           // Stored as object for coordinator compatibility (supports any TValue)
-    IReadOnlyList<TGridItem> Items,
-    int Count,
-    bool IsExpanded,
-    int Level
-) : GroupedRow<TGridItem>
-    where TGridItem : class;
-
-public record DataRow<TGridItem>(
-    TGridItem Item
-) : GroupedRow<TGridItem>
-    where TGridItem : class;
-
-/// <summary>
-/// Extension methods for GroupHeaderRow to bridge object Key to typed TValue.
-/// </summary>
-public static class GroupHeaderRowExtensions
-{
-    /// <summary>
-    /// Gets the key cast to the specified type.
-    /// </summary>
-    public static TValue? GetTypedKey<TGridItem, TValue>(this GroupHeaderRow<TGridItem> row)
-    {
-        return row.Key is TValue typed ? typed : default;
-    }
-}
-```
+**Normative rule:** Group headers are represented as **synthetic `TGridItem` instances** (marker + spacer rows) identified by `IRowIdentifiable.Id` using `GroupHeaderRowId`. All non-synthetic rows are normal data rows.
 
 ---
 
@@ -692,17 +785,13 @@ internal class GroupingCoordinator<TGridItem> : IDisposable
     /// </summary>
     public void SetActiveGrouping(string? columnId);
 
-    /// <summary>Get total count including group headers (for virtualization).</summary>
-    public int GetVirtualItemCount(IQueryable<TGridItem> items);
-
-    /// <summary>Get items for visible range, including group headers.</summary>
-    public IEnumerable<GroupedRow<TGridItem>> GetVirtualizedItems(
-        IQueryable<TGridItem> items,
-        int startIndex,
-        int count);
-
-    /// <summary>Transform items into grouped sequence with headers.</summary>
-    public IEnumerable<GroupedRow<TGridItem>> TransformItems(IQueryable<TGridItem> items);
+    /// <summary>
+    /// Transform items into a flattened `IQueryable<TGridItem>` sequence containing:
+    /// - group header marker rows
+    /// - group header spacer rows
+    /// - normal data rows
+    /// </summary>
+    public IQueryable<TGridItem> TransformItems(IQueryable<TGridItem> items);
 }
 ```
 
@@ -784,7 +873,7 @@ public interface IGroupingFeature<TGridItem>
     Task CollapseAllGroupsAsync();
 
     /// <summary>
-    /// Render the group header. Called by grid for each GroupHeaderRow.
+    /// Render the group header. Called by the header-host column cell feature for each group header marker row.
     /// The feature internally casts the object key back to TValue and renders
     /// either the custom HeaderTemplate (if provided) or the default template.
     /// This approach avoids RenderFragment covariance issues with generic type parameters.
@@ -797,6 +886,17 @@ public interface IGroupingFeature<TGridItem>
         bool isExpanded,
         int level);
 }
+
+#### 2.4.2.3 QuickGrid binding + sort suppression while grouping is active (normative)
+
+To avoid invented pipeline glue, `ComposableGrid<TGridItem>` must bind QuickGrid to a single, deterministic sequence:
+
+- When grouping is inactive: `ItemsForQuickGrid = SortedItems`
+- When grouping is active: `ItemsForQuickGrid = GroupedItems(SortedItems)`
+
+`QuickGrid.Items` must always bind to `ItemsForQuickGrid`.
+
+When grouping is active, `ComposableGrid<TGridItem>` must prevent QuickGrid from applying a global sort over `ItemsForQuickGrid` (marker/spacer rows must not be reordered relative to data rows). Any active sort must be applied as intra-group ordering during the grouping transform.
 ```
 
 ### 5.4 IGridDataTransformer Interface
@@ -849,14 +949,9 @@ public class GroupedGridDataSource<TGridItem>
     }
 
     /// <summary>
-    /// Returns grouped items including headers. Grid iterates this.
+    /// Returns grouped items including marker/spacer header rows. Grid binds `QuickGrid.Items` to this.
     /// </summary>
-    public IEnumerable<GroupedRow<TGridItem>> Items => _coordinator.TransformItems(_source);
-
-    /// <summary>
-    /// Total count for virtualization (headers count as 2 rows each).
-    /// </summary>
-    public int VirtualItemCount => _coordinator.GetVirtualItemCount(_source);
+    public IQueryable<TGridItem> Items => _coordinator.TransformItems(_source);
 
     /// <summary>
     /// Toggle a group's expand/collapse state and notify listeners.
@@ -881,7 +976,31 @@ public class GroupedGridDataSource<TGridItem>
 }
 ```
 
-**Lifecycle:** Created by the grid when it detects a `GroupingCoordinator<TGridItem>` with an active grouping. The grid binds to `Items` for row iteration and `VirtualItemCount` for virtualization.
+**Lifecycle:** Created by the grid when it detects a `GroupingCoordinator<TGridItem>` with an active grouping. The grid binds to `Items` for row iteration.
+
+#### 5.6.1 Ownership + caching rules (normative)
+
+- `GroupedGridDataSource<TGridItem>` is **grid-owned** and **grid-scoped**.
+- The grid holds a single instance (field) and **reuses** it across renders while the active grouping and upstream source sequence are stable.
+- The grid **recreates** the instance only when one of the following changes occurs:
+  1. Grouping transitions from inactive -> active (first activation)
+  2. Grouping transitions from active -> inactive (instance is disposed/cleared)
+  3. The active grouping column changes (coordinator `ActiveGrouping` changes)
+  4. The upstream bound source for grouping changes (the queryable instance provided to the data source changes)
+
+#### 5.6.2 Event subscription rules (single refresh authority)
+
+- `GroupedGridDataSource<TGridItem>.OnDataChanged` is the **only** refresh signal for grouping state changes (expand/collapse, expand all, collapse all).
+- When the grid creates the data source, it must subscribe exactly once:
+  - handler: `() => InvokeAsync(StateHasChanged)`
+- When the grid replaces or disables the data source, it must unsubscribe (or dispose the data source that owns the event invocation list) before dropping the reference.
+
+#### 5.6.3 Disposal rules
+
+- When grouping becomes inactive, or when the grid is disposed, the grid must:
+  1. unsubscribe from `OnDataChanged`
+  2. dispose the current `GroupedGridDataSource<TGridItem>` (if it is `IDisposable`; otherwise set it to null)
+  3. clear any cached references so the old instance is eligible for GC
 
 ---
 
@@ -962,28 +1081,19 @@ Since virtualization is **required**, the implementation must:
    - When collapsed, group items are excluded from virtualized output
 
 3. **Expand/collapse triggers recalculation**
-   - Changing group state triggers virtualization recalculation via `RequestRefreshAsync()`
+   - Changing group state triggers virtualization recalculation via the grouped data source's `OnDataChanged` event.
+   - The grid receives `OnDataChanged` and calls `InvokeAsync(StateHasChanged)`.
+   - Grouping state changes must not also call `FeatureContext.RequestRefreshAsync()` (single refresh authority; avoids double-refresh loops).
 
-4. **Coordinator provides virtualization-compatible output**
+4. **Virtualization-compatible output (marker/spacer model)**
 
-```csharp
-// GroupingCoordinator<TGridItem> methods for virtualization:
+QuickGrid virtualization operates over a flat sequence of fixed-height rows. Grouping preserves this by representing header height as additional fixed-height rows (marker + spacer rows).
 
-/// <summary>
-/// Returns the total count including group headers (for virtualization).
-/// Collapsed groups contribute GroupHeaderSlotSpan (header only).
-/// Expanded groups contribute GroupHeaderSlotSpan + itemCount (header + items).
-/// </summary>
-public int GetVirtualItemCount(IQueryable<TGridItem> items);
-
-/// <summary>
-/// Returns items for the visible range, including group headers.
-/// </summary>
-public IEnumerable<GroupedRow<TGridItem>> GetVirtualizedItems(
-    IQueryable<TGridItem> items,
-    int startIndex,
-    int count);
-```
+- Each group header consumes `GroupHeaderSlotSpan` virtual slots:
+  - 1 marker row
+  - `GroupHeaderSlotSpan - 1` spacer rows
+- Collapsed groups emit only their header slots.
+- Expanded groups emit header slots + all group items.
 
 ---
 
@@ -1067,7 +1177,7 @@ QuickGridTest01/ComposableColumns/
         ├── GroupStateManager.cs         (state management)
         ├── IGroupingFeature.cs          (interface)
         ├── GroupHeaderContext.cs        (context record)
-        ├── GroupedRow.cs                (discriminated union + extensions)
+        ├── GroupHeaderRowId.cs          (marker/spacer row id encoding + helpers)
         ├── GroupedGridDataSource.cs     (data source wrapper)
         ├── Enums/
         │   ├── GroupSortDirection.cs
