@@ -61,6 +61,16 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     public RenderFragment? Features { get; set; }
 
     /// <summary>
+    /// Child content containing feature components.
+    /// </summary>
+    [Parameter]
+    public RenderFragment? ChildContent
+    {
+        get => Features;
+        set => Features = value;
+    }
+
+    /// <summary>
     /// Collection of features to add programmatically.
     /// </summary>
     [Parameter]
