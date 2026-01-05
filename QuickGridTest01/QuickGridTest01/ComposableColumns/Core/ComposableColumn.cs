@@ -1,8 +1,9 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
+using System.Collections.Generic;
 using QuickGridTest01.ComposableColumns.Features.Editing;
 
 namespace QuickGridTest01.ComposableColumns.Core;
@@ -13,7 +14,8 @@ namespace QuickGridTest01.ComposableColumns.Core;
 /// </summary>
 /// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
 /// <typeparam name="TValue">The type of the property value for this column.</typeparam>
-public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDisposable
+public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDisposable, IColumnFeatureProvider<TGridItem>
+    where TGridItem : class
 {
     [CascadingParameter]
     public Func<TGridItem, object>? RowKey { get; set; }
@@ -113,6 +115,8 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         return _features.OfType<TFeature>();
     }
 
+    public IReadOnlyList<IColumnFeature<TGridItem>> GetAllFeatures() => _features;
+
     /// <summary>
     /// Gets the first feature of a specific type, or null if not found.
     /// </summary>
@@ -176,6 +180,7 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         // Initialize features if not done yet
         if (!_initialized)
         {
+            Grid?.RegisterColumn(this);
             Initialize();
             _initialized = true;
         }
@@ -186,6 +191,10 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
 
     private void Initialize()
     {
+        // Add core-owned features before any user features attach. These participate in the render pipeline
+        // for all columns and enable cross-column behaviors without runtime feature injection.
+        _features.Insert(0, new GroupingSyntheticBlankingFeature<TGridItem, TValue>());
+
         // Attach all features
         foreach (var feature in _features)
         {
@@ -299,6 +308,8 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     {
         if (_disposed) return;
         _disposed = true;
+
+        Grid?.UnregisterColumn(this);
 
         // Unregister filter features and detach all features
         foreach (var feature in _features)

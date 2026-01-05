@@ -1,4 +1,4 @@
-namespace QuickGridTest01.ComposableColumns.Core;
+﻿namespace QuickGridTest01.ComposableColumns.Core;
 
 /// <summary>
 /// Constants for feature execution priority.
@@ -10,6 +10,11 @@ public static class FeaturePriority
     /// Infrastructure features that must run first (e.g., property expression, compiled accessor).
     /// </summary>
     public const int Infrastructure = 0;
+
+    /// <summary>
+    /// Grouping features (group header rows, group state, grouped data source).
+    /// </summary>
+    public const int Grouping = 50;
 
     /// <summary>
     /// Core features like type traits, auto-title inference.

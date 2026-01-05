@@ -1,0 +1,55 @@
+﻿using QuickGridTest01.RowColumn.Core;
+
+namespace QuickGridTest01.ComposableColumns.Features.Grouping;
+
+public sealed class GroupedGridDataSource<TGridItem>
+    where TGridItem : class
+{
+    private readonly GroupingCoordinator<TGridItem> _coordinator;
+
+    private IQueryable<TGridItem> _sourceItems = Array.Empty<TGridItem>().AsQueryable();
+    private IQueryable<TGridItem>? _cached;
+    private bool _dirty = true;
+
+    public GroupedGridDataSource(GroupingCoordinator<TGridItem> coordinator)
+    {
+        _coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+    }
+
+    public event Func<Task>? OnDataChanged;
+
+    public void SetSourceItems(IQueryable<TGridItem> source)
+    {
+        _sourceItems = source ?? throw new ArgumentNullException(nameof(source));
+        MarkDirty();
+    }
+
+    public IQueryable<TGridItem> Items
+    {
+        get
+        {
+            if (_dirty || _cached is null)
+            {
+                _cached = _coordinator.TransformItems(_sourceItems);
+                _dirty = false;
+            }
+
+            return _cached;
+        }
+    }
+
+    public async Task ToggleGroupAsync(object key)
+    {
+        if (_coordinator.ActiveGrouping is null)
+            return;
+
+        await _coordinator.ActiveGrouping.ToggleGroupAsync(key);
+        MarkDirty();
+    }
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _ = OnDataChanged?.Invoke();
+    }
+}

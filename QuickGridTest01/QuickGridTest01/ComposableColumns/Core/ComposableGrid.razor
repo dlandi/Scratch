@@ -1,9 +1,11 @@
-@typeparam TGridItem
+﻿@typeparam TGridItem where TGridItem : class
 @implements IDisposable
 
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.AspNetCore.Components
 @using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.ComposableColumns.Features.Grouping
+@using QuickGridTest01.RowColumn.Core
 
 <CascadingValue Value="this" TValue="ComposableGrid<TGridItem>">
     <CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
@@ -15,6 +17,8 @@
                     <EditEventViewer />
                 </div>
             }
+
+    public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
 
             <div class="@GetGridContainerClass()">
                 @* Event panel at Left position *@
@@ -46,7 +50,7 @@
                         </div>
                     }
 
-                    <QuickGrid TGridItem="TGridItem" Items="FilteredItems" @attributes="AdditionalAttributes">
+                    <QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
                         @ChildContent
                     </QuickGrid>
                 </div>
@@ -75,6 +79,11 @@
     private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
     private EditEventStream? _editEventStream;
 
+    private GroupingCoordinator<TGridItem>? _groupingCoordinator;
+    private GroupedGridDataSource<TGridItem>? _groupedDataSource;
+
+    private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
+
     /// <summary>
     /// The data source for the grid.
     /// </summary>
@@ -100,11 +109,84 @@
     /// </summary>
     public IEditEventStream? EditEventStream => _editEventStream;
 
+    internal void RegisterColumn(IColumnFeatureProvider<TGridItem> column)
+    {
+        if (!_columns.Contains(column))
+        {
+            _columns.Add(column);
+        }
+    }
+
+    internal void UnregisterColumn(IColumnFeatureProvider<TGridItem> column)
+    {
+        _columns.Remove(column);
+    }
+
+    internal GroupingCoordinator<TGridItem> GetOrCreateGroupingCoordinator()
+    {
+        if (_groupingCoordinator is not null)
+            return _groupingCoordinator;
+
+        // Grouping is only valid for grids whose TGridItem supports row-identity.
+        if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+            throw new InvalidOperationException("Grouping requires TGridItem to implement IRowIdentifiable.");
+
+        _groupingCoordinator = new GroupingCoordinator<TGridItem>();
+        return _groupingCoordinator;
+    }
+
+    public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
+
+    private IQueryable<TGridItem> SortedItems
+    {
+        get
+        {
+            var sortingFeature = _columns
+                .SelectMany(c => c.GetAllFeatures().OfType<ISortingFeature<TGridItem>>())
+                .FirstOrDefault(f => f.IsSortable);
+
+            // If no sorting feature is active, return filtered items as-is.
+            if (sortingFeature is null)
+                return FilteredItems;
+
+            var sortFn = sortingFeature.GetSortFunction();
+            return sortFn is null ? FilteredItems : sortFn(FilteredItems, true);
+        }
+    }
+
+    private GroupedGridDataSource<TGridItem> GetOrCreateGroupedDataSource()
+    {
+        if (_groupedDataSource is not null)
+            return _groupedDataSource;
+
+        var coordinator = GetOrCreateGroupingCoordinator();
+        _groupedDataSource = new GroupedGridDataSource<TGridItem>(coordinator);
+        _groupedDataSource.OnDataChanged += OnGroupedDataChangedAsync;
+        return _groupedDataSource;
+    }
+
+    private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
+
     protected override void OnInitialized()
     {
         // Create the event stream - it's always available for features to use
         // even if EventPanelPlacement is None (consumers can still use the cascaded value)
         _editEventStream = new EditEventStream();
+    }
+
+    private IQueryable<TGridItem> ItemsForQuickGrid
+    {
+        get
+        {
+            var source = SortedItems;
+
+            if (_groupingCoordinator?.ActiveGrouping is null)
+                return source;
+
+            var ds = GetOrCreateGroupedDataSource();
+            ds.SetSourceItems(source);
+            return ds.Items;
+        }
     }
 
     private string GetGridContainerClass()
@@ -201,6 +283,16 @@
 
     public void Dispose()
     {
+        if (_groupedDataSource is not null)
+        {
+            _groupedDataSource.OnDataChanged -= OnGroupedDataChangedAsync;
+            _groupedDataSource = null;
+        }
+
+        _groupingCoordinator?.Dispose();
+        _groupingCoordinator = null;
+
         _editEventStream?.Dispose();
     }
+
 }

@@ -110,9 +110,10 @@ If `{ReportFolder}` or `{ReportFolder}{ExecutionReport}` does not exist, create 
 
 **TASK LIST:**
 
-M1.P1.T1
-M1.P1.T2
-M1.P1.T3
-M1.P1.T4
-M1.P1.T5
-M1.P1.T6
+M6.P1.T1 
+M6.P1.T2 
+M6.P1.T3 
+M6.P1.T3a
+M6.P1.T4 
+M6.P1.T5 
+M6.P1.T6 
