@@ -3,10 +3,9 @@
 **CONFIGURATION**
 | Variable | Value |
 |----------|-------|
-| ReportFolder | `Docs/Feature Design/Task Execution Reports/ExecutionReports-ExpandableRowFeature/` |
-| ExecutionReport | `ExpandableRowFeature-ExecutionReport.md` |
-| SpecDocument | `Docs/Feature Design/Tasks/ExpandableRowFeature-Tasks.md` |
-| Phase | M10.P1 |
+| ReportFolder | `Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/` |
+| ExecutionReport | `RowGroupingFeature-ExecutionReport.md` |
+| SpecDocument | `Docs/Feature Design/Tasks/RowGroupingFeature-Tasks.md` |
 
 ---
 
@@ -55,8 +54,8 @@ This can lead to:
 **Context:** Task definitions are in {SpecDocument}. Update {ReportFolder}{ExecutionReport} as you complete each task.
 
 **Additional allowed context sources (read-only):**
-- Feature specification: `Docs/Feature Design/ExpandableRowFeature.md`
-- Implementation plan: `Docs/Feature Design/ImplementationPlans/Plan_ExpandableRowFeature.md`
+- Feature specification: `Docs/Feature Design/RowGroupingFeature.md`
+- Implementation plan: `Docs/Feature Design/ImplementationPlans/Plan_RowGroupingFeature.md`
 - Legacy reference implementation: `RowColumn/*` (including `RowColumn.cs` and `RowColumn/Components/RowCard.razor`)
 - Existing ComposableColumns implementation: `ComposableColumns/*` (especially `ComposableColumns/Core/ComposableColumn.cs`, `ComposableColumns/Core/FeatureContext.cs`, and existing features)
 
@@ -109,8 +108,11 @@ If `{ReportFolder}` or `{ReportFolder}{ExecutionReport}` does not exist, create 
 
 ---
 
-**TASK LIST (Phase {Phase}):**
+**TASK LIST:**
 
-M10.P1.T1
-M10.P1.T2
-M10.P1.T3
+M1.P1.T1
+M1.P1.T2
+M1.P1.T3
+M1.P1.T4
+M1.P1.T5
+M1.P1.T6
