@@ -63,6 +63,53 @@
 - [x] M7.P1.T3
 - [x] M7.P1.T4
 
+- [x] M7a.P1.T1
+- [x] M7a.P1.T2
+
+### Task Execution Log 
+M7a.P1.T1: Update call sites to use Core detection API
+**StartTime:** 2026-01-05 11:08:12
+**End Time:** 2026-01-05 11:13:29  
+**Duration:** 00:05:17
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupHeaderRowId.cs`
+- `QuickGridTest01/ComposableColumns/Features/Grouping/Components/GroupHeaderHostFeature.cs`
+- `QuickGridTest01.Tests/Grouping/GroupHeaderRowIdTests.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Updated non-Core call sites to use `ComposableColumns.Core.GroupingSyntheticRowId` for marker/spacer detection.
+- Kept `ComposableColumns.Core` decoupled from `ComposableColumns.Features.Grouping` by removing detection helpers from `GroupHeaderRowId` (encoder/decoder only).
+
+[Implementation details]
+- `GroupHeaderRowId` now only encodes marker/spacer ids and supports decode (`GetGroupId`, `GetSpacerOffset`).
+- Detection helpers for grouping synthetic ids are now exclusively provided by `ComposableColumns.Core.GroupingSyntheticRowId`.
+
+### Task Execution Log 
+M7a.P1.T2: Keep grouping encoder/decoder contract stable
+**StartTime:** 2026-01-05 11:08:12
+**End Time:** 2026-01-05 11:13:29  
+**Duration:** 00:05:17
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupHeaderRowId.cs`
+- `QuickGridTest01/ComposableColumns/Features/Grouping/Components/GroupHeaderHostFeature.cs`
+- `QuickGridTest01.Tests/Grouping/GroupHeaderRowIdTests.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- `GroupHeaderRowId.EncodeGroupHeaderId` and `EncodeGroupHeaderSpacerId` remain available for feature/data source generation.
+- Decode methods remain available and deterministic:
+  - `GetGroupId`: throws `ArgumentException` when called with non-negative (non-synthetic) ids.
+  - `GetSpacerOffset`: throws `ArgumentException` when called with non-negative ids or non-spacer ids.
+
+[Implementation details]
+- Tests were updated to validate detection via `GroupingSyntheticRowId` while continuing to validate encode/decode via `GroupHeaderRowId`.
+- `GroupHeaderHostFeature` now uses `GroupingSyntheticRowId` for id detection.
+
+**Build validation:** `run_build` succeeded at 2026-01-05 11:13:29.
+
 ### Task Execution Log 
 M6.P1.T1: Create feature skeleton
 **StartTime:** 2026-01-05 10:24:51

@@ -1,4 +1,5 @@
-﻿using QuickGridTest01.ComposableColumns.Features.Grouping;
+﻿using QuickGridTest01.ComposableColumns.Core;
+using QuickGridTest01.ComposableColumns.Features.Grouping;
 using Xunit;
 
 namespace QuickGridTest01.Tests.Grouping;
@@ -29,14 +30,14 @@ public class GroupHeaderRowIdTests
         Assert.True(marker < 0);
         Assert.True(spacer < 0);
 
-        Assert.True(GroupHeaderRowId.IsGroupingSynthetic(marker));
-        Assert.True(GroupHeaderRowId.IsGroupingSynthetic(spacer));
+        Assert.True(GroupingSyntheticRowId.IsGroupingSynthetic(marker));
+        Assert.True(GroupingSyntheticRowId.IsGroupingSynthetic(spacer));
 
-        Assert.True(GroupHeaderRowId.IsGroupHeaderMarker(marker));
-        Assert.False(GroupHeaderRowId.IsGroupHeaderSpacer(marker));
+        Assert.True(GroupingSyntheticRowId.IsGroupHeaderMarker(marker));
+        Assert.False(GroupingSyntheticRowId.IsGroupHeaderSpacer(marker));
 
-        Assert.False(GroupHeaderRowId.IsGroupHeaderMarker(spacer));
-        Assert.True(GroupHeaderRowId.IsGroupHeaderSpacer(spacer));
+        Assert.False(GroupingSyntheticRowId.IsGroupHeaderMarker(spacer));
+        Assert.True(GroupingSyntheticRowId.IsGroupHeaderSpacer(spacer));
     }
 
     [Fact]

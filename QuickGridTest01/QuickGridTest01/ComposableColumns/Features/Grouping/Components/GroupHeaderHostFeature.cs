@@ -55,20 +55,20 @@ public sealed class GroupHeaderHostFeature<TGridItem> : ICellRenderFeature<TGrid
             return;
         }
 
-        // GroupHeaderRowId uses the row's identity. Marker -> overlay. Spacer -> blank. Normal -> default.
-        if (!GroupHeaderRowId.IsGroupingSynthetic(identifiable.Id))
+        // Synthetic grouping ids use the row's identity. Marker -> overlay. Spacer -> blank. Normal -> default.
+        if (!GroupingSyntheticRowId.IsGroupingSynthetic(identifiable.Id))
         {
             renderNext();
             return;
         }
 
-        if (GroupHeaderRowId.IsGroupHeaderSpacer(identifiable.Id))
+        if (GroupingSyntheticRowId.IsGroupHeaderSpacer(identifiable.Id))
         {
             return;
         }
 
         // Marker row
-        if (!GroupHeaderRowId.IsGroupHeaderMarker(identifiable.Id))
+        if (!GroupingSyntheticRowId.IsGroupHeaderMarker(identifiable.Id))
             return;
 
         // Only header-host column renders overlay. All other columns blank marker rows.

@@ -29,39 +29,9 @@ public static class GroupHeaderRowId
         return -payload;
     }
 
-    public static bool IsGroupingSynthetic(int id)
-    {
-        if (id >= 0)
-            return false;
-
-        var payload = Math.Abs(id);
-        var kind = (payload >> KindShift) & KindMask;
-        return kind is MarkerKind or SpacerKind;
-    }
-
-    public static bool IsGroupHeaderMarker(int id)
-    {
-        if (id >= 0)
-            return false;
-
-        var payload = Math.Abs(id);
-        var kind = (payload >> KindShift) & KindMask;
-        return kind == MarkerKind;
-    }
-
-    public static bool IsGroupHeaderSpacer(int id)
-    {
-        if (id >= 0)
-            return false;
-
-        var payload = Math.Abs(id);
-        var kind = (payload >> KindShift) & KindMask;
-        return kind == SpacerKind;
-    }
-
     public static int GetGroupId(int syntheticId)
     {
-        if (!IsGroupingSynthetic(syntheticId))
+        if (syntheticId >= 0)
             throw new ArgumentException("The supplied id is not a grouping synthetic id.", nameof(syntheticId));
 
         var payload = Math.Abs(syntheticId);
@@ -70,13 +40,15 @@ public static class GroupHeaderRowId
 
     public static int GetSpacerOffset(int syntheticId)
     {
-        if (!IsGroupingSynthetic(syntheticId))
+        if (syntheticId >= 0)
             throw new ArgumentException("The supplied id is not a grouping synthetic id.", nameof(syntheticId));
 
-        if (!IsGroupHeaderSpacer(syntheticId))
+        var payload = Math.Abs(syntheticId);
+        var kind = (payload >> KindShift) & KindMask;
+
+        if (kind != SpacerKind)
             throw new ArgumentException("The supplied id is not a grouping spacer id.", nameof(syntheticId));
 
-        var payload = Math.Abs(syntheticId);
         return payload & 0xFF;
     }
 }
