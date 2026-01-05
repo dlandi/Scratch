@@ -13,6 +13,12 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
     private readonly Dictionary<object?, int> _keyToGroupId = new();
     private int _nextGroupId = 1;
 
+    internal IReadOnlyCollection<object?> GetKnownGroupKeys()
+    {
+        // Snapshot to avoid exposing internal dictionary enumerator.
+        return _keyToGroupId.Keys.ToArray();
+    }
+
     public string? HeaderHostColumnId { get; private set; }
 
     public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }

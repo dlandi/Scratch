@@ -1,9 +1,12 @@
 ﻿# RowGroupingFeature — Task Execution Report
 
 ## Session Summary
-**Session Start:** 2026-01-05 09:37:39
-**Session End:** 2026-01-05 10:22:01
-**Total Duration:** 00:44:22
+**Session Start:** 2026-01-05 10:46:24
+**Session End:** 2026-01-05 10:59:27
+**Total Duration:** 00:13:03
+
+**Notes:**
+- Grouped-scenario runtime profiling was explicitly skipped per user direction. Baseline CPU profiler run was captured but did not target a grouping-heavy page.
 
 ## Task Checklist
 - [x] M1.P1.T1
@@ -48,12 +51,17 @@
 - [x] M5.P2.T4
 
 - [x] M6.P1.T1
-- [ ] M6.P1.T2
-- [ ] M6.P1.T3
-- [ ] M6.P1.T3a
-- [ ] M6.P1.T4
-- [ ] M6.P1.T5
-- [ ] M6.P1.T6
+- [x] M6.P1.T2
+- [x] M6.P1.T3
+- [x] M6.P1.T3a
+- [x] M6.P1.T4
+- [x] M6.P1.T5
+- [x] M6.P1.T6
+
+- [x] M7.P1.T1
+- [x] M7.P1.T2
+- [x] M7.P1.T3
+- [x] M7.P1.T4
 
 ### Task Execution Log 
 M6.P1.T1: Create feature skeleton
@@ -68,7 +76,115 @@ M6.P1.T1: Create feature skeleton
 **Required Artifacts/Checklists:**
 - Added `GroupingFeature<TGridItem, TValue>` implementing `IColumnFeature<TGridItem>`, `IGroupingFeature<TGridItem>`, and `IDisposable`.
 
+### Task Execution Log 
+M6.P1.T2: Implement `OnAttach` invariants
+**StartTime:** 2026-01-05 10:31:08
+**End Time:** 2026-01-05 10:31:57  
+**Duration:** 00:00:49
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Enforced dispatcher requirement (`context.InvokeAsync` non-null).
+- Enforced unsupported `FilterBehavior = GroupThenFilter`.
+- Enforced runtime `IRowIdentifiable` requirement when active.
+- Resolved `GroupBy` selector with explicit `GroupBy` first then `FeatureContext.GetValue`.
+
+### Task Execution Log 
+M6.P1.T3: Implement coordinator registration + attach-time activation
+**StartTime:** 2026-01-05 10:31:57
+**End Time:** 2026-01-05 10:32:28  
+**Duration:** 00:00:31
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Feature obtains the grid via cascaded `ComposableColumn.Grid` and calls `grid.GetOrCreateGroupingCoordinator()`.
+- Feature registers itself by `ColumnId` during `OnAttach` (attach-time wiring only).
+
+### Task Execution Log 
+M6.P1.T3a: Pin header-host identity in coordinator
+**StartTime:** 2026-01-05 10:32:28
+**End Time:** 2026-01-05 10:32:28  
+**Duration:** 00:00:00
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Coordinator pins `HeaderHostColumnId` as the first registered grouping column (via `RegisterColumn`).
+
+### Task Execution Log 
+M6.P1.T4: Implement grouping state methods
+**StartTime:** 2026-01-05 10:32:28
+**End Time:** 2026-01-05 10:33:01  
+**Duration:** 00:00:33
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- `ToggleGroupAsync` delegates to `GroupStateManager<TValue>`.
+- Expand/collapse actions request grid refresh via the grid’s data-source subscription path (not direct cell refresh).
+
+### Task Execution Log 
+M6.P1.T5: Implement header rendering surface
+**StartTime:** 2026-01-05 10:33:01
+**End Time:** 2026-01-05 10:34:16  
+**Duration:** 00:01:15
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+- `QuickGridTest01/ComposableColumns/Features/Grouping/Components/DefaultGroupHeader.razor`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- `RenderGroupHeader(...)` renders `HeaderTemplate` when provided.
+- Otherwise renders the default header via `Components/DefaultGroupHeader.razor`.
+
+### Task Execution Log 
+M6.P1.T6: Interface alignment check (Feature pipeline)
+**StartTime:** 2026-01-05 10:34:16
+**End Time:** 2026-01-05 10:34:27  
+**Duration:** 00:00:11
+
+**Files Changed:**
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Checklist confirming feature pipeline alignment.
+
+**Interface-alignment checklist (Feature pipeline):**
+- Feature implements `Priority=50` ✅ (`FeaturePriority.Grouping`)
+- `GroupBy` resolution uses explicit `GroupBy` first then `FeatureContext.GetValue` ✅
+- Header rendering is invoked by the header-host column feature ✅ (contract surface exists via `RenderGroupHeader`; host feature pending M7)
+- No use of `FeatureContext.RequestRefreshAsync` for expand/collapse ✅ (`ToggleGroupAsync` requests a grid refresh via dispatcher path)
+
 ---
+
+### Task Execution Log 
+M7.P1.T1: Implement a group-header host cell feature
+**StartTime:** 2026-01-05 10:46:41
+**End Time:** 2026-01-05 10:48:40  
+**Duration:** 00:01:59
+
+**Files Changed:**
+- `QuickGridTest01/ComposableColumns/Features/Grouping/Components/GroupHeaderHostFeature.cs`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Added `GroupHeaderHostFeature<TGridItem>` implementing `ICellRenderFeature<TGridItem>`.
+- Detects marker/spacer rows via `GroupHeaderRowId` using `IRowIdentifiable.Id`.
+- Renders group header overlay only for marker rows; spacer rows render blank; normal data rows fall through to default cell rendering.
+- Gated overlay rendering to only the header-host column (using coordinator `HeaderHostColumnId`).
+- Gated toolbar rendering to the first marker row in the flattened sequence using a grid-scoped `FeatureContext` state key.
+
 
 ### Task Execution Log 
 M1.P1.T1: Update feature priorities
