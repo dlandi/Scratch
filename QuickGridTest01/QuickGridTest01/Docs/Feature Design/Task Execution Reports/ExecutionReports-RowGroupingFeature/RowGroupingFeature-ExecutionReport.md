@@ -66,6 +66,10 @@
 - [x] M7a.P1.T1
 - [x] M7a.P1.T2
 
+- [x] M8.P1.T1
+- [x] M8.P1.T2
+- [x] M8.P1.T3
+
 ### Task Execution Log 
 M7a.P1.T1: Update call sites to use Core detection API
 **StartTime:** 2026-01-05 11:08:12
@@ -109,6 +113,58 @@ M7a.P1.T2: Keep grouping encoder/decoder contract stable
 - `GroupHeaderHostFeature` now uses `GroupingSyntheticRowId` for id detection.
 
 **Build validation:** `run_build` succeeded at 2026-01-05 11:13:29.
+
+### Task Execution Log 
+M8.P1.T1: Add grouping CSS
+**StartTime:** 2026-01-05 11:16:43
+**End Time:** 2026-01-05 11:18:52  
+**Duration:** 00:02:09
+
+**Files Changed:**
+- `QuickGridTest01/wwwroot/css/qgComposable-refined-minimalism.css`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Added/confirmed required selectors exist in global stylesheet:
+  - `.qg-group-header`, `.qg-group-header.expanded`, `.qg-group-header.collapsed`
+  - `.qg-group-chevron`, `.qg-group-key`, `.qg-group-count`
+  - `.qg-group-controls`, `.qg-group-toolbar`, `.qg-grid-wrapper`
+
+[Implementation details]
+- Appended a dedicated “ROW GROUPING FEATURE” section to `qgComposable-refined-minimalism.css`.
+
+### Task Execution Log 
+M8.P1.T2: Implement CSS variable sizing contract
+**StartTime:** 2026-01-05 11:16:43
+**End Time:** 2026-01-05 11:18:52  
+**Duration:** 00:02:09
+
+**Files Changed:**
+- `QuickGridTest01/wwwroot/css/qgComposable-refined-minimalism.css`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Header height is computed via CSS variables:
+  - `height: calc(var(--qg-item-size) * var(--qg-group-header-slot-span))`
+  - `min-height` mirrors the same formula
+
+[Implementation details]
+- Uses defaults `40px` and `2` when variables are not present.
+
+### Task Execution Log 
+M8.P1.T3: Interface alignment check (CSS contract)
+**StartTime:** 2026-01-05 11:16:43
+**End Time:** 2026-01-05 11:18:52  
+**Duration:** 00:02:09
+
+**Files Changed:**
+- `QuickGridTest01/wwwroot/css/qgComposable-refined-minimalism.css`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Emitted class names (feature/templates) match selector names in CSS.
+- Virtualization sizing contract is represented via `--qg-item-size` and `--qg-group-header-slot-span`.
+- No `*.razor.css` files were introduced for grouping styles.
 
 ### Task Execution Log 
 M6.P1.T1: Create feature skeleton
