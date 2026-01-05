@@ -10,13 +10,17 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
     private static readonly Func<TGridItem, TGridItem> Clone = CreateCloner();
     private readonly Dictionary<string, IGroupingFeature<TGridItem>> _registered = new(StringComparer.Ordinal);
 
-    private readonly Dictionary<object?, int> _keyToGroupId = new();
+    private readonly Dictionary<object, int> _keyToGroupId = new();
+    private int? _nullKeyGroupId;
     private int _nextGroupId = 1;
 
     internal IReadOnlyCollection<object?> GetKnownGroupKeys()
     {
         // Snapshot to avoid exposing internal dictionary enumerator.
-        return _keyToGroupId.Keys.ToArray();
+        var keys = new List<object?>(_keyToGroupId.Keys);
+        if (_nullKeyGroupId.HasValue)
+            keys.Add(null);
+        return keys;
     }
 
     public string? HeaderHostColumnId { get; private set; }
@@ -171,15 +175,28 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
     private int GetOrCreateGroupId(object? key)
     {
+        if (key is null)
+        {
+            if (_nullKeyGroupId.HasValue)
+                return _nullKeyGroupId.Value;
+
+            if (_nextGroupId > 0xFFFF)
+                throw new InvalidOperationException("Maximum supported group count exceeded (65535).");
+
+            var id = _nextGroupId++;
+            _nullKeyGroupId = id;
+            return id;
+        }
+
         if (_keyToGroupId.TryGetValue(key, out var existing))
             return existing;
 
         if (_nextGroupId > 0xFFFF)
             throw new InvalidOperationException("Maximum supported group count exceeded (65535).");
 
-        var id = _nextGroupId++;
-        _keyToGroupId[key] = id;
-        return id;
+        var newId = _nextGroupId++;
+        _keyToGroupId[key] = newId;
+        return newId;
     }
 
     public void Dispose()
@@ -188,6 +205,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
         ActiveGrouping = null;
         HeaderHostColumnId = null;
         _keyToGroupId.Clear();
+        _nullKeyGroupId = null;
         _nextGroupId = 1;
     }
 }

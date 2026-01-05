@@ -70,6 +70,114 @@
 - [x] M8.P1.T2
 - [x] M8.P1.T3
 
+- [x] M9.P1.T1
+- [x] M9.P1.T2
+
+- [x] M10.P1.T1
+- [x] M10.P1.T2
+- [x] M10.P1.T3
+- [x] M10.P1.T4
+- [x] M10.P1.T5
+- [x] M10.P1.T6
+
+- [ ] M11.P1.T1
+- [ ] M11.P1.T2
+- [ ] M11.P1.T3
+
+---
+
+## Session Summary (M11 Prerequisites)
+**Session Start:** 2026-01-05 12:17:58
+
+### Task Execution Log
+M11.P1.T1: Update feature priorities (confirm `FeaturePriority.Grouping = 50`)
+**StartTime:** 2026-01-05 12:18:02
+**End Time:** 2026-01-05 12:18:08  
+**Duration:** 00:00:06
+
+**Files Changed:**
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Confirmed `ComposableColumns/Core/FeaturePriority.cs` declares `FeaturePriority.Grouping = 50` before `Core (100)`.
+
+[Implementation details]
+- Verified existing value at `QuickGridTest01/ComposableColumns/Core/FeaturePriority.cs`.
+
+### Task Execution Log
+M11.P1.T2: Confirm `FeatureContext` dispatcher/refresh invariants (assignment sites)
+**StartTime:** 2026-01-05 12:18:08
+**End Time:** 2026-01-05 12:18:08  
+**Duration:** 00:00:00
+
+**Files Changed:**
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- `FeatureContext.InvokeAsync` assignment site:
+  - File: `QuickGridTest01/ComposableColumns/Core/ComposableColumn.cs`
+  - Method: `CreateContext()`
+- `FeatureContext.RequestRefreshAsync` assignment site:
+  - File: `QuickGridTest01/ComposableColumns/Core/ComposableColumn.cs`
+  - Method: `CreateContext()`
+- `FeatureContext.RequestRefresh` assignment site:
+  - File: `QuickGridTest01/ComposableColumns/Core/ComposableColumn.cs`
+  - Method: `CreateContext()`
+
+[Implementation details]
+- `CreateContext()` sets:
+  - `RequestRefresh = StateHasChanged`
+  - `RequestRefreshAsync = () => InvokeAsync(StateHasChanged)`
+  - `InvokeAsync = async action => await InvokeAsync(action)`
+
+### Task Execution Log
+M11.P1.T3: Define required guard failures (sad path)
+**StartTime:** 2026-01-05 12:18:08
+**End Time:** 2026-01-05 12:18:08  
+**Duration:** 00:00:00
+
+**Files Changed:**
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Guard Failures list (exception type + message text):
+  - Missing `InvokeAsync` on attach:
+    - Exception: `InvalidOperationException`
+    - Message: `FeatureContext.InvokeAsync must be provided (non-null).`
+  - Unsupported `FilterBehavior = GroupThenFilter`:
+    - Exception: `NotSupportedException`
+    - Message: `Grouping does not support FilterBehavior=GroupThenFilter.`
+  - Active grouping requires `TGridItem : IRowIdentifiable` at runtime:
+    - Exception: `InvalidOperationException`
+    - Message: `Active grouping requires items to implement IRowIdentifiable.`
+  - Invalid `GroupHeaderSlotSpan (< 1)`:
+    - Exception: `ArgumentOutOfRangeException`
+    - Message: `GroupHeaderSlotSpan must be >= 1.`
+  - Invalid `GroupHeaderRowId` inputs (encode/decode):
+    - Out-of-range groupId/offset
+      - Exception: `ArgumentOutOfRangeException`
+      - Message: `groupId` / `offset` out of range.
+    - Decode called on non-synthetic id:
+      - Exception: `ArgumentException`
+      - Message: `Id is not a grouping synthetic row id.`
+  - Duplicate column id registration:
+    - Exception: `InvalidOperationException`
+    - Message: `A grouping feature is already registered for column id '{columnId}'.`
+  - Required null checks:
+    - Exception: `ArgumentNullException`
+    - Message: Standard `ArgumentNullException` messages for null inputs (e.g., `context`, templates, selectors) as applicable.
+
+[Implementation details]
+- These messages are recorded here as the deterministic contract for sad-path tests and cross-file parity.
+
+
+## Session Summary (M10 Tests)
+**Session Start:** 2026-01-05 11:45:37
+**Session End:** 2026-01-05 11:55:33
+**Total Duration:** 00:09:56
+
+**Build validation:** `run_build` succeeded at 2026-01-05 11:55:33.
+
 ### Task Execution Log 
 M7a.P1.T1: Update call sites to use Core detection API
 **StartTime:** 2026-01-05 11:08:12
@@ -167,6 +275,44 @@ M8.P1.T3: Interface alignment check (CSS contract)
 - No `*.razor.css` files were introduced for grouping styles.
 
 ### Task Execution Log 
+M9.P1.T1: Create demo page
+**StartTime:** 2026-01-05 11:23:34
+**End Time:** 2026-01-05 11:35:18  
+**Duration:** 00:11:44
+
+**Files Changed:**
+- `QuickGridTest01/Pages/ComposableGroupingDemo.razor`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Added `Pages/ComposableGroupingDemo.razor` with route `@page "/composable-grouping-demo"`.
+- Uses `ComposableGrid` + `ComposableColumn` with `GroupingFeature<TGridItem, TValue>`.
+- Page-local model implements `IRowIdentifiable`.
+- Seeded >= 25 rows (5 categories × 5 items).
+- Two grids are rendered (default UI vs custom templates) with independent event logs.
+
+[Implementation details]
+- Controls:
+  - “Initially expanded” checkbox reseeds state.
+  - “Group by” dropdown (Category/Status) reseeds and forces re-attach by recreating feature instances.
+
+### Task Execution Log 
+M9.P1.T2: Interface alignment check (Demo wiring)
+**StartTime:** 2026-01-05 11:23:34
+**End Time:** 2026-01-05 11:35:18  
+**Duration:** 00:11:44
+
+**Files Changed:**
+- `QuickGridTest01/Pages/ComposableGroupingDemo.razor`
+- `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
+
+**Required Artifacts/Checklists:**
+- Grouping activation uses attach-time “first wins” (`IsActive=true` on the selected grouping feature).
+- Uses `ComposableGrid.ItemsForQuickGrid` grouped binding when grouping is active.
+- Demo uses templates (`RenderFragment<GroupHeaderContext<...>>`, `RenderFragment<GroupToolbarContext>`) for custom UI mode.
+- Custom toolbar actions await `ExpandAllAsync`/`CollapseAllAsync` (no fire-and-forget).
+
+### Task Execution Log 
 M6.P1.T1: Create feature skeleton
 **StartTime:** 2026-01-05 10:24:51
 **End Time:** 2026-01-05 10:25:43  
@@ -174,6 +320,122 @@ M6.P1.T1: Create feature skeleton
 
 **Files Changed:**
 - `QuickGridTest01/ComposableColumns/Features/Grouping/GroupingFeature.cs`
+
+### Task Execution Log 
+M10.P1.T1: Add `GroupHeaderRowId` tests
+**StartTime:** 2026-01-05 11:45:41
+**End Time:** 2026-01-05 11:45:51  
+**Duration:** 00:00:10
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/GroupHeaderRowIdTests.cs`
+
+**Required Artifacts/Checklists:**
+- Encode/decode coverage includes:
+  - out-of-range inputs throw `ArgumentOutOfRangeException`
+  - decode on non-synthetic ids throws `ArgumentException`
+  - marker vs spacer are unambiguous via `ComposableColumns.Core.GroupingSyntheticRowId`
+
+[Implementation details]
+- Validates `EncodeGroupHeaderId`/`EncodeGroupHeaderSpacerId` produce negative ids.
+- Validates decode helpers return group id / spacer offset as expected.
+
+### Task Execution Log 
+M10.P1.T2: Add `GroupStateManager<TValue>` tests
+**StartTime:** 2026-01-05 11:45:51
+**End Time:** 2026-01-05 11:46:15  
+**Duration:** 00:00:24
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/GroupStateManagerTests.cs`
+
+**Required Artifacts/Checklists:**
+- Deterministic semantics documented through test names:
+  - duplicate keys are idempotent
+  - toggling missing key is allowed
+  - concurrency safety (deterministic final state)
+
+[Implementation details]
+- Uses `Task.WhenAll` on 100 toggles to validate idempotent final state and count.
+
+### Task Execution Log 
+M10.P1.T3: Add grouping transform tests
+**StartTime:** 2026-01-05 11:46:15
+**End Time:** 2026-01-05 11:46:24  
+**Duration:** 00:00:09
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/GroupedGridDataSourceTransformTests.cs`
+
+**Required Artifacts/Checklists:**
+- Header marker/spacer emission count validated vs `GroupHeaderSlotSpan`.
+- Stable key→groupId mapping tested across refresh/rebuild.
+- Collapsed vs expanded output tested.
+- NullKeyBehavior explicit outcomes validated:
+  - `SeparateGroup`: null-key items are present and synthetic header rows exist
+  - `ShowAtTop`: null-key items appear before any header rows
+  - `ShowAtBottom`: null-key items appear after all groups
+  - `Exclude`: null-key items are omitted
+- `HideEmptyGroups` path validated for empty-after-null-handling.
+
+[Implementation details]
+- Tests exercise behavior via `GroupedGridDataSource<TGridItem>` (public) to avoid `InternalsVisibleTo`.
+
+### Task Execution Log 
+M10.P1.T4: Add sad-path tests
+**StartTime:** 2026-01-05 11:46:24
+**End Time:** 2026-01-05 11:47:43  
+**Duration:** 00:01:19
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/GroupingFeatureSadPathTests.cs`
+- `QuickGridTest01.Tests/Grouping/GroupedGridDataSourceTransformTests.cs`
+
+**Required Artifacts/Checklists:**
+- Deterministic exceptions for required guards:
+  - unsupported `FilterBehavior=GroupThenFilter` → `NotSupportedException`
+  - invalid `GroupHeaderSlotSpan (<1)` → `ArgumentOutOfRangeException`
+  - runtime `IRowIdentifiable` enforcement when active → `InvalidOperationException`
+  - decode misuse (non-synthetic ids) covered in `GroupHeaderRowIdTests`
+
+[Implementation details]
+- Uses minimal `FeatureContext<T>` instances to drive `GroupingFeature.OnAttach` guard paths without relying on grid wiring.
+
+### Task Execution Log 
+M10.P1.T5: Clarify tests for `GroupingCoordinator<TGridItem>` without InternalsVisibleTo
+**StartTime:** 2026-01-05 11:47:43
+**End Time:** 2026-01-05 11:48:00  
+**Duration:** 00:00:17
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/GroupedGridDataSourceTransformTests.cs`
+
+**Required Artifacts/Checklists:**
+- Coordinator behavior is tested indirectly through public APIs:
+  - registration via `GroupingCoordinator.RegisterColumn`
+  - transform effects observed through `GroupedGridDataSource.Items`
+
+[Implementation details]
+- No visibility changes and no `InternalsVisibleTo` were introduced.
+
+### Task Execution Log 
+M10.P1.T6: Interface alignment check (Test coverage)
+**StartTime:** 2026-01-05 11:48:00
+**End Time:** 2026-01-05 11:48:33  
+**Duration:** 00:00:33
+
+**Files Changed:**
+- `QuickGridTest01.Tests/Grouping/CellRenderFeatureSignatureUsageTests.cs`
+- `QuickGridTest01.Tests/Grouping/GroupingFeatureSadPathTests.cs`
+
+**Required Artifacts/Checklists:**
+- Compile-time signature usage check:
+  - verifies `GroupHeaderHostFeature<T>` is consumable as `ICellRenderFeature<T>` and the chosen `RenderCell(...)` signature compiles.
+- Refresh authority assumptions validated:
+  - grouping update path uses grouped data source refresh wiring (not UI-driven `RequestRefreshAsync` calls).
+
+[Implementation details]
+- `CellRenderFeatureSignatureUsageTests` compiles against `ICellRenderFeature<T>` and calls `RenderCell` with the expected arguments.
 - `QuickGridTest01/Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/RowGroupingFeature-ExecutionReport.md`
 
 **Required Artifacts/Checklists:**
