@@ -118,6 +118,11 @@ public sealed class GroupHeaderHostFeature<TGridItem> : ICellRenderFeature<TGrid
         if (context.Grid is not ComposableGrid<TGridItem> grid)
             return null;
 
+        // Grouping only applies to grids whose item type supports row identity.
+        // Avoid creating the coordinator (which will throw) on pages that don't implement IRowIdentifiable.
+        if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+            return null;
+
         return grid.GetOrCreateGroupingCoordinator();
     }
 }

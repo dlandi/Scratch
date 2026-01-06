@@ -60,6 +60,14 @@ internal sealed class GroupingSyntheticBlankingFeature<TGridItem, TValue> : ICel
 
     private static string? TryGetHeaderHostColumnId(FeatureContext<TGridItem> context)
     {
+        // Grouping is only supported for grids whose TGridItem provides a stable row identity.
+        // Some demos/pages don't use grouping and don't implement IRowIdentifiable; in those cases
+        // the blanking feature should behave as a no-op and must not force coordinator creation.
+        if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+        {
+            return null;
+        }
+
         if (context.Grid is null)
         {
             QgDebugLog.Write($"TryGetHeaderHostColumnId: FeatureContext.Grid is null for columnType='{context.Column.GetType().FullName}'");
@@ -73,7 +81,17 @@ internal sealed class GroupingSyntheticBlankingFeature<TGridItem, TValue> : ICel
             "GetOrCreateGroupingCoordinator",
             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
-        var coordObj = getCoord?.Invoke(gridObj, null);
+        object? coordObj;
+        try
+        {
+            coordObj = getCoord?.Invoke(gridObj, null);
+        }
+        catch (TargetInvocationException)
+        {
+            // If coordinator creation throws (e.g., grouping not supported for this grid item type),
+            // treat grouping as inactive so the column renders normally.
+            return null;
+        }
         if (coordObj is null)
         {
             QgDebugLog.Write($"TryGetHeaderHostColumnId: coord is null gridType='{gridObj.GetType().FullName}', grid={gridObj.GetHashCode()}");
