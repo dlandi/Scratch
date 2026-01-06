@@ -156,7 +156,7 @@ Grouping must use a deterministic, reversible integer encoding for synthetic row
 1. `GroupingFeature<T,V>.OnAttach()` requires access to the cascaded `Grid` reference (`ComposableGrid<TGridItem>`).
 2. The feature obtains the grid-scoped `GroupingCoordinator<TGridItem>` from the grid (mirrors the existing filter registration pattern).
 3. **All columns** that include `GroupingFeature` register themselves with the coordinator using a column ID (from GroupBy property name).
-4. The coordinator therefore represents the complete set of *groupable columns* (used by the header UI to offer "Group by" options).
+4. The coordinator therefore represents the complete set of *groupable columns* (used by the grid toolbar UI to offer "Group by" options).
 5. The **first column** that registers a `GroupingFeature` becomes the "Group Header Column" (header-host). It is responsible only for rendering the group header UI. Subsequent grouping-enabled columns do not render the header UI.
 6. If `IsActive = true`, the column requests activation. If multiple columns have `IsActive = true`, the first one wins (deterministic based on column order in markup).
 7. The grid wraps the grid's `Items` via a grid-owned `GroupedGridDataSource<TGridItem>` that emits **only `TGridItem`** instances.
@@ -392,15 +392,18 @@ Responsibilities are split as follows:
   - If `HeaderTemplate` is provided, renders it.
   - Otherwise renders the default header UI.
 
-##### 2.5.2.2 Grouping toolbar location + frequency (normative)
+##### 2.5.2.2 Grid toolbar: Grouping section location + frequency (normative)
 
-Grouping toolbar controls (Expand All / Collapse All and any future controls):
+Grid toolbar: Grouping section controls (Group By selector, Expand All / Collapse All, and any future controls):
 
 - Render **once per grid** (not once per group).
-- Are emitted from the header-host column's overlay so they **scroll with grid content** (RowExpandFeature-style).
-- Are gated by the **FIRST marker row rule**: the toolbar is rendered only when the header-host column encounters the **FIRST group header marker row** in the flattened sequence.
+- Are rendered in the grid's toolbar region (Grouping section), **closest to the grid**.
+  - When filter UI is present, the grouping toolbar appears **below** the filtering UI.
+  - The grouping toolbar does **not** scroll with virtualized grid content.
 
-If the consumer provides `ToolbarTemplate`, the active grouping feature renders it; otherwise the feature renders the default toolbar UI.
+If the consumer provides `ToolbarTemplate`, the active grouping feature renders it; otherwise the feature renders the default grouping toolbar UI.
+
+**Implementation note (normative):** Because the grid toolbar: Grouping section is rendered in the grid toolbar (not in a marker-row overlay), it must not depend on the presence of any particular group header row in the current virtualization viewport.
 
 ### 2.6 Feature Lifecycle
 
@@ -656,7 +659,7 @@ If grouping becomes active only after a render pass has already bound `QuickGrid
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `HeaderTemplate` | `RenderFragment<GroupHeaderContext<TGridItem, TValue>>?` | `null` | Custom template for group headers. If null, uses full-featured default. |
-| `ToolbarTemplate` | `RenderFragment<GroupToolbarContext>?` | `null` | Custom template for grouping toolbar controls (Expand All / Collapse All). If null, the grid renders the default grouping toolbar UI when enabled. |
+| `ToolbarTemplate` | `RenderFragment<GroupToolbarContext>?` | `null` | Custom template for grouping controls rendered in the grid toolbar (e.g., Group By selector, Expand All / Collapse All). If null, the grid renders the default grouping toolbar UI when enabled. |
 
 ### 3.3 Sorting & Ordering
 
@@ -741,7 +744,7 @@ public enum NullKeyBehavior
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `ShowExpandCollapseAllButtons` | `bool` | `false` | Whether to show Expand All / Collapse All buttons in grid header. |
+| `ShowExpandCollapseAllButtons` | `bool` | `false` | Whether to show Expand All / Collapse All buttons in the grid toolbar (below filter UI when present). |
 
 ---
 
