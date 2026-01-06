@@ -167,16 +167,33 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
 
     public async Task ToggleGroupAsync(object key)
     {
+        QgDebugLog.Write($"ToggleGroupAsync: key='{key}', keyType={key?.GetType().Name ?? "null"}");
+        
         if (_state is null)
+        {
+            QgDebugLog.Write($"ToggleGroupAsync: _state is null");
             return;
+        }
 
         if (key is not TValue typed)
+        {
+            QgDebugLog.Write($"ToggleGroupAsync: key is not {typeof(TValue).Name}");
             return;
+        }
 
+        var before = _state.IsExpanded(typed);
         await _state.ToggleAsync(typed);
+        var after = _state.IsExpanded(typed);
+        QgDebugLog.Write($"ToggleGroupAsync: toggled '{key}', before={before}, after={after}");
 
-        // Refresh via grouped data source event (grid-level subscription).
-        await RequestDataRefreshAsync();
+        // Notify the grid to refresh its grouped data source
+        if (_context is not null)
+        {
+            var grid = _context.Grid as ComposableGrid<TGridItem>;
+            grid?.NotifyGroupingStateChanged();
+        }
+        
+        QgDebugLog.Write($"ToggleGroupAsync: refresh completed");
     }
 
     public async Task ExpandAllGroupsAsync()

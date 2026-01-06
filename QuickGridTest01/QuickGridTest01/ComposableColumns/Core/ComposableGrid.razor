@@ -159,6 +159,15 @@
 
 	public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
 
+	/// <summary>
+	/// Notifies the grouped data source that its state has changed, triggering a re-render.
+	/// Called by GroupingFeature after toggling group expansion state.
+	/// </summary>
+	public void NotifyGroupingStateChanged()
+	{
+		_groupedDataSource?.NotifyStateChanged();
+	}
+
 	private IQueryable<TGridItem> SortedItems
 	{
 		get

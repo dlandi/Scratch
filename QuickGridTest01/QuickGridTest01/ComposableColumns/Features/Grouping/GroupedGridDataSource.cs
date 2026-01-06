@@ -56,4 +56,13 @@ public sealed class GroupedGridDataSource<TGridItem>
         _dirty = true;
         _ = OnDataChanged?.Invoke();
     }
+
+    /// <summary>
+    /// Marks the data source as dirty, causing the next access to Items to re-transform.
+    /// Also invokes OnDataChanged to notify listeners (e.g., the grid) to refresh.
+    /// </summary>
+    public void NotifyStateChanged()
+    {
+        MarkDirty();
+    }
 }
