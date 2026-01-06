@@ -11,14 +11,17 @@
     <header class="qg-page-header">
         <h1 class="qg-page-title">Composable Row Grouping</h1>
         <p class="qg-page-subtitle">
-            Demonstrates <code>GroupingFeature&lt;TGridItem, TValue&gt;</code> composed into a <code>ComposableColumn</code>.
+            Demonstrates <code>GroupingFeature&lt;TGridItem, TValue&gt;</code> composed into a <code>ComposableColumn</code>
+            via <code>FeatureCollection</code>. Uses the default group header UI.
         </p>
     </header>
 
     <section class="qg-section">
         <div class="qg-section-header">
-            <h2 class="qg-section-title">Controls</h2>
-            <p class="qg-section-description">Affects both grids. Switching the group key forces a re-attach by recreating feature instances.</p>
+            <h2 class="qg-section-title">Demo</h2>
+            <p class="qg-section-description">
+                Grouped by Category. Click group headers to expand/collapse.
+            </p>
         </div>
 
         <div class="demo-controls">
@@ -26,107 +29,30 @@
                 <input type="checkbox" checked="@_initiallyExpanded" @onchange="OnInitiallyExpandedChanged" />
                 <span>Initially expanded</span>
             </label>
-
-            <label class="qg-label">Group by:</label>
-            <select class="qg-select" value="@_groupBy.ToString()" @onchange="OnGroupByChanged">
-                <option value="@GroupByKey.Category.ToString()">Category</option>
-                <option value="@GroupByKey.Status.ToString()">Status</option>
-            </select>
-        </div>
-    </section>
-
-    <section class="qg-section">
-        <div class="qg-section-header">
-            <h2 class="qg-section-title">Grid A — Default grouping UI</h2>
-            <p class="qg-section-description">Uses default header + default toolbar UI.</p>
         </div>
 
         <div class="qg-grid-container">
-            <ComposableGrid TGridItem="DemoRow" Items="@_itemsA">
-                <PropertyColumn TGridItem="DemoRow" TProp="int" Property="@(r => r.Id)" Title="ID" />
-                <PropertyColumn TGridItem="DemoRow" TProp="string" Property="@(r => r.Name)" Title="Name" />
+            <ComposableGrid TGridItem="DemoRow" Items="@_items">
+                <ComposableColumn TGridItem="DemoRow" TValue="int" Title="ID" Property="@(r => r.Id)" />
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Name" Property="@(r => r.Name)" />
 
-                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)">
-                    <GroupingFeature TGridItem="DemoRow" TValue="string"
-                                     ColumnId="Category"
-                                     IsActive="@(_groupBy == GroupByKey.Category)"
-                                     InitiallyExpanded="@_initiallyExpanded"
-                                     ShowExpandCollapseAllButtons="true" />
-                </ComposableColumn>
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)"
+                                  FeatureCollection="@_features" />
 
-                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)">
-                    <GroupingFeature TGridItem="DemoRow" TValue="string"
-                                     ColumnId="Status"
-                                     IsActive="@(_groupBy == GroupByKey.Status)"
-                                     InitiallyExpanded="@_initiallyExpanded"
-                                     ShowExpandCollapseAllButtons="true" />
-                </ComposableColumn>
-
-                <PropertyColumn TGridItem="DemoRow" TProp="decimal" Property="@(r => r.Price)" Title="Price" Format="C" />
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)" />
+                <ComposableColumn TGridItem="DemoRow" TValue="decimal" Title="Price" Property="@(r => r.Price)" Format="C" />
             </ComposableGrid>
         </div>
 
-        @if (_eventLogA.Any())
+        @if (_eventLog.Any())
         {
             <div class="qg-section" style="margin-top: 16px;">
                 <div class="qg-section-header">
                     <h2 class="qg-section-title">Event Log</h2>
-                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLogA.Clear()">Clear</button>
+                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLog.Clear()">Clear</button>
                 </div>
                 <div class="event-log">
-                    @foreach (var entry in _eventLogA.TakeLast(10).Reverse())
-                    {
-                        <div class="log-entry">@entry</div>
-                    }
-                </div>
-            </div>
-        }
-    </section>
-
-    <section class="qg-section">
-        <div class="qg-section-header">
-            <h2 class="qg-section-title">Grid B — Custom grouping UI</h2>
-            <p class="qg-section-description">Uses custom header template + custom toolbar template.</p>
-        </div>
-
-        <div class="qg-grid-container">
-            <ComposableGrid TGridItem="DemoRow" Items="@_itemsB">
-                <PropertyColumn TGridItem="DemoRow" TProp="int" Property="@(r => r.Id)" Title="ID" />
-                <PropertyColumn TGridItem="DemoRow" TProp="string" Property="@(r => r.Name)" Title="Name" />
-
-                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)">
-                    <GroupingFeature TGridItem="DemoRow" TValue="string"
-                                     ColumnId="Category"
-                                     IsActive="@(_groupBy == GroupByKey.Category)"
-                                     InitiallyExpanded="@_initiallyExpanded"
-                                     ShowExpandCollapseAllButtons="true"
-                                     HeaderTemplate="@CustomHeader"
-                                     ToolbarTemplate="@CustomToolbar" />
-                </ComposableColumn>
-
-                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)">
-                    <GroupingFeature TGridItem="DemoRow" TValue="string"
-                                     ColumnId="Status"
-                                     IsActive="@(_groupBy == GroupByKey.Status)"
-                                     InitiallyExpanded="@_initiallyExpanded"
-                                     ShowExpandCollapseAllButtons="true"
-                                     HeaderTemplate="@CustomHeader"
-                                     ToolbarTemplate="@CustomToolbar" />
-                </ComposableColumn>
-
-                <PropertyColumn TGridItem="DemoRow" TProp="decimal" Property="@(r => r.Price)" Title="Price" Format="C" />
-            </ComposableGrid>
-        </div>
-
-        @if (_eventLogB.Any())
-        {
-            <div class="qg-section" style="margin-top: 16px;">
-                <div class="qg-section-header">
-                    <h2 class="qg-section-title">Event Log</h2>
-                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLogB.Clear()">Clear</button>
-                </div>
-                <div class="event-log">
-                    @foreach (var entry in _eventLogB.TakeLast(10).Reverse())
+                    @foreach (var entry in _eventLog.TakeLast(10).Reverse())
                     {
                         <div class="log-entry">@entry</div>
                     }
@@ -137,12 +63,6 @@
 </div>
 
 @code {
-    private enum GroupByKey
-    {
-        Category,
-        Status
-    }
-
     private sealed class DemoRow : IRowIdentifiable
     {
         public int Id { get; set; }
@@ -153,23 +73,23 @@
     }
 
     private bool _initiallyExpanded = true;
-    private GroupByKey _groupBy = GroupByKey.Category;
+    private IQueryable<DemoRow> _items = Array.Empty<DemoRow>().AsQueryable();
+    private readonly List<string> _eventLog = new();
 
-    private IQueryable<DemoRow> _itemsA = Array.Empty<DemoRow>().AsQueryable();
-    private IQueryable<DemoRow> _itemsB = Array.Empty<DemoRow>().AsQueryable();
+    // Single feature instance - its properties are updated, not recreated
+    private readonly GroupingFeature<DemoRow, string> _groupingFeature = new()
+    {
+        ColumnId = "Category",
+        IsActive = true,
+        InitiallyExpanded = true,
+        ShowExpandCollapseAllButtons = true
+    };
 
-    private readonly List<string> _eventLogA = new();
-    private readonly List<string> _eventLogB = new();
+    private IColumnFeature<DemoRow>[] _features = [];
 
     protected override void OnInitialized()
     {
-        Seed();
-    }
-
-    private void Seed()
-    {
         var products = new List<DemoRow>();
-
         var categories = new[] { "Electronics", "Clothing", "Books", "Home", "Sports" };
         var statuses = new[] { "In Stock", "Backorder", "Discontinued" };
 
@@ -189,13 +109,8 @@
             }
         }
 
-        _itemsA = products.AsQueryable();
-        _itemsB = products.AsQueryable();
-
-        _eventLogA.Clear();
-        _eventLogB.Clear();
-
-        StateHasChanged();
+        _items = products.AsQueryable();
+        _features = [_groupingFeature];
     }
 
     private void OnInitiallyExpandedChanged(ChangeEventArgs e)
@@ -205,70 +120,14 @@
         else if (bool.TryParse(e.Value?.ToString(), out var parsed))
             _initiallyExpanded = parsed;
 
-        Seed();
+        // Update the feature's property - OnParametersChanged will handle the state reset
+        _groupingFeature.InitiallyExpanded = _initiallyExpanded;
+        StateHasChanged();
     }
 
-    private void OnGroupByChanged(ChangeEventArgs e)
+    private void Log(string msg)
     {
-        if (Enum.TryParse<GroupByKey>(e.Value?.ToString(), out var parsed))
-        {
-            _groupBy = parsed;
-            Seed();
-        }
-    }
-
-    private RenderFragment<GroupHeaderContext<DemoRow, string>> CustomHeader => ctx => builder =>
-    {
-        var seq = 0;
-        builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", $"qg-group-header {(ctx.IsExpanded ? "expanded" : "collapsed")}");
-        builder.AddContent(seq++, $"Group: {ctx.Key?.ToString() ?? "(No Value)"} ");
-        builder.AddContent(seq++, $"({ctx.ItemCount} items)");
-        builder.CloseElement();
-
-        // Note: click/toggle behavior is owned by the host feature; this template is display-only.
-        // The active feature will wire ToggleAsync in the default template.
-    };
-
-    private RenderFragment<GroupToolbarContext> CustomToolbar => ctx => builder =>
-    {
-        var seq = 0;
-        builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "qg-group-toolbar");
-        builder.OpenElement(seq++, "div");
-        builder.AddAttribute(seq++, "class", "qg-group-controls");
-
-        builder.OpenElement(seq++, "button");
-        builder.AddAttribute(seq++, "type", "button");
-        builder.AddAttribute(seq++, "class", "qg-expand-all");
-        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, async () =>
-        {
-            await ctx.ExpandAllAsync();
-            LogToolbar("Expand All");
-        }));
-        builder.AddContent(seq++, "Expand All");
-        builder.CloseElement();
-
-        builder.OpenElement(seq++, "button");
-        builder.AddAttribute(seq++, "type", "button");
-        builder.AddAttribute(seq++, "class", "qg-collapse-all");
-        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, async () =>
-        {
-            await ctx.CollapseAllAsync();
-            LogToolbar("Collapse All");
-        }));
-        builder.AddContent(seq++, "Collapse All");
-        builder.CloseElement();
-
-        builder.CloseElement();
-        builder.CloseElement();
-    };
-
-    private void LogToolbar(string action)
-    {
-        var msg = $"[{DateTime.Now:HH:mm:ss}] {action} invoked";
-        _eventLogA.Add(msg);
-        _eventLogB.Add(msg);
+        _eventLog.Add($"[{DateTime.Now:HH:mm:ss}] {msg}");
         StateHasChanged();
     }
 }

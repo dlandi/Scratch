@@ -15,6 +15,12 @@ public class FeatureContext<TGridItem>
     private readonly Dictionary<Type, object> _services = new();
 
     /// <summary>
+    /// The grid that owns the column/context (when used inside a ComposableGrid).
+    /// Stored as object to avoid imposing 'class' constraint on FeatureContext.
+    /// </summary>
+    public object? Grid { get; set; }
+
+    /// <summary>
     /// The column that owns this context.
     /// </summary>
     public required ColumnBase<TGridItem> Column { get; init; }

@@ -4,6 +4,7 @@ using QuickGridTest01.ComposableColumns.Core;
 using QuickGridTest01.ComposableColumns.Features.Grouping.Components;
 using QuickGridTest01.ComposableColumns.Features.Grouping.Enums;
 using QuickGridTest01.RowColumn.Core;
+using QuickGridTest01.ComposableColumns.Core.Diagnostics;
 
 namespace QuickGridTest01.ComposableColumns.Features.Grouping;
 
@@ -48,6 +49,7 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
     private GroupingCoordinator<TGridItem>? _coordinator;
     private Func<TGridItem, TValue>? _groupByTyped;
     private IEqualityComparer<object?>? _keyComparerUntyped;
+    private bool _lastInitiallyExpanded;
 
     public Func<TGridItem, object?> GroupByUntyped
         => _groupByUntyped ?? throw new InvalidOperationException("Grouping feature is not attached.");
@@ -84,24 +86,47 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
         _keyComparerUntyped = KeyComparer is null ? null : new KeyComparerAdapter(KeyComparer);
 
         _state = new GroupStateManager<TValue>(KeyComparer);
+        _state.SetDefaultExpanded(InitiallyExpanded);
 
         var grid = GetGridOrThrow(context);
+        QgDebugLog.Write($"GroupingFeature.OnAttach: columnId='{ColumnId}', isActive={IsActive}, grid={grid.GetHashCode()}");
+
         _coordinator = grid.GetOrCreateGroupingCoordinator();
+        QgDebugLog.Write($"GroupingFeature.OnAttach: coordinator={_coordinator.GetHashCode()}, prevHost='{_coordinator.HeaderHostColumnId ?? "<null>"}', prevActive={(_coordinator.ActiveGrouping is null ? "<null>" : "set")}");
+
         _coordinator.RegisterColumn(ColumnId, this);
+        QgDebugLog.Write($"GroupingFeature.OnAttach: RegisterColumn done: coordinator={_coordinator.GetHashCode()}, host='{_coordinator.HeaderHostColumnId ?? "<null>"}', active={(_coordinator.ActiveGrouping is null ? "<null>" : "set")}");
 
-        // First registered grouping column is the header host.
-        // Coordinator already pins HeaderHostColumnId in RegisterColumn.
+        // Expose this column's grouping id to core-owned render features.
+        context.SetState("Grouping.ColumnId", ColumnId);
+        QgDebugLog.Write($"GroupingFeature.OnAttach: SetState Grouping.ColumnId='{ColumnId}'");
 
-        if (string.Equals(_coordinator.HeaderHostColumnId, ColumnId, StringComparison.Ordinal)
-            && context.Column is ComposableColumn<TGridItem, TValue> col)
-        {
-            col.AddFeature(new GroupHeaderHostFeature<TGridItem>());
-        }
+        // Track initial value for change detection
+        _lastInitiallyExpanded = InitiallyExpanded;
+
+        // Activation/host rendering are handled without runtime feature injection (per spec).
     }
 
     public void OnDetach(FeatureContext<TGridItem> context)
     {
         _context = null;
+    }
+
+    public void OnParametersChanged(FeatureContext<TGridItem> context)
+    {
+        // Detect if InitiallyExpanded parameter has changed
+        if (_state is not null && InitiallyExpanded != _lastInitiallyExpanded)
+        {
+            _lastInitiallyExpanded = InitiallyExpanded;
+            
+            // Reset all groups to the new default state
+            _state.ResetToDefault(InitiallyExpanded);
+            
+            QgDebugLog.Write($"GroupingFeature.OnParametersChanged: InitiallyExpanded changed to {InitiallyExpanded}, resetting state");
+            
+            // Request a refresh so the grid re-renders with the new expansion state
+            context.RequestRefresh?.Invoke();
+        }
     }
 
     private static ComposableGrid<TGridItem> GetGridOrThrow(FeatureContext<TGridItem> context)
@@ -132,9 +157,12 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
     public bool IsGroupExpanded(object key)
     {
         if (_state is null)
-            return false;
+            return InitiallyExpanded;
 
-        return key is TValue typed && _state.IsExpanded(typed);
+        if (key is not TValue typed)
+            return InitiallyExpanded;
+
+        return _state.IsExpanded(typed);
     }
 
     public async Task ToggleGroupAsync(object key)
@@ -189,7 +217,8 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
         ref int sequence,
         object? key,
         int itemCount,
-        bool isExpanded)
+        bool isExpanded,
+        Func<Task>? onToggle)
     {
         if (HeaderTemplate is not null)
         {
@@ -200,20 +229,18 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
                 IsExpanded: isExpanded,
                 GroupOrder: GroupOrder,
                 HeaderTemplate: HeaderTemplate,
-                ToggleAsync: () => ToggleGroupAsync(key ?? ""));
+                ToggleAsync: onToggle ?? (() => ToggleGroupAsync(key ?? "")));
 
             builder.AddContent(sequence++, HeaderTemplate(ctx));
             return;
         }
-
-        builder.OpenElement(sequence++, "div");
-        builder.CloseElement();
 
         builder.OpenComponent<Components.DefaultGroupHeader>(sequence++);
         builder.AddAttribute(sequence++, nameof(Components.DefaultGroupHeader.Key), key);
         builder.AddAttribute(sequence++, nameof(Components.DefaultGroupHeader.ItemCount), itemCount);
         builder.AddAttribute(sequence++, nameof(Components.DefaultGroupHeader.IsExpanded), isExpanded);
         builder.AddAttribute(sequence++, nameof(Components.DefaultGroupHeader.NullGroupLabel), NullGroupLabel);
+        builder.AddAttribute(sequence++, "OnToggle", onToggle);
         builder.CloseComponent();
     }
 

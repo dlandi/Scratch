@@ -143,6 +143,9 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         Context.Formatter = Formatter;
         Context.Title = Title;
 
+        // Ensure features can access the owning ComposableGrid without reflection.
+        Context.Grid = Grid;
+
         // Compile property accessor if property changed
         if (Property is not null && Property != _lastProperty)
         {
@@ -194,6 +197,14 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
             Initialize();
             _initialized = true;
         }
+        else
+        {
+            // Notify features that parameters have changed so they can update their state
+            foreach (var feature in _features)
+            {
+                feature.OnParametersChanged(Context);
+            }
+        }
 
         // Register filter features with grid (may not be available on first pass)
         RegisterFilterFeaturesWithGrid();
@@ -204,9 +215,17 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         // Add core-owned features before any user features attach. These participate in the render pipeline
         // for all columns and enable cross-column behaviors without runtime feature injection.
         _features.Insert(0, new GroupingSyntheticBlankingFeature<TGridItem, TValue>());
+        _features.Insert(1, new ComposableColumns.Features.Grouping.Components.GroupHeaderHostFeature<TGridItem>());
 
-        // Attach all features
-        foreach (var feature in _features)
+        // Attach non-core features first so they can populate FeatureContext state
+        // (e.g., grouping columns set Grouping.ColumnId and register with the coordinator).
+        foreach (var feature in _features.Where(f => f.Priority != FeaturePriority.Grouping).ToList())
+        {
+            feature.OnAttach(Context);
+        }
+
+        // Then attach grouping features (core-owned + grouping features) so they can read coordinator/state.
+        foreach (var feature in _features.Where(f => f.Priority == FeaturePriority.Grouping).ToList())
         {
             feature.OnAttach(Context);
         }

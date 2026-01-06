@@ -8,291 +8,343 @@
 @using QuickGridTest01.RowColumn.Core
 
 <CascadingValue Value="this" TValue="ComposableGrid<TGridItem>">
-    <CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
-        <CascadingValue Value="_editEventStream" TValue="IEditEventStream">
-            @* Event panel at Top position *@
-            @if (EventPanelPlacement == EventPanelPlacement.Top && _editEventStream is not null)
-            {
-                <div class="composable-grid-event-panel event-panel-top">
-                    <EditEventViewer />
-                </div>
-            }
+	<CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
+		<CascadingValue Value="_editEventStream" TValue="IEditEventStream">
+			@* Event panel at Top position *@
+			@if (EventPanelPlacement == EventPanelPlacement.Top && _editEventStream is not null)
+			{
+				<div class="composable-grid-event-panel event-panel-top">
+					<EditEventViewer />
+				</div>
+			}
 
-    public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
+			<div class="@GetGridContainerClass()">
+				@* Event panel at Left position *@
+				@if (EventPanelPlacement == EventPanelPlacement.Left && _editEventStream is not null)
+				{
+					<div class="composable-grid-event-panel event-panel-left">
+						<EditEventViewer />
+					</div>
+				}
 
-            <div class="@GetGridContainerClass()">
-                @* Event panel at Left position *@
-                @if (EventPanelPlacement == EventPanelPlacement.Left && _editEventStream is not null)
-                {
-                    <div class="composable-grid-event-panel event-panel-left">
-                        <EditEventViewer />
-                    </div>
-                }
+				<div class="composable-grid-main">
+					@* Render filter toolbar if any columns have filter features *@
+					@if (_filterFeatures.Count > 0)
+					{
+						<div class="composable-grid-filter-toolbar">
+							@foreach (var filter in _filterFeatures)
+							{
+								@FilterInputFragment(filter)
+							}
+							<div class="filter-toolbar-actions">
+								@if (HasActiveFilters)
+								{
+									<span class="filter-count">@FilteredCount of @TotalCount</span>
+									<button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
+										<i class="bi bi-x-circle"></i> Clear
+									</button>
+								}
+							</div>
+						</div>
+					}
 
-                <div class="composable-grid-main">
-                    @* Render filter toolbar if any columns have filter features *@
-                    @if (_filterFeatures.Count > 0)
-                    {
-                        <div class="composable-grid-filter-toolbar">
-                            @foreach (var filter in _filterFeatures)
-                            {
-                                @FilterInputFragment(filter)
-                            }
-                            <div class="filter-toolbar-actions">
-                                @if (HasActiveFilters)
-                                {
-                                    <span class="filter-count">@FilteredCount of @TotalCount</span>
-                                    <button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
-                                        <i class="bi bi-x-circle"></i> Clear
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
+					<QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
+						@ChildContent
+					</QuickGrid>
+				</div>
 
-                    <QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
-                        @ChildContent
-                    </QuickGrid>
-                </div>
+				@* Event panel at Right position *@
+				@if (EventPanelPlacement == EventPanelPlacement.Right && _editEventStream is not null)
+				{
+					<div class="composable-grid-event-panel event-panel-right">
+						<EditEventViewer />
+					</div>
+				}
+			</div>
 
-                @* Event panel at Right position *@
-                @if (EventPanelPlacement == EventPanelPlacement.Right && _editEventStream is not null)
-                {
-                    <div class="composable-grid-event-panel event-panel-right">
-                        <EditEventViewer />
-                    </div>
-                }
-            </div>
-
-            @* Event panel at Bottom position *@
-            @if (EventPanelPlacement == EventPanelPlacement.Bottom && _editEventStream is not null)
-            {
-                <div class="composable-grid-event-panel event-panel-bottom">
-                    <EditEventViewer />
-                </div>
-            }
-        </CascadingValue>
-    </CascadingValue>
+			@* Event panel at Bottom position *@
+			@if (EventPanelPlacement == EventPanelPlacement.Bottom && _editEventStream is not null)
+			{
+				<div class="composable-grid-event-panel event-panel-bottom">
+					<EditEventViewer />
+				</div>
+			}
+		</CascadingValue>
+	</CascadingValue>
 </CascadingValue>
 
 @code {
-    private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
-    private EditEventStream? _editEventStream;
+	private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
+	private EditEventStream? _editEventStream;
 
-    private GroupingCoordinator<TGridItem>? _groupingCoordinator;
-    private GroupedGridDataSource<TGridItem>? _groupedDataSource;
+	private GroupingCoordinator<TGridItem>? _groupingCoordinator;
+	private GroupedGridDataSource<TGridItem>? _groupedDataSource;
 
-    private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
+	private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
 
-    /// <summary>
-    /// The data source for the grid.
-    /// </summary>
-    [Parameter] public IQueryable<TGridItem> Items { get; set; } = Array.Empty<TGridItem>().AsQueryable();
+	/// <summary>
+	/// The data source for the grid.
+	/// </summary>
+	[Parameter] public IQueryable<TGridItem> Items { get; set; } = Array.Empty<TGridItem>().AsQueryable();
 
-    /// <summary>
-    /// Optional row key selector used for SetKey and key-dependent features.
-    /// </summary>
-    [Parameter] public Func<TGridItem, object>? RowKey { get; set; }
+	/// <summary>
+	/// Optional row key selector used for SetKey and key-dependent features.
+	/// </summary>
+	[Parameter] public Func<TGridItem, object>? RowKey { get; set; }
 
-    /// <summary>
-    /// Where to render the event panel. Default is None (no panel).
-    /// </summary>
-    [Parameter] public EventPanelPlacement EventPanelPlacement { get; set; } = EventPanelPlacement.None;
+	/// <summary>
+	/// Where to render the event panel. Default is None (no panel).
+	/// </summary>
+	[Parameter] public EventPanelPlacement EventPanelPlacement { get; set; } = EventPanelPlacement.None;
 
-    [Parameter] public RenderFragment? ChildContent { get; set; }
+	[Parameter] public RenderFragment? ChildContent { get; set; }
 
-    [Parameter(CaptureUnmatchedValues = true)]
-    public Dictionary<string, object>? AdditionalAttributes { get; set; }
+	[Parameter(CaptureUnmatchedValues = true)]
+	public Dictionary<string, object>? AdditionalAttributes { get; set; }
 
-    /// <summary>
-    /// Gets the edit event stream for this grid.
-    /// </summary>
-    public IEditEventStream? EditEventStream => _editEventStream;
+	/// <summary>
+	/// Gets the edit event stream for this grid.
+	/// </summary>
+	public IEditEventStream? EditEventStream => _editEventStream;
 
-    internal void RegisterColumn(IColumnFeatureProvider<TGridItem> column)
-    {
-        if (!_columns.Contains(column))
-        {
-            _columns.Add(column);
-        }
-    }
+	internal void RegisterColumn(IColumnFeatureProvider<TGridItem> column)
+	{
+		if (!_columns.Contains(column))
+		{
+			_columns.Add(column);
+		}
 
-    internal void UnregisterColumn(IColumnFeatureProvider<TGridItem> column)
-    {
-        _columns.Remove(column);
-    }
+		// Early registration path for grouping features.
+		// This may run before feature attachment; coordinator registration must be idempotent.
+		var groupingFeatures = column.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>();
+		foreach (var gf in groupingFeatures)
+		{
+			if (string.IsNullOrWhiteSpace(gf.ColumnId))
+				continue;
 
-    internal GroupingCoordinator<TGridItem> GetOrCreateGroupingCoordinator()
-    {
-        if (_groupingCoordinator is not null)
-            return _groupingCoordinator;
+			var coordinator = GetOrCreateGroupingCoordinator();
+			var hadActiveGroupingBefore = coordinator.ActiveGrouping is not null;
+			coordinator.RegisterColumn(gf.ColumnId, gf);
 
-        // Grouping is only valid for grids whose TGridItem supports row-identity.
-        if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
-            throw new InvalidOperationException("Grouping requires TGridItem to implement IRowIdentifiable.");
+			// If this registration activated grouping for the first time,
+			// schedule a re-render so ItemsForQuickGrid can pick up the grouped items.
+			if (!hadActiveGroupingBefore && coordinator.ActiveGrouping is not null)
+			{
+				_ = InvokeAsync(StateHasChanged);
+			}
+		}
+	}
 
-        _groupingCoordinator = new GroupingCoordinator<TGridItem>();
-        return _groupingCoordinator;
-    }
+	internal void UnregisterColumn(IColumnFeatureProvider<TGridItem> column)
+	{
+		_columns.Remove(column);
+	}
 
-    public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
+	internal GroupingCoordinator<TGridItem> GetOrCreateGroupingCoordinator()
+	{
+		if (_groupingCoordinator is not null)
+		{
+			QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"GetOrCreateGroupingCoordinator: reuse grid={GetHashCode()}, coord={_groupingCoordinator.GetHashCode()}, host='{_groupingCoordinator.HeaderHostColumnId ?? "<null>"}', active={(_groupingCoordinator.ActiveGrouping is null ? "<null>" : "set")}");
+			return _groupingCoordinator;
+		}
 
-    private IQueryable<TGridItem> SortedItems
-    {
-        get
-        {
-            var sortingFeature = _columns
-                .SelectMany(c => c.GetAllFeatures().OfType<ISortingFeature<TGridItem>>())
-                .FirstOrDefault(f => f.IsSortable);
+		// Grouping is only valid for grids whose TGridItem supports row-identity.
+		if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+			throw new InvalidOperationException("Grouping requires TGridItem to implement IRowIdentifiable.");
 
-            // If no sorting feature is active, return filtered items as-is.
-            if (sortingFeature is null)
-                return FilteredItems;
+		_groupingCoordinator = new GroupingCoordinator<TGridItem>();
+		QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"GetOrCreateGroupingCoordinator: create grid={GetHashCode()}, coord={_groupingCoordinator.GetHashCode()}");
+		return _groupingCoordinator;
+	}
 
-            var sortFn = sortingFeature.GetSortFunction();
-            return sortFn is null ? FilteredItems : sortFn(FilteredItems, true);
-        }
-    }
+	public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
 
-    private GroupedGridDataSource<TGridItem> GetOrCreateGroupedDataSource()
-    {
-        if (_groupedDataSource is not null)
-            return _groupedDataSource;
+	private IQueryable<TGridItem> SortedItems
+	{
+		get
+		{
+			var sortingFeature = _columns
+				.SelectMany(c => c.GetAllFeatures().OfType<ISortingFeature<TGridItem>>())
+				.FirstOrDefault(f => f.IsSortable);
 
-        var coordinator = GetOrCreateGroupingCoordinator();
-        _groupedDataSource = new GroupedGridDataSource<TGridItem>(coordinator);
-        _groupedDataSource.OnDataChanged += OnGroupedDataChangedAsync;
-        return _groupedDataSource;
-    }
+			// If no sorting feature is active, return filtered items as-is.
+			if (sortingFeature is null)
+				return FilteredItems;
 
-    private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
+			var sortFn = sortingFeature.GetSortFunction();
+			return sortFn is null ? FilteredItems : sortFn(FilteredItems, true);
+		}
+	}
 
-    protected override void OnInitialized()
-    {
-        // Create the event stream - it's always available for features to use
-        // even if EventPanelPlacement is None (consumers can still use the cascaded value)
-        _editEventStream = new EditEventStream();
-    }
+	private GroupedGridDataSource<TGridItem> GetOrCreateGroupedDataSource()
+	{
+		if (_groupedDataSource is not null)
+			return _groupedDataSource;
 
-    private IQueryable<TGridItem> ItemsForQuickGrid
-    {
-        get
-        {
-            var source = SortedItems;
+		var coordinator = GetOrCreateGroupingCoordinator();
+		_groupedDataSource = new GroupedGridDataSource<TGridItem>(coordinator);
+		_groupedDataSource.OnDataChanged += OnGroupedDataChangedAsync;
+		return _groupedDataSource;
+	}
 
-            if (_groupingCoordinator?.ActiveGrouping is null)
-                return source;
+	private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
 
-            var ds = GetOrCreateGroupedDataSource();
-            ds.SetSourceItems(source);
-            return ds.Items;
-        }
-    }
+	// Track whether grouping was active on last render to detect when it becomes active
+	private bool _groupingWasActiveOnLastRender;
 
-    private string GetGridContainerClass()
-    {
-        return EventPanelPlacement switch
-        {
-            EventPanelPlacement.Left or EventPanelPlacement.Right => "composable-grid-with-panel horizontal",
-            _ => "composable-grid-container"
-        };
-    }
+	// Track whether we have ever bound ItemsForQuickGrid while grouping was inactive.
+	private bool _boundInactiveOnce;
+	private bool _oneShotGroupingActivationRefreshIssued;
 
-    /// <summary>
-    /// Gets the filtered items after applying all active filters.
-    /// </summary>
-    public IQueryable<TGridItem> FilteredItems
-    {
-        get
-        {
-            var result = Items;
+	protected override void OnInitialized()
+	{
+		// Create the event stream - it's always available for features to use
+		// even if EventPanelPlacement is None (consumers can still use the cascaded value)
+		_editEventStream = new EditEventStream();
+	}
 
-            foreach (var filter in _filterFeatures.Where(f => f.HasActiveFilter))
-            {
-                result = filter.ApplyFilter(result);
-            }
+	protected override void OnAfterRender(bool firstRender)
+	{
+		// No-op for grouping activation. Grouping refresh is driven through GroupedGridDataSource.OnDataChanged.
+		// Keeping this empty avoids accidental render loops.
+	}
 
-            return result;
-        }
-    }
+	private IQueryable<TGridItem> ItemsForQuickGrid
+	{
+		get
+		{
+			var source = SortedItems;
 
-    /// <summary>
-    /// Gets the total count of items before filtering.
-    /// </summary>
-    public int TotalCount => Items.Count();
+			var coord = _groupingCoordinator;
+			var active = coord?.ActiveGrouping is not null;
+			var hostId = coord?.HeaderHostColumnId;
+			var coordId = coord is null ? "<null>" : coord.GetHashCode().ToString();
+			QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"ItemsForQuickGrid: groupingActive={active}, grid={GetHashCode()}, coord={coordId}, host='{hostId ?? "<null>"}'");
 
-    /// <summary>
-    /// Gets the count of items after filtering.
-    /// </summary>
-    public int FilteredCount => FilteredItems.Count();
+			if (!active)
+			{
+				_boundInactiveOnce = true;
+				return source;
+			}
 
-    /// <summary>
-    /// Gets whether any filter is currently active.
-    /// </summary>
-    public bool HasActiveFilters => _filterFeatures.Any(f => f.HasActiveFilter);
+			// If grouping became active after we previously bound an ungrouped source,
+			// request a single deterministic refresh so QuickGrid rebinds to grouped items.
+			if (_boundInactiveOnce && !_oneShotGroupingActivationRefreshIssued)
+			{
+				_oneShotGroupingActivationRefreshIssued = true;
+				_ = InvokeAsync(StateHasChanged);
+			}
 
-    /// <summary>
-    /// Registers a filter feature with the grid.
-    /// Called by ComposableColumn when it detects a filter feature.
-    /// </summary>
-    internal void RegisterFilter(IGridFilterFeature<TGridItem> filter)
-    {
-        if (!_filterFeatures.Contains(filter))
-        {
-            _filterFeatures.Add(filter);
-            filter.OnFilterChanged += OnFilterChangedAsync;
+			var ds = GetOrCreateGroupedDataSource();
+			ds.SetSourceItems(source);
+			return ds.Items;
+		}
+	}
 
-            // Trigger re-render to show the filter toolbar
-            StateHasChanged();
-        }
-    }
+	private string GetGridContainerClass()
+	{
+		return EventPanelPlacement switch
+		{
+			EventPanelPlacement.Left or EventPanelPlacement.Right => "composable-grid-with-panel horizontal",
+			_ => "composable-grid-container"
+		};
+	}
 
-    /// <summary>
-    /// Unregisters a filter feature from the grid.
-    /// </summary>
-    internal void UnregisterFilter(IGridFilterFeature<TGridItem> filter)
-    {
-        if (_filterFeatures.Remove(filter))
-        {
-            filter.OnFilterChanged -= OnFilterChangedAsync;
-        }
-    }
+	/// <summary>
+	/// Gets the filtered items after applying all active filters.
+	/// </summary>
+	public IQueryable<TGridItem> FilteredItems
+	{
+		get
+		{
+			var result = Items;
 
-    private async Task OnFilterChangedAsync()
-    {
-        await InvokeAsync(StateHasChanged);
-    }
+			foreach (var filter in _filterFeatures.Where(f => f.HasActiveFilter))
+			{
+				result = filter.ApplyFilter(result);
+			}
 
-    /// <summary>
-    /// Clears all active filters.
-    /// </summary>
-    public async Task ClearAllFiltersAsync()
-    {
-        foreach (var filter in _filterFeatures)
-        {
-            await filter.ClearFilterAsync();
-        }
-        await InvokeAsync(StateHasChanged);
-    }
+			return result;
+		}
+	}
 
-    private RenderFragment FilterInputFragment(IGridFilterFeature<TGridItem> filter) => builder =>
-    {
-        var seq = 0;
-        filter.RenderFilterInput(builder, ref seq);
-    };
+	/// <summary>
+	/// Gets the total count of items before filtering.
+	/// </summary>
+	public int TotalCount => Items.Count();
 
-    public void Dispose()
-    {
-        if (_groupedDataSource is not null)
-        {
-            _groupedDataSource.OnDataChanged -= OnGroupedDataChangedAsync;
-            _groupedDataSource = null;
-        }
+	/// <summary>
+	/// Gets the count of items after filtering.
+	/// </summary>
+	public int FilteredCount => FilteredItems.Count();
 
-        _groupingCoordinator?.Dispose();
-        _groupingCoordinator = null;
+	/// <summary>
+	/// Gets whether any filter is currently active.
+	/// </summary>
+	public bool HasActiveFilters => _filterFeatures.Any(f => f.HasActiveFilter);
 
-        _editEventStream?.Dispose();
-    }
+	/// <summary>
+	/// Registers a filter feature with the grid.
+	/// Called by ComposableColumn when it detects a filter feature.
+	/// </summary>
+	internal void RegisterFilter(IGridFilterFeature<TGridItem> filter)
+	{
+		if (!_filterFeatures.Contains(filter))
+		{
+			_filterFeatures.Add(filter);
+			filter.OnFilterChanged += OnFilterChangedAsync;
+
+			// Trigger re-render to show the filter toolbar
+			StateHasChanged();
+		}
+	}
+
+	/// <summary>
+	/// Unregisters a filter feature from the grid.
+	/// </summary>
+	internal void UnregisterFilter(IGridFilterFeature<TGridItem> filter)
+	{
+		if (_filterFeatures.Remove(filter))
+		{
+			filter.OnFilterChanged -= OnFilterChangedAsync;
+		}
+	}
+
+	private async Task OnFilterChangedAsync()
+	{
+		await InvokeAsync(StateHasChanged);
+	}
+
+	/// <summary>
+	/// Clears all active filters.
+	/// </summary>
+	public async Task ClearAllFiltersAsync()
+	{
+		foreach (var filter in _filterFeatures)
+		{
+			await filter.ClearFilterAsync();
+		}
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private RenderFragment FilterInputFragment(IGridFilterFeature<TGridItem> filter) => builder =>
+	{
+		var seq = 0;
+		filter.RenderFilterInput(builder, ref seq);
+	};
+
+	public void Dispose()
+	{
+		if (_groupedDataSource is not null)
+		{
+			_groupedDataSource.OnDataChanged -= OnGroupedDataChangedAsync;
+			_groupedDataSource = null;
+		}
+
+		_groupingCoordinator?.Dispose();
+		_groupingCoordinator = null;
+
+		_editEventStream?.Dispose();
+	}
 
 }

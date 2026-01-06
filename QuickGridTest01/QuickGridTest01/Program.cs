@@ -5,6 +5,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using System.Text;
+using QuickGridTest01.ComposableColumns.Core.Diagnostics;
 
 namespace QuickGridTest01
 {
@@ -26,6 +27,9 @@ namespace QuickGridTest01
 
             // Replace default logging with Serilog
             builder.Host.UseSerilog();
+
+            // Enable QuickGrid composable diagnostics (opt-in)
+            QgDebugLog.Enabled = true;
 
             // Add services to the container.
             builder.Services.AddRazorPages();

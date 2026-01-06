@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Rendering;
 using QuickGridTest01.RowColumn.Core;
+using QuickGridTest01.ComposableColumns.Core.Diagnostics;
+using System.Reflection;
 
 namespace QuickGridTest01.ComposableColumns.Core;
 
@@ -7,14 +9,23 @@ internal sealed class GroupingSyntheticBlankingFeature<TGridItem, TValue> : ICel
 {
     public int Priority => FeaturePriority.Grouping;
 
+    private const string ColumnIdStateKey = "Grouping.ColumnId";
+
+    private bool _loggedAttach;
+
     public void OnAttach(FeatureContext<TGridItem> context)
     {
-        // No-op. This feature is always present and relies only on context and the injected column reference.
+        if (!_loggedAttach)
+        {
+            _loggedAttach = true;
+            var thisColumnId = context.GetState<string>(ColumnIdStateKey);
+            var headerHostColumnId = TryGetHeaderHostColumnId(context);
+            QgDebugLog.Write($"BlankingFeature attach: thisColumnId='{thisColumnId ?? "<null>"}', headerHostColumnId='{headerHostColumnId ?? "<null>"}', columnType='{context.Column.GetType().FullName}'");
+        }
     }
 
     public void OnDetach(FeatureContext<TGridItem> context)
     {
-        // No-op.
     }
 
     public void RenderCell(RenderTreeBuilder builder, ref int sequence, TGridItem item, FeatureContext<TGridItem> context, Action renderNext)
@@ -31,9 +42,48 @@ internal sealed class GroupingSyntheticBlankingFeature<TGridItem, TValue> : ICel
             return;
         }
 
-        // For now, blank all grouping synthetic rows in all columns.
-        // The header-host column will be permitted to render grouping UI via a dedicated feature.
-        // This keeps Core decoupled from Features.Grouping while enforcing safe default behavior.
-        builder.AddContent(sequence++, string.Empty);
+        var thisColumnId = context.GetState<string>(ColumnIdStateKey);
+        var headerHostColumnId = TryGetHeaderHostColumnId(context);
+
+        var isHost = !string.IsNullOrEmpty(thisColumnId)
+            && string.Equals(thisColumnId, headerHostColumnId, StringComparison.Ordinal);
+
+        if (!isHost)
+        {
+            QgDebugLog.Write($"Blanking synthetic row id={identifiable.Id} for columnId='{thisColumnId ?? "<null>"}', hostId='{headerHostColumnId ?? "<null>"}'");
+            builder.AddContent(sequence++, string.Empty);
+            return;
+        }
+
+        renderNext();
+    }
+
+    private static string? TryGetHeaderHostColumnId(FeatureContext<TGridItem> context)
+    {
+        if (context.Grid is null)
+        {
+            QgDebugLog.Write($"TryGetHeaderHostColumnId: FeatureContext.Grid is null for columnType='{context.Column.GetType().FullName}'");
+            return null;
+        }
+
+        var gridObj = context.Grid;
+
+        // GetOrCreateGroupingCoordinator is internal; use NonPublic binding flags.
+        var getCoord = gridObj.GetType().GetMethod(
+            "GetOrCreateGroupingCoordinator",
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+
+        var coordObj = getCoord?.Invoke(gridObj, null);
+        if (coordObj is null)
+        {
+            QgDebugLog.Write($"TryGetHeaderHostColumnId: coord is null gridType='{gridObj.GetType().FullName}', grid={gridObj.GetHashCode()}");
+            return null;
+        }
+
+        var host = coordObj.GetType().GetProperty("HeaderHostColumnId", BindingFlags.Instance | BindingFlags.Public)?.GetValue(coordObj) as string;
+        var active = coordObj.GetType().GetProperty("ActiveGrouping", BindingFlags.Instance | BindingFlags.Public)?.GetValue(coordObj);
+
+        QgDebugLog.Write($"TryGetHeaderHostColumnId: grid={gridObj.GetHashCode()}, coord={coordObj.GetHashCode()}, host='{host ?? "<null>"}', active={(active is null ? "<null>" : "set")}");
+        return host;
     }
 }

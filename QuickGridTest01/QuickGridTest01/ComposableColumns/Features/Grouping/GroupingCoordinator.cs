@@ -1,4 +1,5 @@
-﻿using QuickGridTest01.ComposableColumns.Features.Grouping.Enums;
+﻿using QuickGridTest01.ComposableColumns.Core.Diagnostics;
+using QuickGridTest01.ComposableColumns.Features.Grouping.Enums;
 using QuickGridTest01.RowColumn.Core;
 using System.Linq.Expressions;
 
@@ -11,6 +12,8 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
     private readonly Dictionary<string, IGroupingFeature<TGridItem>> _registered = new(StringComparer.Ordinal);
 
     private readonly Dictionary<object, int> _keyToGroupId = new();
+    private readonly Dictionary<int, object?> _groupIdToKey = new();
+    private readonly Dictionary<int, int> _groupIdToItemCount = new();
     private int? _nullKeyGroupId;
     private int _nextGroupId = 1;
 
@@ -27,21 +30,66 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
     public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
 
+    /// <summary>
+    /// Gets the group key for a given groupId. Returns null if the groupId is not found or represents the null key.
+    /// </summary>
+    public object? GetGroupKey(int groupId)
+    {
+        return _groupIdToKey.TryGetValue(groupId, out var key) ? key : null;
+    }
+
+    /// <summary>
+    /// Gets the item count for a given groupId. Returns 0 if the groupId is not found.
+    /// </summary>
+    public int GetGroupItemCount(int groupId)
+    {
+        return _groupIdToItemCount.TryGetValue(groupId, out var count) ? count : 0;
+    }
+
+    /// <summary>
+    /// Returns whether a group is expanded, given its groupId.
+    /// </summary>
+    public bool IsGroupExpandedById(int groupId)
+    {
+        if (ActiveGrouping is null)
+            return false;
+
+        if (!_groupIdToKey.TryGetValue(groupId, out var key))
+            return false;
+
+        return ActiveGrouping.IsGroupExpanded(key);
+    }
+
     public void RegisterColumn(string columnId, IGroupingFeature<TGridItem> feature)
     {
         ArgumentNullException.ThrowIfNull(columnId);
         ArgumentNullException.ThrowIfNull(feature);
 
+        // Idempotent registration: first wins. Subsequent attempts are ignored.
         if (_registered.ContainsKey(columnId))
-            throw new InvalidOperationException($"Duplicate grouping column id registration: '{columnId}'.");
+        {
+            QgDebugLog.Write($"Coordinator.RegisterColumn DUPLICATE ignored: coord={GetHashCode()}, columnId='{columnId}', existingHost='{HeaderHostColumnId ?? "<null>"}', active={(ActiveGrouping is null ? "<null>" : "set")}");
+            return;
+        }
 
         _registered.Add(columnId, feature);
 
+        var prevHost = HeaderHostColumnId;
         HeaderHostColumnId ??= columnId;
+
+        if (!string.Equals(prevHost, HeaderHostColumnId, StringComparison.Ordinal))
+        {
+            QgDebugLog.Write($"Coordinator.RegisterColumn pinned host: coord={GetHashCode()}, host='{HeaderHostColumnId}', columnId='{columnId}'");
+        }
 
         if (ActiveGrouping is null && feature.IsActive)
         {
             ActiveGrouping = feature;
+            QgDebugLog.Write($"Coordinator.RegisterColumn set active: coord={GetHashCode()}, activeColumnId='{columnId}', host='{HeaderHostColumnId ?? "<null>"}'");
+        }
+        else
+        {
+            QgDebugLog.Write($"Coordinator.RegisterColumn registered: coord={GetHashCode()}, columnId='{columnId}', featureActive={feature.IsActive}, host='{HeaderHostColumnId ?? "<null>"}', active={(ActiveGrouping is null ? "<null>" : "set")}");
         }
     }
 
@@ -50,13 +98,18 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
         ArgumentNullException.ThrowIfNull(items);
 
         if (ActiveGrouping is null)
+        {
+            QgDebugLog.Write($"TransformItems: no active grouping, returning original items");
             return items;
+        }
 
         if (ActiveGrouping.GroupHeaderSlotSpan < 1)
             throw new ArgumentOutOfRangeException(nameof(ActiveGrouping.GroupHeaderSlotSpan), "GroupHeaderSlotSpan must be >= 1.");
 
         // Materialize once; grouping is a transformation stage.
         var source = items.ToList();
+        QgDebugLog.Write($"TransformItems: source.Count={source.Count}");
+        
         if (source.Count == 0)
             return Array.Empty<TGridItem>().AsQueryable();
 
@@ -105,6 +158,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
             var expanded = ActiveGrouping.IsGroupExpanded(key);
 
             var groupId = GetOrCreateGroupId(key);
+            _groupIdToItemCount[groupId] = groupItems.Count;
 
             // marker/spacers: reuse a representative item instance to manufacture synthetic rows.
             // This avoids requiring a parameterless constructor while keeping the output as TGridItem.
@@ -132,6 +186,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
             if (nullKeyItems.Count > 0)
             {
                 var groupId = GetOrCreateGroupId(null);
+                _groupIdToItemCount[groupId] = nullKeyItems.Count;
 
                 var representative = nullKeyItems[0];
 
@@ -147,6 +202,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
         }
         // Exclude => do nothing.
 
+        QgDebugLog.Write($"TransformItems: output.Count={output.Count}, groups={groups.Count}, expanded groups with items");
         return output.AsQueryable();
     }
 
@@ -185,6 +241,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
             var id = _nextGroupId++;
             _nullKeyGroupId = id;
+            _groupIdToKey[id] = null;
             return id;
         }
 
@@ -196,6 +253,7 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
         var newId = _nextGroupId++;
         _keyToGroupId[key] = newId;
+        _groupIdToKey[newId] = key;
         return newId;
     }
 
@@ -205,6 +263,8 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
         ActiveGrouping = null;
         HeaderHostColumnId = null;
         _keyToGroupId.Clear();
+        _groupIdToKey.Clear();
+        _groupIdToItemCount.Clear();
         _nullKeyGroupId = null;
         _nextGroupId = 1;
     }

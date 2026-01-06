@@ -28,6 +28,14 @@ public interface IColumnFeature<TGridItem>
     /// </summary>
     /// <param name="context">The shared context for all features in this column.</param>
     void OnDetach(FeatureContext<TGridItem> context);
+
+    /// <summary>
+    /// Called when the column's parameters have changed.
+    /// Features should update their internal state based on current property values.
+    /// Default implementation does nothing.
+    /// </summary>
+    /// <param name="context">The shared context for all features in this column.</param>
+    void OnParametersChanged(FeatureContext<TGridItem> context) { }
 }
 
 /// <summary>

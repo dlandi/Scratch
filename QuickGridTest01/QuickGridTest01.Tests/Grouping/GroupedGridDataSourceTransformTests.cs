@@ -52,7 +52,7 @@ public class GroupedGridDataSourceTransformTests
 
             public Task CollapseAllGroupsAsync() => Task.CompletedTask;
 
-            public void RenderGroupHeader(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, ref int sequence, object? key, int itemCount, bool isExpanded)
+            public void RenderGroupHeader(Microsoft.AspNetCore.Components.Rendering.RenderTreeBuilder builder, ref int sequence, object? key, int itemCount, bool isExpanded, Func<Task>? onToggle)
             {
             }
         }
@@ -262,5 +262,18 @@ public class GroupedGridDataSourceTransformTests
         ds.SetSourceItems(new[] { new TestRow { Id = 1, Category = "A" } }.AsQueryable());
 
         Assert.Throws<ArgumentOutOfRangeException>(() => ds.Items.ToList());
+    }
+
+    [Fact]
+    public void RegisterColumn_IsIdempotent_IgnoresDuplicateRegistrations()
+    {
+        var feature = new TestGroupingFeature { ColumnId = "Category", IsActive = true };
+        var coord = new GroupingCoordinator<TestRow>();
+
+        coord.RegisterColumn("Category", feature);
+        coord.RegisterColumn("Category", feature);
+
+        Assert.Equal("Category", coord.HeaderHostColumnId);
+        Assert.Same(feature, coord.ActiveGrouping);
     }
 }

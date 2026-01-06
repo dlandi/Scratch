@@ -34,5 +34,6 @@ public interface IGroupingFeature<TGridItem>
         ref int sequence,
         object? key,
         int itemCount,
-        bool isExpanded);
+        bool isExpanded,
+        Func<Task>? onToggle);
 }

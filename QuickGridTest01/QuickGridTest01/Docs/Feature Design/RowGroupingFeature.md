@@ -423,6 +423,9 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 │ 3. ComposableColumn.OnParametersSetAsync() [for each column]                │
 │    └─ Creates FeatureContext<TGridItem, TValue>                             │
 │    └─ Compiles Property expression → Context.GetValue                       │
+│    └─ Calls Grid.RegisterColumn(this)                                       │
+│       └─ (Optional early path) Grid detects grouping features and registers │
+│          them with the grid-owned GroupingCoordinator (idempotent)          │
 │    └─ Calls Initialize() → feature.OnAttach(Context) for each feature       │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -450,7 +453,7 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 │    │                                                                        │
 │    ├─ Register this column with coordinator:                                │
 │    │  └─ coordinator.RegisterColumn(columnId, this)                         │
-│    │  └─ Throws if columnId already registered                              │
+│    │  └─ Idempotent: ignores duplicate registrations for the same columnId  │
 │    │                                                                        │
 │    └─ If IsActive && coordinator.ActiveGrouping is null (first wins):       │
 │       └─ coordinator.SetActiveGrouping(columnId)                            │
@@ -589,6 +592,51 @@ The grouping feature follows the ComposableColumns lifecycle. Understanding this
 | Coordinator created by first GroupingFeature | Ensures single coordinator per grid |
 | First `IsActive = true` wins | Deterministic based on column order in markup |
 | Grouped data source `OnDataChanged` triggers full re-render | Single refresh authority for grouping state changes (avoids double-refresh loops) |
+
+## 2.6.9 Addendum — Early + Idempotent Grouping Registration (normative)
+
+### Motivation
+
+In practice, `ComposableGrid<TGridItem>` may evaluate its `ItemsForQuickGrid` binding during a render pass **before** all columns have completed feature attachment.
+This can cause grouping to be observed as inactive during the first render if registration happens only inside `GroupingFeature.OnAttach`.
+
+To keep grouping deterministic while avoiding render/refresh loops, grouping registration is defined as a **dual-path** operation:
+
+- an **early grid-level registration** path (preferred)
+- a **feature attach-time registration** path (required for completeness)
+
+### 2.6.9.1 Dual-path registration (required)
+
+Grouping columns may be registered with the grid-owned `GroupingCoordinator<TGridItem>` from either (or both) of the following points:
+
+1. **Grid-level (early) registration**
+   - During column registration (`ComposableGrid.RegisterColumn(...)`) the grid may detect grouping features attached to that column and register them immediately.
+   - This is the preferred path because it can establish `HeaderHostColumnId` and (when `IsActive=true`) `ActiveGrouping` before `ItemsForQuickGrid` is evaluated.
+
+2. **Feature attach-time registration**
+   - `GroupingFeature<TGridItem, TValue>.OnAttach(...)` must also register its grouping capability with the coordinator (filter-registration pattern), because this is the canonical feature lifecycle hook.
+
+**Compatibility rule:** Implementations must be correct if **both** paths call registration for the same column.
+
+### 2.6.9.2 Idempotent coordinator registration (required)
+
+`GroupingCoordinator<TGridItem>.RegisterColumn(columnId, feature)` must be **idempotent**.
+
+- If `columnId` is registered for the first time, the coordinator records the feature.
+- If `columnId` is registered again later, the coordinator must **ignore** the subsequent registration (no-op).
+- The coordinator must not throw solely due to duplicate registration attempts for the same `columnId`.
+
+**First-wins rules (unchanged):**
+
+- `HeaderHostColumnId` is pinned to the first registered grouping column.
+- `ActiveGrouping` is pinned to the first registered grouping column with `IsActive = true`.
+
+### 2.6.9.3 Refresh rule when grouping becomes active (required)
+
+If grouping becomes active only after a render pass has already bound `QuickGrid.Items` (i.e., `ItemsForQuickGrid` was evaluated while inactive), the grid may perform **at most one** deterministic refresh to rebind `ItemsForQuickGrid`.
+
+- This must not become a render loop.
+- Group expand/collapse refresh authority remains `GroupedGridDataSource.OnDataChanged -> grid InvokeAsync(StateHasChanged)`.
 
 ---
 
@@ -746,7 +794,6 @@ public record GroupToolbarContext(
     int ExpandedGroupCount
 );
 ```
-```
 
 ### 4.3 Row rendering model (no union row type)
 
@@ -774,7 +821,7 @@ internal class GroupingCoordinator<TGridItem> : IDisposable
 
     /// <summary>
     /// Register a column's grouping capability.
-    /// Throws InvalidOperationException if columnId is already registered.
+    /// Idempotent: ignores duplicate registrations for the same columnId.
     /// </summary>
     public void RegisterColumn(string columnId, IGroupingFeature<TGridItem> feature);
 
@@ -886,17 +933,6 @@ public interface IGroupingFeature<TGridItem>
         bool isExpanded,
         int level);
 }
-
-#### 2.4.2.3 QuickGrid binding + sort suppression while grouping is active (normative)
-
-To avoid invented pipeline glue, `ComposableGrid<TGridItem>` must bind QuickGrid to a single, deterministic sequence:
-
-- When grouping is inactive: `ItemsForQuickGrid = SortedItems`
-- When grouping is active: `ItemsForQuickGrid = GroupedItems(SortedItems)`
-
-`QuickGrid.Items` must always bind to `ItemsForQuickGrid`.
-
-When grouping is active, `ComposableGrid<TGridItem>` must prevent QuickGrid from applying a global sort over `ItemsForQuickGrid` (marker/spacer rows must not be reordered relative to data rows). Any active sort must be applied as intra-group ordering during the grouping transform.
 ```
 
 ### 5.4 IGridDataTransformer Interface

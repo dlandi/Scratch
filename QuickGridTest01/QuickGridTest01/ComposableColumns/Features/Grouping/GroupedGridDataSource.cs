@@ -20,8 +20,12 @@ public sealed class GroupedGridDataSource<TGridItem>
 
     public void SetSourceItems(IQueryable<TGridItem> source)
     {
-        _sourceItems = source ?? throw new ArgumentNullException(nameof(source));
-        MarkDirty();
+        ArgumentNullException.ThrowIfNull(source);
+
+        // Always mark dirty to ensure transform runs on each render cycle.
+        // The coordinator's transform may produce different results based on expansion state.
+        _sourceItems = source;
+        _dirty = true;
     }
 
     public IQueryable<TGridItem> Items
