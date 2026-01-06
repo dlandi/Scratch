@@ -1,6 +1,6 @@
 ﻿@using QuickGridTest01.ComposableColumns.Features.Grouping
 
-<div class="qg-group-header" @onclick="HandleClick">
+<div class="qg-group-header @(IsExpanded ? "expanded" : "collapsed")" @onclick="HandleClick">
     <span class="qg-group-chevron">@(IsExpanded ? "▼" : "▶")</span>
     <span class="qg-group-key">@(_keyText)</span>
     <span class="qg-group-count">(@ItemCount)</span>
