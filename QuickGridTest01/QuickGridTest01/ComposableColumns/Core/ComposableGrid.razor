@@ -134,6 +134,10 @@
 
 	internal void RegisterColumn(IColumnFeatureProvider<TGridItem> column)
 	{
+		var hadAnyGroupingBefore = _columns
+			.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>())
+			.Any();
+
 		if (!_columns.Contains(column))
 		{
 			_columns.Add(column);
@@ -155,6 +159,11 @@
 			// schedule a re-render so ItemsForQuickGrid can pick up the grouped items.
 			if (!hadActiveGroupingBefore && coordinator.ActiveGrouping is not null)
 			{
+				_ = InvokeAsync(StateHasChanged);
+			}
+			else if (!hadAnyGroupingBefore)
+			{
+				// We just observed the first grouping feature. Re-render so the grouping toolbar becomes visible.
 				_ = InvokeAsync(StateHasChanged);
 			}
 		}
@@ -223,11 +232,30 @@
 
 	private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
 
+	private IReadOnlyList<string> GetGroupingColumnIdsFromRegisteredColumns()
+	{
+		var ids = _columns
+			.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>())
+			.Select(f => f.ColumnId)
+			.Where(id => !string.IsNullOrWhiteSpace(id))
+			.Distinct(StringComparer.Ordinal)
+			.ToList();
+
+		return ids;
+	}
+
 	private bool HasGroupingOptions
-		=> _groupingCoordinator is not null && _groupingCoordinator.GetRegisteredColumnIds().Count > 0;
+	{
+		get
+		{
+			// Ensure the toolbar renders as soon as columns are registered,
+			// even if the coordinator has not yet been created.
+			return GetGroupingColumnIdsFromRegisteredColumns().Count > 0;
+		}
+	}
 
 	private IReadOnlyList<string> GroupingColumnIds
-		=> _groupingCoordinator?.GetRegisteredColumnIds() ?? Array.Empty<string>();
+		=> _groupingCoordinator?.GetRegisteredColumnIds() ?? GetGroupingColumnIdsFromRegisteredColumns();
 
 	private string ActiveGroupingColumnId
 		=> _groupingCoordinator?.ActiveGrouping?.ColumnId ?? string.Empty;
@@ -239,7 +267,16 @@
 	{
 		var coord = _groupingCoordinator;
 		if (coord is null)
-			return;
+		{
+			// Coordinator may not exist yet if no early registration created it.
+			// Create it on demand when the user interacts with the toolbar.
+			coord = GetOrCreateGroupingCoordinator();
+			foreach (var f in _columns.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>()))
+			{
+				if (!string.IsNullOrWhiteSpace(f.ColumnId))
+					coord.RegisterColumn(f.ColumnId, f);
+			}
+		}
 
 		var selected = e.Value?.ToString();
 		coord.SetActiveGrouping(string.IsNullOrWhiteSpace(selected) ? null : selected);

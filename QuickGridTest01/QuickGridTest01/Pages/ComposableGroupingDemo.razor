@@ -24,13 +24,6 @@
             </p>
         </div>
 
-        <div class="demo-controls">
-            <label class="inline-checkbox">
-                <input type="checkbox" checked="@_initiallyExpanded" @onchange="OnInitiallyExpandedChanged" />
-                <span>Initially expanded</span>
-            </label>
-        </div>
-
         <div class="qg-grid-container">
             <ComposableGrid TGridItem="DemoRow" Items="@_items">
                 <ComposableColumn TGridItem="DemoRow" TValue="int" Title="ID" Property="@(r => r.Id)" />
@@ -73,7 +66,6 @@
         public decimal Price { get; set; }
     }
 
-    private bool _initiallyExpanded = true;
     private IQueryable<DemoRow> _items = Array.Empty<DemoRow>().AsQueryable();
     private readonly List<string> _eventLog = new();
 
@@ -122,18 +114,6 @@
         _items = products.AsQueryable();
         _features = [_groupingFeature];
         _statusFeatures = [_statusGroupingFeature];
-    }
-
-    private void OnInitiallyExpandedChanged(ChangeEventArgs e)
-    {
-        if (e.Value is bool b)
-            _initiallyExpanded = b;
-        else if (bool.TryParse(e.Value?.ToString(), out var parsed))
-            _initiallyExpanded = parsed;
-
-        // Update the feature's property - OnParametersChanged will handle the state reset
-        _groupingFeature.InitiallyExpanded = _initiallyExpanded;
-        StateHasChanged();
     }
 
     private void Log(string msg)
