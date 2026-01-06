@@ -21,6 +21,8 @@ public interface IGroupingFeature<TGridItem>
 
     Func<TGridItem, object?> GroupByUntyped { get; }
 
+    bool ShowExpandCollapseAllButtons { get; }
+
     bool IsGroupExpanded(object key);
 
     Task ToggleGroupAsync(object key);

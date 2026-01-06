@@ -13,7 +13,6 @@ public sealed class GroupHeaderHostFeature<TGridItem> : ICellRenderFeature<TGrid
     private IGroupingFeature<TGridItem>? _grouping;
     private bool _loggedAttach;
 
-    private const string ToolbarRenderedStateKey = "Grouping.ToolbarRendered";
     private const string ColumnIdStateKey = "Grouping.ColumnId";
 
     public void OnAttach(FeatureContext<TGridItem> context)
@@ -89,9 +88,6 @@ public sealed class GroupHeaderHostFeature<TGridItem> : ICellRenderFeature<TGrid
 
         builder.OpenElement(sequence++, "div");
         builder.AddAttribute(sequence++, "class", "qg-group-header-host");
-
-        if (!context.HasState(ToolbarRenderedStateKey))
-            context.SetState(ToolbarRenderedStateKey, true);
 
         // Create toggle callback that invokes ToggleGroupAsync with the real key
         Func<Task>? onToggle = key is not null || coordinator is not null

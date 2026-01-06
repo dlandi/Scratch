@@ -39,7 +39,8 @@
                 <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)"
                                   FeatureCollection="@_features" />
 
-                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)" />
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)"
+                                  FeatureCollection="@_statusFeatures" />
                 <ComposableColumn TGridItem="DemoRow" TValue="decimal" Title="Price" Property="@(r => r.Price)" Format="C" />
             </ComposableGrid>
         </div>
@@ -80,12 +81,21 @@
     private readonly GroupingFeature<DemoRow, string> _groupingFeature = new()
     {
         ColumnId = "Category",
-        IsActive = true,
+        IsActive = false,
+        InitiallyExpanded = true,
+        ShowExpandCollapseAllButtons = true
+    };
+
+    private readonly GroupingFeature<DemoRow, string> _statusGroupingFeature = new()
+    {
+        ColumnId = "Status",
+        IsActive = false,
         InitiallyExpanded = true,
         ShowExpandCollapseAllButtons = true
     };
 
     private IColumnFeature<DemoRow>[] _features = [];
+    private IColumnFeature<DemoRow>[] _statusFeatures = [];
 
     protected override void OnInitialized()
     {
@@ -111,6 +121,7 @@
 
         _items = products.AsQueryable();
         _features = [_groupingFeature];
+        _statusFeatures = [_statusGroupingFeature];
     }
 
     private void OnInitiallyExpandedChanged(ChangeEventArgs e)

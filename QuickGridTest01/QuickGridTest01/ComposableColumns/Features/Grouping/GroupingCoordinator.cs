@@ -30,6 +30,28 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
     public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
 
+    internal IReadOnlyList<string> GetRegisteredColumnIds()
+    {
+        // Dictionary preserves insertion order in modern .NET.
+        return _registered.Keys.ToList();
+    }
+
+    public void SetActiveGrouping(string? columnId)
+    {
+        if (string.IsNullOrWhiteSpace(columnId))
+        {
+            ActiveGrouping = null;
+            QgDebugLog.Write($"Coordinator.SetActiveGrouping: disabled, coord={GetHashCode()}");
+            return;
+        }
+
+        if (!_registered.TryGetValue(columnId, out var feature))
+            throw new InvalidOperationException($"Grouping columnId '{columnId}' is not registered.");
+
+        ActiveGrouping = feature;
+        QgDebugLog.Write($"Coordinator.SetActiveGrouping: activeColumnId='{columnId}', coord={GetHashCode()}, host='{HeaderHostColumnId ?? "<null>"}'");
+    }
+
     /// <summary>
     /// Gets the group key for a given groupId. Returns null if the groupId is not found or represents the null key.
     /// </summary>

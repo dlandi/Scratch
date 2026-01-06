@@ -48,6 +48,31 @@
 						</div>
 					}
 
+					@* Grid toolbar: Grouping section (below filters, closest to grid) *@
+					@if (HasGroupingOptions)
+					{
+						<div class="qg-group-toolbar">
+							<div class="qg-group-toolbar-row">
+								<label class="qg-label" for="qg-groupby-select">Group by</label>
+								<select id="qg-groupby-select" class="qg-select" value="@ActiveGroupingColumnId" @onchange="OnGroupByChangedAsync">
+									<option value="">None</option>
+									@foreach (var columnId in GroupingColumnIds)
+									{
+										<option value="@columnId">@columnId</option>
+									}
+								</select>
+
+								@if (ShouldShowGroupingExpandCollapseButtons)
+								{
+									<div class="qg-group-controls">
+										<button type="button" class="qg-expand-all" @onclick="ExpandAllGroupsAsync">Expand all</button>
+										<button type="button" class="qg-collapse-all" @onclick="CollapseAllGroupsAsync">Collapse all</button>
+									</div>
+								}
+							</div>
+						</div>
+					}
+
 					<QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
 						@ChildContent
 					</QuickGrid>
@@ -197,6 +222,55 @@
 	}
 
 	private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
+
+	private bool HasGroupingOptions
+		=> _groupingCoordinator is not null && _groupingCoordinator.GetRegisteredColumnIds().Count > 0;
+
+	private IReadOnlyList<string> GroupingColumnIds
+		=> _groupingCoordinator?.GetRegisteredColumnIds() ?? Array.Empty<string>();
+
+	private string ActiveGroupingColumnId
+		=> _groupingCoordinator?.ActiveGrouping?.ColumnId ?? string.Empty;
+
+	private bool ShouldShowGroupingExpandCollapseButtons
+		=> _groupingCoordinator?.ActiveGrouping?.ShowExpandCollapseAllButtons == true;
+
+	private async Task OnGroupByChangedAsync(ChangeEventArgs e)
+	{
+		var coord = _groupingCoordinator;
+		if (coord is null)
+			return;
+
+		var selected = e.Value?.ToString();
+		coord.SetActiveGrouping(string.IsNullOrWhiteSpace(selected) ? null : selected);
+
+		// If grouping was disabled, drop any grouped data source so ItemsForQuickGrid is ungrouped.
+		if (coord.ActiveGrouping is null)
+		{
+			_groupedDataSource = null; // Unbind grouped data source
+			_oneShotGroupingActivationRefreshIssued = false;
+		}
+
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private async Task ExpandAllGroupsAsync()
+	{
+		var active = _groupingCoordinator?.ActiveGrouping;
+		if (active is null)
+			return;
+
+		await active.ExpandAllGroupsAsync();
+	}
+
+	private async Task CollapseAllGroupsAsync()
+	{
+		var active = _groupingCoordinator?.ActiveGrouping;
+		if (active is null)
+			return;
+
+		await active.CollapseAllGroupsAsync();
+	}
 
 	// Track whether grouping was active on last render to detect when it becomes active
 	private bool _groupingWasActiveOnLastRender;

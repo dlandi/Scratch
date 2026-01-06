@@ -27,6 +27,8 @@ public class GroupedGridDataSourceTransformTests
         public IEqualityComparer<object?>? KeyComparer => null;
         public Func<TestRow, object?> GroupByUntyped { get; init; } = r => r.Category;
 
+        public bool ShowExpandCollapseAllButtons { get; init; }
+
         public bool IsGroupExpanded(object key) => _expanded.Contains(key);
 
         public void SetExpanded(object key, bool isExpanded)

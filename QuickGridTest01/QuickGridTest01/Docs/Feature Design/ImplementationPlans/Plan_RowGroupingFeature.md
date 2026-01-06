@@ -1059,6 +1059,58 @@ Seed requirements:
 - At least 5 products per category
 - Ensure category names are visually distinct (e.g., Electronics, Clothing, Books, Home, Sports)
 
+---
+
+## 14. Addendum — Grid toolbar: Grouping section (Group By selector)
+
+### 14.1 Purpose
+
+Grouping includes a grid-level UI surface for selecting which grouping column is active at runtime.
+
+Per `Docs/Feature Design/RowGroupingFeature.md` (§2.5.2.2), the **Grid toolbar: Grouping section** is rendered:
+
+- in the grid's toolbar region
+- **below** filtering UI when present
+- **closest to the grid**
+- **once per grid**
+
+This must not depend on the presence of any specific group header marker row in the current virtualization viewport.
+
+### 14.2 Minimum viable UI
+
+1. Group By selector:
+   - label: "Group by"
+   - option: "None" (disables grouping)
+   - options: one per registered groupable column
+   - displayed labels: `ColumnId` (initial implementation)
+
+2. Optional Expand All / Collapse All:
+   - rendered only when grouping is active and `ShowExpandCollapseAllButtons` is enabled on the active grouping feature
+   - actions must be awaited (no fire-and-forget)
+
+### 14.3 Runtime behavior rules
+
+- Selecting "None" disables grouping. The grid binds `QuickGrid.Items` back to `SortedItems`.
+- Selecting a `ColumnId` activates grouping by setting `GroupingCoordinator.ActiveGrouping`.
+- Disabling grouping and later re-enabling it preserves group expansion state by default.
+
+### 14.4 Coordinator integration
+
+The grid toolbar requires these coordinator capabilities:
+
+1. Enumerate registered grouping column ids (stable ordering).
+2. Set the active grouping id (or disable grouping).
+
+The coordinator remains grid-owned and is accessed through the cascaded `ComposableGrid<TGridItem>` instance.
+
+### 14.5 Styling location
+
+All styling for the grid toolbar grouping section must be placed in:
+
+- `wwwroot/css/qgComposable-refined-minimalism.css`
+
+This section should visually align with the existing filtering toolbar.
+
 #### 13.3 Demo layout: two grids + two event logs
 
 The demo page must render **two separate grids** so both supported UI modes are demonstrated side-by-side without toggles:

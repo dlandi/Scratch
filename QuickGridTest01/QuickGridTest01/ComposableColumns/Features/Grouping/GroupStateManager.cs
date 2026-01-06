@@ -3,17 +3,17 @@
 public sealed class GroupStateManager<TValue>
 {
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly HashSet<TValue> _toggledKeys;
+    private readonly HashSet<TValue> _expanded;
     private bool _defaultExpanded;
 
     public GroupStateManager(IEqualityComparer<TValue>? comparer = null)
     {
-        _toggledKeys = new HashSet<TValue>(comparer);
+        _expanded = new HashSet<TValue>(comparer);
     }
 
-    public bool HasExpandedGroups => _defaultExpanded || _toggledKeys.Count > 0;
+    public bool HasExpandedGroups => _defaultExpanded || _expanded.Count > 0;
 
-    public int ExpandedGroupCount => _toggledKeys.Count;
+    public int ExpandedGroupCount => _expanded.Count;
 
     /// <summary>
     /// Sets the default expansion state for keys that have not been explicitly toggled.
@@ -29,14 +29,14 @@ public sealed class GroupStateManager<TValue>
     /// </summary>
     public void ResetToDefault(bool defaultExpanded)
     {
-        _toggledKeys.Clear();
+        _expanded.Clear();
         _defaultExpanded = defaultExpanded;
     }
 
     /// <summary>
     /// Returns whether a key has been explicitly toggled (vs. using default state).
     /// </summary>
-    public bool HasExplicitState(TValue key) => _toggledKeys.Contains(key);
+    public bool HasExplicitState(TValue key) => _expanded.Contains(key);
 
     /// <summary>
     /// Returns whether the key is expanded.
@@ -45,12 +45,7 @@ public sealed class GroupStateManager<TValue>
     /// </summary>
     public bool IsExpanded(TValue key)
     {
-        if (_toggledKeys.Contains(key))
-        {
-            // Key has been toggled: if default is expanded, being in set means collapsed; vice versa
-            return !_defaultExpanded;
-        }
-        return _defaultExpanded;
+        return _defaultExpanded || _expanded.Contains(key);
     }
 
     public async Task InitializeAsync(IEnumerable<TValue> allKeys, bool initiallyExpanded, CancellationToken cancellationToken = default)
@@ -60,8 +55,14 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            _toggledKeys.Clear();
             _defaultExpanded = initiallyExpanded;
+
+            _expanded.Clear();
+            if (initiallyExpanded)
+            {
+                foreach (var key in allKeys)
+                    _expanded.Add(key);
+            }
         }
         finally
         {
@@ -74,11 +75,8 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            // Toggle: if key is in set, remove it (revert to default); if not, add it (deviate from default)
-            if (!_toggledKeys.Add(key))
-            {
-                _toggledKeys.Remove(key);
-            }
+            if (!_expanded.Add(key))
+                _expanded.Remove(key);
         }
         finally
         {
@@ -91,16 +89,7 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            if (_defaultExpanded)
-            {
-                // Default is expanded, so remove from toggled set to get expanded
-                _toggledKeys.Remove(key);
-            }
-            else
-            {
-                // Default is collapsed, so add to toggled set to get expanded
-                _toggledKeys.Add(key);
-            }
+            _expanded.Add(key);
         }
         finally
         {
@@ -113,16 +102,7 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            if (_defaultExpanded)
-            {
-                // Default is expanded, so add to toggled set to get collapsed
-                _toggledKeys.Add(key);
-            }
-            else
-            {
-                // Default is collapsed, so remove from toggled set to get collapsed
-                _toggledKeys.Remove(key);
-            }
+            _expanded.Remove(key);
         }
         finally
         {
@@ -135,8 +115,12 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            _toggledKeys.Clear();
             _defaultExpanded = true;
+            _expanded.Clear();
+
+            ArgumentNullException.ThrowIfNull(allKeys);
+            foreach (var key in allKeys)
+                _expanded.Add(key);
         }
         finally
         {
@@ -149,8 +133,8 @@ public sealed class GroupStateManager<TValue>
         await _lock.WaitAsync(cancellationToken);
         try
         {
-            _toggledKeys.Clear();
             _defaultExpanded = false;
+            _expanded.Clear();
         }
         finally
         {

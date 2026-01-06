@@ -209,7 +209,7 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
             .ToArray();
 
         await _state.ExpandAllAsync(keys);
-        await RequestDataRefreshAsync();
+        NotifyGridGroupingStateChanged();
     }
 
     public async Task CollapseAllGroupsAsync()
@@ -218,15 +218,15 @@ public sealed class GroupingFeature<TGridItem, TValue> : IColumnFeature<TGridIte
             return;
 
         await _state.CollapseAllAsync();
-        await RequestDataRefreshAsync();
+        NotifyGridGroupingStateChanged();
     }
 
-    private async Task RequestDataRefreshAsync()
+    private void NotifyGridGroupingStateChanged()
     {
-        if (_context?.InvokeAsync is null || _context.RequestRefreshAsync is null)
+        if (_context?.Grid is not ComposableGrid<TGridItem> grid)
             return;
 
-        await _context.InvokeAsync(_context.RequestRefreshAsync);
+        grid.NotifyGroupingStateChanged();
     }
 
     public void RenderGroupHeader(
