@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.QuickGrid;
 using Microsoft.AspNetCore.Components.Rendering;
 using System.Collections.Generic;
 using QuickGridTest01.ComposableColumns.Features.Editing;
+using QuickGridTest01.ComposableColumns.Infrastructure;
 
 namespace QuickGridTest01.ComposableColumns.Core;
 
@@ -150,23 +151,14 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         if (Property is not null && Property != _lastProperty)
         {
             _lastProperty = Property;
-            Context.GetValue = Property.Compile();
+            Context.GetValue = Accessors.CreateGetter(Property);
+            Context.SetValue = Accessors.CreateSetter(Property);
 
-            // Create setter if possible
+            // Extract property metadata if available
             if (Property.Body is MemberExpression memberExpr && memberExpr.Member is PropertyInfo propInfo)
             {
                 Context.SetState(FeatureStateKeys.PropertyName, propInfo.Name);
                 Context.SetState(FeatureStateKeys.PropertyType, typeof(TValue));
-
-                // Bill setter expression
-                if (propInfo.CanWrite)
-                {
-                    var param = Property.Parameters[0];
-                    var valueParam = Expression.Parameter(typeof(TValue), "value");
-                    var assign = Expression.Assign(memberExpr, valueParam);
-                    var setter = Expression.Lambda<Action<TGridItem, TValue>>(assign, param, valueParam);
-                    Context.SetValue = setter.Compile();
-                }
             }
 
             // Set up sorting if enabled
