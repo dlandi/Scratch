@@ -1,6 +1,7 @@
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.QuickGrid;
 using QuickGridTest01.ComposableColumns.Core;
+using QuickGridTest01.ComposableColumns.Demos;
 using QuickGridTest01.ComposableColumns.Features.Core;
 using QuickGridTest01.ComposableColumns.Features.Formatting;
 using QuickGridTest01.ComposableColumns.Features.Styling;
@@ -14,7 +15,6 @@ public partial class ComposableColumnDemo
 {
     private IQueryable<Product> _products = default!;
     private IQueryable<EditableProduct> _editableProducts = default!;
-    private IQueryable<FeaturePriorityInfo> _featurePriorities = default!;
     private string _lastEditMessage = "";
 
     // Grid reference for filtering section
@@ -66,7 +66,6 @@ public partial class ComposableColumnDemo
         InitializeEditingFeatures();
         InitializeNewEditorFeatures();
         InitializeEventDemoFeatures();
-        InitializeFeaturePriorities();
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -79,23 +78,8 @@ public partial class ComposableColumnDemo
 
     private void InitializeProducts()
     {
-        _products = new List<Product>
-        {
-            new(1, "Widget Pro", 299.99m, 45, ProductStatus.Active, DateTime.Now.AddDays(-5), true),
-            new(2, "Gadget Max", 149.50m, 8, ProductStatus.Active, DateTime.Now.AddDays(-2), true),
-            new(3, "Tool Basic", 49.99m, 0, ProductStatus.Discontinued, DateTime.Now.AddDays(-30), false),
-            new(4, "Device Ultra", 599.00m, 120, ProductStatus.Active, DateTime.Now.AddDays(-1), true),
-            new(5, "Component X", 25.00m, 3, ProductStatus.ComingSoon, DateTime.Now.AddDays(-10), true),
-            new(6, "Assembly Kit", 89.99m, 67, ProductStatus.Active, DateTime.Now.AddDays(-7), true)
-        }.AsQueryable();
-
-        _editableProducts = new List<EditableProduct>
-        {
-            new() { Id = 1, Name = "Widget Pro", Price = 299.99m, Stock = 45, Status = ProductStatus.Active },
-            new() { Id = 2, Name = "Gadget Max", Price = 149.50m, Stock = 8, Status = ProductStatus.Active },
-            new() { Id = 3, Name = "Tool Basic", Price = 49.99m, Stock = 0, Status = ProductStatus.Discontinued },
-            new() { Id = 4, Name = "Device Ultra", Price = 599.00m, Stock = 120, Status = ProductStatus.Active }
-        }.AsQueryable();
+        _products = ComposableDemoData.GetProducts();
+        _editableProducts = ComposableDemoData.GetEditableProducts();
     }
 
     private void InitializeFilterFeatures()
@@ -353,23 +337,6 @@ public partial class ComposableColumnDemo
         StateHasChanged();
     }
 
-    private void InitializeFeaturePriorities()
-    {
-        _featurePriorities = new List<FeaturePriorityInfo>
-        {
-            new("Infrastructure", 0, "Property expression, compiled accessor"),
-            new("Core", 100, "Type traits, auto-title inference"),
-            new("Formatting", 200, "Format string, custom formatter, culture"),
-            new("Styling", 300, "Conditional CSS, icons, tooltips"),
-            new("Filtering", 400, "Type-aware filters, inline filters"),
-            new("Editing", 500, "Inline editing, edit state, debounce"),
-            new("Validation", 600, "Validators, data annotations"),
-            new("Events", 700, "Value changed, state changed, before edit"),
-            new("Performance", 800, "Memoization, minimal DOM, set key"),
-            new("Final", 1000, "Final wrapper features")
-        }.AsQueryable();
-    }
-
     // Event counter tracking methods
     private void HandleEventStreamPublished(EditEventBase evt)
     {
@@ -397,25 +364,4 @@ public partial class ComposableColumnDemo
         StateHasChanged();
     }
 
-    // Demo models - Added InStock boolean for boolean filter demo
-    public record Product(int Id, string Name, decimal Price, int Stock, ProductStatus Status, DateTime LastUpdated, bool InStock);
-
-    // Editable version with mutable properties
-    public class EditableProduct
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public decimal Price { get; set; }
-        public int Stock { get; set; }
-        public ProductStatus Status { get; set; }
-    }
-
-    public enum ProductStatus
-    {
-        Active,
-        Discontinued,
-        ComingSoon
-    }
-
-    public record FeaturePriorityInfo(string Category, int Priority, string Description);
 }

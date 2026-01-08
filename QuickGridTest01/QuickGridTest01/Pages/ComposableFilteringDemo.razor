@@ -1,0 +1,78 @@
+﻿@page "/composable-filtering-demo"
+@using System
+@using QuickGridTest01.ComposableColumns.Demos
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Filtering
+
+<PageTitle>Composable Grid - Filtering Features</PageTitle>
+
+<section class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">Filtering Features</h2>
+        <p class="qg-section-description">
+            <strong>Grid-integrated filtering:</strong> Add <code>FilterFeature</code> to any column and the grid automatically renders
+            a filter toolbar and applies filters to the data.
+        </p>
+    </div>
+
+    <div class="qg-grid-container">
+        <ComposableGrid @ref="_filterGrid" TGridItem="Product" Items="@_products" RowKey="p => p.Id" Class="qg-grid">
+            <ComposableColumn TGridItem="Product" TValue="int"
+                              Property="@(p => p.Id)"
+                              Title="ID" />
+            <ComposableColumn TGridItem="Product" TValue="string"
+                              Property="@(p => p.Name)"
+                              Title="Name"
+                              Sortable="true"
+                              FeatureCollection="@_nameFilterFeatures" />
+            <ComposableColumn TGridItem="Product" TValue="decimal"
+                              Property="@(p => p.Price)"
+                              Title="Price"
+                              Format="C2"
+                              Sortable="true"
+                              FeatureCollection="@_priceFilterFeatures" />
+            <ComposableColumn TGridItem="Product" TValue="int"
+                              Property="@(p => p.Stock)"
+                              Title="Stock"
+                              Sortable="true"
+                              FeatureCollection="@_stockFilterFeatures" />
+            <ComposableColumn TGridItem="Product" TValue="DateTime"
+                              Property="@(p => p.LastUpdated)"
+                              Title="Updated"
+                              Format="yyyy-MM-dd"
+                              Sortable="true"
+                              FeatureCollection="@_dateFilterFeatures" />
+            <ComposableColumn TGridItem="Product" TValue="bool"
+                              Property="@(p => p.InStock)"
+                              Title="In Stock"
+                              Sortable="true"
+                              FeatureCollection="@_inStockFilterFeatures" />
+        </ComposableGrid>
+    </div>
+
+        <div class="code-preview">
+            <h4>Code Example</h4>
+            <pre><code>// Simply add FilterFeature to columns - grid handles the rest!
+    // String filter - auto-detects: Contains, Equals, StartsWith, EndsWith
+    _nameFilterFeatures = [new FilterFeature&lt;Product, string&gt; { Placeholder = "Name..." }];
+
+    // Numeric filters - auto-detects: Equals, GreaterThan, LessThan
+    _priceFilterFeatures = [new FilterFeature&lt;Product, decimal&gt; { Placeholder = "Price..." }];
+    _stockFilterFeatures = [new FilterFeature&lt;Product, int&gt; { Placeholder = "Stock..." }];
+
+    // DateTime filter - auto-detects: Equals, After, Before
+    _dateFilterFeatures = [new FilterFeature&lt;Product, DateTime&gt; { Placeholder = "Date..." }];
+
+    // Boolean filter - renders as checkbox
+    _inStockFilterFeatures = [new FilterFeature&lt;Product, bool&gt;()];</code></pre>
+        </div>
+
+        <div class="qg-section-footer">
+            <p>
+                <strong>How it works:</strong> When any column has a <code>FilterFeature</code>, the <code>ComposableGrid</code> automatically:
+                (1) renders a filter toolbar above the grid, (2) detects appropriate filter operators based on the property type,
+                (3) applies active filters to the data source, and (4) shows a "Clear All" button when filters are active.
+                The grid coordinates all filtering logic—you just add the feature to columns.
+            </p>
+        </div>
+    </section>

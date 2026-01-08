@@ -1,0 +1,190 @@
+﻿@page "/composable-feature-matrix"
+@using Microsoft.AspNetCore.Components.QuickGrid
+
+<PageTitle>Composable Grid - Feature Matrix</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Columns</h1>
+        <p class="qg-page-subtitle">
+            A modular column system where features can be composed together.
+            Each feature is a building block that adds specific functionality like styling, filtering, or editing.
+            Features implement <code>IColumnFeature&lt;T&gt;</code> and are composed via <code>FeatureCollection</code>.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Architecture Overview</h2>
+        </div>
+
+        <div class="architecture-grid">
+            <div class="arch-card">
+                <h4><i class="bi bi-puzzle"></i> Features</h4>
+                <p>
+                    Modular units of functionality that can be added to any column.
+                    Implements <code>IColumnFeature&lt;T&gt;</code>, <code>ICellRenderFeature&lt;T&gt;</code>,
+                    or <code>IGridFilterFeature&lt;T&gt;</code>.
+                </p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-layers"></i> Pipeline</h4>
+                <p>
+                    Cell render features execute in priority order, forming a render pipeline.
+                    Each feature can wrap or modify the cell output.
+                </p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-share"></i> Shared Context</h4>
+                <p>
+                    <code>FeatureContext</code> provides shared state between features.
+                    Includes property expression, formatter, and event receiver.
+                </p>
+            </div>
+
+            <div class="arch-card">
+                <h4><i class="bi bi-grid-3x3"></i> Grid Integration</h4>
+                <p>
+                    <code>ComposableGrid</code> coordinates features across columns.
+                    Auto-renders filter toolbars and applies grid-level filtering.
+                </p>
+            </div>
+        </div>
+    </section>
+
+
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Grid Feature Matrix</h1>
+        <p class="qg-page-subtitle">
+            A comparison of the composable feature building blocks (pipeline modules) available in
+            <code>QuickGridTest01.ComposableColumns</code>.
+        </p>
+    </header>
+
+    <div class="qg-container">
+        <section class="qg-section">
+            <div class="qg-section-header">
+                <h2 class="qg-section-title">Feature Building Blocks</h2>
+                <div class="filter-controls">
+                    <label class="qg-label">Filter by Category:</label>
+                    <select class="qg-select" @bind="_selectedCategory">
+                        <option value="">All Categories</option>
+                        @foreach (var category in _categories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <div class="qg-grid-container feature-matrix-wrapper">
+                <div class="feature-matrix-scroll">
+                    <QuickGrid Items="@FilteredFeatures" Class="qg-grid feature-matrix-grid">
+                        <PropertyColumn Property="@(f => f.Category)" Title="Category" Sortable="true" Class="sticky-col sticky-col-1 qg-col-category" />
+                        <PropertyColumn Property="@(f => f.Name)" Title="Feature" Sortable="true" Class="sticky-col sticky-col-2" />
+                        <PropertyColumn Property="@(f => f.Kind)" Title="Kind" />
+
+                        <TemplateColumn Title="Summary">
+                            <div style="min-width: 320px; white-space: normal;">
+                                @context.Summary
+                            </div>
+                        </TemplateColumn>
+                    </QuickGrid>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Feature Priority Order</h2>
+            <p class="qg-section-description">
+                Each feature plugs into the render pipeline at a specific priority. Lower numbers run first
+                (e.g., Infrastructure, Grouping) to prepare state, while higher numbers run later to format,
+                style, validate, and finally wrap output. Priorities map directly to <code>FeaturePriority</code>
+                constants so feature composition remains predictable across columns and grids.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <QuickGrid Items="@_featurePriorities" Class="qg-grid">
+                <PropertyColumn Property="@(f => f.Category)" Title="Category" />
+                <PropertyColumn Property="@(f => f.Priority)" Title="Priority" />
+                <PropertyColumn Property="@(f => f.Description)" Title="Description" />
+            </QuickGrid>
+        </div>
+    </section>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Available Features</h2>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature-category">
+                <h4>Core Features</h4>
+                <ul>
+                    <li><code>AutoTitleFeature</code> - Infers column title from property name</li>
+                    <li><code>CompiledAccessorFeature</code> - Compiles property expression for fast access</li>
+                    <li><code>SortableFeature</code> - Enables column sorting</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Formatting Features</h4>
+                <ul>
+                    <li><code>FormatStringFeature</code> - Applies format strings (C2, N0, yyyy-MM-dd)</li>
+                    <li><code>CustomFormatterFeature</code> - Custom formatter function</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Styling Features</h4>
+                <ul>
+                    <li><code>TooltipFeature</code> - Adds tooltips to cells</li>
+                    <li><code>IconFeature</code> - Displays icons based on value</li>
+                    <li><code>ConditionalCssFeature</code> - Applies CSS classes conditionally</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Filtering Features</h4>
+                <ul>
+                    <li><code>FilterFeature&lt;TGridItem, TValue&gt;</code> - Grid-integrated column filtering</li>
+                    <li><code>IGridFilterFeature&lt;TGridItem&gt;</code> - Interface for grid-coordinated filters</li>
+                    <li>Auto-renders toolbar when columns have filter features</li>
+                    <li>Type-aware operators: Contains, Equals, StartsWith, GreaterThan, etc.</li>
+                    <li>Debounced input with configurable delay</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Editing Features</h4>
+                <ul>
+                    <li><code>InlineEditingFeature</code> - Always-visible inline editors with blur-based validation</li>
+                    <li><code>EditorKind.Auto</code> - Auto-detects editor type from the bound property</li>
+                    <li><code>EditorKind.RadioGroup</code> - Enum editing via radio buttons with <code>OptionText</code></li>
+                    <li><code>UseDataAnnotations</code> - Discovers validation attributes on the property</li>
+                    <li><code>ShowEvents</code> - Publishes edit lifecycle events to <code>IEditEventStream</code></li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Grouping Features</h4>
+                <ul>
+                    <li><code>GroupingFeature</code> - Coordinates grouping state, transforms data, renders headers/tooling</li>
+                </ul>
+            </div>
+
+            <div class="feature-category">
+                <h4>Expansion Features</h4>
+                <ul>
+                    <li><code>Row Expansion (Feature Set)</code> - Row identification, state, templates, and behaviors for expandable rows</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+</div>
+

@@ -1,0 +1,129 @@
+﻿/* Architecture overview layout (copied from ComposableColumnDemo for consistency) */
+.architecture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.arch-card {
+    background: var(--qg-neutral-50, #f9fafb);
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.arch-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--qg-primary, #3b82f6);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.arch-card p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--qg-neutral-600, #4b5563);
+    line-height: 1.4;
+}
+
+.arch-card code {
+    background: var(--qg-neutral-200, #e5e7eb);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.feature-category {
+    background: var(--qg-white, #ffffff);
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.feature-category h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--qg-neutral-800, #1f2937);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--qg-neutral-100, #f3f4f6);
+    padding-bottom: 0.5rem;
+}
+
+.feature-category ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.feature-category li {
+    font-size: 0.8rem;
+    color: var(--qg-neutral-600, #4b5563);
+    margin-bottom: 0.25rem;
+}
+
+.feature-category code {
+    background: var(--qg-primary-50, #eff6ff);
+    color: var(--qg-primary-700, #1d4ed8);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.feature-category.coming-soon {
+    background: var(--qg-neutral-50, #f9fafb);
+    border-style: dashed;
+}
+
+.feature-category.coming-soon h4 {
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+.feature-category.coming-soon code {
+    background: var(--qg-neutral-100, #f3f4f6);
+    color: var(--qg-neutral-500, #6b7280);
+}
+
+/* Category column - narrow width (approx one-third of previous). */
+::deep th.qg-col-category,
+::deep td.qg-col-category {
+    width: 1.8rem;
+    max-width: 1.8rem;
+    min-width: 1.8rem;
+    white-space: nowrap;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Align sticky offsets to the narrower first column. */
+::deep .feature-matrix-grid th:first-child,
+::deep .feature-matrix-grid td:first-child {
+    width: 7rem;
+    min-width: 7rem;
+    max-width: 7rem;
+    left: 0;
+}
+
+::deep .feature-matrix-grid th:nth-child(2),
+::deep .feature-matrix-grid td:nth-child(2) {
+    width: 15rem;
+    min-width: 15rem;
+    max-width: 15rem;
+    left: 0;
+}
+
+/* Shrink the Kind column (3rd) to half-size */
+::deep .feature-matrix-grid th:nth-child(3),
+::deep .feature-matrix-grid td:nth-child(3) {
+    width: 10rem;
+    min-width: 10rem;
+    max-width: 10rem;
+}

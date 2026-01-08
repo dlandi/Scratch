@@ -1,0 +1,79 @@
+﻿@page "/composable-new-editors-demo"
+@using QuickGridTest01.ComposableColumns.Demos
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
+
+<PageTitle>Composable Grid - New Editor Types</PageTitle>
+
+<section class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">New Editor Types: Auto &amp; RadioGroup</h2>
+        <p class="qg-section-description">
+            <strong>EditorKind.Auto</strong> automatically detects the appropriate editor from the property type.
+            <strong>EditorKind.RadioGroup</strong> renders enum values as radio buttons for quick selection.
+        </p>
+    </div>
+
+    <div class="qg-grid-container">
+        <ComposableGrid TGridItem="EditableProduct" Items="@_editableProducts" RowKey="p => p.Id" Class="qg-grid">
+            <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                              Property="@(p => p.Id)"
+                              Title="ID" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                              Property="@(p => p.Name)"
+                              Title="Name (Auto)"
+                              FeatureCollection="@_autoNameFeatures" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                              Property="@(p => p.Price)"
+                              Title="Price (Auto)"
+                              FeatureCollection="@_autoPriceFeatures" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                              Property="@(p => p.Status)"
+                              Title="Status (Radio)"
+                              FeatureCollection="@_radioStatusFeatures" />
+        </ComposableGrid>
+    </div>
+
+        <div class="code-preview">
+            <h4>Code Example</h4>
+            <pre><code>// Auto detects Text editor from string property
+    _autoNameFeatures = [
+        new InlineEditingFeature&lt;EditableProduct, string&gt;
+        {
+            Editor = EditorKind.Auto,
+            ItemKey = p =&gt; p.Id
+        }
+    ];
+
+    // Auto detects Number editor from decimal property
+    _autoPriceFeatures = [
+        new InlineEditingFeature&lt;EditableProduct, decimal&gt;
+        {
+            Editor = EditorKind.Auto,
+            ItemKey = p =&gt; p.Id
+        }
+    ];
+
+    // RadioGroup for enum - renders all values as radio buttons
+    _radioStatusFeatures = [
+        new InlineEditingFeature&lt;EditableProduct, ProductStatus&gt;
+        {
+            Editor = EditorKind.RadioGroup,
+            ItemKey = p =&gt; p.Id
+        }
+    ];</code></pre>
+        </div>
+
+        <div class="qg-section-footer">
+            <p>
+                <strong>How it works:</strong> <code>EditorKind.Auto</code> inspects the property type and selects the appropriate editor
+                (Text for strings, Number for numerics, Select for enums, etc.). <code>EditorKind.RadioGroup</code> renders enum values
+                as a horizontal group of radio buttons instead of a dropdown, providing a more visual selection UI.
+                Use <code>OptionText</code> to customize the display text for each enum value.
+            </p>
+        </div>
+    </section>
