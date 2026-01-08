@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
@@ -459,7 +459,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             context.EventReceiver ?? (object)this, e => HandleInput(item, e.Value?.ToString())));
 
         builder.AddAttribute(baseSeq + 9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
-            context.EventReceiver ?? (object)this, _ => HandleFocus(item)));
+            context.EventReceiver ?? (object)this, async _ => await HandleFocusAsync(item)));
 
         builder.AddAttribute(baseSeq + 10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
             context.EventReceiver ?? (object)this, async _ => await HandleBlurAsync(item, context)));
@@ -584,7 +584,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             context.EventReceiver ?? (object)this, e => HandleInput(item, e.Value?.ToString())));
 
         builder.AddAttribute(baseSeq + 5, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
-            context.EventReceiver ?? (object)this, _ => HandleFocus(item)));
+            context.EventReceiver ?? (object)this, async _ => await HandleFocusAsync(item)));
 
         builder.AddAttribute(baseSeq + 6, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
             context.EventReceiver ?? (object)this, async _ => await HandleBlurAsync(item, context)));
@@ -726,7 +726,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// <summary>
     /// Handles focus - marks the item as being edited and publishes EditStartedEvent.
     /// </summary>
-    private async void HandleFocus(TGridItem item)
+    private async ValueTask HandleFocusAsync(TGridItem item)
     {
         var itemKey = GetItemKey(item);
         _editingItems.Add(itemKey);
