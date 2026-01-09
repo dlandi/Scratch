@@ -136,6 +136,12 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         _coordinator.Feature = this;
         _coordinator.IsReorderingEnabled = Enabled;
 
+        // If data source was set before attachment, register it with the coordinator now
+        if (_dataSource is not null)
+        {
+            _coordinator.DataSource = _dataSource;
+        }
+
         // Subscribe to state changes for UI refresh
         _coordinator.OnStateChanged += OnCoordinatorStateChanged;
     }
@@ -271,7 +277,9 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         builder.AddAttribute(sequence++, "ondragstart", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragStartAsync(item, e)));
         builder.AddAttribute(sequence++, "ondragend", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragEndAsync(item, e)));
         builder.AddAttribute(sequence++, "ondragover", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragOverAsync(item, e)));
+        builder.AddEventPreventDefaultAttribute(sequence++, "ondragover", true);
         builder.AddAttribute(sequence++, "ondrop", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDropAsync(item, e)));
+        builder.AddEventPreventDefaultAttribute(sequence++, "ondrop", true);
         builder.AddAttribute(sequence++, "ondragleave", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragLeaveAsync(item, e)));
     }
 

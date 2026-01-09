@@ -23,18 +23,8 @@
 
         <div class="qg-grid-container">
             <ComposableGrid TGridItem="TaskItem" Items="@_basicDataSource.Items" RowKey="@(item => item.Id)">
-                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
-                    <Features>
-                        @{
-                            var reorderFeature1 = new RowReorderFeature<TaskItem>
-                            {
-                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnBasicRowReordered)
-                            };
-                            reorderFeature1.SetDataSource(_basicDataSource);
-                        }
-                        @reorderFeature1
-                    </Features>
-                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Id)" Title=""
+                                  FeatureCollection="@_basicReorderFeatures" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Status)" Title="Status" />
                 <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Priority)" Title="Priority" />
@@ -56,22 +46,8 @@
 
         <div class="qg-grid-container">
             <ComposableGrid TGridItem="TaskItem" Items="@_validationDataSource.Items" RowKey="@(item => item.Id)">
-                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
-                    <Features>
-                        @{
-                            var reorderFeature2 = new RowReorderFeature<TaskItem>
-                            {
-                                CanDrag = item => !item.IsLocked,
-                                CanDropOn = (source, target) => source.Category == target.Category,
-                                OnBeforeReorder = EventCallback.Factory.Create<RowBeforeReorderEventArgs<TaskItem>>(this, OnValidationBeforeReorder),
-                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnValidationRowReordered),
-                                OnReorderCancelled = EventCallback.Factory.Create<RowReorderCancelledEventArgs<TaskItem>>(this, OnValidationReorderCancelled)
-                            };
-                            reorderFeature2.SetDataSource(_validationDataSource);
-                        }
-                        @reorderFeature2
-                    </Features>
-                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Id)" Title=""
+                                  FeatureCollection="@_validationReorderFeatures" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.IsLocked ? "🔒" : "")" Title="Locked" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Category)" Title="Category" />
@@ -98,18 +74,8 @@
 
         <div class="qg-grid-container">
             <ComposableGrid TGridItem="TaskItem" Items="@_persistenceDataSource.Items" RowKey="@(item => item.Id)">
-                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
-                    <Features>
-                        @{
-                            var reorderFeature3 = new RowReorderFeature<TaskItem>
-                            {
-                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnPersistenceRowReordered)
-                            };
-                            reorderFeature3.SetDataSource(_persistenceDataSource);
-                        }
-                        @reorderFeature3
-                    </Features>
-                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Id)" Title=""
+                                  FeatureCollection="@_persistenceReorderFeatures" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
                 <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Status)" Title="Status" />
                 <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Priority)" Title="Priority" />
@@ -143,6 +109,11 @@
     private ReorderableDataSource<TaskItem> _validationDataSource = null!;
     private ReorderableDataSource<TaskItem> _persistenceDataSource = null!;
 
+    // Feature collections for each scenario
+    private IColumnFeature<TaskItem>[] _basicReorderFeatures = null!;
+    private IColumnFeature<TaskItem>[] _validationReorderFeatures = null!;
+    private IColumnFeature<TaskItem>[] _persistenceReorderFeatures = null!;
+
     // Log messages
     private string _basicLog = string.Empty;
     private string _validationLog = string.Empty;
@@ -155,12 +126,34 @@
     {
         // Scenario 1: Basic reordering
         _basicDataSource = new ReorderableDataSource<TaskItem>(GetBasicTasks());
+        var basicReorderFeature = new RowReorderFeature<TaskItem>
+        {
+            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnBasicRowReordered)
+        };
+        basicReorderFeature.SetDataSource(_basicDataSource);
+        _basicReorderFeatures = [basicReorderFeature];
 
         // Scenario 2: With validation
         _validationDataSource = new ReorderableDataSource<TaskItem>(GetValidationTasks());
+        var validationReorderFeature = new RowReorderFeature<TaskItem>
+        {
+            CanDrag = item => !item.IsLocked,
+            CanDropOn = (source, target) => source.Category == target.Category,
+            OnBeforeReorder = EventCallback.Factory.Create<RowBeforeReorderEventArgs<TaskItem>>(this, OnValidationBeforeReorder),
+            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnValidationRowReordered),
+            OnReorderCancelled = EventCallback.Factory.Create<RowReorderCancelledEventArgs<TaskItem>>(this, OnValidationReorderCancelled)
+        };
+        validationReorderFeature.SetDataSource(_validationDataSource);
+        _validationReorderFeatures = [validationReorderFeature];
 
         // Scenario 3: With persistence (order restored in OnAfterRenderAsync)
         _persistenceDataSource = new ReorderableDataSource<TaskItem>(GetPersistenceTasks());
+        var persistenceReorderFeature = new RowReorderFeature<TaskItem>
+        {
+            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnPersistenceRowReordered)
+        };
+        persistenceReorderFeature.SetDataSource(_persistenceDataSource);
+        _persistenceReorderFeatures = [persistenceReorderFeature];
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
