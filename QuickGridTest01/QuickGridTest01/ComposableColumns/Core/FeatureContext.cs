@@ -15,9 +15,21 @@ public class FeatureContext<TGridItem>
     private readonly Dictionary<Type, object> _services = new();
 
     /// <summary>
+    /// The grid that owns the column/context (when used inside a ComposableGrid).
+    /// Stored as object to avoid imposing 'class' constraint on FeatureContext.
+    /// </summary>
+    public object? Grid { get; set; }
+
+    /// <summary>
     /// The column that owns this context.
     /// </summary>
     public required ColumnBase<TGridItem> Column { get; init; }
+
+    /// <summary>
+    /// Optional row key selector for this grid item.
+    /// Provided by ComposableGrid/ComposableColumn when RowKey is configured.
+    /// </summary>
+    public Func<TGridItem, object>? RowKey { get; init; }
 
     /// <summary>
     /// The column title (may be set by AutoTitleFeature or explicitly).
@@ -54,6 +66,23 @@ public class FeatureContext<TGridItem>
     /// Required for timer callbacks and other thread pool operations.
     /// </summary>
     public Func<Func<Task>, Task>? InvokeAsync { get; set; }
+
+    /// <summary>
+    /// Optional event receiver for EventCallback creation.
+    /// When null, falls back to the owning column if it implements IHandleEvent.
+    /// </summary>
+    public IHandleEvent? EventReceiver { get; init; }
+
+    /// <summary>
+    /// Resolves the effective event receiver (explicit receiver or column when available).
+    /// </summary>
+    public IHandleEvent? GetEventReceiver()
+    {
+        if (EventReceiver is not null)
+            return EventReceiver;
+
+        return Column as IHandleEvent;
+    }
 
     /// <summary>
     /// Gets or sets a named state value.
@@ -104,6 +133,14 @@ public class FeatureContext<TGridItem>
     /// </summary>
     public void Clear()
     {
+        foreach (var service in _services.Values)
+        {
+            if (service is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
+        }
+
         _state.Clear();
         _services.Clear();
     }

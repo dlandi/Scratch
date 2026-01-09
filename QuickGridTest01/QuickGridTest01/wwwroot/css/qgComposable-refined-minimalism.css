@@ -1,0 +1,1599 @@
+﻿/* ----------------------------------------------------------------------------
+   Form Card
+   -------------------------------------------------------------------------- */
+
+.form-card {
+    background: transparent;
+}
+
+.form-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-16, 16px);
+    padding-bottom: var(--space-12, 12px);
+    border-bottom: 1px solid var(--color-border-default, #d0d7de);
+}
+
+.form-card-title {
+    margin: 0;
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1f2328);
+}
+
+.form-card-header-actions {
+    display: flex;
+    gap: var(--space-8, 8px);
+}
+
+.form-card-body {
+    /* Content flows naturally */
+}
+
+.form-card-footer {
+    margin-top: var(--space-12, 12px);
+    padding-top: var(--space-8, 8px);
+    border-top: 1px solid var(--color-border-default, #d0d7de);
+}
+
+/* Card actions (buttons in footer) */
+.row-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-8, 8px);
+}
+
+/* ----------------------------------------------------------------------------
+   Row click indicator (for RowTriggerMode.RowClick)
+   -------------------------------------------------------------------------- */
+
+.row-click-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8, 8px);
+    color: var(--color-text-tertiary, #737373);
+    cursor: pointer;
+    border-radius: var(--card-radius, 4px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out, ease);
+}
+
+    .row-click-indicator:hover {
+        color: var(--color-accent-primary, #2563eb);
+        background-color: var(--color-accent-primary-subtle, #eff6ff);
+    }
+
+    .row-click-indicator i {
+        font-size: var(--font-size-sm, 14px);
+    }
+
+/* ----------------------------------------------------------------------------
+   Button styling within the cell
+   -------------------------------------------------------------------------- */
+
+.row-cell button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4, 4px);
+}
+
+    .row-cell button i {
+        font-size: var(--font-size-sm, 14px);
+    }
+
+/* ----------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .form-row-overlay {
+        min-width: 100%;
+        transform: none;
+        left: 0;
+        padding: var(--space-12, 12px);
+    }
+
+    .form-section-content {
+        grid-template-columns: 1fr;
+    }
+
+    .form-section-columns-2,
+    .form-section-columns-3,
+    .form-section-columns-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions-buttons {
+        flex-direction: column-reverse;
+    }
+
+        .form-actions-buttons button {
+            width: 100%;
+        }
+}
+
+/* ============================================================================
+   COMPOSABLE GRID TOOLBARS
+   Filtering toolbar (existing markup) + Grouping section (qg-group-toolbar)
+   ========================================================================= */
+
+.composable-grid-filter-toolbar,
+.qg-group-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-12, 12px);
+    padding: var(--space-12, 12px) var(--space-16, 16px);
+    margin-bottom: var(--space-8, 8px);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #e7e5e4);
+    border-radius: var(--card-radius, 4px);
+}
+
+.qg-group-toolbar-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-8, 8px);
+    width: 100%;
+}
+
+.qg-group-toolbar .qg-label {
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-secondary, #525252);
+    margin: 0;
+}
+
+.qg-group-toolbar .qg-select {
+    min-width: 160px;
+}
+
+.qg-group-controls {
+    margin-left: auto;
+    display: inline-flex;
+    gap: var(--space-8, 8px);
+}
+
+.qg-expand-all,
+.qg-collapse-all {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6, 12px) var(--space-12, 24px);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-primary, #1a1a1a);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #e7e5e4);
+    border-radius: var(--card-radius, 4px);
+    cursor: pointer;
+    transition: background-color var(--duration-fast, 150ms) var(--ease-in-out, ease),
+        border-color var(--duration-fast, 150ms) var(--ease-in-out, ease);
+}
+
+.qg-expand-all:hover,
+.qg-collapse-all:hover {
+    background: var(--color-accent-primary-subtle, #eff6ff);
+    border-color: var(--color-accent-primary-muted, #dbeafe);
+}
+
+.qg-expand-all:focus,
+.qg-collapse-all:focus {
+    outline: none;
+    box-shadow: var(--focus-ring, 0 0 0 3px var(--color-accent-primary-muted));
+}
+
+@media (max-width: 768px) {
+    .qg-group-controls {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* ----------------------------------------------------------------------------
+   Animation for form appearance
+   -------------------------------------------------------------------------- */
+
+.form-row-overlay {
+    animation: form-slide-in var(--duration-normal, 200ms) var(--ease-in-out, ease);
+}
+
+@keyframes form-slide-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* For below-row variant */
+.form-row-overlay.below-row {
+    animation-name: form-slide-down;
+}
+
+@keyframes form-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================================
+   ROWCOLUMN STYLES
+   Expandable overlay card within QuickGrid rows
+   Independent from FormRow - no form functionality
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------------
+   Grid-level styles (applied to QuickGrid when RowColumn is present)
+   Add class="qg-row-grid" to the QuickGrid to enable these styles
+   -------------------------------------------------------------------------- */
+
+.qg-row-grid tbody tr {
+    position: relative;
+}
+
+    .qg-row-grid tbody tr.row-active {
+        z-index: 11;
+    }
+
+/* Container must allow overflow for overlay visibility */
+.qg-grid-container:has(.qg-row-grid) {
+    overflow: visible;
+}
+
+/* ----------------------------------------------------------------------------
+   Cell wrapper - rendered by RowColumn in each row
+   -------------------------------------------------------------------------- */
+
+.row-cell {
+    position: relative;
+    min-width: 80px;
+}
+
+    .row-cell.row-expanded {
+        position: static; /* Allow overlay to escape cell bounds and span full row */
+    }
+
+    .row-cell.row-dimmed {
+        opacity: 0.5;
+        pointer-events: none;
+        transition: opacity var(--duration-normal, 200ms) var(--ease-in-out, ease);
+    }
+
+/* ----------------------------------------------------------------------------
+   Overlay - the card that appears below the expanded row
+   -------------------------------------------------------------------------- */
+
+.row-overlay {
+    position: absolute;
+    top: 100%; /* Position below the row, not overlapping */
+    left: 0;
+    right: 0;
+    z-index: 100;
+    /* Card styling */
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-emphasis, #d6d3d1);
+    border-radius: var(--card-radius, 4px);
+    box-shadow: var(--shadow-lg, 0 4px 12px rgba(0, 0, 0, 0.10));
+    /* Span full row width */
+    min-width: max(400px, 100%);
+    /* Height is set via inline style from ExpandedRowSpan × RowHeight */
+    overflow: auto;
+    /* Animation */
+    animation: row-overlay-slide-down var(--duration-normal, 200ms) var(--ease-in-out, ease);
+}
+
+@keyframes row-overlay-slide-down {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ----------------------------------------------------------------------------
+   Row Card - the card component used inside RowColumn overlays
+   -------------------------------------------------------------------------- */
+
+.row-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--space-12, 12px) var(--space-16, 16px);
+}
+
+.row-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-12, 12px);
+    padding-bottom: var(--space-8, 8px);
+    border-bottom: 1px solid var(--color-border-default, #e7e5e4);
+}
+
+.row-card-title {
+    margin: 0;
+    font-size: var(--font-size-base, 1rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1a1a1a);
+}
+
+.row-card-header-actions {
+    display: flex;
+    gap: var(--space-4, 4px);
+}
+
+.row-card-body {
+    flex: 1;
+    overflow: auto;
+}
+
+    .row-card-body p {
+        margin: 0;
+        color: var(--color-text-secondary, #525252);
+        font-size: var(--font-size-sm, 0.875rem);
+    }
+
+.row-card-footer {
+    margin-top: var(--space-12, 12px);
+    padding-top: var(--space-8, 8px);
+    border-top: 1px solid var(--color-border-default, #e7e5e4);
+}
+
+/* ----------------------------------------------------------------------------
+   Row click indicator (for RowTriggerMode.RowClick)
+   -------------------------------------------------------------------------- */
+
+.row-click-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8, 8px);
+    color: var(--color-text-tertiary, #737373);
+    cursor: pointer;
+    border-radius: var(--card-radius, 4px);
+    transition: all var(--duration-fast, 150ms) var(--ease-in-out, ease);
+}
+
+    .row-click-indicator:hover {
+        color: var(--color-accent-primary, #2563eb);
+        background-color: var(--color-accent-primary-subtle, #eff6ff);
+    }
+
+    .row-click-indicator i {
+        font-size: var(--font-size-sm, 14px);
+    }
+
+/* ----------------------------------------------------------------------------
+   Button styling within the cell
+   -------------------------------------------------------------------------- */
+
+.row-cell button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4, 4px);
+}
+
+    .row-cell button i {
+        font-size: var(--font-size-sm, 14px);
+    }
+
+/* ----------------------------------------------------------------------------
+   Responsive adjustments
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .row-overlay {
+        min-width: 100%;
+    }
+
+    .row-card {
+        padding: var(--space-8, 8px) var(--space-12, 12px);
+    }
+}
+
+/* ----------------------------------------------------------------------------
+   Spacer rows - hidden rows that push real data below the overlay
+   -------------------------------------------------------------------------- */
+
+.row-spacer {
+    /* Spacer cells are empty and hidden behind the overlay */
+    visibility: hidden;
+    height: 0;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* Spacer row styling - ensure the entire row is collapsed */
+.qg-row-grid tbody tr:has(.row-spacer) {
+    height: var(--grid-row-height, 36px);
+    visibility: visible; /* Row exists for spacing */
+}
+
+    .qg-row-grid tbody tr:has(.row-spacer) td {
+        visibility: hidden;
+        padding: 0 !important;
+        border-bottom: none !important;
+    }
+
+/* Alternative: Hide spacer content but maintain row height */
+.qg-row-grid tbody tr.row-spacer-row {
+    pointer-events: none;
+}
+
+    .qg-row-grid tbody tr.row-spacer-row td {
+        color: transparent;
+        user-select: none;
+    }
+
+/* ============================================================================
+      COMPOSABLE GRID FILTER TOOLBAR
+      Compact horizontal layout for filter controls
+      ============================================================================ */
+
+.composable-grid-filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    padding: 0.75rem;
+    background: var(--color-surface, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 0.375rem);
+    margin-bottom: 0.5rem;
+    align-items: flex-end;
+}
+
+    /* Each filter item - compact inline layout with max-width for horizontal fitting */
+    .composable-grid-filter-toolbar .filter-toolbar-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        min-width: 0;
+        flex: 0 1 auto;
+        max-width: 180px;
+        padding-right: 0.5rem;
+        border-right: 1px solid var(--color-border-subtle, #e5e5e5);
+    }
+
+        /* Remove border from last filter item before actions */
+        .composable-grid-filter-toolbar .filter-toolbar-item:last-of-type {
+            border-right: none;
+            padding-right: 0;
+        }
+
+    .composable-grid-filter-toolbar .qg-label {
+        font-size: 0.65rem;
+        font-weight: 600;
+        color: var(--color-text-tertiary, #6c757d);
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        margin-bottom: 0;
+        white-space: nowrap;
+    }
+
+    /* Controls row - inline with compact sizing */
+    .composable-grid-filter-toolbar .filter-toolbar-controls {
+        display: flex;
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    /* Compact operator dropdown */
+    .composable-grid-filter-toolbar .filter-operator {
+        flex: 0 0 auto;
+        width: 4.5rem;
+        padding: 0.25rem 0.25rem;
+        font-size: 0.75rem;
+        border: 1px solid var(--color-border-default, #ced4da);
+        border-radius: 0.25rem;
+        background: var(--color-surface, white);
+    }
+
+    /* Value input - flexible sizing based on type */
+    .composable-grid-filter-toolbar .filter-value {
+        flex: 1 1 auto;
+        min-width: 50px;
+        width: 90px;
+        padding: 0.25rem 0.375rem;
+        font-size: 0.8rem;
+        border: 1px solid var(--color-border-default, #ced4da);
+        border-radius: 0.25rem;
+    }
+
+    /* Numeric inputs can be narrower */
+    .composable-grid-filter-toolbar input[type="number"].filter-value {
+        width: 70px;
+    }
+
+    /* Date inputs */
+    .composable-grid-filter-toolbar input[type="date"].filter-value {
+        width: 110px;
+    }
+
+    /* Checkbox for boolean filters */
+    .composable-grid-filter-toolbar .filter-checkbox {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin: 0;
+    }
+
+    /* Clear button - compact icon only */
+    .composable-grid-filter-toolbar .btn-filter-clear {
+        flex: 0 0 auto;
+        padding: 0.125rem;
+        background: transparent;
+        border: none;
+        color: var(--color-error, #dc3545);
+        cursor: pointer;
+        border-radius: 0.25rem;
+        line-height: 1;
+        font-size: 0.875rem;
+    }
+
+        .composable-grid-filter-toolbar .btn-filter-clear:hover {
+            background: rgba(220, 53, 69, 0.1);
+        }
+
+    /* Actions container - pushed to end */
+    .composable-grid-filter-toolbar .filter-toolbar-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Filter count display */
+    .composable-grid-filter-toolbar .filter-count {
+        font-size: 0.75rem;
+        color: var(--color-text-tertiary, #6c757d);
+        white-space: nowrap;
+    }
+
+    /* Clear All button */
+    .composable-grid-filter-toolbar .btn-clear-all-filters {
+        padding: 0.25rem 0.5rem;
+        background: var(--color-text-tertiary, #6c757d);
+        color: white;
+        border: none;
+        border-radius: 0.25rem;
+        font-size: 0.7rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        white-space: nowrap;
+    }
+
+        .composable-grid-filter-toolbar .btn-clear-all-filters:hover {
+            background: var(--color-text-secondary, #5c636a);
+        }
+
+/* Responsive adjustments for filter toolbar */
+@media (max-width: 480px) {
+    .composable-grid-filter-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+        .composable-grid-filter-toolbar .filter-toolbar-item {
+            flex: 1 1 100%;
+            max-width: none;
+        }
+
+        .composable-grid-filter-toolbar .filter-value {
+            width: auto;
+            flex: 1;
+        }
+
+        .composable-grid-filter-toolbar .filter-toolbar-actions {
+            margin-left: 0;
+            justify-content: flex-end;
+        }
+}
+
+/* ============================================================================
+   COMPOSABLE GRID EVENT PANEL
+   Layout and positioning for edit event viewer panels
+   Used with EventPanelPlacement parameter on ComposableGrid
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------------
+   Grid container layouts
+   -------------------------------------------------------------------------- */
+
+.composable-grid-container {
+    display: block;
+}
+
+.composable-grid-with-panel {
+    display: flex;
+    gap: var(--space-8, 1rem);
+}
+
+    .composable-grid-with-panel.horizontal {
+        flex-direction: row;
+    }
+
+.composable-grid-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ----------------------------------------------------------------------------
+   Event panel positioning
+   -------------------------------------------------------------------------- */
+
+.composable-grid-event-panel {
+    background: var(--color-canvas, #f8f9fa);
+    border-radius: var(--card-radius, 4px);
+    overflow: hidden;
+}
+
+.event-panel-top,
+.event-panel-bottom {
+    max-height: 300px;
+    margin-bottom: var(--space-8, 1rem);
+}
+
+.event-panel-bottom {
+    margin-bottom: 0;
+    margin-top: var(--space-8, 1rem);
+}
+
+.event-panel-left,
+.event-panel-right {
+    width: 300px;
+    flex-shrink: 0;
+    max-height: 600px;
+}
+
+/* ----------------------------------------------------------------------------
+   Responsive adjustments for event panel
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 992px) {
+    .composable-grid-with-panel.horizontal {
+        flex-direction: column;
+    }
+
+    .event-panel-left,
+    .event-panel-right {
+        width: 100%;
+        max-height: 250px;
+    }
+}
+
+/* ============================================================================
+   EDIT EVENT VIEWER
+   Component for displaying edit lifecycle events
+   ========================================================================= */
+
+.edit-event-viewer {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-canvas, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    overflow: hidden;
+    height: 100%;
+    max-height: 500px;
+}
+
+.event-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4, 0.5rem) var(--space-6, 0.75rem);
+    background: var(--color-border-default, #e9ecef);
+    border-bottom: 1px solid var(--color-border-default, #dee2e6);
+}
+
+    .event-viewer-header h4 {
+        margin: 0;
+        font-size: var(--font-size-sm, 0.9rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-text-secondary, #495057);
+    }
+
+.event-viewer-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+}
+
+.event-count {
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-text-tertiary, #6c757d);
+}
+
+.btn-clear-events {
+    padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-tertiary, #6c757d);
+    border-radius: var(--card-radius, 3px);
+}
+
+    .btn-clear-events:hover {
+        background: var(--color-border-default, #dee2e6);
+        color: var(--color-text-secondary, #495057);
+    }
+
+.event-viewer-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-4, 0.5rem);
+}
+
+.event-viewer-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16, 2rem);
+    color: var(--color-text-tertiary, #6c757d);
+    text-align: center;
+}
+
+    .event-viewer-empty i {
+        font-size: var(--font-size-3xl, 2rem);
+        margin-bottom: var(--space-4, 0.5rem);
+        opacity: 0.5;
+    }
+
+    .event-viewer-empty span {
+        font-size: var(--font-size-sm, 0.85rem);
+    }
+
+/* ----------------------------------------------------------------------------
+   Event items
+   -------------------------------------------------------------------------- */
+
+.event-item {
+    display: flex;
+    gap: var(--space-4, 0.5rem);
+    padding: var(--space-4, 0.5rem);
+    margin-bottom: var(--space-2, 0.25rem);
+    background: var(--color-surface, white);
+    border-radius: var(--card-radius, 4px);
+    border-left: 3px solid var(--color-border-default, #dee2e6);
+}
+
+    .event-item.event-committed {
+        border-left-color: var(--color-success, #28a745);
+    }
+
+    .event-item.event-cancelled {
+        border-left-color: var(--color-warning, #ffc107);
+    }
+
+    .event-item.event-failed {
+        border-left-color: var(--color-error, #dc3545);
+    }
+
+    .event-item.event-succeeded {
+        border-left-color: var(--color-info, #17a2b8);
+    }
+
+    .event-item.event-started {
+        border-left-color: var(--color-text-tertiary, #6c757d);
+    }
+
+.event-icon {
+    flex-shrink: 0;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.event-item.event-committed .event-icon {
+    color: var(--color-success, #28a745);
+}
+
+.event-item.event-cancelled .event-icon {
+    color: var(--color-warning, #ffc107);
+}
+
+.event-item.event-failed .event-icon {
+    color: var(--color-error, #dc3545);
+}
+
+.event-item.event-succeeded .event-icon {
+    color: var(--color-info, #17a2b8);
+}
+
+.event-item.event-started .event-icon {
+    color: var(--color-text-tertiary, #6c757d);
+}
+
+.event-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.event-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+    font-size: var(--font-size-sm, 0.8rem);
+    margin-bottom: var(--space-1, 0.125rem);
+}
+
+.event-type {
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-secondary, #495057);
+}
+
+/* ============================================================================
+   ROW GROUPING FEATURE
+   Group header rows and expand/collapse controls
+   ============================================================================ */
+
+.qg-grid-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ----------------------------------------------------------------------------
+   Group Header Row
+   Height: GroupHeaderSlotSpan × QuickGrid ItemSize for virtualization alignment
+   -------------------------------------------------------------------------- */
+
+.qg-group-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 8px);
+    height: calc(var(--qg-item-size, 40px) * var(--qg-group-header-slot-span, 2));
+    min-height: calc(var(--qg-item-size, 40px) * var(--qg-group-header-slot-span, 2));
+    padding: var(--space-12, 12px) var(--space-16, 16px);
+    background: var(--color-canvas, #f8f9fa);
+    border-bottom: 1px solid var(--color-border-default, #dee2e6);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-primary, #1a1a1a);
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--duration-fast, 150ms) ease;
+    cursor: pointer;
+}
+
+    .qg-group-header:hover {
+        background: var(--color-surface-hover, #e9ecef);
+    }
+
+    .qg-group-header:focus {
+        outline: none;
+        box-shadow: inset 0 0 0 2px var(--color-accent-primary, #2563eb);
+    }
+
+    .qg-group-header:focus-visible {
+        outline: 2px solid var(--color-accent-primary, #2563eb);
+        outline-offset: -2px;
+    }
+
+    .qg-group-header.expanded {
+        background: var(--color-surface, #ffffff);
+        border-bottom-color: var(--color-border-emphasis, #adb5bd);
+    }
+
+    .qg-group-header.collapsed {
+        background: var(--color-canvas, #f8f9fa);
+    }
+
+/* ----------------------------------------------------------------------------
+   Chevron (expand/collapse indicator)
+   -------------------------------------------------------------------------- */
+
+.qg-group-chevron {
+    position: relative;
+    z-index: 1;
+    pointer-events: auto;
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    font-size: var(--font-size-sm, 14px);
+    color: var(--color-text-tertiary, #6c757d);
+    transition: color var(--duration-fast, 150ms) ease;
+}
+
+/* If the grid applies an edit/text cursor on cells, force pointer for the group header area */
+.qg-grid td .qg-group-header,
+.qg-grid td .qg-group-header * {
+    cursor: pointer;
+}
+
+.qg-group-header:hover .qg-group-chevron {
+    color: var(--color-text-secondary, #495057);
+}
+
+/* Higher-specificity overrides when the group header is rendered inside a QuickGrid table cell */
+.qg-grid td .qg-group-header:hover .qg-group-chevron,
+.qg-grid td .qg-group-header:focus-within .qg-group-chevron {
+    color: var(--color-text-secondary, #495057);
+}
+
+.qg-grid td .qg-group-header:hover,
+.qg-grid td .qg-group-header:focus-within {
+    background: var(--color-surface-hover, #e9ecef);
+}
+
+.qg-group-header.expanded .qg-group-chevron {
+    color: var(--color-text-primary, #1a1a1a);
+}
+
+/* ----------------------------------------------------------------------------
+   Group Key and Count
+   -------------------------------------------------------------------------- */
+
+.qg-group-key {
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1a1a1a);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qg-group-count {
+    color: var(--color-text-tertiary, #6c757d);
+    font-size: var(--font-size-xs, 0.75rem);
+    white-space: nowrap;
+}
+
+/* ----------------------------------------------------------------------------
+   Group Toolbar (Expand All / Collapse All buttons)
+   -------------------------------------------------------------------------- */
+
+.qg-group-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: var(--space-8, 8px) var(--space-12, 12px);
+    background: var(--color-canvas, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-bottom: none;
+    border-radius: var(--card-radius, 4px) var(--card-radius, 4px) 0 0;
+}
+
+.qg-group-controls {
+    display: flex;
+    gap: var(--space-4, 4px);
+}
+
+.qg-expand-all,
+.qg-collapse-all {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4, 4px);
+    padding: var(--space-4, 4px) var(--space-8, 8px);
+    font-size: var(--font-size-xs, 0.75rem);
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--color-text-secondary, #525252);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    cursor: pointer;
+    transition: all var(--duration-fast, 150ms) ease;
+}
+
+    .qg-expand-all:hover,
+    .qg-collapse-all:hover {
+        background: var(--color-surface-hover, #e9ecef);
+        border-color: var(--color-border-hover, #adb5bd);
+        color: var(--color-text-primary, #1a1a1a);
+    }
+
+    .qg-expand-all:focus,
+    .qg-collapse-all:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px var(--color-accent-primary-subtle, #eff6ff), 0 0 0 4px var(--color-accent-primary, #2563eb);
+    }
+
+    .qg-expand-all:active,
+    .qg-collapse-all:active {
+        transform: scale(0.98);
+    }
+
+@media (max-width: 768px) {
+    .qg-group-header {
+        padding: var(--space-8, 8px) var(--space-12, 12px);
+        gap: var(--space-4, 4px);
+    }
+
+    .qg-group-toolbar {
+        padding: var(--space-4, 4px) var(--space-8, 8px);
+    }
+
+    .qg-expand-all,
+    .qg-collapse-all {
+        padding: var(--space-2, 2px) var(--space-4, 4px);
+        font-size: var(--font-size-xs, 0.7rem);
+    }
+}
+
+.event-property {
+    color: var(--color-text-tertiary, #6c757d);
+    font-style: italic;
+}
+
+.event-time {
+    margin-left: auto;
+    color: var(--color-text-disabled, #adb5bd);
+    font-size: var(--font-size-xs, 0.7rem);
+}
+
+.event-details {
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-text-tertiary, #6c757d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.event-item.event-failed .event-details {
+    color: var(--color-error, #dc3545);
+}
+
+/* ============================================================================
+   EVENT DEMO CONTROLS
+   Styles for the Edit Event Stream Demo section controls
+   ========================================================================= */
+
+.event-demo-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8, 1rem);
+    padding: var(--space-8, 1rem);
+    background: var(--color-canvas, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    margin-bottom: var(--space-8, 1rem);
+}
+
+.placement-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+}
+
+    .placement-selector label {
+        font-size: var(--font-size-sm, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-text-secondary, #525252);
+    }
+
+    .placement-selector select {
+        padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+        font-size: var(--font-size-sm, 0.875rem);
+        border: 1px solid var(--color-border-default, #dee2e6);
+        border-radius: var(--card-radius, 4px);
+        background: var(--color-surface, #ffffff);
+        color: var(--color-text-primary, #1a1a1a);
+        cursor: pointer;
+    }
+
+        .placement-selector select:focus {
+            outline: none;
+            border-color: var(--color-primary, #0d6efd);
+            box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+        }
+
+.event-counters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8, 1rem);
+    margin-left: auto;
+}
+
+    .event-counters .counter {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 0.25rem);
+        font-size: var(--font-size-sm, 0.875rem);
+        padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+        border-radius: var(--card-radius, 4px);
+        background: var(--color-surface, #ffffff);
+        border: 1px solid var(--color-border-default, #dee2e6);
+    }
+
+        .event-counters .counter.commit {
+            color: var(--color-success, #28a745);
+            border-color: rgba(40, 167, 69, 0.3);
+        }
+
+        .event-counters .counter.cancel {
+            color: var(--color-text-secondary, #525252);
+            border-color: var(--color-border-default, #dee2e6);
+        }
+
+        .event-counters .counter.error {
+            color: var(--color-error, #dc3545);
+            border-color: rgba(220, 53, 69, 0.3);
+        }
+
+.btn-reset-counters {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.25rem);
+    padding: var(--space-2, 0.25rem) var(--space-4, 0.5rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-text-secondary, #525252);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    cursor: pointer;
+    transition: all var(--duration-fast, 150ms) ease;
+}
+
+    .btn-reset-counters:hover {
+        background: var(--color-canvas, #f8f9fa);
+        border-color: var(--color-border-hover, #adb5bd);
+    }
+
+    .btn-reset-counters:active {
+        transform: scale(0.98);
+    }
+
+/* ============================================================================
+   DEMO LAYOUT UTILITIES
+   Layout helpers for manual event panel placement in demos
+   ========================================================================= */
+
+.demo-layout-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: var(--space-8, 1rem);
+}
+
+    .demo-layout-horizontal > .qg-grid-container,
+    .demo-layout-horizontal > .composable-grid-container {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .demo-layout-horizontal > .edit-event-viewer {
+        width: 300px;
+        flex-shrink: 0;
+        max-height: 500px;
+    }
+
+.demo-layout-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8, 1rem);
+}
+
+    .demo-layout-vertical > .edit-event-viewer {
+        max-height: 250px;
+    }
+
+/* Responsive behavior for demo layouts */
+@media (max-width: 992px) {
+    .demo-layout-horizontal {
+        flex-direction: column;
+    }
+
+        .demo-layout-horizontal > .edit-event-viewer {
+            width: 100%;
+            max-height: 250px;
+        }
+
+    .event-demo-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .event-counters {
+        margin-left: 0;
+        flex-wrap: wrap;
+    }
+}
+
+/* ============================================================================
+   VALIDATION SUMMARY PANEL
+   Component for displaying validation rules and results for focused cell
+   ========================================================================= */
+
+.validation-summary-panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-canvas, #f8f9fa);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    overflow: hidden;
+    height: 100%;
+    max-height: 400px;
+}
+
+.validation-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-4, 0.5rem) var(--space-8, 1rem);
+    background: var(--color-surface, #ffffff);
+    border-bottom: 1px solid var(--color-border-default, #dee2e6);
+}
+
+    .validation-summary-header h4 {
+        margin: 0;
+        font-size: var(--font-size-sm, 0.875rem);
+        font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-text-primary, #1a1a1a);
+    }
+
+    .validation-summary-header .focused-property {
+        font-size: var(--font-size-xs, 0.75rem);
+        color: var(--color-primary, #0d6efd);
+        background: rgba(13, 110, 253, 0.1);
+        padding: var(--space-1, 0.125rem) var(--space-4, 0.5rem);
+        border-radius: var(--card-radius, 4px);
+    }
+
+.validation-summary-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-8, 1rem);
+}
+
+.validation-summary-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-12, 1.5rem);
+    color: var(--color-text-disabled, #adb5bd);
+    text-align: center;
+    gap: var(--space-4, 0.5rem);
+}
+
+    .validation-summary-empty i {
+        font-size: 2rem;
+    }
+
+    .validation-summary-empty span {
+        font-size: var(--font-size-sm, 0.875rem);
+    }
+
+/* Validation Rule List */
+.validation-rule-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 0.5rem);
+}
+
+.validation-rule-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+    padding: var(--space-4, 0.5rem);
+    background: var(--color-surface, #ffffff);
+    border: 1px solid var(--color-border-default, #dee2e6);
+    border-radius: var(--card-radius, 4px);
+    transition: all var(--duration-fast, 150ms) ease;
+}
+
+    .validation-rule-item.pending {
+        border-left: 3px solid var(--color-text-disabled, #adb5bd);
+    }
+
+    .validation-rule-item.passed {
+        border-left: 3px solid var(--color-success, #28a745);
+        background: rgba(40, 167, 69, 0.05);
+    }
+
+    .validation-rule-item.failed {
+        border-left: 3px solid var(--color-error, #dc3545);
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .validation-rule-item.no-rules {
+        border-left: 3px solid var(--color-text-disabled, #adb5bd);
+        color: var(--color-text-secondary, #525252);
+        font-style: italic;
+    }
+
+.rule-icon {
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    color: var(--color-text-secondary, #525252);
+}
+
+.rule-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.125rem);
+}
+
+.rule-name {
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--color-text-primary, #1a1a1a);
+}
+
+.rule-description {
+    font-size: var(--font-size-xs, 0.75rem);
+    color: var(--color-text-secondary, #525252);
+}
+
+.rule-severity {
+    font-size: var(--font-size-xs, 0.75rem);
+    padding: var(--space-1, 0.125rem) var(--space-2, 0.25rem);
+    border-radius: 2px;
+    width: fit-content;
+}
+
+    .rule-severity.severity-info {
+        background: rgba(13, 110, 253, 0.1);
+        color: var(--color-primary, #0d6efd);
+    }
+
+    .rule-severity.severity-warning {
+        background: rgba(255, 193, 7, 0.2);
+        color: #856404;
+    }
+
+    .rule-severity.severity-error {
+        background: rgba(220, 53, 69, 0.1);
+        color: var(--color-error, #dc3545);
+    }
+
+.rule-status {
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+
+.validation-rule-item.passed .rule-status {
+    color: var(--color-success, #28a745);
+}
+
+.validation-rule-item.failed .rule-status {
+    color: var(--color-error, #dc3545);
+}
+
+.validation-rule-item.pending .rule-status {
+    color: var(--color-text-disabled, #adb5bd);
+}
+
+/* Validation Result */
+.validation-result {
+    margin-top: var(--space-8, 1rem);
+    padding: var(--space-8, 1rem);
+    border-radius: var(--card-radius, 4px);
+}
+
+    .validation-result.result-success {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+    }
+
+    .validation-result.result-failure {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+    }
+
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 0.5rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-semibold, 600);
+}
+
+.result-success .result-header {
+    color: var(--color-success, #28a745);
+}
+
+.result-failure .result-header {
+    color: var(--color-error, #dc3545);
+}
+
+.validation-errors {
+    margin: var(--space-4, 0.5rem) 0 0 0;
+    padding-left: var(--space-8, 1rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    color: var(--color-error, #dc3545);
+}
+
+    .validation-errors li {
+        margin-bottom: var(--space-2, 0.25rem);
+    }
+
+/* Placement variants */
+.validation-summary-panel.placement-top,
+.validation-summary-panel.placement-bottom {
+    max-height: 250px;
+}
+
+.validation-summary-panel.placement-left,
+.validation-summary-panel.placement-right {
+    width: 280px;
+    max-height: 500px;
+}
+
+/* ----------------------------------------------------------------------------
+   COMPOSABLE EXPANSION SELECTOR ALIASES
+   Reuse existing RowColumn rules by adding equivalent selectors.
+   -------------------------------------------------------------------------- */
+
+/* Ensure composable grids get the same row positioning behavior */
+.qg-composable-row-grid tbody tr,
+.qg-row-grid tbody tr {
+    position: relative;
+}
+
+    .qg-composable-row-grid tbody tr.row-active,
+    .qg-row-grid tbody tr.row-active {
+        z-index: 11;
+    }
+
+/* Container must allow overflow for overlay visibility */
+.qg-grid-container:has(.qg-composable-row-grid),
+.qg-grid-container:has(.qg-row-grid) {
+    overflow: visible;
+}
+
+/* Spacer row styling aliases */
+.qg-composable-row-grid tbody tr:has(.row-spacer),
+.qg-row-grid tbody tr:has(.row-spacer) {
+    height: var(--grid-row-height, 36px);
+    visibility: visible;
+}
+
+    .qg-composable-row-grid tbody tr:has(.row-spacer) td,
+    .qg-row-grid tbody tr:has(.row-spacer) td {
+        visibility: hidden;
+        padding: 0 !important;
+        border-bottom: none !important;
+    }
+
+/* Alternative class alias for spacer rows */
+.qg-composable-row-grid tbody tr.row-spacer-row,
+.qg-row-grid tbody tr.row-spacer-row {
+    pointer-events: none;
+}
+
+    .qg-composable-row-grid tbody tr.row-spacer-row td,
+    .qg-row-grid tbody tr.row-spacer-row td {
+        color: transparent;
+        user-select: none;
+    }
+
+/* ============================================================================
+   ROW REORDERING FEATURE
+   Styles for drag-and-drop row reordering
+   ========================================================================= */
+
+/* Drag handle cell */
+.reorder-handle-cell {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: var(--space-2, 0.25rem);
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Empty cell for synthetic rows */
+.reorder-cell-empty {
+    background: transparent;
+}
+
+/* Drag handle element */
+.reorder-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: var(--space-1, 0.125rem);
+    font-size: var(--font-size-lg, 1.125rem);
+    color: var(--color-text-secondary, #6c757d);
+    background: transparent;
+    border: none;
+    border-radius: var(--card-radius, 4px);
+    cursor: grab;
+    transition: all var(--duration-fast, 150ms) ease;
+    user-select: none;
+}
+
+.reorder-handle:hover {
+    color: var(--color-text-primary, #1a1a1a);
+    background: var(--color-canvas, #f8f9fa);
+}
+
+.reorder-handle:active {
+    cursor: grabbing;
+    color: var(--color-primary, #0d6efd);
+    background: rgba(13, 110, 253, 0.1);
+}
+
+.reorder-handle:focus-visible {
+    outline: 2px solid var(--color-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+/* Disabled drag handle */
+.reorder-handle.reorder-disabled {
+    color: var(--color-text-disabled, #adb5bd);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.reorder-handle.reorder-disabled:hover {
+    background: transparent;
+    color: var(--color-text-disabled, #adb5bd);
+}
+
+/* Row being dragged */
+.reorder-dragging {
+    opacity: 0.5;
+    background: var(--color-canvas, #f8f9fa);
+}
+
+/* Drop indicator - before target */
+.reorder-drop-before {
+    position: relative;
+}
+
+.reorder-drop-before::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-primary, #0d6efd);
+    box-shadow: 0 0 4px rgba(13, 110, 253, 0.4);
+    z-index: 10;
+}
+
+/* Drop indicator - after target */
+.reorder-drop-after {
+    position: relative;
+}
+
+.reorder-drop-after::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-primary, #0d6efd);
+    box-shadow: 0 0 4px rgba(13, 110, 253, 0.4);
+    z-index: 10;
+}
+
+/* Valid drop target indicator */
+.reorder-drop-target {
+    background: rgba(13, 110, 253, 0.05);
+}
+
+/* Invalid drop target */
+.reorder-drop-invalid {
+    cursor: not-allowed;
+}
+
+.reorder-drop-invalid .reorder-handle {
+    cursor: not-allowed;
+}

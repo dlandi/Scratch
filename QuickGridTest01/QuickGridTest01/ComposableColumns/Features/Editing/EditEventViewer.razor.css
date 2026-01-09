@@ -1,0 +1,19 @@
+/* EditEventViewer scoped styles */
+/* 
+ * All styles have been moved to global CSS:
+ * wwwroot/css/quickgrid-refined-minimalism.css
+ * 
+ * This ensures:
+ * - Consistent use of design system tokens
+ * - No CSS isolation issues when component is auto-rendered by grid
+ * - Pattern consistency with other grid-related components
+ * 
+ * Classes moved:
+ * - .edit-event-viewer
+ * - .event-viewer-header
+ * - .event-viewer-controls
+ * - .event-viewer-list
+ * - .event-viewer-empty
+ * - .event-item and variants
+ * - .event-icon, .event-content, .event-header, etc.
+ */

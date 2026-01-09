@@ -1,0 +1,208 @@
+@page "/composable-grouping-custom-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Grouping
+@using QuickGridTest01.ComposableColumns.Features.Grouping.Enums
+@using QuickGridTest01.RowColumn.Core
+
+<PageTitle>Composable Grouping Custom Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Row Grouping — Custom Templates</h1>
+        <p class="qg-page-subtitle">
+            Demonstrates <code>GroupingFeature&lt;TGridItem, TValue&gt;</code> with custom <code>HeaderTemplate</code>
+            and <code>ToolbarTemplate</code>.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Demo</h2>
+            <p class="qg-section-description">
+                Grouped by Category with custom header and toolbar templates.
+            </p>
+        </div>
+
+        <div class="demo-controls">
+            <label class="inline-checkbox">
+                <input type="checkbox" checked="@_initiallyExpanded" @onchange="OnInitiallyExpandedChanged" />
+                <span>Initially expanded</span>
+            </label>
+        </div>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="DemoRow" Items="@_items">
+                <PropertyColumn TGridItem="DemoRow" TProp="int" Property="@(r => r.Id)" Title="ID" />
+                <PropertyColumn TGridItem="DemoRow" TProp="string" Property="@(r => r.Name)" Title="Name" />
+
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)"
+                                  FeatureCollection="@_features" />
+
+                <PropertyColumn TGridItem="DemoRow" TProp="string" Property="@(r => r.Status)" Title="Status" />
+                <PropertyColumn TGridItem="DemoRow" TProp="decimal" Property="@(r => r.Price)" Title="Price" Format="C" />
+            </ComposableGrid>
+        </div>
+
+        @if (_eventLog.Any())
+        {
+            <div class="qg-section" style="margin-top: 16px;">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">Event Log</h2>
+                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLog.Clear()">Clear</button>
+                </div>
+                <div class="event-log">
+                    @foreach (var entry in _eventLog.TakeLast(10).Reverse())
+                    {
+                        <div class="log-entry">@entry</div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private sealed class DemoRow : IRowIdentifiable
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+    }
+
+    private bool _initiallyExpanded = true;
+    private IQueryable<DemoRow> _items = Array.Empty<DemoRow>().AsQueryable();
+    private readonly List<string> _eventLog = new();
+
+    private IColumnFeature<DemoRow>[] _features = [];
+
+    protected override void OnInitialized()
+    {
+        var products = new List<DemoRow>();
+        var categories = new[] { "Electronics", "Clothing", "Books", "Home", "Sports" };
+        var statuses = new[] { "In Stock", "Backorder", "Discontinued" };
+
+        var id = 1;
+        foreach (var category in categories)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                products.Add(new DemoRow
+                {
+                    Id = id++,
+                    Name = $"{category} Item {i + 1}",
+                    Category = category,
+                    Status = statuses[(id + i) % statuses.Length],
+                    Price = 10m + (i * 3.25m)
+                });
+            }
+        }
+
+        _items = products.AsQueryable();
+
+        _features =
+        [
+            new GroupingFeature<DemoRow, string>
+            {
+                ColumnId = "Category",
+                IsActive = true,
+                InitiallyExpanded = _initiallyExpanded,
+                ShowExpandCollapseAllButtons = true,
+                HeaderTemplate = CustomHeader,
+                ToolbarTemplate = CustomToolbar
+            }
+        ];
+    }
+
+    private void SyncFeatures()
+    {
+        foreach (var feature in _features.OfType<GroupingFeature<DemoRow, string>>())
+        {
+            feature.InitiallyExpanded = _initiallyExpanded;
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnInitiallyExpandedChanged(ChangeEventArgs e)
+    {
+        if (e.Value is bool b)
+            _initiallyExpanded = b;
+        else if (bool.TryParse(e.Value?.ToString(), out var parsed))
+            _initiallyExpanded = parsed;
+
+        SyncFeatures();
+    }
+
+    private RenderFragment<GroupHeaderContext<DemoRow, string>> CustomHeader => ctx => builder =>
+    {
+        var seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", $"qg-group-header custom {(ctx.IsExpanded ? "expanded" : "collapsed")}");
+        builder.AddAttribute(seq++, "style", "cursor: pointer; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 4px; margin: 2px 0;");
+        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, async () =>
+        {
+            await ctx.ToggleAsync();
+            Log($"Toggled group: {ctx.Key}");
+        }));
+
+        // Chevron
+        builder.OpenElement(seq++, "span");
+        builder.AddAttribute(seq++, "style", "margin-right: 8px;");
+        builder.AddContent(seq++, ctx.IsExpanded ? "?" : "?");
+        builder.CloseElement();
+
+        // Group name
+        builder.OpenElement(seq++, "strong");
+        builder.AddContent(seq++, ctx.Key?.ToString() ?? "(No Value)");
+        builder.CloseElement();
+
+        // Item count
+        builder.OpenElement(seq++, "span");
+        builder.AddAttribute(seq++, "style", "margin-left: 8px; opacity: 0.8;");
+        builder.AddContent(seq++, $"({ctx.ItemCount} items)");
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+
+    private RenderFragment<GroupToolbarContext> CustomToolbar => ctx => builder =>
+    {
+        var seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "class", "qg-group-toolbar custom");
+        builder.AddAttribute(seq++, "style", "display: flex; gap: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; margin-bottom: 8px;");
+
+        builder.OpenElement(seq++, "button");
+        builder.AddAttribute(seq++, "type", "button");
+        builder.AddAttribute(seq++, "style", "padding: 4px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;");
+        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, async () =>
+        {
+            await ctx.ExpandAllAsync();
+            Log("Expand All clicked");
+        }));
+        builder.AddContent(seq++, "?? Expand All");
+        builder.CloseElement();
+
+        builder.OpenElement(seq++, "button");
+        builder.AddAttribute(seq++, "type", "button");
+        builder.AddAttribute(seq++, "style", "padding: 4px 12px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;");
+        builder.AddAttribute(seq++, "onclick", EventCallback.Factory.Create(this, async () =>
+        {
+            await ctx.CollapseAllAsync();
+            Log("Collapse All clicked");
+        }));
+        builder.AddContent(seq++, "?? Collapse All");
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+
+    private void Log(string msg)
+    {
+        _eventLog.Add($"[{DateTime.Now:HH:mm:ss}] {msg}");
+        StateHasChanged();
+    }
+}

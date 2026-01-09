@@ -1,0 +1,189 @@
+﻿.architecture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.arch-card {
+    background: var(--qg-neutral-50, #f9fafb);
+    border: 1px solid var(--qg-neutral-200, #e5e7eb);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.arch-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--qg-primary, #3b82f6);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.arch-card p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--qg-neutral-600, #4b5563);
+    line-height: 1.4;
+}
+
+.arch-card code {
+    background: var(--qg-neutral-200, #e5e7eb);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.code-preview {
+    background: #1e293b !important;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid #334155;
+}
+
+.code-preview h4 {
+    color: #94a3b8 !important;
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.code-preview pre {
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+}
+
+.code-preview pre code {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    display: block;
+    white-space: pre;
+    text-shadow: none !important;
+    -webkit-font-smoothing: antialiased;
+}
+
+
+/* Conditional CSS classes for stock demo */
+::deep .stock-cell {
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+::deep .stock-empty {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+::deep .stock-low {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+::deep .stock-ok {
+    background: #f0fdf4;
+    color: #16a34a;
+}
+
+/* Editing styles */
+.edit-message {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.validation-rules-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.validation-rules-panel h4 {
+    margin: 0 0 0.75rem 0;
+    color: #475569;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.validation-rules-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.rule-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+}
+
+.rule-card strong {
+    display: block;
+    color: #1e293b;
+    font-size: 0.8rem;
+    margin-bottom: 0.375rem;
+}
+
+.rule-card ul {
+    margin: 0;
+    padding-left: 1rem;
+    list-style-type: disc;
+}
+
+.rule-card li {
+    color: #64748b;
+    font-size: 0.75rem;
+    line-height: 1.4;
+}
+
+/* Validation styles */
+::deep .validation-errors {
+    margin-top: 0.25rem;
+}
+
+::deep .validation-error {
+    color: #dc2626;
+    font-size: 0.75rem;
+    padding: 0.125rem 0;
+}
+
+::deep .editable-cell.invalid {
+    background-color: #fef2f2;
+    border-left: 3px solid #dc2626;
+    padding-left: 0.5rem;
+}
+
+::deep .editable-cell.inline-mode.invalid input,
+::deep .editable-cell.inline-mode.invalid select {
+    border-color: #dc2626;
+}
+
+::deep .editable-cell.dirty {
+    background-color: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    padding-left: 0.5rem;
+}
+
+::deep .editable-cell.inline-mode.dirty input,
+::deep .editable-cell.inline-mode.dirty select {
+    border-color: #f59e0b;
+}
+

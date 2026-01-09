@@ -1,4 +1,4 @@
-namespace QuickGridTest01.ComposableColumns.Core;
+﻿namespace QuickGridTest01.ComposableColumns.Core;
 
 /// <summary>
 /// Constants for feature execution priority.
@@ -12,9 +12,19 @@ public static class FeaturePriority
     public const int Infrastructure = 0;
 
     /// <summary>
+    /// Grouping features (group header rows, group state, grouped data source).
+    /// </summary>
+    public const int Grouping = 50;
+
+    /// <summary>
     /// Core features like type traits, auto-title inference.
     /// </summary>
     public const int Core = 100;
+
+    /// <summary>
+    /// Filtering features (filter state, filter application).
+    /// </summary>
+    public const int Filtering = 150;
 
     /// <summary>
     /// Formatting features (format string, custom formatter, culture).
@@ -25,6 +35,16 @@ public static class FeaturePriority
     /// Styling features (conditional CSS, icons, tooltips).
     /// </summary>
     public const int Styling = 300;
+
+    /// <summary>
+    /// Reordering features (row drag-and-drop reordering).
+    /// </summary>
+    public const int Reordering = 325;
+
+    /// <summary>
+    /// Expansion features (row expansion / overlays).
+    /// </summary>
+    public const int Expansion = 350;
 
     /// <summary>
     /// Editing features (inline editing, edit state, debounce).

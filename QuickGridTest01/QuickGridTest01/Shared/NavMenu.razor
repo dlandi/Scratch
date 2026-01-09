@@ -7,11 +7,11 @@
 
 <nav id="app-nav" class="qg-nav @MenuCssClass">
     <ul class="qg-nav-list">
+        <li class="qg-nav-item qg-nav-divider">
+            <span class="qg-nav-section">Adhoc Components</span>
+        </li>
         <li class="qg-nav-item">
             <NavLink class="qg-nav-link" href="/feature-matrix">Feature Matrix</NavLink>
-        </li>
-        <li class="qg-nav-item qg-nav-divider">
-            <span class="qg-nav-section">Custom Columns</span>
         </li>
         <li class="qg-nav-item">
             <NavLink class="qg-nav-link" href="/inline">Inline Editor</NavLink>
@@ -47,13 +47,44 @@
             <NavLink class="qg-nav-link" href="/row-column-demo">Row Column</NavLink>
         </li>
         <li class="qg-nav-item qg-nav-divider">
-            <span class="qg-nav-section">Composable Columns</span>
+            <span class="qg-nav-section">Composable Grid</span>
         </li>
         <li class="qg-nav-item">
-            <NavLink class="qg-nav-link" href="/composable-demo">Composable Column</NavLink>
+            <NavLink class="qg-nav-link" href="/composable-feature-matrix">Feature Matrix</NavLink>
         </li>
-    </ul>
-</nav>
+
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-basic-demo">Composable (Basic)</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-styling-demo">Composable Styling</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-filtering-demo">Filtering</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-inline-editing-demo">Inline Editing</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-new-editors-demo">Auto/Radio Editors</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/filter-test">Filtered</NavLink>
+        </li>
+        <li class="qg-nav-item">
+            <NavLink class="qg-nav-link" href="/composable-row-expand-demo">Composable Row Expand</NavLink>
+        </li>
+                <li class="qg-nav-item">
+                    <NavLink class="qg-nav-link" href="/composable-grouping-demo">Composable Grouping</NavLink>
+                </li>
+                <li class="qg-nav-item">
+                    <NavLink class="qg-nav-link" href="/composable-grouping-custom-demo">Composable Grouping (Custom)</NavLink>
+                </li>
+                <li class="qg-nav-item">
+                    <NavLink class="qg-nav-link" href="/composable-reorder-demo">Row Reordering</NavLink>
+                </li>
+            </ul>
+        </nav>
 
 @code {
     private bool collapseNavMenu = true;

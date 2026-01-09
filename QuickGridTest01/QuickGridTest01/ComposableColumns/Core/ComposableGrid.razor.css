@@ -1,0 +1,17 @@
+/* ComposableGrid scoped styles */
+/* 
+ * Event panel and layout styles have been moved to global CSS:
+ * wwwroot/css/quickgrid-refined-minimalism.css
+ * 
+ * This ensures:
+ * - Consistent use of design system tokens
+ * - No CSS isolation issues with dynamically rendered content
+ * - Pattern consistency with filter toolbar (also in global CSS)
+ * 
+ * Classes moved:
+ * - .composable-grid-container
+ * - .composable-grid-with-panel
+ * - .composable-grid-main
+ * - .composable-grid-event-panel
+ * - .event-panel-top/bottom/left/right
+ */

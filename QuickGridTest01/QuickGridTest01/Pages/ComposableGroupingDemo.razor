@@ -1,0 +1,124 @@
+﻿@page "/composable-grouping-demo"
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Grouping
+@using QuickGridTest01.ComposableColumns.Features.Grouping.Enums
+@using QuickGridTest01.RowColumn.Core
+
+<PageTitle>Composable Grouping Demo</PageTitle>
+
+<div class="qg-container">
+    <header class="qg-page-header">
+        <h1 class="qg-page-title">Composable Row Grouping</h1>
+        <p class="qg-page-subtitle">
+            Demonstrates <code>GroupingFeature&lt;TGridItem, TValue&gt;</code> composed into a <code>ComposableColumn</code>
+            via <code>FeatureCollection</code>. Uses the default group header UI.
+        </p>
+    </header>
+
+    <section class="qg-section">
+        <div class="qg-section-header">
+            <h2 class="qg-section-title">Demo</h2>
+            <p class="qg-section-description">
+                Grouped by Category. Click group headers to expand/collapse.
+            </p>
+        </div>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="DemoRow" Items="@_items">
+                <ComposableColumn TGridItem="DemoRow" TValue="int" Title="ID" Property="@(r => r.Id)" />
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Name" Property="@(r => r.Name)" />
+
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Category" Property="@(r => r.Category)"
+                                  FeatureCollection="@_features" />
+
+                <ComposableColumn TGridItem="DemoRow" TValue="string" Title="Status" Property="@(r => r.Status)"
+                                  FeatureCollection="@_statusFeatures" />
+                <ComposableColumn TGridItem="DemoRow" TValue="decimal" Title="Price" Property="@(r => r.Price)" Format="C" />
+            </ComposableGrid>
+        </div>
+
+        @if (_eventLog.Any())
+        {
+            <div class="qg-section" style="margin-top: 16px;">
+                <div class="qg-section-header">
+                    <h2 class="qg-section-title">Event Log</h2>
+                    <button class="qg-btn qg-btn-ghost qg-btn-sm" @onclick="() => _eventLog.Clear()">Clear</button>
+                </div>
+                <div class="event-log">
+                    @foreach (var entry in _eventLog.TakeLast(10).Reverse())
+                    {
+                        <div class="log-entry">@entry</div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private sealed class DemoRow : IRowIdentifiable
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public decimal Price { get; set; }
+    }
+
+    private IQueryable<DemoRow> _items = Array.Empty<DemoRow>().AsQueryable();
+    private readonly List<string> _eventLog = new();
+
+    // Single feature instance - its properties are updated, not recreated
+    private readonly GroupingFeature<DemoRow, string> _groupingFeature = new()
+    {
+        ColumnId = "Category",
+        IsActive = false,
+        InitiallyExpanded = true,
+        ShowExpandCollapseAllButtons = true
+    };
+
+    private readonly GroupingFeature<DemoRow, string> _statusGroupingFeature = new()
+    {
+        ColumnId = "Status",
+        IsActive = false,
+        InitiallyExpanded = true,
+        ShowExpandCollapseAllButtons = true
+    };
+
+    private IColumnFeature<DemoRow>[] _features = [];
+    private IColumnFeature<DemoRow>[] _statusFeatures = [];
+
+    protected override void OnInitialized()
+    {
+        var products = new List<DemoRow>();
+        var categories = new[] { "Electronics", "Clothing", "Books", "Home", "Sports" };
+        var statuses = new[] { "In Stock", "Backorder", "Discontinued" };
+
+        var id = 1;
+        foreach (var category in categories)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                products.Add(new DemoRow
+                {
+                    Id = id++,
+                    Name = $"{category} Item {i + 1}",
+                    Category = category,
+                    Status = statuses[(id + i) % statuses.Length],
+                    Price = 10m + (i * 3.25m)
+                });
+            }
+        }
+
+        _items = products.AsQueryable();
+        _features = [_groupingFeature];
+        _statusFeatures = [_statusGroupingFeature];
+    }
+
+    private void Log(string msg)
+    {
+        _eventLog.Add($"[{DateTime.Now:HH:mm:ss}] {msg}");
+        StateHasChanged();
+    }
+}

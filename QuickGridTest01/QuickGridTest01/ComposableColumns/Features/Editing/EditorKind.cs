@@ -55,8 +55,23 @@ public enum EditorKind
     /// </summary>
     Tel,
 
-    /// <summary>
-    /// Currency input (number with 2 decimal places).
-    /// </summary>
-    Currency
-}
+        /// <summary>
+        /// Currency input (number with 2 decimal places).
+        /// </summary>
+        Currency,
+
+        /// <summary>
+        /// Automatically infer the editor type from the property type using TypeTraits.
+        /// </summary>
+        Auto,
+
+        /// <summary>
+        /// Time picker input for TimeOnly values.
+        /// </summary>
+        Time,
+
+        /// <summary>
+        /// Radio button group for enum or predefined options.
+        /// </summary>
+        RadioGroup
+    }

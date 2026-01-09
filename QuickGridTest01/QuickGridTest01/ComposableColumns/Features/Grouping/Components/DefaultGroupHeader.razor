@@ -1,0 +1,25 @@
+﻿@using QuickGridTest01.ComposableColumns.Features.Grouping
+
+<div class="qg-group-header @(IsExpanded ? "expanded" : "collapsed")" @onclick="HandleClick">
+    <span class="qg-group-chevron">@(IsExpanded ? "▼" : "▶")</span>
+    <span class="qg-group-key">@(_keyText)</span>
+    <span class="qg-group-count">(@ItemCount)</span>
+</div>
+
+@code {
+    [Parameter] public object? Key { get; set; }
+    [Parameter] public int ItemCount { get; set; }
+    [Parameter] public bool IsExpanded { get; set; }
+    [Parameter] public string NullGroupLabel { get; set; } = "(No Value)";
+    [Parameter] public Func<Task>? OnToggle { get; set; }
+
+    private string _keyText => Key?.ToString() ?? NullGroupLabel;
+
+    private async Task HandleClick()
+    {
+        if (OnToggle is not null)
+        {
+            await OnToggle();
+        }
+    }
+}

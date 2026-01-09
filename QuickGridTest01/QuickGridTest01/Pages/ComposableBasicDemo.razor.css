@@ -1,0 +1,35 @@
+﻿/* Basic demo - code preview only */
+.code-preview {
+    background: #1e293b !important;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    margin-top: 1rem;
+    overflow-x: auto;
+    border: 1px solid #334155;
+}
+
+.code-preview h4 {
+    color: #94a3b8 !important;
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.code-preview pre {
+    margin: 0;
+    padding: 0;
+    background: transparent !important;
+    border: none !important;
+}
+
+.code-preview pre code {
+    color: #e2e8f0 !important;
+    background: transparent !important;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    display: block;
+    white-space: pre;
+    text-shadow: none !important;
+    -webkit-font-smoothing: antialiased;
+}

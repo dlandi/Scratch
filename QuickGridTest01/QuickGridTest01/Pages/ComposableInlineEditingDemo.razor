@@ -1,0 +1,112 @@
+﻿@page "/composable-inline-editing-demo"
+@using QuickGridTest01.ComposableColumns.Demos
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using EditKind = QuickGridTest01.ComposableColumns.Features.Editing.EditorKind
+
+<PageTitle>Composable Grid - Inline Editing</PageTitle>
+
+<section class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">Inline Editing Features</h2>
+        <p class="qg-section-description">
+            Cells are always in edit mode with seamless inputs. Validation occurs when you leave a cell (on blur).
+            Press Enter to commit, Escape to cancel.
+        </p>
+    </div>
+
+    <div class="validation-rules-panel">
+        <h4>Validation Rules (applied on blur)</h4>
+        <div class="validation-rules-grid">
+            <div class="rule-card">
+                <strong>Name</strong>
+                <ul>
+                    <li>Required field</li>
+                    <li>Min 2 characters</li>
+                    <li>Max 50 characters</li>
+                </ul>
+            </div>
+            <div class="rule-card">
+                <strong>Price</strong>
+                <ul>
+                    <li>Range: $0.01 - $10,000</li>
+                </ul>
+            </div>
+            <div class="rule-card">
+                <strong>Stock</strong>
+                <ul>
+                    <li>Minimum: 0</li>
+                </ul>
+            </div>
+            <div class="rule-card">
+                <strong>Status</strong>
+                <ul>
+                    <li>No validation (select)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="edit-message" style="@(!string.IsNullOrEmpty(_lastEditMessage) ? string.Empty : "display: none;")">
+        <i class="bi bi-check-circle"></i> @_lastEditMessage
+    </div>
+
+    <div class="qg-grid-container">
+        <ComposableGrid TGridItem="EditableProduct" Items="@_editableProducts" RowKey="p => p.Id" Class="qg-grid">
+            <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                              Property="@(p => p.Id)"
+                              Title="ID" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="string"
+                              Property="@(p => p.Name)"
+                              Title="Name (Editable)"
+                              FeatureCollection="@_nameEditFeatures"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="decimal"
+                              Property="@(p => p.Price)"
+                              Title="Price (Editable)"
+                              FeatureCollection="@_priceEditFeatures"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="int"
+                              Property="@(p => p.Stock)"
+                              Title="Stock (Editable)"
+                              FeatureCollection="@_stockEditFeatures"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="EditableProduct" TValue="ProductStatus"
+                              Property="@(p => p.Status)"
+                              Title="Status (Select)"
+                              FeatureCollection="@_statusEditFeatures"
+                              Sortable="true" />
+        </ComposableGrid>
+    </div>
+
+        <div class="code-preview">
+            <h4>Code Example</h4>
+            <pre><code>// Name with text editing and validation
+    _nameEditFeatures = [
+        new InlineEditingFeature&lt;EditableProduct, string&gt;
+        {
+            Editor = EditorKind.Text,
+            Placeholder = "Enter name...",
+            ItemKey = p =&gt; p.Id,
+            ShowValidationErrors = true,
+            Validators = [
+                new RequiredStringValidator(),
+                new StringLengthValidator { MinLength = 2, MaxLength = 50 }
+            ]
+        }
+    ];</code></pre>
+        </div>
+
+        <div class="qg-section-footer">
+            <p>
+                <strong>How it works:</strong> <code>InlineEditingFeature</code> renders the cell as an always-visible input.
+                Validation runs on blur (when you leave the cell). The <code>ItemKey</code> identifies which row is being edited.
+                <code>Validators</code> is a collection of validation rules that execute before committing changes.
+                Press <strong>Enter</strong> to commit or <strong>Escape</strong> to cancel edits.
+            </p>
+        </div>
+    </section>

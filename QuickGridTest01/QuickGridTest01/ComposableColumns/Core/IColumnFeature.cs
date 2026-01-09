@@ -28,6 +28,14 @@ public interface IColumnFeature<TGridItem>
     /// </summary>
     /// <param name="context">The shared context for all features in this column.</param>
     void OnDetach(FeatureContext<TGridItem> context);
+
+    /// <summary>
+    /// Called when the column's parameters have changed.
+    /// Features should update their internal state based on current property values.
+    /// Default implementation does nothing.
+    /// </summary>
+    /// <param name="context">The shared context for all features in this column.</param>
+    void OnParametersChanged(FeatureContext<TGridItem> context) { }
 }
 
 /// <summary>
@@ -157,4 +165,43 @@ public sealed record ValidationResult
 
     public static ValidationResult Failure(IEnumerable<string> errors) =>
         new() { IsValid = false, Errors = errors.ToList() };
+}
+
+/// <summary>
+/// Interface for features that provide grid-level filtering capability.
+/// Features implementing this interface will be detected by ComposableGrid
+/// and their filter UI will be auto-rendered in a filter toolbar.
+/// </summary>
+/// <typeparam name="TGridItem">The type of data represented by each row in the grid.</typeparam>
+public interface IGridFilterFeature<TGridItem> : IColumnFeature<TGridItem>
+{
+    /// <summary>
+    /// Whether this filter currently has an active filter value.
+    /// </summary>
+    bool HasActiveFilter { get; }
+
+    /// <summary>
+    /// The column title to display as label for this filter.
+    /// </summary>
+    string? FilterLabel { get; }
+
+    /// <summary>
+    /// Applies this filter to the given queryable.
+    /// </summary>
+    IQueryable<TGridItem> ApplyFilter(IQueryable<TGridItem> items);
+
+    /// <summary>
+    /// Clears the filter value.
+    /// </summary>
+    Task ClearFilterAsync();
+
+    /// <summary>
+    /// Renders the filter input UI for this column.
+    /// </summary>
+    void RenderFilterInput(RenderTreeBuilder builder, ref int sequence);
+
+    /// <summary>
+    /// Event raised when the filter value changes.
+    /// </summary>
+    event Func<Task>? OnFilterChanged;
 }

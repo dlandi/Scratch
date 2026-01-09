@@ -1,0 +1,63 @@
+﻿@page "/composable-basic-demo"
+@using System
+@using QuickGridTest01.ComposableColumns.Demos
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Core
+@using QuickGridTest01.ComposableColumns.Features.Formatting
+
+<PageTitle>Composable Column - Basic</PageTitle>
+
+<div class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">Basic Composable Column</h2>
+        <p class="qg-section-description">
+            A simple grid with auto-title inference and format string features.
+        </p>
+    </div>
+
+    <div class="qg-grid-container">
+        <QuickGrid Items="@_products" Class="qg-grid">
+            <PropertyColumn Property="@(p => p.Id)" Title="ID" />
+            <PropertyColumn Property="@(p => p.Name)" Title="Name" />
+
+            <ComposableColumn TGridItem="Product" TValue="decimal"
+                              Property="@(p => p.Price)"
+                              Title="Price"
+                              Format="C2"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="Product" TValue="int"
+                              Property="@(p => p.Stock)"
+                              Title="Stock"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="Product" TValue="DateTime"
+                              Property="@(p => p.LastUpdated)"
+                              Title="Last Updated"
+                              Format="yyyy-MM-dd"
+                              Sortable="true" />
+        </QuickGrid>
+    </div>
+
+            <div class="code-preview">
+                <h4>Code Example</h4>
+                <pre><code>&lt;ComposableColumn Property="@@(p =&gt; p.Price)" 
+                          Title="Price" 
+                          Format="C2" 
+                          Sortable="true" /&gt;
+
+        &lt;ComposableColumn Property="@@(p =&gt; p.LastUpdated)" 
+                          Title="Last Updated" 
+                          Format="yyyy-MM-dd" 
+                          Sortable="true" /&gt;</code></pre>
+            </div>
+
+            <div class="qg-section-footer">
+                <p>
+                    <strong>How it works:</strong> The <code>Format</code> parameter accepts standard .NET format strings (like "C2" for currency or "yyyy-MM-dd" for dates).
+                    The <code>Sortable</code> parameter enables column sorting. ComposableColumn automatically applies <code>FormatStringFeature</code> and <code>SortableFeature</code>
+                    based on these parameters.
+                </p>
+            </div>
+        </div>

@@ -1,0 +1,81 @@
+﻿@page "/composable-styling-demo"
+@using QuickGridTest01.ComposableColumns.Demos
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Formatting
+@using QuickGridTest01.ComposableColumns.Features.Styling
+
+<PageTitle>Composable Column - Styling Features</PageTitle>
+
+<section class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">With Styling Features</h2>
+        <p class="qg-section-description">
+            Composing IconFeature, ConditionalCssFeature, and FormatStringFeature for visual indicators.
+        </p>
+    </div>
+
+    <div class="qg-grid-container">
+        <QuickGrid Items="@_products" Class="qg-grid">
+            <PropertyColumn Property="@(p => p.Name)" Title="Product" />
+
+            <ComposableColumn TGridItem="Product" TValue="int"
+                              Property="@(p => p.Stock)"
+                              Title="Stock Level"
+                              FeatureCollection="@_stockFeatures"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="Product" TValue="ProductStatus"
+                              Property="@(p => p.Status)"
+                              Title="Status"
+                              FeatureCollection="@_statusFeatures"
+                              Sortable="true" />
+
+            <ComposableColumn TGridItem="Product" TValue="decimal"
+                              Property="@(p => p.Price)"
+                              Title="Price"
+                              FeatureCollection="@_priceFeatures"
+                              Sortable="true" />
+        </QuickGrid>
+    </div>
+
+        <div class="code-preview">
+            <h4>Code Example</h4>
+            <pre><code>// Stock level with conditional CSS
+    var stockFeatures = new IColumnFeature&lt;Product&gt;[]
+    {
+        new ConditionalCssFeature&lt;Product, int&gt;
+        {
+            BaseClass = "stock-cell",
+            Rules = [
+                new() { Condition = v =&gt; v == 0, CssClass = "stock-empty" },
+                new() { Condition = v =&gt; v &lt; 10, CssClass = "stock-low" },
+                new() { Condition = v =&gt; v &gt;= 10, CssClass = "stock-ok" }
+            ]
+        }
+    };
+
+    // Status with icon mapping
+    var statusFeatures = new IColumnFeature&lt;Product&gt;[]
+    {
+        new IconFeature&lt;Product, ProductStatus&gt;
+        {
+            IconMapper = status =&gt; status switch
+            {
+                ProductStatus.Active =&gt; "bi bi-check-circle-fill",
+                ProductStatus.Discontinued =&gt; "bi bi-x-circle-fill",
+                ProductStatus.ComingSoon =&gt; "bi bi-clock-fill",
+                _ =&gt; "bi bi-question-circle"
+            }
+        }
+    };</code></pre>
+        </div>
+
+        <div class="qg-section-footer">
+            <p>
+                <strong>How it works:</strong> <code>ConditionalCssFeature</code> applies CSS classes based on cell values using conditional rules.
+                <code>IconFeature</code> maps values to Bootstrap Icons using a switch expression. Both features are passed via the
+                <code>FeatureCollection</code> parameter, allowing multiple styling behaviors to compose together.
+            </p>
+        </div>
+    </section>

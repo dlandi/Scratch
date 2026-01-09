@@ -1,0 +1,207 @@
+@namespace QuickGridTest01.ComposableColumns.Features.Editing
+@implements IDisposable
+
+<div class="validation-summary-panel @GetPlacementClass()">
+    <div class="validation-summary-header">
+        <h4>@Title</h4>
+        @if (_focusedCell?.PropertyName is not null)
+        {
+            <span class="focused-property">@_focusedCell.Value.PropertyName</span>
+        }
+    </div>
+
+    <div class="validation-summary-content">
+        @if (_focusedCell is null)
+        {
+            <div class="validation-summary-empty">
+                <i class="bi bi-shield-check"></i>
+                <span>Click a cell to see validation rules.</span>
+            </div>
+        }
+        else
+        {
+            <div class="validation-rule-list">
+                @if (_focusedCell.Value.RuleDescriptors.Count == 0)
+                {
+                    <div class="validation-rule-item no-rules">
+                        <i class="bi bi-check-circle"></i>
+                        <span>No validation rules configured</span>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var rule in _focusedCell.Value.RuleDescriptors)
+                    {
+                        <div class="validation-rule-item @GetRuleStatusClass(rule)">
+                            <div class="rule-icon">
+                                @GetRuleIcon(rule)
+                            </div>
+                            <div class="rule-content">
+                                <span class="rule-name">@rule.Name</span>
+                                @if (!string.IsNullOrEmpty(rule.Description))
+                                {
+                                    <span class="rule-description">@rule.Description</span>
+                                }
+                                <span class="rule-severity severity-@rule.Severity.ToString().ToLowerInvariant()">
+                                    @rule.Severity
+                                </span>
+                            </div>
+                            <div class="rule-status">
+                                @GetRuleStatusIcon(rule)
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            @if (_lastValidationEvent is not null)
+            {
+                <div class="validation-result @GetResultClass()">
+                    <div class="result-header">
+                        @if (_lastValidationEvent is ValidationSucceededEvent)
+                        {
+                            <i class="bi bi-check-circle-fill"></i>
+                            <span>Validation Passed</span>
+                        }
+                        else if (_lastValidationEvent is ValidationFailedEvent failedEvent)
+                        {
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span>Validation Failed</span>
+                        }
+                    </div>
+                    @if (_lastValidationEvent is ValidationFailedEvent failed && failed.Errors.Count > 0)
+                    {
+                        <ul class="validation-errors">
+                            @foreach (var error in failed.Errors)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [CascadingParameter]
+    public IEditEventStream? EventStream { get; set; }
+
+    /// <summary>
+    /// Title displayed in the panel header.
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Validation Rules";
+
+    /// <summary>
+    /// Placement hint for styling (doesn't affect rendering position).
+    /// </summary>
+    [Parameter]
+    public EventPanelPlacement Placement { get; set; } = EventPanelPlacement.Right;
+
+    private FocusedCellInfo? _focusedCell;
+    private EditEventBase? _lastValidationEvent;
+    private readonly Dictionary<string, ValidationRuleResult> _ruleResults = new();
+
+    protected override void OnInitialized()
+    {
+        if (EventStream is not null)
+        {
+            EventStream.FocusedCellChanged += OnFocusedCellChanged;
+            EventStream.EventPublished += OnEventPublished;
+            _focusedCell = EventStream.FocusedCell;
+        }
+    }
+
+    private void OnFocusedCellChanged(FocusedCellInfo? focusedCell)
+    {
+        _focusedCell = focusedCell;
+        _lastValidationEvent = null;
+        _ruleResults.Clear();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void OnEventPublished(EditEventBase evt)
+    {
+        // Only track validation events for the focused cell
+        if (_focusedCell is null)
+            return;
+
+        if (evt.PropertyName != _focusedCell.Value.PropertyName)
+            return;
+
+        if (evt is ValidationSucceededEvent successEvent)
+        {
+            _lastValidationEvent = successEvent;
+            UpdateRuleResults(successEvent.RuleResults);
+        }
+        else if (evt is ValidationFailedEvent failedEvent)
+        {
+            _lastValidationEvent = failedEvent;
+            UpdateRuleResults(failedEvent.RuleResults);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateRuleResults(IReadOnlyList<ValidationRuleResult> results)
+    {
+        _ruleResults.Clear();
+        foreach (var result in results)
+        {
+            _ruleResults[result.RuleName] = result;
+        }
+    }
+
+    private string GetPlacementClass() => Placement switch
+    {
+        EventPanelPlacement.Top => "placement-top",
+        EventPanelPlacement.Bottom => "placement-bottom",
+        EventPanelPlacement.Left => "placement-left",
+        EventPanelPlacement.Right => "placement-right",
+        _ => ""
+    };
+
+    private string GetRuleStatusClass(ValidationRuleDescriptor rule)
+    {
+        if (!_ruleResults.TryGetValue(rule.Name, out var result))
+            return "pending";
+
+        return result.IsValid ? "passed" : "failed";
+    }
+
+    private MarkupString GetRuleIcon(ValidationRuleDescriptor rule) => rule.Severity switch
+    {
+        ValidationSeverity.Info => new MarkupString("<i class=\"bi bi-info-circle\"></i>"),
+        ValidationSeverity.Warning => new MarkupString("<i class=\"bi bi-exclamation-circle\"></i>"),
+        ValidationSeverity.Error => new MarkupString("<i class=\"bi bi-x-circle\"></i>"),
+        _ => new MarkupString("<i class=\"bi bi-circle\"></i>")
+    };
+
+    private MarkupString GetRuleStatusIcon(ValidationRuleDescriptor rule)
+    {
+        if (!_ruleResults.TryGetValue(rule.Name, out var result))
+            return new MarkupString("<i class=\"bi bi-dash\"></i>");
+
+        return result.IsValid
+            ? new MarkupString("<i class=\"bi bi-check-lg\"></i>")
+            : new MarkupString("<i class=\"bi bi-x-lg\"></i>");
+    }
+
+    private string GetResultClass() => _lastValidationEvent switch
+    {
+        ValidationSucceededEvent => "result-success",
+        ValidationFailedEvent => "result-failure",
+        _ => ""
+    };
+
+    public void Dispose()
+    {
+        if (EventStream is not null)
+        {
+            EventStream.FocusedCellChanged -= OnFocusedCellChanged;
+            EventStream.EventPublished -= OnEventPublished;
+        }
+    }
+}

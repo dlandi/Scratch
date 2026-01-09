@@ -1,0 +1,509 @@
+﻿@typeparam TGridItem where TGridItem : class
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.AspNetCore.Components
+@using QuickGridTest01.ComposableColumns.Features.Editing
+@using QuickGridTest01.ComposableColumns.Features.Grouping
+@using QuickGridTest01.RowColumn.Core
+
+<CascadingValue Value="this" TValue="ComposableGrid<TGridItem>">
+	<CascadingValue Value="RowKey" TValue="Func<TGridItem, object>?">
+		<CascadingValue Value="_editEventStream" TValue="IEditEventStream">
+			@* Event panel at Top position *@
+			@if (EventPanelPlacement == EventPanelPlacement.Top && _editEventStream is not null)
+			{
+				<div class="composable-grid-event-panel event-panel-top">
+					<EditEventViewer />
+				</div>
+			}
+
+			<div class="@GetGridContainerClass()">
+				@* Event panel at Left position *@
+				@if (EventPanelPlacement == EventPanelPlacement.Left && _editEventStream is not null)
+				{
+					<div class="composable-grid-event-panel event-panel-left">
+						<EditEventViewer />
+					</div>
+				}
+
+				<div class="composable-grid-main">
+					@* Render filter toolbar if any columns have filter features *@
+					@if (_filterFeatures.Count > 0)
+					{
+						<div class="composable-grid-filter-toolbar">
+							@foreach (var filter in _filterFeatures)
+							{
+								@FilterInputFragment(filter)
+							}
+							<div class="filter-toolbar-actions">
+								@if (HasActiveFilters)
+								{
+									<span class="filter-count">@FilteredCount of @TotalCount</span>
+									<button type="button" class="btn-clear-all-filters" @onclick="ClearAllFiltersAsync">
+										<i class="bi bi-x-circle"></i> Clear
+									</button>
+								}
+							</div>
+						</div>
+					}
+
+					@* Grid toolbar: Grouping section (below filters, closest to grid) *@
+					@if (HasGroupingOptions)
+					{
+						<div class="qg-group-toolbar">
+							<div class="qg-group-toolbar-row">
+								<label class="qg-label" for="qg-groupby-select">Group by</label>
+								<select id="qg-groupby-select" class="qg-select" value="@ActiveGroupingColumnId" @onchange="OnGroupByChangedAsync">
+									<option value="">None</option>
+									@foreach (var columnId in GroupingColumnIds)
+									{
+										<option value="@columnId">@columnId</option>
+									}
+								</select>
+
+								@if (ShouldShowGroupingExpandCollapseButtons)
+								{
+									<div class="qg-group-controls">
+										<button type="button" class="qg-expand-all" @onclick="ExpandAllGroupsAsync">Expand all</button>
+										<button type="button" class="qg-collapse-all" @onclick="CollapseAllGroupsAsync">Collapse all</button>
+									</div>
+								}
+							</div>
+						</div>
+					}
+
+					<QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
+						@ChildContent
+					</QuickGrid>
+				</div>
+
+				@* Event panel at Right position *@
+				@if (EventPanelPlacement == EventPanelPlacement.Right && _editEventStream is not null)
+				{
+					<div class="composable-grid-event-panel event-panel-right">
+						<EditEventViewer />
+					</div>
+				}
+			</div>
+
+			@* Event panel at Bottom position *@
+			@if (EventPanelPlacement == EventPanelPlacement.Bottom && _editEventStream is not null)
+			{
+				<div class="composable-grid-event-panel event-panel-bottom">
+					<EditEventViewer />
+				</div>
+			}
+		</CascadingValue>
+	</CascadingValue>
+</CascadingValue>
+
+@code {
+	private readonly List<IGridFilterFeature<TGridItem>> _filterFeatures = [];
+	private EditEventStream? _editEventStream;
+
+	private GroupingCoordinator<TGridItem>? _groupingCoordinator;
+	private GroupedGridDataSource<TGridItem>? _groupedDataSource;
+
+	private QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem>? _reorderCoordinator;
+
+	private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
+
+	/// <summary>
+	/// The data source for the grid.
+	/// </summary>
+	[Parameter] public IQueryable<TGridItem> Items { get; set; } = Array.Empty<TGridItem>().AsQueryable();
+
+	/// <summary>
+	/// Optional row key selector used for SetKey and key-dependent features.
+	/// </summary>
+	[Parameter] public Func<TGridItem, object>? RowKey { get; set; }
+
+	/// <summary>
+	/// Where to render the event panel. Default is None (no panel).
+	/// </summary>
+	[Parameter] public EventPanelPlacement EventPanelPlacement { get; set; } = EventPanelPlacement.None;
+
+	[Parameter] public RenderFragment? ChildContent { get; set; }
+
+	[Parameter(CaptureUnmatchedValues = true)]
+	public Dictionary<string, object>? AdditionalAttributes { get; set; }
+
+	/// <summary>
+	/// Gets the edit event stream for this grid.
+	/// </summary>
+	public IEditEventStream? EditEventStream => _editEventStream;
+
+	internal void RegisterColumn(IColumnFeatureProvider<TGridItem> column)
+	{
+		var hadAnyGroupingBefore = _columns
+			.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>())
+			.Any();
+
+		if (!_columns.Contains(column))
+		{
+			_columns.Add(column);
+		}
+
+		// Early registration path for grouping features.
+		// This may run before feature attachment; coordinator registration must be idempotent.
+		var groupingFeatures = column.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>();
+		foreach (var gf in groupingFeatures)
+		{
+			if (string.IsNullOrWhiteSpace(gf.ColumnId))
+				continue;
+
+			var coordinator = GetOrCreateGroupingCoordinator();
+			var hadActiveGroupingBefore = coordinator.ActiveGrouping is not null;
+			coordinator.RegisterColumn(gf.ColumnId, gf);
+
+			// If this registration activated grouping for the first time,
+			// schedule a re-render so ItemsForQuickGrid can pick up the grouped items.
+			if (!hadActiveGroupingBefore && coordinator.ActiveGrouping is not null)
+			{
+				_ = InvokeAsync(StateHasChanged);
+			}
+			else if (!hadAnyGroupingBefore)
+			{
+				// We just observed the first grouping feature. Re-render so the grouping toolbar becomes visible.
+				_ = InvokeAsync(StateHasChanged);
+			}
+		}
+	}
+
+	internal void UnregisterColumn(IColumnFeatureProvider<TGridItem> column)
+	{
+		_columns.Remove(column);
+	}
+
+	internal GroupingCoordinator<TGridItem> GetOrCreateGroupingCoordinator()
+	{
+		if (_groupingCoordinator is not null)
+		{
+			QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"GetOrCreateGroupingCoordinator: reuse grid={GetHashCode()}, coord={_groupingCoordinator.GetHashCode()}, host='{_groupingCoordinator.HeaderHostColumnId ?? "<null>"}', active={(_groupingCoordinator.ActiveGrouping is null ? "<null>" : "set")}");
+			return _groupingCoordinator;
+		}
+
+		// Grouping is only valid for grids whose TGridItem supports row-identity.
+		if (typeof(IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+			throw new InvalidOperationException("Grouping requires TGridItem to implement IRowIdentifiable.");
+
+		_groupingCoordinator = new GroupingCoordinator<TGridItem>();
+		QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"GetOrCreateGroupingCoordinator: create grid={GetHashCode()}, coord={_groupingCoordinator.GetHashCode()}");
+		return _groupingCoordinator;
+	}
+
+	public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
+
+	/// <summary>
+	/// Gets whether reordering is currently active (feature registered and enabled).
+	/// When true, column sorting is suppressed.
+	/// </summary>
+	public bool IsReorderingActive => _reorderCoordinator?.IsReorderingEnabled == true;
+
+	/// <summary>
+	/// Gets or creates the reorder coordinator for this grid.
+	/// </summary>
+	/// <exception cref="InvalidOperationException">Thrown if TGridItem does not implement IRowIdentifiable.</exception>
+	internal QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem> GetOrCreateReorderCoordinator()
+	{
+		if (_reorderCoordinator is not null)
+			return _reorderCoordinator;
+
+		// Reordering is only valid for grids whose TGridItem supports row-identity.
+		if (typeof(QuickGridTest01.ComposableColumns.Features.Expansion.Core.IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+			throw new InvalidOperationException("Reordering requires TGridItem to implement IRowIdentifiable.");
+
+		_reorderCoordinator = new QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem>();
+
+		// Wire grouping coordinator if it exists
+		if (_groupingCoordinator is not null)
+		{
+			_reorderCoordinator.GroupingCoordinator = _groupingCoordinator;
+		}
+
+		return _reorderCoordinator;
+	}
+
+	/// <summary>
+	/// Notifies the grouped data source that its state has changed, triggering a re-render.
+	/// Called by GroupingFeature after toggling group expansion state.
+	/// </summary>
+	public void NotifyGroupingStateChanged()
+	{
+		_groupedDataSource?.NotifyStateChanged();
+	}
+
+	private IQueryable<TGridItem> SortedItems
+	{
+		get
+		{
+			// When reordering is active, suppress column sorting
+			if (IsReorderingActive)
+				return FilteredItems;
+
+			var sortingFeature = _columns
+				.SelectMany(c => c.GetAllFeatures().OfType<ISortingFeature<TGridItem>>())
+				.FirstOrDefault(f => f.IsSortable);
+
+			// If no sorting feature is active, return filtered items as-is.
+			if (sortingFeature is null)
+				return FilteredItems;
+
+			var sortFn = sortingFeature.GetSortFunction();
+			return sortFn is null ? FilteredItems : sortFn(FilteredItems, true);
+		}
+	}
+
+	private GroupedGridDataSource<TGridItem> GetOrCreateGroupedDataSource()
+	{
+		if (_groupedDataSource is not null)
+			return _groupedDataSource;
+
+		var coordinator = GetOrCreateGroupingCoordinator();
+		_groupedDataSource = new GroupedGridDataSource<TGridItem>(coordinator);
+		_groupedDataSource.OnDataChanged += OnGroupedDataChangedAsync;
+		return _groupedDataSource;
+	}
+
+	private Task OnGroupedDataChangedAsync() => InvokeAsync(StateHasChanged);
+
+	private IReadOnlyList<string> GetGroupingColumnIdsFromRegisteredColumns()
+	{
+		var ids = _columns
+			.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>())
+			.Select(f => f.ColumnId)
+			.Where(id => !string.IsNullOrWhiteSpace(id))
+			.Distinct(StringComparer.Ordinal)
+			.ToList();
+
+		return ids;
+	}
+
+	private bool HasGroupingOptions
+	{
+		get
+		{
+			// Ensure the toolbar renders as soon as columns are registered,
+			// even if the coordinator has not yet been created.
+			return GetGroupingColumnIdsFromRegisteredColumns().Count > 0;
+		}
+	}
+
+	private IReadOnlyList<string> GroupingColumnIds
+		=> _groupingCoordinator?.GetRegisteredColumnIds() ?? GetGroupingColumnIdsFromRegisteredColumns();
+
+	private string ActiveGroupingColumnId
+		=> _groupingCoordinator?.ActiveGrouping?.ColumnId ?? string.Empty;
+
+	private bool ShouldShowGroupingExpandCollapseButtons
+		=> _groupingCoordinator?.ActiveGrouping?.ShowExpandCollapseAllButtons == true;
+
+	private async Task OnGroupByChangedAsync(ChangeEventArgs e)
+	{
+		var coord = _groupingCoordinator;
+		if (coord is null)
+		{
+			// Coordinator may not exist yet if no early registration created it.
+			// Create it on demand when the user interacts with the toolbar.
+			coord = GetOrCreateGroupingCoordinator();
+			foreach (var f in _columns.SelectMany(c => c.GetAllFeatures().OfType<IGroupingFeature<TGridItem>>()))
+			{
+				if (!string.IsNullOrWhiteSpace(f.ColumnId))
+					coord.RegisterColumn(f.ColumnId, f);
+			}
+		}
+
+		var selected = e.Value?.ToString();
+		coord.SetActiveGrouping(string.IsNullOrWhiteSpace(selected) ? null : selected);
+
+		// If grouping was disabled, drop any grouped data source so ItemsForQuickGrid is ungrouped.
+		if (coord.ActiveGrouping is null)
+		{
+			_groupedDataSource = null; // Unbind grouped data source
+			_oneShotGroupingActivationRefreshIssued = false;
+		}
+
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private async Task ExpandAllGroupsAsync()
+	{
+		var active = _groupingCoordinator?.ActiveGrouping;
+		if (active is null)
+			return;
+
+		await active.ExpandAllGroupsAsync();
+	}
+
+	private async Task CollapseAllGroupsAsync()
+	{
+		var active = _groupingCoordinator?.ActiveGrouping;
+		if (active is null)
+			return;
+
+		await active.CollapseAllGroupsAsync();
+	}
+
+	// Track whether grouping was active on last render to detect when it becomes active
+	private bool _groupingWasActiveOnLastRender;
+
+	// Track whether we have ever bound ItemsForQuickGrid while grouping was inactive.
+	private bool _boundInactiveOnce;
+	private bool _oneShotGroupingActivationRefreshIssued;
+
+	protected override void OnInitialized()
+	{
+		// Create the event stream - it's always available for features to use
+		// even if EventPanelPlacement is None (consumers can still use the cascaded value)
+		_editEventStream = new EditEventStream();
+	}
+
+	protected override void OnAfterRender(bool firstRender)
+	{
+		// No-op for grouping activation. Grouping refresh is driven through GroupedGridDataSource.OnDataChanged.
+		// Keeping this empty avoids accidental render loops.
+	}
+
+	private IQueryable<TGridItem> ItemsForQuickGrid
+	{
+		get
+		{
+			var source = SortedItems;
+
+			var coord = _groupingCoordinator;
+			var active = coord?.ActiveGrouping is not null;
+			var hostId = coord?.HeaderHostColumnId;
+			var coordId = coord is null ? "<null>" : coord.GetHashCode().ToString();
+			QuickGridTest01.ComposableColumns.Core.Diagnostics.QgDebugLog.Write($"ItemsForQuickGrid: groupingActive={active}, grid={GetHashCode()}, coord={coordId}, host='{hostId ?? "<null>"}'");
+
+			if (!active)
+			{
+				_boundInactiveOnce = true;
+				return source;
+			}
+
+			// If grouping became active after we previously bound an ungrouped source,
+			// request a single deterministic refresh so QuickGrid rebinds to grouped items.
+			if (_boundInactiveOnce && !_oneShotGroupingActivationRefreshIssued)
+			{
+				_oneShotGroupingActivationRefreshIssued = true;
+				_ = InvokeAsync(StateHasChanged);
+			}
+
+			var ds = GetOrCreateGroupedDataSource();
+			ds.SetSourceItems(source);
+			return ds.Items;
+		}
+	}
+
+	private string GetGridContainerClass()
+	{
+		return EventPanelPlacement switch
+		{
+			EventPanelPlacement.Left or EventPanelPlacement.Right => "composable-grid-with-panel horizontal",
+			_ => "composable-grid-container"
+		};
+	}
+
+	/// <summary>
+	/// Gets the filtered items after applying all active filters.
+	/// </summary>
+	public IQueryable<TGridItem> FilteredItems
+	{
+		get
+		{
+			var result = Items;
+
+			foreach (var filter in _filterFeatures.Where(f => f.HasActiveFilter))
+			{
+				result = filter.ApplyFilter(result);
+			}
+
+			return result;
+		}
+	}
+
+	/// <summary>
+	/// Gets the total count of items before filtering.
+	/// </summary>
+	public int TotalCount => Items.Count();
+
+	/// <summary>
+	/// Gets the count of items after filtering.
+	/// </summary>
+	public int FilteredCount => FilteredItems.Count();
+
+	/// <summary>
+	/// Gets whether any filter is currently active.
+	/// </summary>
+	public bool HasActiveFilters => _filterFeatures.Any(f => f.HasActiveFilter);
+
+	/// <summary>
+	/// Registers a filter feature with the grid.
+	/// Called by ComposableColumn when it detects a filter feature.
+	/// </summary>
+	internal void RegisterFilter(IGridFilterFeature<TGridItem> filter)
+	{
+		if (!_filterFeatures.Contains(filter))
+		{
+			_filterFeatures.Add(filter);
+			filter.OnFilterChanged += OnFilterChangedAsync;
+
+			// Trigger re-render to show the filter toolbar
+			StateHasChanged();
+		}
+	}
+
+	/// <summary>
+	/// Unregisters a filter feature from the grid.
+	/// </summary>
+	internal void UnregisterFilter(IGridFilterFeature<TGridItem> filter)
+	{
+		if (_filterFeatures.Remove(filter))
+		{
+			filter.OnFilterChanged -= OnFilterChangedAsync;
+		}
+	}
+
+	private async Task OnFilterChangedAsync()
+	{
+		await InvokeAsync(StateHasChanged);
+	}
+
+	/// <summary>
+	/// Clears all active filters.
+	/// </summary>
+	public async Task ClearAllFiltersAsync()
+	{
+		foreach (var filter in _filterFeatures)
+		{
+			await filter.ClearFilterAsync();
+		}
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private RenderFragment FilterInputFragment(IGridFilterFeature<TGridItem> filter) => builder =>
+	{
+		var seq = 0;
+		filter.RenderFilterInput(builder, ref seq);
+	};
+
+	public void Dispose()
+	{
+		if (_groupedDataSource is not null)
+		{
+			_groupedDataSource.OnDataChanged -= OnGroupedDataChangedAsync;
+			_groupedDataSource = null;
+		}
+
+		_groupingCoordinator?.Dispose();
+		_groupingCoordinator = null;
+
+		_reorderCoordinator?.Dispose();
+		_reorderCoordinator = null;
+
+		_editEventStream?.Dispose();
+	}
+
+}

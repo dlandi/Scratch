@@ -1,8 +1,13 @@
+﻿using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
 using QuickGridTest01.ComposableColumns.Core;
-using CustomValidation = QuickGridTest01.CustomColumns;
+using QuickGridTest01.ComposableColumns.Infrastructure;
+
+// Alias to avoid conflict with local ValidationResult
+using DataAnnotationsValidationResult = System.ComponentModel.DataAnnotations.ValidationResult;
 
 namespace QuickGridTest01.ComposableColumns.Features.Editing;
 
@@ -20,13 +25,20 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     // Track current values per item for dirty checking
     private readonly Dictionary<object, TValue> _originalValues = new();
     private readonly Dictionary<object, TValue> _currentValues = new();
-    
+
     // Track validation state per item
-    private readonly Dictionary<object, List<CustomValidation.ValidationResult>> _validationResults = new();
-    
+    private readonly Dictionary<object, List<ValidationResult>> _validationResults = new();
+
     // Track which items are currently being edited (have focus)
     private readonly HashSet<object> _editingItems = new();
-    
+
+    // Cached DataAnnotation validation attributes discovered from the property
+    private ValidationAttribute[]? _dataAnnotationAttributes;
+    private string? _propertyName;
+
+    // Cached reference to the event stream (from cascading parameter)
+    private IEditEventStream? _editEventStream;
+
     private bool _disposed;
 
     /// <summary>
@@ -62,7 +74,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// <summary>
     /// List of validators to run on blur.
     /// </summary>
-    public List<CustomValidation.IValidator<TValue>> Validators { get; set; } = [];
+    public List<IValidator<TValue>> Validators { get; set; } = [];
 
     /// <summary>
     /// Whether to show validation error messages inline.
@@ -70,9 +82,22 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     public bool ShowValidationErrors { get; set; } = true;
 
     /// <summary>
+    /// Whether to use DataAnnotations attributes for validation.
+    /// When true, validation attributes on the property (Required, StringLength, Range, etc.) 
+    /// will be discovered and used for validation on blur.
+    /// </summary>
+    public bool UseDataAnnotations { get; set; } = false;
+
+    /// <summary>
     /// Options for select editor type.
     /// </summary>
     public IEnumerable<SelectOption<TValue>>? SelectOptions { get; set; }
+
+    /// <summary>
+    /// Custom function to get display text for an option value.
+    /// When provided, this is used instead of SelectOption.Label.
+    /// </summary>
+    public Func<TValue, string>? OptionText { get; set; }
 
     /// <summary>
     /// Minimum value for number editors.
@@ -90,6 +115,11 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     public string? Step { get; set; }
 
     /// <summary>
+    /// Number of rows for TextArea editor. Default is 3.
+    /// </summary>
+    public int Rows { get; set; } = 3;
+
+    /// <summary>
     /// Function to get a unique key for an item.
     /// </summary>
     public Func<TGridItem, object>? ItemKey { get; set; }
@@ -104,15 +134,148 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// </summary>
     public EventCallback<ValidationCompletedEventArgs<TGridItem, TValue>> OnValidationCompleted { get; set; }
 
+    /// <summary>
+    /// Whether to publish edit lifecycle events to the cascaded IEditEventStream.
+    /// When true, events (commit, cancel, validation) are published to the stream.
+    /// When false (default), no events are published and there is no overhead.
+    /// </summary>
+    public bool ShowEvents { get; set; } = false;
+
     public void OnAttach(FeatureContext<TGridItem> context)
     {
-        // Nothing to do on attach
+        // Discover DataAnnotation attributes if enabled
+        if (UseDataAnnotations && context is FeatureContext<TGridItem, TValue> typedContext)
+        {
+            DiscoverDataAnnotationAttributes(typedContext);
+        }
+
+        // Capture event stream reference if ShowEvents is enabled
+        if (ShowEvents)
+        {
+            _editEventStream = context.GetService<IEditEventStream>();
+        }
     }
 
-    public void OnDetach(FeatureContext<TGridItem> context)
+    /// <summary>
+    /// Discovers DataAnnotation validation attributes from the property expression.
+    /// </summary>
+    private void DiscoverDataAnnotationAttributes(FeatureContext<TGridItem, TValue> context)
+    {
+        if (context.PropertyExpression is null)
+            return;
+
+            // Extract property info from the expression
+            if (context.PropertyExpression.Body is System.Linq.Expressions.MemberExpression memberExpr &&
+                memberExpr.Member is System.Reflection.PropertyInfo propertyInfo)
+            {
+                _propertyName = propertyInfo.Name;
+
+                // Get all ValidationAttribute instances from the property
+                _dataAnnotationAttributes = propertyInfo
+                    .GetCustomAttributes(typeof(ValidationAttribute), inherit: true)
+                    .Cast<ValidationAttribute>()
+                    .ToArray();
+            }
+        }
+
+        public void OnDetach(FeatureContext<TGridItem> context)
     {
         Dispose();
     }
+
+    #region Event Stream Publishing
+
+    /// <summary>
+    /// Publishes an event to the event stream if ShowEvents is enabled and stream is available.
+    /// </summary>
+    private async Task PublishEventIfEnabledAsync(EditEventBase @event)
+    {
+        // Fast path: skip if not enabled or no stream
+        if (!ShowEvents || _editEventStream is null)
+            return;
+
+        try
+        {
+            await _editEventStream.PublishAsync(@event);
+        }
+        catch
+        {
+            // Swallow exceptions from event publishing to avoid breaking the editing flow
+        }
+    }
+
+    /// <summary>
+    /// Builds validation rule descriptors from the configured validators.
+    /// </summary>
+    private List<ValidationRuleDescriptor> BuildValidationRuleDescriptors()
+    {
+        var descriptors = new List<ValidationRuleDescriptor>();
+
+        // Add descriptors for custom validators
+        foreach (var validator in Validators)
+        {
+            descriptors.Add(new ValidationRuleDescriptor(
+                Name: validator.Name,
+                Description: null, // Could be extended to support Description property on IValidator
+                Severity: ValidationSeverity.Error
+            ));
+        }
+
+        // Add descriptors for DataAnnotation validators
+        if (UseDataAnnotations && _dataAnnotationAttributes is not null)
+        {
+            foreach (var attr in _dataAnnotationAttributes)
+            {
+                var name = attr.GetType().Name.Replace("Attribute", "");
+                descriptors.Add(new ValidationRuleDescriptor(
+                    Name: name,
+                    Description: attr.ErrorMessage,
+                    Severity: ValidationSeverity.Error
+                ));
+            }
+        }
+
+        return descriptors;
+    }
+
+    /// <summary>
+    /// Builds validation rule results from the current validators and results.
+    /// </summary>
+    private List<ValidationRuleResult> BuildValidationRuleResults(List<ValidationResult> results)
+    {
+        var ruleResults = new List<ValidationRuleResult>();
+
+        // Map custom validator results
+        for (int i = 0; i < Validators.Count && i < results.Count; i++)
+        {
+            var validator = Validators[i];
+            var result = results[i];
+            ruleResults.Add(new ValidationRuleResult
+            {
+                RuleName = validator.Name,
+                IsValid = result.IsValid,
+                ErrorMessage = result.ErrorMessage,
+                Severity = ValidationSeverity.Error
+            });
+        }
+
+        // Map DataAnnotation results (they come after custom validators)
+        for (int i = Validators.Count; i < results.Count; i++)
+        {
+            var result = results[i];
+            ruleResults.Add(new ValidationRuleResult
+            {
+                RuleName = "DataAnnotation",
+                IsValid = result.IsValid,
+                ErrorMessage = result.ErrorMessage,
+                Severity = ValidationSeverity.Error
+            });
+        }
+
+        return ruleResults;
+    }
+
+    #endregion
 
     public void RenderCell(
         RenderTreeBuilder builder,
@@ -152,20 +315,22 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         // Determine wrapper class based on state
         var wrapperClass = GetWrapperClass(isValid, isDirty, isEditing);
 
+        // Use fixed sequence numbers for stable render tree
+        var baseSeq = sequence;
+        sequence += 100; // Reserve space for this feature
+        
         // Render the inline editor wrapper
-        builder.OpenElement(sequence++, "div");
+        builder.OpenElement(baseSeq + 0, "div");
         builder.SetKey(item);
-        builder.AddAttribute(sequence++, "class", wrapperClass);
-        builder.AddAttribute(sequence++, "onclick:stopPropagation", true);
+        builder.AddAttribute(baseSeq + 1, "class", wrapperClass);
+        builder.AddAttribute(baseSeq + 2, "onclick:stopPropagation", true);
 
-        // Render the appropriate editor
-        RenderEditor(builder, ref sequence, item, typedContext, currentValue);
+        // Render the appropriate editor - use a sub-region with fixed base
+        RenderEditor(builder, baseSeq + 10, item, typedContext, currentValue);
 
-        // Render validation feedback (only show when not editing and has errors)
-        if (ShowValidationErrors && !isEditing)
-        {
-            RenderValidationFeedback(builder, ref sequence, itemKey);
-        }
+        // ALWAYS render validation feedback container to maintain stable render tree
+        var showErrors = ShowValidationErrors && !isEditing;
+        RenderValidationFeedback(builder, baseSeq + 60, itemKey, showErrors);
 
         builder.CloseElement();
     }
@@ -206,111 +371,121 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             .Select(r => r.ErrorMessage!);
     }
 
-    private void RenderValidationFeedback(RenderTreeBuilder builder, ref int sequence, object itemKey)
+    /// <summary>
+    /// Renders validation feedback. Always renders the container div to maintain stable render tree.
+    /// </summary>
+    private void RenderValidationFeedback(RenderTreeBuilder builder, int baseSeq, object itemKey, bool showErrors)
     {
-        var errors = GetErrorMessages(itemKey).ToList();
-
-        if (errors.Count > 0)
+        // ALWAYS render the container div to maintain stable render tree structure
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", "validation-errors");
+        
+        // Only render error messages when showErrors is true
+        if (showErrors)
         {
-            builder.OpenElement(sequence++, "div");
-            builder.AddAttribute(sequence++, "class", "validation-errors");
+            var errors = GetErrorMessages(itemKey).ToList();
             
+            // Use SetKey for each error to maintain stable identity
+            var errorIndex = 0;
             foreach (var error in errors)
             {
-                builder.OpenElement(sequence++, "div");
-                builder.AddAttribute(sequence++, "class", "validation-error");
-                builder.AddContent(sequence++, error);
+                builder.OpenElement(baseSeq + 2, "div");
+                builder.SetKey(errorIndex);
+                builder.AddAttribute(baseSeq + 3, "class", "validation-error");
+                builder.AddContent(baseSeq + 4, error);
                 builder.CloseElement();
+                errorIndex++;
             }
-            
-            builder.CloseElement();
         }
+        
+        builder.CloseElement();
     }
 
     private void RenderEditor(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         TGridItem item,
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
-        switch (Editor)
+        var effectiveEditor = GetEffectiveEditorKind();
+
+        switch (effectiveEditor)
         {
             case EditorKind.Checkbox:
-                RenderCheckboxEditor(builder, ref sequence, item, context, currentValue);
+                RenderCheckboxEditor(builder, baseSeq, item, context, currentValue);
                 break;
 
             case EditorKind.Select:
-                RenderSelectEditor(builder, ref sequence, item, context, currentValue);
+                RenderSelectEditor(builder, baseSeq, item, context, currentValue);
                 break;
 
             case EditorKind.TextArea:
-                RenderTextAreaEditor(builder, ref sequence, item, context, currentValue);
+                RenderTextAreaEditor(builder, baseSeq, item, context, currentValue);
+                break;
+
+            case EditorKind.RadioGroup:
+                RenderRadioGroupEditor(builder, baseSeq, item, context, currentValue);
                 break;
 
             default:
-                RenderInputEditor(builder, ref sequence, item, context, currentValue);
+                RenderInputEditor(builder, baseSeq, item, context, currentValue);
                 break;
         }
     }
 
     private void RenderInputEditor(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         TGridItem item,
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
         var inputType = GetInputType();
 
-        builder.OpenElement(sequence++, "input");
-        builder.AddAttribute(sequence++, "type", inputType);
-        builder.AddAttribute(sequence++, "class", EditorClass);
-        builder.AddAttribute(sequence++, "value", FormatValue(currentValue));
+        builder.OpenElement(baseSeq + 0, "input");
+        builder.AddAttribute(baseSeq + 1, "type", inputType);
+        builder.AddAttribute(baseSeq + 2, "class", EditorClass);
+        builder.AddAttribute(baseSeq + 3, "value", FormatValue(currentValue));
+        builder.AddAttribute(baseSeq + 4, "placeholder", Placeholder ?? "");
 
-        if (!string.IsNullOrEmpty(Placeholder))
-        {
-            builder.AddAttribute(sequence++, "placeholder", Placeholder);
-        }
+        // Always add numeric attributes (empty string is fine for non-numeric)
+        builder.AddAttribute(baseSeq + 5, "min", Min ?? "");
+        builder.AddAttribute(baseSeq + 6, "max", Max ?? "");
+        builder.AddAttribute(baseSeq + 7, "step", Step ?? (Editor == EditorKind.Currency ? "0.01" : ""));
 
-        AddNumericAttributes(builder, ref sequence);
+        // Event handlers
+        builder.AddAttribute(baseSeq + 8, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
+            context.EventReceiver ?? (object)this, e => HandleInput(item, e.Value?.ToString())));
 
-        // oninput - just track the value, no validation
-        builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
-            this, e => HandleInput(item, e.Value?.ToString())));
+        builder.AddAttribute(baseSeq + 9, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
+            context.EventReceiver ?? (object)this, async _ => await HandleFocusAsync(item)));
 
-        // onfocus - mark as editing
-        builder.AddAttribute(sequence++, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
-            this, _ => HandleFocus(item)));
+        builder.AddAttribute(baseSeq + 10, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
+            context.EventReceiver ?? (object)this, async _ => await HandleBlurAsync(item, context)));
 
-        // onblur - validate and commit
-        builder.AddAttribute(sequence++, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
-            this, async _ => await HandleBlurAsync(item, context)));
-
-        // Handle keyboard (Enter to commit, Escape to cancel)
-        builder.AddAttribute(sequence++, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(
-            this, async e => await HandleKeyDownAsync(item, context, e)));
+        builder.AddAttribute(baseSeq + 11, "onkeydown", EventCallback.Factory.Create<KeyboardEventArgs>(
+            context.EventReceiver ?? (object)this, async e => await HandleKeyDownAsync(item, context, e)));
 
         builder.CloseElement();
     }
 
     private void RenderCheckboxEditor(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         TGridItem item,
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
         var isChecked = currentValue is bool b && b;
 
-        builder.OpenElement(sequence++, "input");
-        builder.AddAttribute(sequence++, "type", "checkbox");
-        builder.AddAttribute(sequence++, "class", EditorClass);
-        builder.AddAttribute(sequence++, "checked", isChecked);
+        builder.OpenElement(baseSeq + 0, "input");
+        builder.AddAttribute(baseSeq + 1, "type", "checkbox");
+        builder.AddAttribute(baseSeq + 2, "class", EditorClass);
+        builder.AddAttribute(baseSeq + 3, "checked", isChecked);
 
-        // Checkboxes validate and commit immediately on change
-        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
-            this, async e =>
+        builder.AddAttribute(baseSeq + 4, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            context.EventReceiver ?? (object)this, async e =>
             {
                 var newValue = e.Value is bool boolVal ? boolVal : false;
                 HandleInput(item, newValue.ToString());
@@ -322,58 +497,71 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
 
     private void RenderSelectEditor(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         TGridItem item,
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
-        builder.OpenElement(sequence++, "select");
-        builder.AddAttribute(sequence++, "class", EditorClass);
+        builder.OpenElement(baseSeq + 0, "select");
+        builder.AddAttribute(baseSeq + 1, "class", EditorClass);
+        builder.AddAttribute(baseSeq + 2, "aria-label", Placeholder ?? "");
 
-        if (!string.IsNullOrEmpty(Placeholder))
-        {
-            builder.AddAttribute(sequence++, "aria-label", Placeholder);
-        }
-
-        // Selects validate and commit immediately on change
-        builder.AddAttribute(sequence++, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
-            this, async e =>
+        builder.AddAttribute(baseSeq + 3, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+            context.EventReceiver ?? (object)this, async e =>
             {
                 HandleInput(item, e.Value?.ToString());
                 await ValidateAndCommitAsync(item, context);
             }));
 
+        // Render options with stable keys
         if (SelectOptions is not null)
         {
+            var optionIndex = 0;
             foreach (var option in SelectOptions)
             {
-                builder.OpenElement(sequence++, "option");
-                builder.AddAttribute(sequence++, "value", option.Value?.ToString() ?? "");
+                builder.OpenElement(baseSeq + 10, "option");
+                builder.SetKey(optionIndex);
+                builder.AddAttribute(baseSeq + 11, "value", option.Value?.ToString() ?? "");
 
-                if (EqualityComparer<TValue>.Default.Equals(option.Value!, currentValue))
+                var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
+                if (isSelected)
                 {
-                    builder.AddAttribute(sequence++, "selected", true);
+                    builder.AddAttribute(baseSeq + 12, "selected", true);
                 }
 
-                builder.AddContent(sequence++, option.Label);
+                // Use OptionText mapper if provided, otherwise use Label
+                var displayText = OptionText is not null && option.Value is not null 
+                    ? OptionText(option.Value) 
+                    : option.Label;
+                builder.AddContent(baseSeq + 13, displayText);
                 builder.CloseElement();
+                optionIndex++;
             }
         }
-        else if (typeof(TValue).IsEnum)
+        else if (TypeTraits<TValue>.IsEnum)
         {
-            // Auto-generate options from enum
-            foreach (var enumValue in Enum.GetValues(typeof(TValue)))
+            // Use TypeTraits to build enum options
+            var enumOptions = TypeTraits<TValue>.BuildEnumOptions();
+            var optionIndex = 0;
+            foreach (var option in enumOptions)
             {
-                builder.OpenElement(sequence++, "option");
-                builder.AddAttribute(sequence++, "value", enumValue.ToString());
+                builder.OpenElement(baseSeq + 10, "option");
+                builder.SetKey(optionIndex);
+                builder.AddAttribute(baseSeq + 11, "value", option.Value?.ToString() ?? "");
 
-                if (enumValue.Equals(currentValue))
+                var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
+                if (isSelected)
                 {
-                    builder.AddAttribute(sequence++, "selected", true);
+                    builder.AddAttribute(baseSeq + 12, "selected", true);
                 }
 
-                builder.AddContent(sequence++, enumValue.ToString());
+                // Use OptionText mapper if provided, otherwise use Text from TypeTraits
+                var displayText = OptionText is not null && option.Value is not null
+                    ? OptionText(option.Value)
+                    : option.Text;
+                builder.AddContent(baseSeq + 13, displayText);
                 builder.CloseElement();
+                optionIndex++;
             }
         }
 
@@ -382,74 +570,134 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
 
     private void RenderTextAreaEditor(
         RenderTreeBuilder builder,
-        ref int sequence,
+        int baseSeq,
         TGridItem item,
         FeatureContext<TGridItem, TValue> context,
         TValue currentValue)
     {
-        builder.OpenElement(sequence++, "textarea");
-        builder.AddAttribute(sequence++, "class", EditorClass);
-        builder.AddAttribute(sequence++, "rows", 3);
+        builder.OpenElement(baseSeq + 0, "textarea");
+        builder.AddAttribute(baseSeq + 1, "class", EditorClass);
+        builder.AddAttribute(baseSeq + 2, "placeholder", Placeholder ?? "");
+        builder.AddAttribute(baseSeq + 3, "rows", Rows);
 
-        if (!string.IsNullOrEmpty(Placeholder))
-        {
-            builder.AddAttribute(sequence++, "placeholder", Placeholder);
-        }
+        builder.AddAttribute(baseSeq + 4, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
+            context.EventReceiver ?? (object)this, e => HandleInput(item, e.Value?.ToString())));
 
-        // oninput - just track the value
-        builder.AddAttribute(sequence++, "oninput", EventCallback.Factory.Create<ChangeEventArgs>(
-            this, e => HandleInput(item, e.Value?.ToString())));
+        builder.AddAttribute(baseSeq + 5, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
+            context.EventReceiver ?? (object)this, async _ => await HandleFocusAsync(item)));
 
-        // onfocus - mark as editing
-        builder.AddAttribute(sequence++, "onfocus", EventCallback.Factory.Create<FocusEventArgs>(
-            this, _ => HandleFocus(item)));
+        builder.AddAttribute(baseSeq + 6, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
+            context.EventReceiver ?? (object)this, async _ => await HandleBlurAsync(item, context)));
 
-        // onblur - validate and commit
-        builder.AddAttribute(sequence++, "onblur", EventCallback.Factory.Create<FocusEventArgs>(
-            this, async _ => await HandleBlurAsync(item, context)));
-
-        builder.AddContent(sequence++, FormatValue(currentValue));
+        builder.AddContent(baseSeq + 7, FormatValue(currentValue));
         builder.CloseElement();
     }
 
-    private string GetInputType() => Editor switch
+    private void RenderRadioGroupEditor(
+        RenderTreeBuilder builder,
+        int baseSeq,
+        TGridItem item,
+        FeatureContext<TGridItem, TValue> context,
+        TValue currentValue)
     {
-        EditorKind.Number or EditorKind.Currency => "number",
-        EditorKind.Date => "date",
-        EditorKind.DateTime => "datetime-local",
-        EditorKind.Email => "email",
-        EditorKind.Url => "url",
-        EditorKind.Tel => "tel",
-        _ => "text"
-    };
+        builder.OpenElement(baseSeq + 0, "div");
+        builder.AddAttribute(baseSeq + 1, "class", "radio-group");
+        builder.AddAttribute(baseSeq + 2, "role", "radiogroup");
 
-    private void AddNumericAttributes(RenderTreeBuilder builder, ref int sequence)
-    {
-        if (Editor is EditorKind.Number or EditorKind.Currency)
+        IEnumerable<SelectOption<TValue>> options;
+        if (SelectOptions is not null)
         {
-            if (!string.IsNullOrEmpty(Min))
-                builder.AddAttribute(sequence++, "min", Min);
-            if (!string.IsNullOrEmpty(Max))
-                builder.AddAttribute(sequence++, "max", Max);
-            if (!string.IsNullOrEmpty(Step))
-                builder.AddAttribute(sequence++, "step", Step);
-            else if (Editor == EditorKind.Currency)
-                builder.AddAttribute(sequence++, "step", "0.01");
+            options = SelectOptions;
         }
+        else if (TypeTraits<TValue>.IsEnum)
+        {
+            options = TypeTraits<TValue>.BuildEnumOptions()
+                .Select(o => new SelectOption<TValue> { Value = o.Value, Label = o.Text });
+        }
+        else
+        {
+            options = [];
+        }
+
+        var optionIndex = 0;
+        foreach (var option in options)
+        {
+            var radioId = $"radio_{GetItemKey(item)}_{optionIndex}";
+            var isSelected = EqualityComparer<TValue>.Default.Equals(option.Value, currentValue);
+
+            builder.OpenElement(baseSeq + 10, "label");
+            builder.SetKey(optionIndex);
+            builder.AddAttribute(baseSeq + 11, "class", "radio-option");
+
+            builder.OpenElement(baseSeq + 12, "input");
+            builder.AddAttribute(baseSeq + 13, "type", "radio");
+            builder.AddAttribute(baseSeq + 14, "id", radioId);
+            builder.AddAttribute(baseSeq + 15, "name", $"radio_{GetItemKey(item)}");
+            builder.AddAttribute(baseSeq + 16, "value", option.Value?.ToString() ?? "");
+            builder.AddAttribute(baseSeq + 17, "checked", isSelected);
+
+            builder.AddAttribute(baseSeq + 18, "onchange", EventCallback.Factory.Create<ChangeEventArgs>(
+                context.EventReceiver ?? (object)this, async e =>
+                {
+                    HandleInput(item, e.Value?.ToString());
+                    await ValidateAndCommitAsync(item, context);
+                }));
+
+            builder.CloseElement(); // input
+
+            var displayText = OptionText is not null && option.Value is not null
+                ? OptionText(option.Value)
+                : option.Label;
+            builder.OpenElement(baseSeq + 19, "span");
+            builder.AddContent(baseSeq + 20, displayText);
+            builder.CloseElement(); // span
+
+            builder.CloseElement(); // label
+            optionIndex++;
+        }
+
+        builder.CloseElement(); // div
     }
 
-    private static string FormatValue(TValue value)
+    private EditorKind GetEffectiveEditorKind()
     {
-        if (value is null)
-            return string.Empty;
+        if (Editor != EditorKind.Auto)
+            return Editor;
 
-        if (value is DateTime dt)
-            return dt.ToString("yyyy-MM-ddTHH:mm");
+        return TypeTraits<TValue>.Kind switch
+        {
+            ValueKind.Boolean => EditorKind.Checkbox,
+            ValueKind.Date => EditorKind.Date,
+            ValueKind.Time => EditorKind.Time,
+            ValueKind.DateTime => EditorKind.DateTime,
+            ValueKind.Int32 or ValueKind.Int64 => EditorKind.Number,
+            ValueKind.Decimal or ValueKind.Double or ValueKind.Single => EditorKind.Number,
+            ValueKind.Enum => EditorKind.Select,
+            ValueKind.String => EditorKind.Text,
+            _ => EditorKind.Text
+        };
+    }
 
-        if (value is DateOnly d)
-            return d.ToString("yyyy-MM-dd");
+    private string GetInputType()
+    {
+        var effectiveEditor = GetEffectiveEditorKind();
+        return effectiveEditor switch
+        {
+            EditorKind.Number or EditorKind.Currency => "number",
+            EditorKind.Date => "date",
+            EditorKind.DateTime => "datetime-local",
+            EditorKind.Time => "time",
+            EditorKind.Email => "email",
+            EditorKind.Url => "url",
+            EditorKind.Tel => "tel",
+            _ => "text"
+        };
+    }
 
-        return value.ToString() ?? string.Empty;
+    private string FormatValue(TValue value)
+    {
+        var effectiveEditor = GetEffectiveEditorKind();
+        return TypeTraits<TValue>.FormatForInput(value, effectiveEditor, CultureInfo.InvariantCulture);
     }
 
     private object GetItemKey(TGridItem item)
@@ -466,23 +714,43 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     private void HandleInput(TGridItem item, string? newValueString)
     {
         var itemKey = GetItemKey(item);
-        var newValue = ParseValue(newValueString);
-        _currentValues[itemKey] = newValue!;
-        
-        // Clear previous validation errors while editing
+
+        if (TypeTraits<TValue>.TryParseFromEventValue(newValueString, CultureInfo.InvariantCulture, out var parsed))
+        {
+            _currentValues[itemKey] = parsed!;
+        }
+
         _validationResults[itemKey] = [];
     }
 
     /// <summary>
-    /// Handles focus - marks the item as being edited.
+    /// Handles focus - marks the item as being edited and publishes EditStartedEvent.
     /// </summary>
-    private void HandleFocus(TGridItem item)
+    private async ValueTask HandleFocusAsync(TGridItem item)
     {
         var itemKey = GetItemKey(item);
         _editingItems.Add(itemKey);
-        
-        // Clear validation errors when starting to edit
         _validationResults[itemKey] = [];
+
+        // Set focused cell for validation summary display
+        if (ShowEvents && _editEventStream is not null)
+        {
+            var ruleDescriptors = BuildValidationRuleDescriptors();
+            _editEventStream.SetFocusedCell(new FocusedCellInfo(
+                PropertyName: _propertyName,
+                ItemKey: itemKey,
+                RuleDescriptors: ruleDescriptors
+            ));
+
+            // Publish edit started event
+            _currentValues.TryGetValue(itemKey, out var currentValue);
+            await PublishEventIfEnabledAsync(new EditStartedEvent
+            {
+                ItemKey = itemKey,
+                PropertyName = _propertyName,
+                CurrentValue = currentValue
+            });
+        }
     }
 
     /// <summary>
@@ -493,33 +761,52 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         var itemKey = GetItemKey(item);
         _editingItems.Remove(itemKey);
         
+        // Clear focused cell when focus leaves
+        if (ShowEvents && _editEventStream is not null)
+        {
+            _editEventStream.SetFocusedCell(null);
+        }
+        
         await ValidateAndCommitAsync(item, context);
     }
 
     /// <summary>
-    /// Validates and commits the current value.
+    /// Validates the current value and commits if valid.
     /// </summary>
     private async Task ValidateAndCommitAsync(TGridItem item, FeatureContext<TGridItem, TValue> context)
     {
+        if (_disposed) return;
+
         var itemKey = GetItemKey(item);
-        
+
         if (!_currentValues.TryGetValue(itemKey, out var currentValue))
             return;
 
-        // Run validation if there are validators
-        if (Validators.Count > 0)
+        try
         {
-            var results = new List<CustomValidation.ValidationResult>();
-            foreach (var validator in Validators)
+            var results = new List<ValidationResult>();
+
+            // Run custom validators
+            if (Validators.Count > 0)
             {
-                var result = await validator.ValidateAsync(currentValue);
-                results.Add(result);
+                foreach (var validator in Validators)
+                {
+                    var result = await validator.ValidateAsync(currentValue);
+                    results.Add(result);
+                }
+            }
+
+            // Run DataAnnotation validators
+            if (UseDataAnnotations && _dataAnnotationAttributes is not null && _dataAnnotationAttributes.Length > 0)
+            {
+                var dataAnnotationResults = ValidateWithDataAnnotations(item, currentValue);
+                results.AddRange(dataAnnotationResults);
             }
 
             _validationResults[itemKey] = results;
-            var allValid = results.All(r => r.IsValid);
+            var allValid = results.Count == 0 || results.All(r => r.IsValid);
 
-            // Fire validation completed event
+            // Fire validation completed callback
             if (OnValidationCompleted.HasDelegate)
             {
                 await OnValidationCompleted.InvokeAsync(new ValidationCompletedEventArgs<TGridItem, TValue>
@@ -531,6 +818,36 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
                 });
             }
 
+            // Publish validation event to stream if enabled
+            if (ShowEvents && _editEventStream is not null)
+            {
+                var ruleResults = BuildValidationRuleResults(results);
+                var ruleDescriptors = BuildValidationRuleDescriptors();
+                if (allValid)
+                {
+                    await PublishEventIfEnabledAsync(new ValidationSucceededEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        Value = currentValue,
+                        RuleResults = ruleResults,
+                        RuleDescriptors = ruleDescriptors
+                    });
+                }
+                else
+                {
+                    await PublishEventIfEnabledAsync(new ValidationFailedEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        AttemptedValue = currentValue,
+                        Errors = results.Where(r => !r.IsValid).Select(r => r.ErrorMessage ?? "Invalid").ToList(),
+                        RuleResults = ruleResults,
+                        RuleDescriptors = ruleDescriptors
+                    });
+                }
+            }
+
             // Only commit if valid
             if (allValid)
             {
@@ -538,26 +855,38 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
             }
             else
             {
-                // Refresh to show errors - use InvokeAsync for proper UI thread handling
-                if (context.InvokeAsync is not null)
-                {
-                    await context.InvokeAsync(() =>
-                    {
-                        context.RequestRefresh?.Invoke();
-                        return Task.CompletedTask;
-                    });
-                }
-                else
-                {
-                    context.RequestRefresh?.Invoke();
-                }
+                await SafeRefreshAsync(context);
             }
         }
-        else
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    /// <summary>
+    /// Validates a value using discovered DataAnnotation attributes.
+    /// </summary>
+    private List<ValidationResult> ValidateWithDataAnnotations(TGridItem item, TValue? value)
+    {
+        var results = new List<ValidationResult>();
+
+        if (_dataAnnotationAttributes is null || _dataAnnotationAttributes.Length == 0)
+            return results;
+
+        var validationContext = new ValidationContext(item!)
         {
-            // No validators, just commit
-            await CommitValueAsync(item, context, currentValue);
+            MemberName = _propertyName
+        };
+
+        foreach (var attribute in _dataAnnotationAttributes)
+        {
+            var validationResult = attribute.GetValidationResult(value, validationContext);
+            if (validationResult is not null && validationResult != DataAnnotationsValidationResult.Success)
+            {
+                results.Add(ValidationResult.Failure(validationResult.ErrorMessage ?? "Validation failed"));
+            }
         }
+
+        return results;
     }
 
     /// <summary>
@@ -565,6 +894,7 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
     /// </summary>
     private async Task CommitValueAsync(TGridItem item, FeatureContext<TGridItem, TValue> context, TValue? newValue)
     {
+        if (_disposed) return;
         if (context.SetValue is null)
             return;
 
@@ -573,128 +903,116 @@ public class InlineEditingFeature<TGridItem, TValue> : ICellRenderFeature<TGridI
         if (!_originalValues.TryGetValue(itemKey, out var originalValue))
             return;
 
-        // Only commit if value actually changed from original
-        if (!EqualityComparer<TValue>.Default.Equals(originalValue, newValue))
+        try
         {
-            // Update the model
-            context.SetValue(item, newValue!);
-
-            // Update original to new committed value
-            _originalValues[itemKey] = newValue!;
-
-            // Fire the value changed event
-            if (OnValueChanged.HasDelegate)
+            // Only commit if value actually changed from original
+            if (!EqualityComparer<TValue>.Default.Equals(originalValue, newValue))
             {
-                await OnValueChanged.InvokeAsync(new ValueChangedEventArgs<TGridItem, TValue>
+                // Update the model
+                context.SetValue(item, newValue!);
+
+                // Update original to new committed value
+                _originalValues[itemKey] = newValue!;
+
+                // Fire the value changed callback
+                if (OnValueChanged.HasDelegate)
                 {
-                    Item = item,
+                    await OnValueChanged.InvokeAsync(new ValueChangedEventArgs<TGridItem, TValue>
+                    {
+                        Item = item,
+                        OldValue = originalValue,
+                        NewValue = newValue
+                    });
+                }
+
+                // Publish commit event to stream if enabled
+                await PublishEventIfEnabledAsync(new EditCommittedEvent
+                {
+                    ItemKey = itemKey,
+                    PropertyName = _propertyName,
                     OldValue = originalValue,
                     NewValue = newValue
                 });
             }
-        }
 
-        // Request UI refresh - use InvokeAsync for proper UI thread handling
-        if (context.InvokeAsync is not null)
+            await SafeRefreshAsync(context);
+        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    /// <summary>
+    /// Safely refreshes the UI, handling circuit disconnection.
+    /// </summary>
+    private async Task SafeRefreshAsync(FeatureContext<TGridItem, TValue> context)
+    {
+        if (_disposed) return;
+        
+        try
         {
-            await context.InvokeAsync(() =>
+            if (context.InvokeAsync is not null)
+            {
+                await context.InvokeAsync(() =>
+                {
+                    context.RequestRefresh?.Invoke();
+                    return Task.CompletedTask;
+                });
+            }
+            else
             {
                 context.RequestRefresh?.Invoke();
-                return Task.CompletedTask;
-            });
+            }
         }
-        else
-        {
-            context.RequestRefresh?.Invoke();
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     private async Task HandleKeyDownAsync(TGridItem item, FeatureContext<TGridItem, TValue> context, KeyboardEventArgs e)
     {
+        if (_disposed) return;
+        
         var itemKey = GetItemKey(item);
-
-        if (e.Key == "Escape")
-        {
-            // Clear validation errors
-            _validationResults[itemKey] = [];
-            _editingItems.Remove(itemKey);
-
-            // Revert to original value
-            if (_originalValues.TryGetValue(itemKey, out var originalValue))
-            {
-                _currentValues[itemKey] = originalValue;
-                
-                if (context.SetValue is not null)
-                {
-                    context.SetValue(item, originalValue);
-                }
-                
-                // Request UI refresh
-                if (context.InvokeAsync is not null)
-                {
-                    await context.InvokeAsync(() =>
-                    {
-                        context.RequestRefresh?.Invoke();
-                        return Task.CompletedTask;
-                    });
-                }
-                else
-                {
-                    context.RequestRefresh?.Invoke();
-                }
-            }
-        }
-        else if (e.Key == "Enter" && Editor != EditorKind.TextArea)
-        {
-            // Validate and commit immediately
-            _editingItems.Remove(itemKey);
-            await ValidateAndCommitAsync(item, context);
-        }
-    }
-
-    private static TValue? ParseValue(string? stringValue)
-    {
-        if (string.IsNullOrEmpty(stringValue))
-            return default;
-
-        var targetType = Nullable.GetUnderlyingType(typeof(TValue)) ?? typeof(TValue);
 
         try
         {
-            if (targetType == typeof(string))
-                return (TValue)(object)stringValue;
+            if (e.Key == "Escape")
+            {
+                _validationResults[itemKey] = [];
+                _editingItems.Remove(itemKey);
 
-            if (targetType == typeof(int))
-                return (TValue)(object)int.Parse(stringValue);
+                // Capture attempted value before reverting
+                _currentValues.TryGetValue(itemKey, out var attemptedValue);
 
-            if (targetType == typeof(decimal))
-                return (TValue)(object)decimal.Parse(stringValue);
+                // Revert to original value
+                if (_originalValues.TryGetValue(itemKey, out var originalValue))
+                {
+                    _currentValues[itemKey] = originalValue;
+                    
+                    if (context.SetValue is not null)
+                    {
+                        context.SetValue(item, originalValue);
+                    }
 
-            if (targetType == typeof(double))
-                return (TValue)(object)double.Parse(stringValue);
-
-            if (targetType == typeof(float))
-                return (TValue)(object)float.Parse(stringValue);
-
-            if (targetType == typeof(bool))
-                return (TValue)(object)bool.Parse(stringValue);
-
-            if (targetType == typeof(DateTime))
-                return (TValue)(object)DateTime.Parse(stringValue);
-
-            if (targetType == typeof(DateOnly))
-                return (TValue)(object)DateOnly.Parse(stringValue);
-
-            if (targetType.IsEnum)
-                return (TValue)Enum.Parse(targetType, stringValue);
-
-            // Fallback to Convert
-            return (TValue)Convert.ChangeType(stringValue, targetType);
+                    // Publish cancel event to stream if enabled
+                    await PublishEventIfEnabledAsync(new EditCancelledEvent
+                    {
+                        ItemKey = itemKey,
+                        PropertyName = _propertyName,
+                        OriginalValue = originalValue,
+                        AttemptedValue = attemptedValue
+                    });
+                    
+                    await SafeRefreshAsync(context);
+                }
+            }
+            else if (e.Key == "Enter" && Editor != EditorKind.Select)
+            {
+                _editingItems.Remove(itemKey);
+                await ValidateAndCommitAsync(item, context);
+            }
         }
-        catch
-        {
-            return default;
-        }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
     }
 
     public void Dispose()
@@ -743,5 +1061,6 @@ public class ValidationCompletedEventArgs<TGridItem, TValue>
 public class SelectOption<TValue>
 {
     public required string Label { get; init; }
+    public string Text => Label;
     public TValue? Value { get; init; }
 }
