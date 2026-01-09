@@ -1,3 +1,0 @@
-﻿/* ComposableGrid scoped styles */
-/* Filter toolbar styles moved to global CSS (quickgrid-refined-minimalism.css) */
-/* to avoid CSS isolation issues with dynamically rendered content */
