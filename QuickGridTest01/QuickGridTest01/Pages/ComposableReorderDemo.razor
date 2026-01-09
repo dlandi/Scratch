@@ -1,0 +1,316 @@
+﻿@page "/composable-reorder-demo"
+@using QuickGridTest01.ComposableColumns.Core
+@using QuickGridTest01.ComposableColumns.Features.Reordering
+@using QuickGridTest01.ComposableColumns.Features.Expansion.Core
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+
+<PageTitle>Composable Column - Row Reordering</PageTitle>
+
+<div class="qg-section">
+    <div class="qg-section-header">
+        <h2 class="qg-section-title">Row Reordering Demo</h2>
+        <p class="qg-section-description">
+            Demonstrates drag-and-drop row reordering with the RowReorderFeature.
+        </p>
+    </div>
+
+    @* Scenario 1: Basic Reordering *@
+    <div class="qg-subsection">
+        <h3>Scenario 1: Basic Reordering</h3>
+        <p>Drag the handle (⋮⋮) to reorder rows.</p>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="TaskItem" Items="@_basicDataSource.Items" RowKey="@(item => item.Id)">
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
+                    <Features>
+                        @{
+                            var reorderFeature1 = new RowReorderFeature<TaskItem>
+                            {
+                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnBasicRowReordered)
+                            };
+                            reorderFeature1.SetDataSource(_basicDataSource);
+                        }
+                        @reorderFeature1
+                    </Features>
+                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Status)" Title="Status" />
+                <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Priority)" Title="Priority" />
+            </ComposableGrid>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_basicLog))
+        {
+            <div class="demo-log">
+                <strong>Last action:</strong> @_basicLog
+            </div>
+        }
+    </div>
+
+    @* Scenario 2: With Validation *@
+    <div class="qg-subsection">
+        <h3>Scenario 2: With Validation</h3>
+        <p>Locked items (🔒) cannot be dragged. Items can only be dropped within the same category.</p>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="TaskItem" Items="@_validationDataSource.Items" RowKey="@(item => item.Id)">
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
+                    <Features>
+                        @{
+                            var reorderFeature2 = new RowReorderFeature<TaskItem>
+                            {
+                                CanDrag = item => !item.IsLocked,
+                                CanDropOn = (source, target) => source.Category == target.Category,
+                                OnBeforeReorder = EventCallback.Factory.Create<RowBeforeReorderEventArgs<TaskItem>>(this, OnValidationBeforeReorder),
+                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnValidationRowReordered),
+                                OnReorderCancelled = EventCallback.Factory.Create<RowReorderCancelledEventArgs<TaskItem>>(this, OnValidationReorderCancelled)
+                            };
+                            reorderFeature2.SetDataSource(_validationDataSource);
+                        }
+                        @reorderFeature2
+                    </Features>
+                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.IsLocked ? "🔒" : "")" Title="Locked" />
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Category)" Title="Category" />
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Status)" Title="Status" />
+            </ComposableGrid>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_validationLog))
+        {
+            <div class="demo-log @(_validationLogIsError ? "demo-log-error" : "")">
+                <strong>@(_validationLogIsError ? "Cancelled:" : "Success:")</strong> @_validationLog
+            </div>
+        }
+    </div>
+
+    @* Scenario 3: Order Persistence *@
+    <div class="qg-subsection">
+        <h3>Scenario 3: Order Persistence</h3>
+        <p>Order is saved to localStorage and restored on page load. Try reordering and refreshing the page.</p>
+
+        <div class="demo-actions">
+            <button class="btn btn-secondary" @onclick="ResetPersistentOrder">Reset Order</button>
+        </div>
+
+        <div class="qg-grid-container">
+            <ComposableGrid TGridItem="TaskItem" Items="@_persistenceDataSource.Items" RowKey="@(item => item.Id)">
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="">
+                    <Features>
+                        @{
+                            var reorderFeature3 = new RowReorderFeature<TaskItem>
+                            {
+                                OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnPersistenceRowReordered)
+                            };
+                            reorderFeature3.SetDataSource(_persistenceDataSource);
+                        }
+                        @reorderFeature3
+                    </Features>
+                </ComposableColumn>
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Title)" Title="Task" />
+                <ComposableColumn TGridItem="TaskItem" TValue="string" Property="@(t => t.Status)" Title="Status" />
+                <ComposableColumn TGridItem="TaskItem" TValue="int" Property="@(t => t.Priority)" Title="Priority" />
+            </ComposableGrid>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_persistenceLog))
+        {
+            <div class="demo-log">
+                <strong>Status:</strong> @_persistenceLog
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    // Demo model per Plan §7.1
+    public class TaskItem : IRowIdentifiable
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Status { get; set; } = "Todo";
+        public string Category { get; set; } = "General";
+        public int Priority { get; set; } = 1;
+        public bool IsLocked { get; set; }
+        public bool IsCompleted { get; set; }
+    }
+
+    // Data sources
+    private ReorderableDataSource<TaskItem> _basicDataSource = null!;
+    private ReorderableDataSource<TaskItem> _validationDataSource = null!;
+    private ReorderableDataSource<TaskItem> _persistenceDataSource = null!;
+
+    // Log messages
+    private string _basicLog = string.Empty;
+    private string _validationLog = string.Empty;
+    private bool _validationLogIsError;
+    private string _persistenceLog = string.Empty;
+
+    private const string PersistenceKey = "reorder-demo-order";
+
+    protected override void OnInitialized()
+    {
+        // Scenario 1: Basic reordering
+        _basicDataSource = new ReorderableDataSource<TaskItem>(GetBasicTasks());
+
+        // Scenario 2: With validation
+        _validationDataSource = new ReorderableDataSource<TaskItem>(GetValidationTasks());
+
+        // Scenario 3: With persistence (order restored in OnAfterRenderAsync)
+        _persistenceDataSource = new ReorderableDataSource<TaskItem>(GetPersistenceTasks());
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadSavedOrderAsync();
+        }
+    }
+
+    private static List<TaskItem> GetBasicTasks() =>
+    [
+        new() { Id = 1, Title = "Design mockups", Status = "In Progress", Priority = 1 },
+        new() { Id = 2, Title = "Review PRs", Status = "Todo", Priority = 2 },
+        new() { Id = 3, Title = "Write documentation", Status = "Todo", Priority = 3 },
+        new() { Id = 4, Title = "Fix bugs", Status = "In Progress", Priority = 1 },
+        new() { Id = 5, Title = "Deploy to staging", Status = "Done", Priority = 2 }
+    ];
+
+    private static List<TaskItem> GetValidationTasks() =>
+    [
+        new() { Id = 10, Title = "Critical bug fix", Status = "In Progress", Category = "Development", Priority = 1, IsLocked = true },
+        new() { Id = 11, Title = "Feature A", Status = "Todo", Category = "Development", Priority = 2 },
+        new() { Id = 12, Title = "Feature B", Status = "Todo", Category = "Development", Priority = 3 },
+        new() { Id = 13, Title = "Update docs", Status = "Todo", Category = "Documentation", Priority = 1 },
+        new() { Id = 14, Title = "Write tutorial", Status = "In Progress", Category = "Documentation", Priority = 2 },
+        new() { Id = 15, Title = "API reference", Status = "Done", Category = "Documentation", Priority = 3, IsCompleted = true }
+    ];
+
+    private static List<TaskItem> GetPersistenceTasks() =>
+    [
+        new() { Id = 30, Title = "Morning standup", Status = "Daily", Priority = 1 },
+        new() { Id = 31, Title = "Code review", Status = "Daily", Priority = 2 },
+        new() { Id = 32, Title = "Sprint planning", Status = "Weekly", Priority = 1 },
+        new() { Id = 33, Title = "Retrospective", Status = "Weekly", Priority = 2 },
+        new() { Id = 34, Title = "One-on-one", Status = "Weekly", Priority = 3 }
+    ];
+
+    // Scenario 1 handlers
+    private void OnBasicRowReordered(RowReorderedEventArgs<TaskItem> args)
+    {
+        _basicLog = $"Moved '{args.Item.Title}' from position {args.OldIndex + 1} to {args.NewIndex + 1}";
+    }
+
+    // Scenario 2 handlers
+    private void OnValidationBeforeReorder(RowBeforeReorderEventArgs<TaskItem> args)
+    {
+        // Cancel if trying to move a completed task above an active one
+        if (args.DraggedItem.IsCompleted && !args.TargetItem.IsCompleted && args.Position == DropPosition.Before)
+        {
+            args.Cancel = true;
+            args.CancelReason = "Completed tasks cannot be moved above active tasks";
+        }
+    }
+
+    private void OnValidationRowReordered(RowReorderedEventArgs<TaskItem> args)
+    {
+        _validationLog = $"Moved '{args.Item.Title}' from position {args.OldIndex + 1} to {args.NewIndex + 1}";
+        _validationLogIsError = false;
+    }
+
+    private void OnValidationReorderCancelled(RowReorderCancelledEventArgs<TaskItem> args)
+    {
+        _validationLog = args.Reason;
+        _validationLogIsError = true;
+    }
+
+    // Scenario 3 handlers
+    private async Task OnPersistenceRowReordered(RowReorderedEventArgs<TaskItem> args)
+    {
+        _persistenceLog = $"Moved '{args.Item.Title}' - saving order...";
+        StateHasChanged();
+
+        // Save order to localStorage
+        var orderIndices = _persistenceDataSource.GetOrderIndices();
+        var orderJson = System.Text.Json.JsonSerializer.Serialize(orderIndices);
+        await JS.InvokeVoidAsync("localStorage.setItem", PersistenceKey, orderJson);
+
+        _persistenceLog = "Order saved to localStorage";
+    }
+
+    private async Task LoadSavedOrderAsync()
+    {
+        try
+        {
+            var orderJson = await JS.InvokeAsync<string?>("localStorage.getItem", PersistenceKey);
+            if (!string.IsNullOrEmpty(orderJson))
+            {
+                var savedOrder = System.Text.Json.JsonSerializer.Deserialize<List<int>>(orderJson);
+                if (savedOrder is not null)
+                {
+                    _persistenceDataSource.SetOrderIndices(savedOrder);
+                    _persistenceLog = "Order restored from localStorage";
+                    StateHasChanged();
+                }
+            }
+        }
+        catch
+        {
+            _persistenceLog = "Could not restore saved order";
+        }
+    }
+
+    private async Task ResetPersistentOrder()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", PersistenceKey);
+        _persistenceDataSource.ResetOrder();
+        _persistenceLog = "Order reset to default";
+    }
+}
+
+<style>
+    .qg-subsection {
+        margin-bottom: 2rem;
+        padding: 1rem;
+        border: 1px solid var(--color-border-default, #d0d7de);
+        border-radius: 6px;
+    }
+
+    .qg-subsection h3 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+    }
+
+    .demo-log {
+        margin-top: 1rem;
+        padding: 0.5rem 1rem;
+        background: var(--color-canvas, #f6f8fa);
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    .demo-log-error {
+        background: #ffebe9;
+        color: #cf222e;
+    }
+
+    .demo-actions {
+        margin-bottom: 1rem;
+    }
+
+    .demo-actions button {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--color-border-default, #d0d7de);
+        border-radius: 4px;
+        background: var(--color-surface, #ffffff);
+        cursor: pointer;
+    }
+
+    .demo-actions button:hover {
+        background: var(--color-canvas, #f6f8fa);
+    }
+</style>

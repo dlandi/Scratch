@@ -1477,3 +1477,123 @@
         color: transparent;
         user-select: none;
     }
+
+/* ============================================================================
+   ROW REORDERING FEATURE
+   Styles for drag-and-drop row reordering
+   ========================================================================= */
+
+/* Drag handle cell */
+.reorder-handle-cell {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: var(--space-2, 0.25rem);
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Empty cell for synthetic rows */
+.reorder-cell-empty {
+    background: transparent;
+}
+
+/* Drag handle element */
+.reorder-handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: var(--space-1, 0.125rem);
+    font-size: var(--font-size-lg, 1.125rem);
+    color: var(--color-text-secondary, #6c757d);
+    background: transparent;
+    border: none;
+    border-radius: var(--card-radius, 4px);
+    cursor: grab;
+    transition: all var(--duration-fast, 150ms) ease;
+    user-select: none;
+}
+
+.reorder-handle:hover {
+    color: var(--color-text-primary, #1a1a1a);
+    background: var(--color-canvas, #f8f9fa);
+}
+
+.reorder-handle:active {
+    cursor: grabbing;
+    color: var(--color-primary, #0d6efd);
+    background: rgba(13, 110, 253, 0.1);
+}
+
+.reorder-handle:focus-visible {
+    outline: 2px solid var(--color-primary, #0d6efd);
+    outline-offset: 2px;
+}
+
+/* Disabled drag handle */
+.reorder-handle.reorder-disabled {
+    color: var(--color-text-disabled, #adb5bd);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.reorder-handle.reorder-disabled:hover {
+    background: transparent;
+    color: var(--color-text-disabled, #adb5bd);
+}
+
+/* Row being dragged */
+.reorder-dragging {
+    opacity: 0.5;
+    background: var(--color-canvas, #f8f9fa);
+}
+
+/* Drop indicator - before target */
+.reorder-drop-before {
+    position: relative;
+}
+
+.reorder-drop-before::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-primary, #0d6efd);
+    box-shadow: 0 0 4px rgba(13, 110, 253, 0.4);
+    z-index: 10;
+}
+
+/* Drop indicator - after target */
+.reorder-drop-after {
+    position: relative;
+}
+
+.reorder-drop-after::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--color-primary, #0d6efd);
+    box-shadow: 0 0 4px rgba(13, 110, 253, 0.4);
+    z-index: 10;
+}
+
+/* Valid drop target indicator */
+.reorder-drop-target {
+    background: rgba(13, 110, 253, 0.05);
+}
+
+/* Invalid drop target */
+.reorder-drop-invalid {
+    cursor: not-allowed;
+}
+
+.reorder-drop-invalid .reorder-handle {
+    cursor: not-allowed;
+}

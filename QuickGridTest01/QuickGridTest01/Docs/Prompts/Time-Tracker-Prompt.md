@@ -3,9 +3,9 @@
 **CONFIGURATION**
 | Variable | Value |
 |----------|-------|
-| ReportFolder | `Docs/Feature Design/Task Execution Reports/ExecutionReports-RowGroupingFeature/` |
-| ExecutionReport | `RowGroupingFeature-ExecutionReport.md` |
-| SpecDocument | `Docs/Feature Design/Tasks/RowGroupingFeature-Tasks.md` |
+| ReportFolder | `Docs/Feature Design/Task Execution Reports/ExecutionReports-RowReorderingFeature/` |
+| ExecutionReport | `RowReorderingFeature-ExecutionReport.md` |
+| SpecDocument | `Docs/Feature Design/Tasks/RowReorderingFeature-Tasks.md` |
 
 ---
 
@@ -54,10 +54,12 @@ This can lead to:
 **Context:** Task definitions are in {SpecDocument}. Update {ReportFolder}{ExecutionReport} as you complete each task.
 
 **Additional allowed context sources (read-only):**
-- Feature specification: `Docs/Feature Design/RowGroupingFeature.md`
-- Implementation plan: `Docs/Feature Design/ImplementationPlans/Plan_RowGroupingFeature.md`
+- Feature specification: `Docs/Feature Design/RowReorderingFeature.md`
+- Implementation plan: `Docs/Feature Design/ImplementationPlans/Plan_RowReorderingFeature.md`
 - Legacy reference implementation: `RowColumn/*` (including `RowColumn.cs` and `RowColumn/Components/RowCard.razor`)
 - Existing ComposableColumns implementation: `ComposableColumns/*` (especially `ComposableColumns/Core/ComposableColumn.cs`, `ComposableColumns/Core/FeatureContext.cs`, and existing features)
+- Existing Expansion feature: `ComposableColumns/Features/Expansion/*` (for `IRowIdentifiable` and synthetic row patterns)
+- Existing Grouping feature: `ComposableColumns/Features/Grouping/*` (for coordinator pattern reference)
 
 Use these documents/codebases for parity and interface-alignment checks while implementing tasks.
 
@@ -110,6 +112,8 @@ If `{ReportFolder}` or `{ReportFolder}{ExecutionReport}` does not exist, create 
 
 **TASK LIST:**
 
-M11.P1.T1
-M11.P1.T2
-M11.P1.T3
+M1.P1.T1
+M1.P1.T2
+M1.P1.T3
+M1.P1.T4
+M1.P1.T5

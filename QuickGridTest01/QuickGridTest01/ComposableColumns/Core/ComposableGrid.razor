@@ -105,6 +105,8 @@
 	private GroupingCoordinator<TGridItem>? _groupingCoordinator;
 	private GroupedGridDataSource<TGridItem>? _groupedDataSource;
 
+	private QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem>? _reorderCoordinator;
+
 	private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
 
 	/// <summary>
@@ -194,6 +196,36 @@
 	public bool IsGroupingActive => _groupingCoordinator?.ActiveGrouping is not null;
 
 	/// <summary>
+	/// Gets whether reordering is currently active (feature registered and enabled).
+	/// When true, column sorting is suppressed.
+	/// </summary>
+	public bool IsReorderingActive => _reorderCoordinator?.IsReorderingEnabled == true;
+
+	/// <summary>
+	/// Gets or creates the reorder coordinator for this grid.
+	/// </summary>
+	/// <exception cref="InvalidOperationException">Thrown if TGridItem does not implement IRowIdentifiable.</exception>
+	internal QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem> GetOrCreateReorderCoordinator()
+	{
+		if (_reorderCoordinator is not null)
+			return _reorderCoordinator;
+
+		// Reordering is only valid for grids whose TGridItem supports row-identity.
+		if (typeof(QuickGridTest01.ComposableColumns.Features.Expansion.Core.IRowIdentifiable).IsAssignableFrom(typeof(TGridItem)) is false)
+			throw new InvalidOperationException("Reordering requires TGridItem to implement IRowIdentifiable.");
+
+		_reorderCoordinator = new QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem>();
+
+		// Wire grouping coordinator if it exists
+		if (_groupingCoordinator is not null)
+		{
+			_reorderCoordinator.GroupingCoordinator = _groupingCoordinator;
+		}
+
+		return _reorderCoordinator;
+	}
+
+	/// <summary>
 	/// Notifies the grouped data source that its state has changed, triggering a re-render.
 	/// Called by GroupingFeature after toggling group expansion state.
 	/// </summary>
@@ -206,6 +238,10 @@
 	{
 		get
 		{
+			// When reordering is active, suppress column sorting
+			if (IsReorderingActive)
+				return FilteredItems;
+
 			var sortingFeature = _columns
 				.SelectMany(c => c.GetAllFeatures().OfType<ISortingFeature<TGridItem>>())
 				.FirstOrDefault(f => f.IsSortable);
@@ -463,6 +499,9 @@
 
 		_groupingCoordinator?.Dispose();
 		_groupingCoordinator = null;
+
+		_reorderCoordinator?.Dispose();
+		_reorderCoordinator = null;
 
 		_editEventStream?.Dispose();
 	}

@@ -37,6 +37,11 @@ public static class FeaturePriority
     public const int Styling = 300;
 
     /// <summary>
+    /// Reordering features (row drag-and-drop reordering).
+    /// </summary>
+    public const int Reordering = 325;
+
+    /// <summary>
     /// Expansion features (row expansion / overlays).
     /// </summary>
     public const int Expansion = 350;
