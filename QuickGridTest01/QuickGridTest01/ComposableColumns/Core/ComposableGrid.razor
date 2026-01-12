@@ -74,7 +74,7 @@
 					}
 
 					<QuickGrid TGridItem="TGridItem" Items="ItemsForQuickGrid" @attributes="AdditionalAttributes">
-						@ChildContent
+						@RenderOrderedColumns()
 					</QuickGrid>
 				</div>
 
@@ -108,6 +108,12 @@
 	private QuickGridTest01.ComposableColumns.Features.Reordering.ReorderCoordinator<TGridItem>? _reorderCoordinator;
 
 	private readonly List<IColumnFeatureProvider<TGridItem>> _columns = [];
+
+	// Tracks the column order - null means use registration order, otherwise reordered for grouping
+	private List<IColumnFeatureProvider<TGridItem>>? _orderedColumns;
+
+	// Tracks if initial column registration has completed (first render done)
+	private bool _columnsInitialized;
 
 	/// <summary>
 	/// The data source for the grid.
@@ -317,6 +323,9 @@
 		var selected = e.Value?.ToString();
 		coord.SetActiveGrouping(string.IsNullOrWhiteSpace(selected) ? null : selected);
 
+		// Invalidate column order when grouping changes
+		InvalidateColumnOrder();
+
 		// If grouping was disabled, drop any grouped data source so ItemsForQuickGrid is ungrouped.
 		if (coord.ActiveGrouping is null)
 		{
@@ -361,8 +370,14 @@
 
 	protected override void OnAfterRender(bool firstRender)
 	{
-		// No-op for grouping activation. Grouping refresh is driven through GroupedGridDataSource.OnDataChanged.
-		// Keeping this empty avoids accidental render loops.
+		// Mark columns as initialized after first render and trigger re-render
+		// so that RenderOrderedColumns uses the ordered columns list
+		if (firstRender)
+		{
+			_columnsInitialized = true;
+			// Need to re-render now that columns are initialized
+			_ = InvokeAsync(StateHasChanged);
+		}
 	}
 
 	private IQueryable<TGridItem> ItemsForQuickGrid
@@ -488,6 +503,77 @@
 		var seq = 0;
 		filter.RenderFilterInput(builder, ref seq);
 	};
+
+	/// <summary>
+	/// Renders columns in the current order. When grouping is active,
+	/// the grouping column is moved to the first position.
+	/// </summary>
+	private RenderFragment RenderOrderedColumns() => builder =>
+	{
+		// On first render, use ChildContent directly to allow columns to register
+		if (!_columnsInitialized || _columns.Count == 0)
+		{
+			ChildContent?.Invoke(builder);
+			return;
+		}
+
+		// Get the ordered column list
+		var columnsToRender = GetOrderedColumns();
+
+		// Render each column using its RenderColumn fragment
+		foreach (var column in columnsToRender)
+		{
+			column.RenderColumn.Invoke(builder);
+		}
+	};
+
+	/// <summary>
+	/// Gets columns in the correct order for rendering.
+	/// When grouping is active, the grouping column is moved to first position.
+	/// </summary>
+	private IReadOnlyList<IColumnFeatureProvider<TGridItem>> GetOrderedColumns()
+	{
+		// If we have a cached ordered list, use it
+		if (_orderedColumns is not null)
+			return _orderedColumns;
+
+		// No reordering needed if no grouping is active
+		var activeGroupingColumnId = _groupingCoordinator?.ActiveGrouping?.ColumnId;
+		if (string.IsNullOrEmpty(activeGroupingColumnId))
+			return _columns;
+
+		// Find the grouping column and move it to first position
+		var groupingColumn = _columns.FirstOrDefault(c =>
+			string.Equals(c.ColumnId, activeGroupingColumnId, StringComparison.Ordinal));
+
+		if (groupingColumn is null)
+			return _columns;
+
+		// Create reordered list with grouping column first
+		_orderedColumns = new List<IColumnFeatureProvider<TGridItem>>(_columns.Count);
+		_orderedColumns.Add(groupingColumn);
+		foreach (var col in _columns)
+		{
+			if (!ReferenceEquals(col, groupingColumn))
+				_orderedColumns.Add(col);
+		}
+
+		// Update the header host column to be the first column (which is now the grouping column)
+		if (_groupingCoordinator is not null)
+		{
+			_groupingCoordinator.SetHeaderHostColumn(activeGroupingColumnId);
+		}
+
+		return _orderedColumns;
+	}
+
+	/// <summary>
+	/// Resets the column order cache, forcing a recalculation on next render.
+	/// </summary>
+	private void InvalidateColumnOrder()
+	{
+		_orderedColumns = null;
+	}
 
 	public void Dispose()
 	{

@@ -129,6 +129,36 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
     public IReadOnlyList<IColumnFeature<TGridItem>> GetAllFeatures() => _features;
 
     /// <summary>
+    /// Gets the column identifier (typically the Title) used for column ordering.
+    /// </summary>
+    public string? ColumnId => Title;
+
+    /// <summary>
+    /// Gets a RenderFragment that renders this column within a QuickGrid.
+    /// Used for dynamic column ordering.
+    /// </summary>
+    public RenderFragment RenderColumn => builder =>
+    {
+        // Render this column as a PropertyColumn or TemplateColumn
+        // The column renders itself through the normal Blazor component lifecycle
+        builder.OpenComponent<ComposableColumn<TGridItem, TValue>>(0);
+        builder.AddAttribute(1, nameof(Title), Title);
+        builder.AddAttribute(2, nameof(Property), Property);
+        builder.AddAttribute(3, nameof(Format), Format);
+        builder.AddAttribute(4, nameof(Formatter), Formatter);
+        builder.AddAttribute(5, nameof(Sortable), Sortable);
+        builder.AddAttribute(6, nameof(IsDefaultSortColumn), IsDefaultSortColumn);
+        builder.AddAttribute(7, nameof(InitialSortDirection), InitialSortDirection);
+        builder.AddAttribute(8, nameof(FeatureCollection), FeatureCollection);
+        if (Features is not null)
+        {
+            builder.AddAttribute(9, nameof(Features), Features);
+        }
+        builder.SetKey((object?)ColumnId ?? GetHashCode());
+        builder.CloseComponent();
+    };
+
+    /// <summary>
     /// Gets the first feature of a specific type, or null if not found.
     /// </summary>
     public TFeature? GetFeature<TFeature>() where TFeature : class, IColumnFeature<TGridItem>

@@ -28,6 +28,19 @@ public sealed class GroupingCoordinator<TGridItem> : IDisposable
 
     public string? HeaderHostColumnId { get; private set; }
 
+    /// <summary>
+    /// Sets the column that will host group headers.
+    /// Called by ComposableGrid when column order changes due to grouping.
+    /// </summary>
+    public void SetHeaderHostColumn(string? columnId)
+    {
+        if (string.Equals(HeaderHostColumnId, columnId, StringComparison.Ordinal))
+            return;
+
+        HeaderHostColumnId = columnId;
+        QgDebugLog.Write($"Coordinator.SetHeaderHostColumn: coord={GetHashCode()}, host='{columnId ?? "<null>"}'");
+    }
+
     public IGroupingFeature<TGridItem>? ActiveGrouping { get; private set; }
 
     internal IReadOnlyList<string> GetRegisteredColumnIds()
