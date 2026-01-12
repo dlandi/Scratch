@@ -333,6 +333,12 @@
 			_oneShotGroupingActivationRefreshIssued = false;
 		}
 
+		// Force re-render to apply new column order
+		await InvokeAsync(StateHasChanged);
+
+		// Yield to allow the render to complete, then trigger another render
+		// This ensures QuickGrid picks up the reordered columns
+		await Task.Yield();
 		await InvokeAsync(StateHasChanged);
 	}
 
