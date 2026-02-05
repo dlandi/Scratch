@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using QuickGridTest01.ComposableColumns.Core;
 using QuickGridTest01.ComposableColumns.Features.Expansion.Core;
 
@@ -18,6 +19,9 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
     private ReorderableDataSource<TGridItem>? _dataSource;
     private bool _disposed;
     private bool _dataSourceValidated;
+    private TGridItem? _pendingDropDraggedItem; // Track dragged item for race condition handling
+    private int _dragOperationId; // Unique ID for each drag operation for logging
+    private readonly int _instanceId = Environment.TickCount + Random.Shared.Next(); // Unique ID for this feature instance
 
     /// <inheritdoc />
     public int Priority => FeaturePriority.Reordering;
@@ -113,23 +117,89 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
     /// </summary>
     public EventCallback<RowReorderCancelledEventArgs<TGridItem>> OnReorderCancelled { get; set; }
 
-    /// <inheritdoc />
-    public void OnAttach(FeatureContext<TGridItem> context)
+    /// <summary>
+    /// Optional JS runtime for debug logging to browser console. Set this to enable detailed drag/drop logging.
+    /// </summary>
+    public IJSRuntime? JSRuntime { get; set; }
+
+    /// <summary>
+    /// Enables or disables debug logging to browser console. Default is false.
+    /// </summary>
+    public bool EnableDebugLogging { get; set; } = false;
+
+    // Logging helper methods
+    private void LogDebug(string message)
     {
-        ArgumentNullException.ThrowIfNull(context);
+        if (!EnableDebugLogging || JSRuntime is null) return;
+        _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}#{_dragOperationId}] {message}");
+    }
+
+    private void LogDebugState(string eventName, TGridItem? item = null)
+    {
+        if (!EnableDebugLogging || JSRuntime is null) return;
+        var itemInfo = item is not null ? $"Item[Id={item.Id}]" : "null";
+        var draggedInfo = _coordinator?.DraggedItem is not null ? $"DraggedItem[Id={_coordinator.DraggedItem.Id}]" : "null";
+        var pendingInfo = _pendingDropDraggedItem is not null ? $"PendingDrop[Id={_pendingDropDraggedItem.Id}]" : "null";
+        var hoverInfo = _coordinator?.HoveredTarget is not null ? $"Hover[Id={_coordinator.HoveredTarget.Id}, Pos={_coordinator.CurrentDropPosition}]" : "null";
+        var isDragging = _coordinator?.IsDragging ?? false;
+
+            _ = JSRuntime.InvokeVoidAsync("console.log", 
+                $"[Reorder@{_instanceId}#{_dragOperationId}] {eventName}: {itemInfo} | IsDragging={isDragging} | {draggedInfo} | {pendingInfo} | {hoverInfo}");
+        }
+
+        private void LogDebugError(string message)
+        {
+            if (!EnableDebugLogging || JSRuntime is null) return;
+            _ = JSRuntime.InvokeVoidAsync("console.error", $"[Reorder@{_instanceId}#{_dragOperationId}] ERROR: {message}");
+        }
+
+        private void LogDebugWarn(string message)
+        {
+            if (!EnableDebugLogging || JSRuntime is null) return;
+            _ = JSRuntime.InvokeVoidAsync("console.warn", $"[Reorder@{_instanceId}#{_dragOperationId}] WARN: {message}");
+        }
+
+        /// <inheritdoc />
+        public void OnAttach(FeatureContext<TGridItem> context)
+        {
+            ArgumentNullException.ThrowIfNull(context);
 
         _context = context;
+
+        // Log attachment attempt with instance ID for debugging
+        if (EnableDebugLogging && JSRuntime is not null)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}] OnAttach called - context.Grid is {(context.Grid is null ? "NULL" : context.Grid.GetType().Name)}");
+        }
 
         // Validate RowHeight
         if (RowHeight <= 0)
             throw new ArgumentOutOfRangeException(nameof(RowHeight), "RowHeight must be greater than zero.");
 
         // Get the grid and create/get coordinator
-        var grid = GetGridOrThrow(context);
+        ComposableGrid<TGridItem> grid;
+        try
+        {
+            grid = GetGridOrThrow(context);
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (EnableDebugLogging && JSRuntime is not null)
+            {
+                _ = JSRuntime.InvokeVoidAsync("console.error", $"[Reorder@{_instanceId}] OnAttach FAILED - GetGridOrThrow threw: {ex.Message}");
+            }
+            throw;
+        }
+
         _coordinator = grid.GetOrCreateReorderCoordinator();
 
-        // Enforce single-feature constraint
-        if (_coordinator.Feature is not null)
+        if (EnableDebugLogging && JSRuntime is not null)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}] OnAttach - Got coordinator: {_coordinator is not null}");
+        }
+
+        // Enforce single-feature constraint (allow re-attachment of the same instance)
+        if (_coordinator.Feature is not null && !ReferenceEquals(_coordinator.Feature, this))
             throw new InvalidOperationException("Only one RowReorderFeature is permitted per grid.");
 
         // Register this feature with the coordinator
@@ -140,15 +210,36 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         if (_dataSource is not null)
         {
             _coordinator.DataSource = _dataSource;
+            if (EnableDebugLogging && JSRuntime is not null)
+            {
+                _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}] OnAttach - DataSource registered with coordinator");
+            }
+        }
+        else
+        {
+            if (EnableDebugLogging && JSRuntime is not null)
+            {
+                _ = JSRuntime.InvokeVoidAsync("console.warn", $"[Reorder@{_instanceId}] OnAttach - DataSource is NULL (will be set via SetDataSource later)");
+            }
         }
 
         // Subscribe to state changes for UI refresh
         _coordinator.OnStateChanged += OnCoordinatorStateChanged;
+
+        if (EnableDebugLogging && JSRuntime is not null)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}] OnAttach COMPLETE - coordinator={_coordinator is not null}, dataSource={_dataSource is not null}");
+        }
     }
 
     /// <inheritdoc />
     public void OnDetach(FeatureContext<TGridItem> context)
     {
+        if (EnableDebugLogging && JSRuntime is not null)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.log", $"[Reorder@{_instanceId}] OnDetach called - coordinator was {(_coordinator is not null ? "set" : "null")}");
+        }
+
         if (_coordinator is not null)
         {
             _coordinator.OnStateChanged -= OnCoordinatorStateChanged;
@@ -160,7 +251,12 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
             }
         }
 
-        Dispose();
+        // Note: Do NOT call Dispose() here. The feature instance may be re-attached
+        // to a new column (e.g., when Blazor recreates components during re-renders).
+        // Keep _coordinator and _dataSource intact so they can be restored in OnAttach.
+        // Dispose() should only be called for permanent cleanup when the feature is
+        // no longer needed.
+        _context = null;
     }
 
     /// <summary>
@@ -183,6 +279,12 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         FeatureContext<TGridItem> context,
         Action renderNext)
     {
+        // Warn if coordinator is null - this indicates a render before OnAttach completed
+        if (_coordinator is null && EnableDebugLogging && JSRuntime is not null)
+        {
+            _ = JSRuntime.InvokeVoidAsync("console.warn", $"[Reorder@{_instanceId}] RenderCell called but _coordinator is null! OnAttach may not have been called.");
+        }
+
         // Check if feature is disabled - render empty cell
         if (!Enabled)
         {
@@ -207,10 +309,13 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         builder.OpenElement(sequence++, "td");
         builder.AddAttribute(sequence++, "class", cellClass);
 
-        // Handle drag events on the cell if TriggerMode is EntireRow
+        // Drop target events are ALWAYS on the cell to accept drops when hovering anywhere over the row's handle cell
+        AddDropTargetAttributes(builder, ref sequence, item);
+
+        // Drag source events on the cell if TriggerMode is EntireRow
         if (TriggerMode == ReorderTriggerMode.EntireRow && canDrag)
         {
-            AddDragAttributes(builder, ref sequence, item, canDrag);
+            AddDragSourceAttributes(builder, ref sequence, item);
         }
 
         // Render the drag handle
@@ -239,9 +344,10 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         var handleClass = canDrag ? HandleClass : $"{HandleClass} {DisabledHandleClass}";
         builder.AddAttribute(sequence++, "class", handleClass);
 
+        // Drag source events on the handle if TriggerMode is HandleOnly
         if (canDrag && TriggerMode == ReorderTriggerMode.HandleOnly)
         {
-            AddDragAttributes(builder, ref sequence, item, canDrag);
+            AddDragSourceAttributes(builder, ref sequence, item);
         }
 
         // ARIA attributes
@@ -268,14 +374,22 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         builder.CloseElement();
     }
 
-    private void AddDragAttributes(RenderTreeBuilder builder, ref int sequence, TGridItem item, bool canDrag)
+    /// <summary>
+    /// Adds drag source attributes (draggable, ondragstart, ondragend) to make an element draggable.
+    /// </summary>
+    private void AddDragSourceAttributes(RenderTreeBuilder builder, ref int sequence, TGridItem item)
     {
-        if (!canDrag)
-            return;
-
         builder.AddAttribute(sequence++, "draggable", "true");
         builder.AddAttribute(sequence++, "ondragstart", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragStartAsync(item, e)));
         builder.AddAttribute(sequence++, "ondragend", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragEndAsync(item, e)));
+    }
+
+    /// <summary>
+    /// Adds drop target attributes (ondragover, ondrop, ondragleave) to make an element a drop target.
+    /// These are always added to the cell to allow drops when hovering anywhere over the cell.
+    /// </summary>
+    private void AddDropTargetAttributes(RenderTreeBuilder builder, ref int sequence, TGridItem item)
+    {
         builder.AddAttribute(sequence++, "ondragover", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDragOverAsync(item, e)));
         builder.AddEventPreventDefaultAttribute(sequence++, "ondragover", true);
         builder.AddAttribute(sequence++, "ondrop", EventCallback.Factory.Create<DragEventArgs>(this, e => OnDropAsync(item, e)));
@@ -314,40 +428,107 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
 
     private async Task OnDragStartAsync(TGridItem item, DragEventArgs e)
     {
+        // Generate new operation ID for this drag sequence
+        _dragOperationId = Environment.TickCount;
+
+        LogDebug($"=== DRAG START === ClientX={e.ClientX}, ClientY={e.ClientY}");
+        LogDebugState("OnDragStart:ENTRY", item);
+
         if (_coordinator is null || !Enabled)
+        {
+            LogDebugWarn("OnDragStart:EXIT - Coordinator null or not enabled");
             return;
+        }
 
         // Validate DataSource on first drag attempt
-        ValidateDataSource();
+        try
+        {
+            ValidateDataSource();
+        }
+        catch (Exception ex)
+        {
+            LogDebugError($"OnDragStart:EXIT - DataSource validation failed: {ex.Message}");
+            throw;
+        }
 
         // Synthetic rows cannot be dragged
         if (ReorderingHelpers.IsSyntheticRow(item))
+        {
+            LogDebugWarn("OnDragStart:EXIT - Synthetic row cannot be dragged");
             return;
+        }
 
         // Check CanDrag predicate
         if (CanDrag?.Invoke(item) == false)
+        {
+            LogDebugWarn($"OnDragStart:EXIT - CanDrag predicate returned false for Item[Id={item.Id}]");
             return;
+        }
 
         // TODO: If expansion feature is active and item is expanded, collapse first
         // (Deferred to integration phase)
 
+        // Store dragged item for race condition handling
+        _pendingDropDraggedItem = item;
         _coordinator.StartDrag(item);
+
+        LogDebugState("OnDragStart:EXIT - Drag started successfully", item);
     }
 
     private Task OnDragEndAsync(TGridItem item, DragEventArgs e)
     {
-        _coordinator?.CancelDrag();
-        return Task.CompletedTask;
-    }
+        LogDebug($"=== DRAG END === ClientX={e.ClientX}, ClientY={e.ClientY}");
+        LogDebugState("OnDragEnd:ENTRY", item);
+
+        // The ondragend event fires when a drag operation ends (whether successful or not).
+        // On a successful drop, ondrop fires FIRST, which clears the drag state via CancelDrag().
+        // On an unsuccessful drop (cancelled or dropped outside valid target), ondrop doesn't fire.
+        // 
+            // Due to Blazor Server's SignalR message ordering, ondragend may be processed BEFORE ondrop.
+            // To handle this, we delay clearing the state to give ondrop a chance to process first.
+            // The _pendingDropDraggedItem field preserves the dragged item for ondrop to use.
+
+            var opId = _dragOperationId; // Capture for closure
+            LogDebug($"OnDragEnd: Scheduling delayed cleanup (100ms) - OpId={opId}");
+
+            _ = Task.Delay(100).ContinueWith(async _ =>
+            {
+                if (JSRuntime is not null && EnableDebugLogging)
+                {
+                    await JSRuntime.InvokeVoidAsync("console.log", 
+                        $"[Reorder#{opId}] OnDragEnd:DELAYED_CLEANUP - Clearing state. PendingDrop was {(_pendingDropDraggedItem is not null ? $"Id={_pendingDropDraggedItem.Id}" : "null")}");
+                }
+                _pendingDropDraggedItem = null;
+                _coordinator?.CancelDrag();
+            }, TaskScheduler.Default);
+
+            LogDebugState("OnDragEnd:EXIT - Cleanup scheduled", item);
+            return Task.CompletedTask;
+        }
 
     private Task OnDragOverAsync(TGridItem item, DragEventArgs e)
     {
+        // Note: Don't log every dragover as it fires very frequently
+        // Only log significant state changes
+
         if (_coordinator is null || !_coordinator.IsDragging)
+        {
+            // Only log once per non-dragging hover
+            if (_coordinator is null)
+            {
+                LogDebugWarn("OnDragOver:EXIT - Coordinator is null");
+            }
+            else
+            {
+                LogDebugWarn($"OnDragOver:EXIT - Not dragging. IsDragging={_coordinator.IsDragging}, DraggedItem={(_coordinator.DraggedItem is not null ? $"Id={_coordinator.DraggedItem.Id}" : "null")}, PendingDrop={(_pendingDropDraggedItem is not null ? $"Id={_pendingDropDraggedItem.Id}" : "null")}");
+            }
             return Task.CompletedTask;
+        }
 
         // Synthetic rows cannot be drop targets
         if (ReorderingHelpers.IsSyntheticRow(item))
         {
+            LogDebug($"OnDragOver: Synthetic row - clearing hover");
             _coordinator.ClearHover();
             return Task.CompletedTask;
         }
@@ -358,6 +539,7 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
             var draggedIndex = _dataSource.IndexOf(_coordinator.DraggedItem!);
             if (draggedIndex < 0)
             {
+                LogDebugError("OnDragOver: Dragged item no longer in data source - cancelling drag");
                 _coordinator.CancelDrag();
                 return Task.CompletedTask;
             }
@@ -366,6 +548,7 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         // Check CanDropOn predicate
         if (CanDropOn?.Invoke(_coordinator.DraggedItem!, item) == false)
         {
+            LogDebug($"OnDragOver: CanDropOn predicate returned false for target Item[Id={item.Id}]");
             _coordinator.ClearHover();
             return Task.CompletedTask;
         }
@@ -373,33 +556,71 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         // Check grouping constraints
         if (!CanDropOnTarget(_coordinator.DraggedItem!, item))
         {
+            // Log only if this is a different target than before to reduce noise
+            if (_coordinator.HoveredTarget?.Id != item.Id)
+            {
+                LogDebug($"OnDragOver: CanDropOnTarget returned false for target Item[Id={item.Id}] (may be self-drop or group constraint)");
+            }
             _coordinator.ClearHover();
             return Task.CompletedTask;
         }
 
         // Calculate drop position
         var position = GetDropPosition(e);
+
+        // Log only when hover target changes
+        var previousTarget = _coordinator.HoveredTarget;
+        var previousPosition = _coordinator.CurrentDropPosition;
+
         _coordinator.UpdateHover(item, position);
+
+        if (previousTarget?.Id != item.Id || previousPosition != position)
+        {
+            LogDebug($"OnDragOver: Updated hover - Target[Id={item.Id}], Position={position}, ClientY={e.ClientY}");
+        }
 
         return Task.CompletedTask;
     }
 
     private async Task OnDropAsync(TGridItem item, DragEventArgs e)
     {
-        if (_coordinator is null || !_coordinator.IsDragging || _dataSource is null)
-            return;
+        LogDebug($"=== DROP === Target Item[Id={item.Id}], ClientX={e.ClientX}, ClientY={e.ClientY}");
+        LogDebugState("OnDrop:ENTRY", item);
 
-        var draggedItem = _coordinator.DraggedItem!;
+        if (_coordinator is null || _dataSource is null)
+        {
+            LogDebugError($"OnDrop:EXIT - Coordinator null={_coordinator is null}, DataSource null={_dataSource is null}");
+            return;
+        }
+
+        // Get dragged item - prefer coordinator state, fall back to saved state for race condition handling
+        var draggedItem = _coordinator.DraggedItem ?? _pendingDropDraggedItem;
+        LogDebug($"OnDrop: DraggedItem resolution - Coordinator.DraggedItem={(_coordinator.DraggedItem is not null ? $"Id={_coordinator.DraggedItem.Id}" : "null")}, PendingDrop={(_pendingDropDraggedItem is not null ? $"Id={_pendingDropDraggedItem.Id}" : "null")}, Using={draggedItem?.Id.ToString() ?? "null"}");
+
+        if (draggedItem is null)
+        {
+            LogDebugError("OnDrop:EXIT - No dragged item available (both coordinator and pending are null)");
+            return;
+        }
 
         // Validate drop target (same checks as OnDragOver)
         if (ReorderingHelpers.IsSyntheticRow(item))
+        {
+            LogDebugWarn("OnDrop:EXIT - Target is synthetic row");
             return;
+        }
 
         if (CanDropOn?.Invoke(draggedItem, item) == false)
+        {
+            LogDebugWarn($"OnDrop:EXIT - CanDropOn predicate returned false");
             return;
+        }
 
         if (!CanDropOnTarget(draggedItem, item))
+        {
+            LogDebugWarn($"OnDrop:EXIT - CanDropOnTarget returned false (self-drop or group constraint)");
             return;
+        }
 
         var oldIndex = _dataSource.IndexOf(draggedItem);
         var targetIndex = _dataSource.IndexOf(item);
@@ -409,6 +630,8 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         var newIndex = position == DropPosition.Before ? targetIndex : targetIndex + 1;
         if (oldIndex < newIndex)
             newIndex--; // Adjust for removal
+
+        LogDebug($"OnDrop: Calculating move - OldIndex={oldIndex}, TargetIndex={targetIndex}, Position={position}, NewIndex={newIndex}");
 
         // Build event args
         var args = new RowBeforeReorderEventArgs<TGridItem>
@@ -421,10 +644,15 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         };
 
         // Execute reorder
+        LogDebug("OnDrop: Executing reorder...");
         await ExecuteReorderAsync(args);
 
-        // Clear drag state
+        // Clear drag state - both coordinator and local field
+        LogDebug("OnDrop: Clearing drag state");
+        _pendingDropDraggedItem = null;
         _coordinator.CancelDrag();
+
+        LogDebugState("OnDrop:EXIT - Reorder complete", item);
     }
 
     private Task OnDragLeaveAsync(TGridItem item, DragEventArgs e)
@@ -432,6 +660,7 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         // Only clear hover if leaving the current target
         if (_coordinator?.HoveredTarget is not null && _coordinator.HoveredTarget.Id == item.Id)
         {
+            LogDebug($"OnDragLeave: Clearing hover for Item[Id={item.Id}]");
             _coordinator.ClearHover();
         }
 
@@ -484,17 +713,24 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
     /// </summary>
     private async Task<ReorderResult> ExecuteReorderAsync(RowBeforeReorderEventArgs<TGridItem> args)
     {
+        LogDebug($"ExecuteReorder:ENTRY - DraggedItem[Id={args.DraggedItem.Id}] -> TargetItem[Id={args.TargetItem.Id}], Position={args.Position}");
+
         if (_dataSource is null)
+        {
+            LogDebugError("ExecuteReorder: DataSource is null");
             throw new InvalidOperationException("RowReorderFeature requires a ReorderableDataSource. Bind the grid's Items to ReorderableDataSource.Items.");
+        }
 
         try
         {
             // Fire OnBeforeReorder event
+            LogDebug("ExecuteReorder: Firing OnBeforeReorder event");
             await InvokeEventCallbackAsync(OnBeforeReorder, args);
         }
         catch (Exception ex)
         {
             // Event handler threw - cancel with reason
+            LogDebugError($"ExecuteReorder: OnBeforeReorder threw exception: {ex.Message}");
             var cancelledArgs = new RowReorderCancelledEventArgs<TGridItem>
             {
                 Item = args.DraggedItem,
@@ -508,6 +744,7 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         // Check if cancelled by event handler
         if (args.Cancel)
         {
+            LogDebugWarn($"ExecuteReorder: Cancelled by OnBeforeReorder handler - Reason: {args.CancelReason}");
             var cancelledArgs = new RowReorderCancelledEventArgs<TGridItem>
             {
                 Item = args.DraggedItem,
@@ -521,6 +758,7 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
         // Execute the reorder
         try
         {
+            LogDebug($"ExecuteReorder: Moving item - Position={args.Position}");
             if (args.Position == DropPosition.Before)
             {
                 _dataSource.MoveItemBefore(args.DraggedItem, args.TargetItem);
@@ -532,6 +770,8 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
 
             // Fire OnRowReordered event
             var newIndex = _dataSource.IndexOf(args.DraggedItem);
+            LogDebug($"ExecuteReorder: Move complete - NewIndex={newIndex}");
+
             var reorderedArgs = new RowReorderedEventArgs<TGridItem>
             {
                 Item = args.DraggedItem,
@@ -540,11 +780,14 @@ public sealed class RowReorderFeature<TGridItem> : ICellRenderFeature<TGridItem>
                 NewOrder = _dataSource.CurrentOrder
             };
 
+            LogDebug("ExecuteReorder: Firing OnRowReordered event");
             await InvokeEventCallbackAsync(OnRowReordered, reorderedArgs);
+            LogDebug("ExecuteReorder:EXIT - SUCCESS");
             return ReorderResult.Success;
         }
         catch (Exception ex)
         {
+            LogDebugError($"ExecuteReorder: Move operation failed: {ex.Message}");
             var cancelledArgs = new RowReorderCancelledEventArgs<TGridItem>
             {
                 Item = args.DraggedItem,

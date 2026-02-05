@@ -213,13 +213,15 @@ public class ComposableColumn<TGridItem, TValue> : ColumnBase<TGridItem>, IDispo
         }
 
         // Initialize features if not done yet
-        if (!_initialized)
+        // IMPORTANT: Defer initialization until Grid cascading parameter is available,
+        // as features may need access to the grid (e.g., RowReorderFeature needs the coordinator)
+        if (!_initialized && Grid is not null)
         {
-            Grid?.RegisterColumn(this);
+            Grid.RegisterColumn(this);
             Initialize();
             _initialized = true;
         }
-        else
+        else if (_initialized)
         {
             // Notify features that parameters have changed so they can update their state
             foreach (var feature in _features)

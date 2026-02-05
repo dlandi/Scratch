@@ -1,0 +1,91 @@
+
+08:46:05 INF QuickGridTest01.Pages.ComposableReorderDemo ComposableReorderDemo: Page loaded, rendered, and ready
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 65 and flags NONE.
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 58, EndOfMessage: True.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.ComponentHub Received confirmation for batch 9
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 59, EndOfMessage: True.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteRenderer Completing batch 9 without error in 36.4285ms.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 8, True, [8,true,{"__jsObjectId":1}] ], StreamIds: [  ] }.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '8' succeeded.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Begin invoke JS interop '11': 'init'
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 91 bytes.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" sending DATA frame for stream ID 29 with length 93 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 9, True, [9,true,{"__jsObjectId":2}] ], StreamIds: [  ] }.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 65 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '9' succeeded.
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 59, EndOfMessage: True.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Begin invoke JS interop '12': 'init'
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 91 bytes.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" sending DATA frame for stream ID 29 with length 93 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 10, True, [10,true,{"__jsObjectId":3}] ], StreamIds: [  ] }.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 65 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '10' succeeded.
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 59, EndOfMessage: True.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Begin invoke JS interop '13': 'init'
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 91 bytes.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" sending DATA frame for stream ID 29 with length 93 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 11, True, [11,true,{"__jsObjectId":4}] ], StreamIds: [  ] }.
+08:46:05 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 65 and flags NONE.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '11' succeeded.
+08:46:05 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 59, EndOfMessage: True.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 12, True, [12,true,{"__jsObjectId":5}] ], StreamIds: [  ] }.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '12' succeeded.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:05 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "EndInvokeJSFromDotNet", Arguments: [ 13, True, [13,true,{"__jsObjectId":6}] ], StreamIds: [  ] }.
+08:46:05 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost The JS interop call with callback id '13' succeeded.
+08:46:05 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 489 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 481, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "BeginInvokeDotNetFromJS", Arguments: [ 1, , DispatchEventAsync, 1, [{"eventHandlerId":97,"eventName":"dragstart","eventFieldInfo":null},{"detail":0,"screenX":727,"screenY":388,"clientX":325,"clientY":333,"offsetX":13,"offsetY":13,"pageX":325,"pageY":333,"movementX":0,"movementY":0,"button":0,"buttons":1,"ctrlKey":false,"shiftKey":false,"altKey":false,"metaKey":false,"type":"dragstart","dataTransfer":{"dropEffect":"none","effectAllowed":"uninitialized","files":[],"items":[],"types":[]}}] ], StreamIds: [  ] }.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost Invoking instance method 'DispatchEventAsync' on instance '1' with callback id '1'.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 DBG Microsoft.AspNetCore.Components.RenderTree.Renderer Handling event {"Id": 5, "Name": "HandlingEvent"} of type 'DragEventArgs'
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Invocation of 'DispatchEventAsync' on reference '1' with callback id '1' completed successfully.
+08:46:08 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "BeginInvokeDotNetFromJS", Arguments: [ 2, , DispatchEventAsync, 1, [{"eventHandlerId":94,"eventName":"dragover","eventFieldInfo":null},{"detail":0,"screenX":725,"screenY":395,"clientX":323,"clientY":341,"offsetX":11,"offsetY":21,"pageX":323,"pageY":341,"movementX":0,"movementY":0,"button":0,"buttons":1,"ctrlKey":false,"shiftKey":false,"altKey":false,"metaKey":false,"type":"dragover","dataTransfer":{"dropEffect":"none","effectAllowed":"all","files":[],"items":[],"types":[]}}] ], StreamIds: [  ] }.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 32 bytes.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost Invoking instance method 'DispatchEventAsync' on instance '1' with callback id '2'.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 479 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 469, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" sending DATA frame for stream ID 29 with length 34 and flags NONE.
+08:46:08 DBG Microsoft.AspNetCore.Components.RenderTree.Renderer Handling event {"Id": 5, "Name": "HandlingEvent"} of type 'DragEventArgs'
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 471, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Invocation of 'DispatchEventAsync' on reference '1' with callback id '2' completed successfully.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 478 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 330, EndOfMessage: False.
+08:46:08 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "BeginInvokeDotNetFromJS", Arguments: [ 3, , DispatchEventAsync, 1, [{"eventHandlerId":94,"eventName":"dragover","eventFieldInfo":null},{"detail":0,"screenX":725,"screenY":397,"clientX":323,"clientY":343,"offsetX":11,"offsetY":23,"pageX":323,"pageY":343,"movementX":0,"movementY":0,"button":0,"buttons":1,"ctrlKey":false,"shiftKey":false,"altKey":false,"metaKey":false,"type":"dragover","dataTransfer":{"dropEffect":"none","effectAllowed":"all","files":[],"items":[],"types":[]}}] ], StreamIds: [  ] }.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 32 bytes.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 478 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 139, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost Invoking instance method 'DispatchEventAsync' on instance '1' with callback id '3'.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" sending DATA frame for stream ID 29 with length 34 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 480 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 470, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.Components.RenderTree.Renderer Handling event {"Id": 5, "Name": "HandlingEvent"} of type 'DragEventArgs'
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 478 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 470, EndOfMessage: True.
+08:46:08 VRB Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher InvocationId null: Sending result of type 'System.Void'.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.RemoteJSRuntime Invocation of 'DispatchEventAsync' on reference '1' with callback id '3' completed successfully.
+08:46:08 VRB Microsoft.AspNetCore.Server.Kestrel.Http2 Connection id "0HNIIL8ABM0R8" received DATA frame for stream ID 29 with length 477 and flags NONE.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 472, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.SignalR.Internal.DefaultHubDispatcher Received hub invocation: InvocationMessage { InvocationId: "", Target: "BeginInvokeDotNetFromJS", Arguments: [ 4, , DispatchEventAsync, 1, [{"eventHandlerId":94,"eventName":"dragover","eventFieldInfo":null},{"detail":0,"screenX":725,"screenY":398,"clientX":323,"clientY":344,"offsetX":11,"offsetY":25,"pageX":323,"pageY":344,"movementX":0,"movementY":0,"button":0,"buttons":1,"ctrlKey":false,"shiftKey":false,"altKey":false,"metaKey":false,"type":"dragover","dataTransfer":{"dropEffect":"none","effectAllowed":"all","files":[],"items":[],"types":[]}}] ], StreamIds: [  ] }.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Sending payload: 32 bytes.
+08:46:08 VRB Microsoft.AspNetCore.Http.Connections.Internal.Transports.WebSocketsTransport Message received. Type: Binary, size: 470, EndOfMessage: True.
+08:46:08 DBG Microsoft.AspNetCore.Components.Server.Circuits.CircuitHost Invoking instance method 'DispatchEventAsync' on instance '1' with callback id '4'.

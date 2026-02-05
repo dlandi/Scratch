@@ -4,7 +4,9 @@
 @using QuickGridTest01.ComposableColumns.Features.Expansion.Core
 @using Microsoft.AspNetCore.Components.QuickGrid
 @using Microsoft.JSInterop
+@using Microsoft.Extensions.Logging
 @inject IJSRuntime JS
+@inject ILogger<ComposableReorderDemo> Logger
 
 <PageTitle>Composable Column - Row Reordering</PageTitle>
 
@@ -124,16 +126,18 @@
 
     protected override void OnInitialized()
     {
-        // Scenario 1: Basic reordering
+        // Scenario 1: Basic reordering (with debug logging enabled)
         _basicDataSource = new ReorderableDataSource<TaskItem>(GetBasicTasks());
         var basicReorderFeature = new RowReorderFeature<TaskItem>
         {
-            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnBasicRowReordered)
+            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnBasicRowReordered),
+            JSRuntime = JS,
+            EnableDebugLogging = true // Enable console logging for debugging
         };
         basicReorderFeature.SetDataSource(_basicDataSource);
         _basicReorderFeatures = [basicReorderFeature];
 
-        // Scenario 2: With validation
+        // Scenario 2: With validation (with debug logging enabled)
         _validationDataSource = new ReorderableDataSource<TaskItem>(GetValidationTasks());
         var validationReorderFeature = new RowReorderFeature<TaskItem>
         {
@@ -141,16 +145,20 @@
             CanDropOn = (source, target) => source.Category == target.Category,
             OnBeforeReorder = EventCallback.Factory.Create<RowBeforeReorderEventArgs<TaskItem>>(this, OnValidationBeforeReorder),
             OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnValidationRowReordered),
-            OnReorderCancelled = EventCallback.Factory.Create<RowReorderCancelledEventArgs<TaskItem>>(this, OnValidationReorderCancelled)
+            OnReorderCancelled = EventCallback.Factory.Create<RowReorderCancelledEventArgs<TaskItem>>(this, OnValidationReorderCancelled),
+            JSRuntime = JS,
+            EnableDebugLogging = true // Enable console logging for debugging
         };
         validationReorderFeature.SetDataSource(_validationDataSource);
         _validationReorderFeatures = [validationReorderFeature];
 
-        // Scenario 3: With persistence (order restored in OnAfterRenderAsync)
+        // Scenario 3: With persistence (with debug logging enabled)
         _persistenceDataSource = new ReorderableDataSource<TaskItem>(GetPersistenceTasks());
         var persistenceReorderFeature = new RowReorderFeature<TaskItem>
         {
-            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnPersistenceRowReordered)
+            OnRowReordered = EventCallback.Factory.Create<RowReorderedEventArgs<TaskItem>>(this, OnPersistenceRowReordered),
+            JSRuntime = JS,
+            EnableDebugLogging = true // Enable console logging for debugging
         };
         persistenceReorderFeature.SetDataSource(_persistenceDataSource);
         _persistenceReorderFeatures = [persistenceReorderFeature];
@@ -161,6 +169,10 @@
         if (firstRender)
         {
             await LoadSavedOrderAsync();
+            Logger.LogInformation("ComposableReorderDemo: Page loaded, rendered, and ready");
+
+            // Log to browser console that debug logging is enabled
+            await JS.InvokeVoidAsync("console.log", "%c[Reorder] Debug logging enabled - watch for drag/drop events", "color: green; font-weight: bold;");
         }
     }
 
