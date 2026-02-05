@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FeatureEnablement/FeatureEnablement.csproj" />
+  <Project Path="FeaturesDemo/FeaturesDemo.csproj" />
+</Solution>

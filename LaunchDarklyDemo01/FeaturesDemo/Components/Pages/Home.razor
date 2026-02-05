@@ -1,0 +1,71 @@
+@page "/"
+@using FeatureEnablement
+@inject IFeatureFlagService FeatureFlags
+
+<PageTitle>Wanderlust Travel Agency</PageTitle>
+
+<div class="travel-home @(FeatureFlags.IsEnabled(FeatureEnablement.FeatureFlags.CreamBackground) ? "cream-bg" : "offwhite-bg")">
+
+    <!-- Hero Section -->
+    <section class="hero @(FeatureFlags.IsEnabled(FeatureEnablement.FeatureFlags.HeroDarkMode) ? "hero-dark" : "hero-light")">
+        <div class="hero-content">
+            <h1>
+                @if (FeatureFlags.IsEnabled(FeatureEnablement.FeatureFlags.EnhancedTitle))
+                {
+                    <span>The Very Best Travel Agency</span>
+                }
+                else
+                {
+                    <span>The Best Travel Agency</span>
+                }
+            </h1>
+            <p class="tagline">Discover the world with us. Your adventure awaits.</p>
+            <button class="cta-button">Start Your Journey</button>
+        </div>
+    </section>
+
+    <!-- Destinations Section -->
+    <section class="destinations">
+        <h2>Popular Destinations</h2>
+        <div class="destination-grid">
+            <div class="destination-card">
+                <div class="destination-image paris"></div>
+                <h3>Paris, France</h3>
+                <p>The city of lights and love</p>
+            </div>
+            <div class="destination-card">
+                <div class="destination-image tokyo"></div>
+                <h3>Tokyo, Japan</h3>
+                <p>Where tradition meets innovation</p>
+            </div>
+            <div class="destination-card">
+                <div class="destination-image bali"></div>
+                <h3>Bali, Indonesia</h3>
+                <p>Tropical paradise awaits</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <h2>Why Choose Us</h2>
+        <div class="features-grid">
+            <div class="feature-item">
+                <span class="feature-icon">&#9992;</span>
+                <h3>Best Prices</h3>
+                <p>We guarantee the lowest prices on all bookings</p>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">&#127758;</span>
+                <h3>Global Coverage</h3>
+                <p>Access to 10,000+ destinations worldwide</p>
+            </div>
+            <div class="feature-item">
+                <span class="feature-icon">&#128222;</span>
+                <h3>24/7 Support</h3>
+                <p>Our team is always here to help you</p>
+            </div>
+        </div>
+    </section>
+
+</div>

@@ -1,0 +1,69 @@
+@page "/feature-admin"
+@using FeatureEnablement
+@using FeatureEnablement.Models
+@inject IFeatureFlagService FeatureFlags
+
+<PageTitle>Feature Administration</PageTitle>
+
+<div class="feature-admin">
+    <h1>Feature Flags</h1>
+    <p class="subtitle">Toggle features on and off. Changes take effect on page refresh.</p>
+
+    @foreach (var category in flags.GroupBy(f => f.Category).OrderBy(g => g.Key))
+    {
+        <div class="feature-category">
+            <h2>@category.Key</h2>
+
+            @foreach (var flag in category.OrderBy(f => f.Name))
+            {
+                <div class="feature-flag-card">
+                    <div class="feature-info">
+                        <h3>@flag.Name</h3>
+                        <p>@flag.Description</p>
+                        <span class="feature-key">@flag.Key</span>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox"
+                               checked="@flag.IsEnabled"
+                               @onchange="() => ToggleFlag(flag.Key)" />
+                        <span class="toggle-slider">
+                            @if (flag.IsEnabled)
+                            {
+                                <span class="toggle-status on">ON</span>
+                            }
+                            else
+                            {
+                                <span class="toggle-status off">OFF</span>
+                            }
+                        </span>
+                    </label>
+                </div>
+            }
+        </div>
+    }
+
+    <div style="margin-top: 30px; padding: 20px; background: #f0f4ff; border-radius: 10px;">
+        <h3 style="margin-top: 0; color: #667eea;">How to test</h3>
+        <ol style="color: #555; line-height: 1.8;">
+            <li>Toggle the features above</li>
+            <li>Navigate to the <a href="/">Home page</a></li>
+            <li>Refresh the page to see the changes</li>
+        </ol>
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<FeatureFlag> flags = Array.Empty<FeatureFlag>();
+
+    protected override void OnInitialized()
+    {
+        flags = FeatureFlags.GetAllFlags();
+    }
+
+    private void ToggleFlag(string flagKey)
+    {
+        FeatureFlags.Toggle(flagKey);
+        flags = FeatureFlags.GetAllFlags();
+        StateHasChanged();
+    }
+}

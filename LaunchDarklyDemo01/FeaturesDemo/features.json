@@ -1,0 +1,31 @@
+{
+  "flags": [
+    {
+      "key": "hero-dark-mode",
+      "name": "Hero Dark Mode",
+      "description": "Inverts the hero section color scheme from light to dark",
+      "isEnabled": true,
+      "category": "Visual",
+      "createdAt": "2026-02-05T10:38:04.4305761Z",
+      "lastModifiedAt": "2026-02-05T10:48:03.6084246Z"
+    },
+    {
+      "key": "cream-background",
+      "name": "Cream Background",
+      "description": "Changes the page background from off-white to cream color",
+      "isEnabled": true,
+      "category": "Visual",
+      "createdAt": "2026-02-05T10:38:04.5234134Z",
+      "lastModifiedAt": "2026-02-05T10:47:50.4085508Z"
+    },
+    {
+      "key": "enhanced-title",
+      "name": "Enhanced Title",
+      "description": "Changes the title from \u0027The Best Travel Agency\u0027 to \u0027The Very Best Travel Agency\u0027",
+      "isEnabled": true,
+      "category": "Content",
+      "createdAt": "2026-02-05T10:38:04.5443383Z",
+      "lastModifiedAt": "2026-02-05T10:47:40.9378381Z"
+    }
+  ]
+}
