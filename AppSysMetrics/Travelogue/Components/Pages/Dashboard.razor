@@ -1,64 +1,10 @@
 @page "/"
-@implements IDisposable
-@inject MetricsHub MetricsHub
 @rendermode InteractiveServer
 
 <PageTitle>System Metrics Dashboard</PageTitle>
 
-<h1>System Metrics Dashboard</h1>
-<p class="dashboard-subtitle">
-    Real-time process, CPU, and GC metrics updated every 2 seconds.
-    @if (_latest is not null)
-    {
-        <span class="last-updated">Last update: @_latest.CapturedAt.ToLocalTime().ToString("HH:mm:ss")</span>
-    }
-</p>
-
-<div class="dashboard-grid">
-    <div class="dashboard-cell">
-        <ProcessMetricsPanel Snapshot="_latest" />
-    </div>
-    <div class="dashboard-cell">
-        <CpuMetricsPanel History="_history" />
-    </div>
-    <div class="dashboard-cell">
-        <GcMetricsPanel Snapshot="_latest" />
-    </div>
-    <div class="dashboard-cell">
-        <AllocationRatePanel History="_history" />
-    </div>
-    <div class="dashboard-cell dashboard-cell-full">
+<MetricsDashboardView>
+    <AdditionalContent>
         <WeatherStatsPanel />
-    </div>
-</div>
-
-@code {
-    private MetricsSnapshot? _latest;
-    private List<MetricsSnapshot> _history = [];
-
-    protected override void OnInitialized()
-    {
-        _history = MetricsHub.GetHistory().ToList();
-        _latest = MetricsHub.Latest;
-        MetricsHub.OnSnapshot += HandleSnapshot;
-    }
-
-    private async void HandleSnapshot(MetricsSnapshot snapshot)
-    {
-        _latest = snapshot;
-        _history = MetricsHub.GetHistory().ToList();
-        try
-        {
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (ObjectDisposedException)
-        {
-            // Circuit disconnected
-        }
-    }
-
-    public void Dispose()
-    {
-        MetricsHub.OnSnapshot -= HandleSnapshot;
-    }
-}
+    </AdditionalContent>
+</MetricsDashboardView>

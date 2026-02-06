@@ -1,0 +1,15 @@
+.loh-alert {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.loh-alert ::deep td {
+    color: #fca5a5;
+}
+
+.loh-row {
+    color: #fca5a5;
+}
+
+::deep .panel-loading.loh-ok {
+    color: #22c55e;
+}

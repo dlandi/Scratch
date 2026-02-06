@@ -1,0 +1,23 @@
+.gc-top-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.gc-top-row > :first-child {
+    flex: 0 0 auto;
+    min-width: 200px;
+}
+
+.gc-counters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    .gc-top-row {
+        flex-direction: column;
+    }
+}

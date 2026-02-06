@@ -1,0 +1,176 @@
+/* ═══════════════════════════════════════════════════════
+   AppSysMetrics — Shared Component Styles
+   Consumers must add:
+   <link rel="stylesheet" href="_content/AppSysMetrics/AppSysMetrics.css" />
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Panel Container ─── */
+.panel {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.panel-heading {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #1e293b;
+}
+
+.panel-loading {
+    color: #475569;
+    font-style: italic;
+    padding: 2rem;
+    text-align: center;
+}
+
+/* ─── Metric Row ─── */
+.metric-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.metric-row > * {
+    flex: 1;
+    min-width: 100px;
+}
+
+/* ─── Metric State Colors ─── */
+.metric-ok {
+    border-color: #22c55e !important;
+}
+
+.metric-warning {
+    border-color: #eab308 !important;
+}
+
+.metric-danger {
+    border-color: #ef4444 !important;
+}
+
+.metric-ok-text {
+    color: #22c55e;
+}
+
+.metric-danger-text {
+    color: #ef4444;
+}
+
+/* ─── Data Tables ─── */
+.gen-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.gen-table th {
+    text-align: left;
+    color: #94a3b8;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid #334155;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+}
+
+.gen-table td {
+    padding: 0.35rem 0.5rem;
+    color: #cbd5e1;
+    border-bottom: 1px solid #1e293b;
+}
+
+.gen-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.gen-table-wrapper {
+    margin-top: 0.75rem;
+    overflow-x: auto;
+}
+
+/* ─── Type Name Display ─── */
+.type-name {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: #93c5fd;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ─── Allocation Tables ─── */
+.alloc-table-wrapper {
+    overflow-x: auto;
+}
+
+.alloc-summary {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #1e293b;
+}
+
+.alloc-summary-item {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.alloc-summary-item strong {
+    color: #94a3b8;
+}
+
+/* ─── Buttons ─── */
+.btn {
+    font-weight: 600;
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+}
+
+.btn-warning {
+    background-color: #eab308;
+    border-color: #eab308;
+    color: #0f172a;
+    font-weight: 600;
+    padding: 0.4rem 1.2rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.btn-warning:hover {
+    background-color: #ca8a04;
+    border-color: #ca8a04;
+}
+
+.btn-warning:disabled,
+.btn-info:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-info {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.4rem 1.2rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.btn-info:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}

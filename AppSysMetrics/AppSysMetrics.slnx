@@ -1,5 +1,8 @@
 <Solution>
+  <Folder Name="/Docs/">
+    <File Path="Docs/AppSysMetrics_SoftwareSpecification.md" />
+  </Folder>
   <Project Path="AppSysMetrics/AppSysMetrics.csproj" />
-  <Project Path="WeatherStatistics/WeatherStatistics.csproj" />
   <Project Path="Travelogue/Travelogue.csproj" />
+  <Project Path="WeatherStatistics/WeatherStatistics.csproj" />
 </Solution>

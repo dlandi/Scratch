@@ -1,0 +1,34 @@
+.asm-dashboard-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 0.25rem;
+}
+
+.asm-subtitle {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.asm-last-updated {
+    color: #64748b;
+    font-size: 0.8rem;
+    margin-left: 1rem;
+}
+
+.asm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+.asm-cell-full {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 992px) {
+    .asm-grid {
+        grid-template-columns: 1fr;
+    }
+}
