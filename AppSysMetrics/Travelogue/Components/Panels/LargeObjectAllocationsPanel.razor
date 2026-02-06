@@ -1,0 +1,48 @@
+<div class="panel">
+    <h5 class="panel-heading">Large Object Heap Allocations</h5>
+    @if (Snapshot is not null && Snapshot.RecentLargeObjectAllocations.Count > 0)
+    {
+        <div class="loh-alert">
+            <MetricCard Title="LOH Allocations"
+                        Value="@Snapshot.RecentLargeObjectAllocations.Count.ToString()"
+                        Subtitle="recent large objects (>85KB)"
+                        CssClass="metric-warning" />
+        </div>
+
+        <div class="alloc-table-wrapper">
+            <table class="gen-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var alloc in Snapshot.RecentLargeObjectAllocations.Take(20))
+                    {
+                        <tr class="loh-row">
+                            <td class="type-name">@alloc.TypeName</td>
+                            <td>@FormatBytes(alloc.TotalBytes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading loh-ok">No large object allocations detected.</div>
+    }
+</div>
+
+@code {
+    [Parameter] public AllocationSnapshot? Snapshot { get; set; }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

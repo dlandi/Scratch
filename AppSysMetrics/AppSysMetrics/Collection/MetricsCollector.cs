@@ -59,6 +59,7 @@ public sealed class MetricsCollector : IMetricsCollector
             Gen0Collections = GC.CollectionCount(0),
             Gen1Collections = GC.CollectionCount(1),
             Gen2Collections = GC.CollectionCount(2),
+            FinalizationPendingCount = gcInfo.FinalizationPendingCount,
             GenerationInfo = generationInfo
         };
 

@@ -1,0 +1,72 @@
+@page "/diagnostics"
+@implements IDisposable
+@inject AllocationTrackingHub AllocationHub
+@inject MetricsHub MetricsHub
+@rendermode InteractiveServer
+
+<PageTitle>Memory Diagnostics</PageTitle>
+
+<h1>Memory Diagnostics</h1>
+<p class="dashboard-subtitle">
+    Real-time allocation tracking by type and on-demand diagnostic tools.
+    @if (_latestAllocation is not null)
+    {
+        <span class="last-updated">
+            Last update: @_latestAllocation.CapturedAt.ToLocalTime().ToString("HH:mm:ss")
+        </span>
+    }
+</p>
+
+<div class="dashboard-grid">
+    <div class="dashboard-cell">
+        <TopAllocationsPanel Snapshot="_latestAllocation" />
+    </div>
+    <div class="dashboard-cell">
+        <LargeObjectAllocationsPanel Snapshot="_latestAllocation" />
+    </div>
+    <div class="dashboard-cell">
+        <GcMetricsPanel Snapshot="_latestMetrics" />
+    </div>
+    <div class="dashboard-cell">
+        <DiagnosticsPanel />
+    </div>
+</div>
+
+@code {
+    private AllocationSnapshot? _latestAllocation;
+    private MetricsSnapshot? _latestMetrics;
+
+    protected override void OnInitialized()
+    {
+        _latestAllocation = AllocationHub.Latest;
+        _latestMetrics = MetricsHub.Latest;
+        AllocationHub.OnSnapshot += HandleAllocationSnapshot;
+        MetricsHub.OnSnapshot += HandleMetricsSnapshot;
+    }
+
+    private async void HandleAllocationSnapshot(AllocationSnapshot snapshot)
+    {
+        _latestAllocation = snapshot;
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async void HandleMetricsSnapshot(MetricsSnapshot snapshot)
+    {
+        _latestMetrics = snapshot;
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    public void Dispose()
+    {
+        AllocationHub.OnSnapshot -= HandleAllocationSnapshot;
+        MetricsHub.OnSnapshot -= HandleMetricsSnapshot;
+    }
+}

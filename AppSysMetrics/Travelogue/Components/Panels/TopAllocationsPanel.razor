@@ -1,0 +1,65 @@
+<div class="panel">
+    <h5 class="panel-heading">Top Allocating Types</h5>
+    @if (Snapshot is not null && Snapshot.TopAllocatingTypes.Count > 0)
+    {
+        <div class="alloc-summary">
+            <MetricCard Title="Tracked Total"
+                        Value="@FormatBytes(Snapshot.TotalTrackedBytes)"
+                        Subtitle="@($"{Snapshot.TotalTrackedCount:N0} allocations")" />
+        </div>
+
+        <div class="alloc-table-wrapper">
+            <table class="gen-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Total Allocated</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ var rank = 0; }
+                    @foreach (var alloc in Snapshot.TopAllocatingTypes.Take(15))
+                    {
+                        rank++;
+                        <tr>
+                            <td>@rank</td>
+                            <td class="type-name">@ShortenTypeName(alloc.TypeName)</td>
+                            <td>@FormatBytes(alloc.TotalBytes)</td>
+                            <td>@alloc.AllocationCount.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for allocation data...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public AllocationSnapshot? Snapshot { get; set; }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    private static string ShortenTypeName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        if (lastDot >= 0 && lastDot < typeName.Length - 1)
+        {
+            var prefix = typeName[..lastDot];
+            if (!prefix.Contains('<'))
+                return typeName[(lastDot + 1)..];
+        }
+        return typeName;
+    }
+}

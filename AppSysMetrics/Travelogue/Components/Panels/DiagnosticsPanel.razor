@@ -1,0 +1,114 @@
+@inject IDiagnosticsService DiagnosticsService
+
+<div class="panel">
+    <h5 class="panel-heading">Diagnostics Actions</h5>
+
+    <div class="diag-actions">
+        <div class="diag-action-group">
+            <button class="btn btn-warning" @onclick="HandleForceGc" disabled="@_isForcing">
+                @(_isForcing ? "Forcing GC..." : "Force GC (Gen 2)")
+            </button>
+            @if (_forceGcResult is not null)
+            {
+                <div class="gc-result">
+                    <div class="gc-result-header">
+                        GC completed in @($"{_forceGcResult.Duration.TotalMilliseconds:F0}")ms
+                    </div>
+                    <div class="gc-comparison">
+                        <div class="gc-before">
+                            <span class="gc-label">Before</span>
+                            <span class="gc-value">@FormatBytes(_forceGcResult.Before.HeapSizeBytes)</span>
+                        </div>
+                        <div class="gc-arrow">&rarr;</div>
+                        <div class="gc-after">
+                            <span class="gc-label">After</span>
+                            <span class="gc-value">@FormatBytes(_forceGcResult.After.HeapSizeBytes)</span>
+                        </div>
+                        @{
+                            var freed = _forceGcResult.Before.HeapSizeBytes - _forceGcResult.After.HeapSizeBytes;
+                        }
+                        <div class="gc-freed">
+                            <span class="gc-label">@(freed >= 0 ? "Freed" : "Grew")</span>
+                            <span class="gc-value @(freed > 0 ? "metric-ok-text" : "metric-danger-text")">
+                                @FormatBytes(Math.Abs(freed))
+                            </span>
+                        </div>
+                    </div>
+                    <div class="gc-detail-row">
+                        Finalizers pending: @_forceGcResult.Before.FinalizationPendingCount &rarr; @_forceGcResult.After.FinalizationPendingCount
+                    </div>
+                    <div class="gc-detail-row">
+                        Collections: Gen0 @_forceGcResult.After.Gen0Collections | Gen1 @_forceGcResult.After.Gen1Collections | Gen2 @_forceGcResult.After.Gen2Collections
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="diag-action-group">
+            <button class="btn btn-info" @onclick="HandleCaptureGcDump" disabled="@_isCapturing">
+                @(_isCapturing ? "Capturing..." : "Capture GC Dump")
+            </button>
+            <div class="dump-hint-prereq">Requires: <code>dotnet tool install -g dotnet-gcdump</code></div>
+            @if (_gcDumpResult is not null)
+            {
+                @if (_gcDumpResult.Success)
+                {
+                    <div class="dump-result dump-success">
+                        <div>Dump saved: <code>@_gcDumpResult.FilePath</code></div>
+                        <div class="dump-size">@FormatBytes(_gcDumpResult.FileSizeBytes)</div>
+                        <div class="dump-hint">Open in Visual Studio for heap analysis</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="dump-result dump-error">
+                        Failed: @_gcDumpResult.ErrorMessage
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private ForceGcResult? _forceGcResult;
+    private GcDumpResult? _gcDumpResult;
+    private bool _isForcing;
+    private bool _isCapturing;
+
+    private void HandleForceGc()
+    {
+        _isForcing = true;
+        StateHasChanged();
+
+        try
+        {
+            _forceGcResult = DiagnosticsService.ForceGC();
+        }
+        finally
+        {
+            _isForcing = false;
+        }
+    }
+
+    private async Task HandleCaptureGcDump()
+    {
+        _isCapturing = true;
+        try
+        {
+            _gcDumpResult = await DiagnosticsService.CaptureGcDumpAsync();
+        }
+        finally
+        {
+            _isCapturing = false;
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

@@ -10,6 +10,9 @@
                 <MetricCard Title="Gen 1" Value="@Snapshot.Gc.Gen1Collections.ToString()" Subtitle="collections" />
                 <MetricCard Title="Gen 2" Value="@Snapshot.Gc.Gen2Collections.ToString()" Subtitle="collections" />
                 <MetricCard Title="Pause %" Value="@($"{Snapshot.Gc.PauseTimePercentage:F2}%")" Subtitle="GC pause" />
+                <MetricCard Title="Finalizers" Value="@Snapshot.Gc.FinalizationPendingCount.ToString("N0")"
+                            Subtitle="pending"
+                            CssClass="@(Snapshot.Gc.FinalizationPendingCount > 100 ? "metric-warning" : "")" />
             </div>
         </div>
 

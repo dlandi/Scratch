@@ -1,4 +1,5 @@
 using AppSysMetrics.Collection;
+using AppSysMetrics.Diagnostics;
 using AppSysMetrics.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,9 +16,19 @@ public static class ServiceCollectionExtensions
         else
             services.Configure<MetricsCollectionOptions>(_ => { });
 
+        // Core metrics collection
         services.AddSingleton<IMetricsCollector, MetricsCollector>();
         services.AddSingleton<MetricsHub>();
         services.AddHostedService<MetricsCollectionService>();
+
+        // Tier 1: Allocation tracking via EventListener
+        services.AddSingleton<AllocationEventListener>();
+        services.AddSingleton<AllocationTrackingHub>();
+        services.AddHostedService<AllocationTrackingService>();
+
+        // Tier 2: Diagnostics (Force GC, GC Dump)
+        services.Configure<DiagnosticsOptions>(_ => { });
+        services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
 
         return services;
     }

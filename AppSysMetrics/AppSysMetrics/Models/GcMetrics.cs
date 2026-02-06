@@ -13,5 +13,6 @@ public sealed record GcMetrics
     public int Gen0Collections { get; init; }
     public int Gen1Collections { get; init; }
     public int Gen2Collections { get; init; }
+    public long FinalizationPendingCount { get; init; }
     public IReadOnlyList<GcGenerationInfo> GenerationInfo { get; init; } = [];
 }
