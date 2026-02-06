@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Travelogue": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:55899;http://localhost:55900"
+    }
+  }
+}

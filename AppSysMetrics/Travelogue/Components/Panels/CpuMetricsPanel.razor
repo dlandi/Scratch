@@ -1,0 +1,35 @@
+<div class="panel">
+    <h5 class="panel-heading">CPU Utilization</h5>
+    @if (History is not null && History.Count > 0)
+    {
+        var cpuData = History.Select(h => h.Cpu.CpuPercentage).ToList();
+        var latest = History[^1];
+
+        <LineChart Title="CPU % Over Time" Unit="%"
+                   DataPoints="cpuData"
+                   MinValue="0" MaxValue="100"
+                   StrokeColor="#22c55e" FillColor="#22c55e" />
+
+        <div class="metric-row">
+            <MetricCard Title="Current CPU" Value="@($"{latest.Cpu.CpuPercentage:F1}%")"
+                        CssClass="@GetCpuClass(latest.Cpu.CpuPercentage)" />
+            <MetricCard Title="Processors" Value="@latest.Cpu.ProcessorCount.ToString()" />
+            <MetricCard Title="Total CPU Time" Value="@($"{latest.Cpu.TotalProcessorTime.TotalSeconds:F1}s")" />
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for metrics...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<MetricsSnapshot>? History { get; set; }
+
+    private string GetCpuClass(double cpu)
+    {
+        if (cpu > 80) return "metric-danger";
+        if (cpu > 50) return "metric-warning";
+        return "metric-ok";
+    }
+}

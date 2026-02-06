@@ -1,0 +1,83 @@
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Components
+
+<div class="chart-container">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="chart-title">@Title</div>
+    }
+    @((MarkupString)BuildSvg())
+    @if (!string.IsNullOrEmpty(Unit))
+    {
+        <div class="chart-unit">@Unit</div>
+    }
+</div>
+
+@code {
+    [Parameter] public List<BarChartItem>? Items { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public double MaxValue { get; set; }
+
+    private const double SvgWidth = 400;
+    private const double SvgHeight = 200;
+    private const double MarginLeft = 50;
+    private const double MarginRight = 10;
+    private const double MarginTop = 20;
+    private const double MarginBottom = 24;
+    private const double BarGap = 8;
+
+    private string F(double v) => v.ToString("F1", CultureInfo.InvariantCulture);
+
+    private string FormatValue(double v)
+    {
+        if (v >= 1_000_000_000) return $"{v / 1_000_000_000:F1}G";
+        if (v >= 1_000_000) return $"{v / 1_000_000:F1}M";
+        if (v >= 1_000) return $"{v / 1_000:F1}K";
+        return v.ToString("F1", CultureInfo.InvariantCulture);
+    }
+
+    private string BuildSvg()
+    {
+        var sb = new StringBuilder();
+        sb.Append($"<svg viewBox=\"0 0 {SvgWidth} {SvgHeight}\" preserveAspectRatio=\"xMidYMid meet\" class=\"bar-chart-svg\">");
+
+        var items = Items ?? [];
+        var effectiveMax = MaxValue > 0 ? MaxValue : (items.Count > 0 ? items.Max(i => i.Value) : 1);
+        if (effectiveMax == 0) effectiveMax = 1;
+
+        var barAreaWidth = SvgWidth - MarginLeft - MarginRight;
+        var barAreaHeight = SvgHeight - MarginTop - MarginBottom;
+        var barCount = items.Count > 0 ? items.Count : 1;
+        var barWidth = (barAreaWidth - (barCount - 1) * BarGap) / barCount;
+        if (barWidth < 10) barWidth = 10;
+
+        // Y-axis gridlines
+        for (int g = 0; g <= 4; g++)
+        {
+            var yVal = effectiveMax * g / 4.0;
+            var yPos = MarginTop + barAreaHeight - (barAreaHeight * g / 4.0);
+            sb.Append($"<line x1=\"{MarginLeft}\" y1=\"{F(yPos)}\" x2=\"{F(SvgWidth - MarginRight)}\" y2=\"{F(yPos)}\" stroke=\"#334155\" stroke-width=\"0.5\" />");
+            sb.Append($"<text x=\"{F(MarginLeft - 4)}\" y=\"{F(yPos + 3)}\" text-anchor=\"end\" fill=\"#64748b\" font-size=\"9\">{FormatValue(yVal)}</text>");
+        }
+
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            var barHeight = (item.Value / effectiveMax) * barAreaHeight;
+            if (barHeight < 0) barHeight = 0;
+            var x = MarginLeft + i * (barWidth + BarGap);
+            var y = MarginTop + barAreaHeight - barHeight;
+
+            sb.Append($"<rect x=\"{F(x)}\" y=\"{F(y)}\" width=\"{F(barWidth)}\" height=\"{F(barHeight)}\" fill=\"{item.Color}\" rx=\"3\" opacity=\"0.9\" />");
+            sb.Append($"<text x=\"{F(x + barWidth / 2)}\" y=\"{F(y - 4)}\" text-anchor=\"middle\" fill=\"#e2e8f0\" font-size=\"9\" font-weight=\"600\">{FormatValue(item.Value)}</text>");
+            sb.Append($"<text x=\"{F(x + barWidth / 2)}\" y=\"{F(MarginTop + barAreaHeight + 14)}\" text-anchor=\"middle\" fill=\"#94a3b8\" font-size=\"8\">{item.Label}</text>");
+        }
+
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+
+    public sealed record BarChartItem(string Label, double Value, string Color);
+}

@@ -1,0 +1,108 @@
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Components
+
+<div class="chart-container">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="chart-title">@Title</div>
+    }
+    @((MarkupString)BuildSvg())
+    @if (!string.IsNullOrEmpty(Unit))
+    {
+        <div class="chart-unit">@Unit</div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<double>? DataPoints { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public double MinValue { get; set; } = 0;
+    [Parameter] public double MaxValue { get; set; } = 0;
+    [Parameter] public string StrokeColor { get; set; } = "#3b82f6";
+    [Parameter] public string FillColor { get; set; } = "#3b82f6";
+
+    private const double SvgWidth = 400;
+    private const double SvgHeight = 180;
+    private const double MarginLeft = 50;
+    private const double MarginRight = 15;
+    private const double MarginTop = 20;
+    private const double MarginBottom = 10;
+
+    private string F(double v) => v.ToString("F1", CultureInfo.InvariantCulture);
+
+    private string FormatValue(double v)
+    {
+        if (Math.Abs(v) >= 1_000_000_000) return $"{v / 1_000_000_000:F1}G";
+        if (Math.Abs(v) >= 1_000_000) return $"{v / 1_000_000:F1}M";
+        if (Math.Abs(v) >= 1_000) return $"{v / 1_000:F1}K";
+        return v.ToString("F1", CultureInfo.InvariantCulture);
+    }
+
+    private string BuildSvg()
+    {
+        var sb = new StringBuilder();
+        sb.Append($"<svg viewBox=\"0 0 {SvgWidth} {SvgHeight}\" preserveAspectRatio=\"xMidYMid meet\" class=\"line-chart-svg\">");
+
+        var points = DataPoints ?? [];
+        var count = points.Count;
+
+        var effectiveMin = MinValue;
+        var effectiveMax = MaxValue > MinValue ? MaxValue : (count > 0 ? Math.Max(points.Max(), 1) : 100);
+        if (effectiveMax <= effectiveMin) effectiveMax = effectiveMin + 1;
+
+        var chartWidth = SvgWidth - MarginLeft - MarginRight;
+        var chartHeight = SvgHeight - MarginTop - MarginBottom;
+
+        // Gridlines
+        for (int g = 0; g <= 4; g++)
+        {
+            var yVal = effectiveMin + (effectiveMax - effectiveMin) * g / 4.0;
+            var yPos = MarginTop + chartHeight - (chartHeight * g / 4.0);
+            sb.Append($"<line x1=\"{MarginLeft}\" y1=\"{F(yPos)}\" x2=\"{F(SvgWidth - MarginRight)}\" y2=\"{F(yPos)}\" stroke=\"#334155\" stroke-width=\"0.5\" />");
+            sb.Append($"<text x=\"{F(MarginLeft - 4)}\" y=\"{F(yPos + 3)}\" text-anchor=\"end\" fill=\"#64748b\" font-size=\"9\">{FormatValue(yVal)}</text>");
+        }
+
+        if (count > 1)
+        {
+            var polyPoints = new StringBuilder();
+            var fillPoints = new StringBuilder();
+            fillPoints.Append($"{F(MarginLeft)},{F(MarginTop + chartHeight)} ");
+
+            for (int i = 0; i < count; i++)
+            {
+                var x = MarginLeft + (chartWidth * i / (count - 1.0));
+                var normalized = (points[i] - effectiveMin) / (effectiveMax - effectiveMin);
+                normalized = Math.Clamp(normalized, 0, 1);
+                var y = MarginTop + chartHeight - (normalized * chartHeight);
+
+                polyPoints.Append($"{F(x)},{F(y)} ");
+                fillPoints.Append($"{F(x)},{F(y)} ");
+            }
+
+            fillPoints.Append($"{F(MarginLeft + chartWidth)},{F(MarginTop + chartHeight)}");
+
+            sb.Append($"<polygon points=\"{fillPoints}\" fill=\"{FillColor}\" opacity=\"0.2\" />");
+            sb.Append($"<polyline points=\"{polyPoints}\" fill=\"none\" stroke=\"{StrokeColor}\" stroke-width=\"2\" stroke-linejoin=\"round\" stroke-linecap=\"round\" />");
+
+            var lastX = MarginLeft + chartWidth;
+            var lastNorm = (points[^1] - effectiveMin) / (effectiveMax - effectiveMin);
+            lastNorm = Math.Clamp(lastNorm, 0, 1);
+            var lastY = MarginTop + chartHeight - (lastNorm * chartHeight);
+            sb.Append($"<circle cx=\"{F(lastX)}\" cy=\"{F(lastY)}\" r=\"3\" fill=\"{StrokeColor}\" />");
+            sb.Append($"<text x=\"{F(lastX - 6)}\" y=\"{F(lastY - 8)}\" text-anchor=\"end\" fill=\"#e2e8f0\" font-size=\"10\" font-weight=\"600\">{FormatValue(points[^1])}</text>");
+        }
+        else if (count == 1)
+        {
+            var x = MarginLeft + chartWidth / 2;
+            var normalized = (points[0] - effectiveMin) / (effectiveMax - effectiveMin);
+            normalized = Math.Clamp(normalized, 0, 1);
+            var y = MarginTop + chartHeight - (normalized * chartHeight);
+            sb.Append($"<circle cx=\"{F(x)}\" cy=\"{F(y)}\" r=\"4\" fill=\"{StrokeColor}\" />");
+        }
+
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+}

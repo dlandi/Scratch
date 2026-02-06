@@ -1,0 +1,77 @@
+<div class="panel">
+    <h5 class="panel-heading">GC / Managed Heap</h5>
+    @if (Snapshot is not null)
+    {
+        <div class="gc-top-row">
+            <GaugeChart Title="Memory Load" Value="@Snapshot.Gc.MemoryLoadPercent" Unit="of available" />
+
+            <div class="gc-counters">
+                <MetricCard Title="Gen 0" Value="@Snapshot.Gc.Gen0Collections.ToString()" Subtitle="collections" />
+                <MetricCard Title="Gen 1" Value="@Snapshot.Gc.Gen1Collections.ToString()" Subtitle="collections" />
+                <MetricCard Title="Gen 2" Value="@Snapshot.Gc.Gen2Collections.ToString()" Subtitle="collections" />
+                <MetricCard Title="Pause %" Value="@($"{Snapshot.Gc.PauseTimePercentage:F2}%")" Subtitle="GC pause" />
+            </div>
+        </div>
+
+        @if (Snapshot.Gc.GenerationInfo.Count > 0)
+        {
+            <div class="gen-table-wrapper">
+                <table class="gen-table">
+                    <thead>
+                        <tr>
+                            <th>Gen</th>
+                            <th>Size Before</th>
+                            <th>Size After</th>
+                            <th>Frag Before</th>
+                            <th>Frag After</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var gen in Snapshot.Gc.GenerationInfo)
+                        {
+                            <tr>
+                                <td>@GetGenLabel(gen.Generation)</td>
+                                <td>@FormatBytes(gen.SizeBeforeBytes)</td>
+                                <td>@FormatBytes(gen.SizeAfterBytes)</td>
+                                <td>@FormatBytes(gen.FragmentationBeforeBytes)</td>
+                                <td>@FormatBytes(gen.FragmentationAfterBytes)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="metric-row">
+            <MetricCard Title="Heap Size" Value="@FormatBytes(Snapshot.Gc.HeapSizeBytes)" />
+            <MetricCard Title="Total Memory" Value="@FormatBytes(Snapshot.Gc.TotalMemory)" />
+            <MetricCard Title="Available" Value="@FormatBytes(Snapshot.Gc.TotalAvailableMemoryBytes)" />
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for metrics...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public MetricsSnapshot? Snapshot { get; set; }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    private static string GetGenLabel(int gen) => gen switch
+    {
+        0 => "Gen 0",
+        1 => "Gen 1",
+        2 => "Gen 2",
+        3 => "LOH",
+        4 => "POH",
+        _ => $"Gen {gen}"
+    };
+}

@@ -1,0 +1,77 @@
+@using System.Globalization
+@using System.Text
+@using Microsoft.AspNetCore.Components
+
+<div class="chart-container">
+    @if (!string.IsNullOrEmpty(Title))
+    {
+        <div class="chart-title">@Title</div>
+    }
+    @((MarkupString)BuildSvg())
+</div>
+
+@code {
+    [Parameter] public double Value { get; set; }
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Unit { get; set; } = "";
+
+    private string F(double v) => v.ToString("F2", CultureInfo.InvariantCulture);
+
+    private (double x, double y) PolarToCartesian(double cx, double cy, double r, double angleDeg)
+    {
+        var rad = angleDeg * Math.PI / 180.0;
+        return (cx + r * Math.Cos(rad), cy - r * Math.Sin(rad));
+    }
+
+    private string GetColor(double value)
+    {
+        if (value < 30) return "#22c55e";
+        if (value < 60) return "#eab308";
+        if (value < 80) return "#f97316";
+        return "#ef4444";
+    }
+
+    private string BuildSvg()
+    {
+        var sb = new StringBuilder();
+        sb.Append("<svg viewBox=\"0 0 200 130\" preserveAspectRatio=\"xMidYMid meet\" class=\"gauge-chart-svg\">");
+
+        var clamped = Math.Clamp(Value, 0, 100);
+        var startAngle = 180.0;
+        var endAngleFull = 0.0;
+        var sweepAngle = startAngle - (startAngle - endAngleFull) * (clamped / 100.0);
+
+        var cx = 100.0;
+        var cy = 105.0;
+        var r = 75.0;
+        var strokeWidth = 14.0;
+
+        // Background arc
+        var bgStart = PolarToCartesian(cx, cy, r, 0);
+        var bgEnd = PolarToCartesian(cx, cy, r, 180);
+        sb.Append($"<path d=\"M {F(bgStart.x)} {F(bgStart.y)} A {F(r)} {F(r)} 0 1 0 {F(bgEnd.x)} {F(bgEnd.y)}\" fill=\"none\" stroke=\"#334155\" stroke-width=\"{F(strokeWidth)}\" stroke-linecap=\"round\" />");
+
+        // Foreground arc
+        if (clamped > 0)
+        {
+            var fgStart = PolarToCartesian(cx, cy, r, sweepAngle);
+            var fgEnd = PolarToCartesian(cx, cy, r, 180);
+            var largeArc = (180 - sweepAngle) > 180 ? 1 : 0;
+            var color = GetColor(clamped);
+
+            sb.Append($"<path d=\"M {F(fgEnd.x)} {F(fgEnd.y)} A {F(r)} {F(r)} 0 {largeArc} 1 {F(fgStart.x)} {F(fgStart.y)}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"{F(strokeWidth)}\" stroke-linecap=\"round\" />");
+        }
+
+        // Center text
+        var valueText = clamped.ToString("F1", CultureInfo.InvariantCulture);
+        sb.Append($"<text x=\"{F(cx)}\" y=\"{F(cy - 20)}\" text-anchor=\"middle\" fill=\"#e2e8f0\" font-size=\"24\" font-weight=\"700\">{valueText}%</text>");
+
+        if (!string.IsNullOrEmpty(Unit))
+        {
+            sb.Append($"<text x=\"{F(cx)}\" y=\"{F(cy - 4)}\" text-anchor=\"middle\" fill=\"#64748b\" font-size=\"10\">{Unit}</text>");
+        }
+
+        sb.Append("</svg>");
+        return sb.ToString();
+    }
+}

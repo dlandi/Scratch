@@ -1,0 +1,83 @@
+.page-subtitle {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.control-panel {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.control-row {
+    margin-bottom: 1.25rem;
+}
+
+.control-label {
+    display: block;
+    color: #e2e8f0;
+    margin-bottom: 0.5rem;
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.throughput-info {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #334155;
+}
+
+.weather-panel-section {
+    margin-bottom: 1.5rem;
+}
+
+.latest-readings h5 {
+    color: #e2e8f0;
+    margin-bottom: 1rem;
+}
+
+.readings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.reading-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.reading-city {
+    font-weight: 600;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+}
+
+.reading-condition {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.reading-temp {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #3b82f6;
+    margin: 0.25rem 0;
+}
+
+.reading-details {
+    font-size: 0.75rem;
+    color: #64748b;
+}

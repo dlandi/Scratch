@@ -1,0 +1,136 @@
+@page "/weather"
+@implements IDisposable
+@inject IWeatherGenerator WeatherGenerator
+@rendermode InteractiveServer
+
+<PageTitle>Weather Generator Control</PageTitle>
+
+<h1>Weather Data Generator</h1>
+<p class="page-subtitle">
+    Controls the weather reading generator that creates memory pressure.
+    Readings accumulate in an unbounded list — watch the Dashboard to see memory climb.
+</p>
+
+<div class="control-panel">
+    <div class="control-row">
+        <button class="btn @(_stats.IsRunning ? "btn-danger" : "btn-success") btn-lg"
+                @onclick="ToggleGenerator">
+            @(_stats.IsRunning ? "Stop Generator" : "Start Generator")
+        </button>
+    </div>
+
+    <div class="control-row">
+        <label class="control-label">
+            Generation Interval: <strong>@_intervalMs ms</strong>
+        </label>
+        <input type="range" class="form-range" min="10" max="1000" step="10"
+               @bind="_intervalMs" @bind:after="UpdateInterval" />
+        <div class="range-labels">
+            <span>10ms (fast)</span>
+            <span>1000ms (slow)</span>
+        </div>
+    </div>
+
+    <div class="control-row">
+        <label class="control-label">
+            Readings Per Tick: <strong>@_readingsPerTick</strong>
+        </label>
+        <input type="range" class="form-range" min="1" max="50" step="1"
+               @bind="_readingsPerTick" @bind:after="UpdateReadingsPerTick" />
+        <div class="range-labels">
+            <span>1 (light)</span>
+            <span>50 (heavy)</span>
+        </div>
+    </div>
+
+    <div class="throughput-info">
+        Estimated throughput: ~@EstimateThroughput() readings/sec
+    </div>
+</div>
+
+<div class="weather-panel-section">
+    <WeatherStatsPanel />
+</div>
+
+@if (_latestReadings.Count > 0)
+{
+    <div class="latest-readings">
+        <h5>Latest Readings</h5>
+        <div class="readings-grid">
+            @foreach (var reading in _latestReadings)
+            {
+                <div class="reading-card">
+                    <div class="reading-city">@reading.Location.City</div>
+                    <div class="reading-condition">@reading.Condition</div>
+                    <div class="reading-temp">@($"{reading.TemperatureCelsius:F1}")C</div>
+                    <div class="reading-details">
+                        @($"{reading.HumidityPercent:F0}")% humidity | @($"{reading.WindSpeedKmh:F0}") km/h
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private WeatherStats _stats = new();
+    private int _intervalMs = 100;
+    private int _readingsPerTick = 5;
+    private IReadOnlyList<WeatherReading> _latestReadings = [];
+
+    protected override void OnInitialized()
+    {
+        _stats = WeatherGenerator.GetStats();
+        _intervalMs = (int)_stats.GenerationInterval.TotalMilliseconds;
+        if (_intervalMs < 10) _intervalMs = 100;
+        _readingsPerTick = _stats.ReadingsPerTick > 0 ? _stats.ReadingsPerTick : 5;
+        _latestReadings = WeatherGenerator.GetLatestReadings(10);
+        WeatherGenerator.OnStatsUpdated += HandleStatsUpdated;
+    }
+
+    private void ToggleGenerator()
+    {
+        if (WeatherGenerator.IsRunning)
+            WeatherGenerator.Stop();
+        else
+            WeatherGenerator.Start();
+
+        _stats = WeatherGenerator.GetStats();
+    }
+
+    private void UpdateInterval()
+    {
+        WeatherGenerator.SetInterval(TimeSpan.FromMilliseconds(_intervalMs));
+    }
+
+    private void UpdateReadingsPerTick()
+    {
+        WeatherGenerator.SetReadingsPerTick(_readingsPerTick);
+    }
+
+    private string EstimateThroughput()
+    {
+        if (_intervalMs <= 0) return "0";
+        var perSec = (1000.0 / _intervalMs) * _readingsPerTick;
+        return perSec.ToString("N0");
+    }
+
+    private async void HandleStatsUpdated(WeatherStats stats)
+    {
+        _stats = stats;
+        _latestReadings = WeatherGenerator.GetLatestReadings(10);
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit disconnected
+        }
+    }
+
+    public void Dispose()
+    {
+        WeatherGenerator.OnStatsUpdated -= HandleStatsUpdated;
+    }
+}

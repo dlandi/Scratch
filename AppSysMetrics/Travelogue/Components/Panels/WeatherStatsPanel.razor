@@ -1,0 +1,68 @@
+@implements IDisposable
+@inject IWeatherGenerator WeatherGenerator
+
+<div class="panel">
+    <h5 class="panel-heading">Weather Generator Stats</h5>
+
+    <div class="weather-status">
+        <span class="status-indicator @(_stats.IsRunning ? "status-running" : "status-stopped")"></span>
+        <span>@(_stats.IsRunning ? "Running" : "Stopped")</span>
+        <span class="weather-rate">@_stats.ReadingsPerTick readings / @($"{_stats.GenerationInterval.TotalMilliseconds:F0}")ms</span>
+    </div>
+
+    <div class="metric-row">
+        <MetricCard Title="Total Readings" Value="@_stats.TotalReadings.ToString("N0")"
+                    CssClass="@(_stats.TotalReadings > 100_000 ? "metric-danger" : _stats.TotalReadings > 10_000 ? "metric-warning" : "metric-ok")" />
+        <MetricCard Title="Est. Memory" Value="@FormatBytes(_stats.ApproximateMemoryBytes)"
+                    Subtitle="unbounded growth" />
+    </div>
+
+    @if (_stats.ReadingsPerLocation.Count > 0)
+    {
+        <div class="location-grid">
+            @foreach (var (city, count) in _stats.ReadingsPerLocation.OrderByDescending(kv => kv.Value))
+            {
+                <div class="location-item">
+                    <span class="location-city">@city</span>
+                    <span class="location-count">@count.ToString("N0")</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private WeatherStats _stats = new();
+
+    protected override void OnInitialized()
+    {
+        _stats = WeatherGenerator.GetStats();
+        WeatherGenerator.OnStatsUpdated += HandleStatsUpdated;
+    }
+
+    private async void HandleStatsUpdated(WeatherStats stats)
+    {
+        _stats = stats;
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Circuit disconnected
+        }
+    }
+
+    public void Dispose()
+    {
+        WeatherGenerator.OnStatsUpdated -= HandleStatsUpdated;
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

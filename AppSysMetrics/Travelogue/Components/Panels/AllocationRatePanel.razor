@@ -1,0 +1,38 @@
+<div class="panel">
+    <h5 class="panel-heading">Allocation Rate</h5>
+    @if (History is not null && History.Count > 0)
+    {
+        var rateData = History
+            .Select(h => h.Gc.AllocationRateBytesPerSecond / (1024.0 * 1024.0))
+            .ToList();
+        var latest = History[^1];
+
+        <LineChart Title="Allocation Rate Over Time" Unit="MB/s"
+                   DataPoints="rateData"
+                   MinValue="0"
+                   StrokeColor="#f59e0b" FillColor="#f59e0b" />
+
+        <div class="metric-row">
+            <MetricCard Title="Current Rate"
+                        Value="@($"{latest.Gc.AllocationRateBytesPerSecond / (1024.0 * 1024.0):F1} MB/s")" />
+            <MetricCard Title="Total Allocated"
+                        Value="@FormatBytes(latest.Gc.TotalAllocatedBytes)" />
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for metrics...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<MetricsSnapshot>? History { get; set; }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

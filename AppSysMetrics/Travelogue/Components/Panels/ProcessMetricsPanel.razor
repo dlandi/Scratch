@@ -1,0 +1,35 @@
+@using static Travelogue.Components.Charts.BarChart
+
+<div class="panel">
+    <h5 class="panel-heading">Process Memory</h5>
+    @if (Snapshot is not null)
+    {
+        var ws = Snapshot.Process.WorkingSet64 / (1024.0 * 1024.0);
+        var priv = Snapshot.Process.PrivateMemorySize64 / (1024.0 * 1024.0);
+        var heap = Snapshot.Gc.HeapSizeBytes / (1024.0 * 1024.0);
+        var frag = Snapshot.Gc.FragmentedBytes / (1024.0 * 1024.0);
+
+        <BarChart Title="Memory Breakdown" Unit="MB"
+                  Items="@(new List<BarChartItem>
+                  {
+                      new("Working Set", ws, "#3b82f6"),
+                      new("Private", priv, "#8b5cf6"),
+                      new("GC Heap", heap, "#06b6d4"),
+                      new("Fragmented", frag, "#f97316")
+                  })" />
+
+        <div class="metric-row">
+            <MetricCard Title="Threads" Value="@Snapshot.Process.ThreadCount.ToString()" />
+            <MetricCard Title="Handles" Value="@Snapshot.Process.HandleCount.ToString()" />
+            <MetricCard Title="Virtual" Value="@($"{Snapshot.Process.VirtualMemorySize64 / (1024.0 * 1024.0):F0} MB")" />
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for metrics...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public MetricsSnapshot? Snapshot { get; set; }
+}
