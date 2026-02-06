@@ -1,0 +1,132 @@
+<div class="panel">
+    <h5 class="panel-heading">Memory Diff Analysis</h5>
+    @if (Diff is not null)
+    {
+        <div class="diff-summary">
+            <MetricCard Title="Heap Delta"
+                        Value="@FormatSignedBytes(Diff.TotalHeapDelta)"
+                        CssClass="@(Diff.TotalHeapDelta > 0 ? "metric-danger" : "metric-ok")" />
+            <MetricCard Title="Object Delta"
+                        Value="@FormatSigned(Diff.TotalObjectDelta)"
+                        CssClass="@(Diff.TotalObjectDelta > 0 ? "metric-danger" : "metric-ok")" />
+            <MetricCard Title="Time Span"
+                        Value="@FormatTimeSpan(Diff.TimeBetweenDumps)"
+                        Subtitle="@($"{Diff.Baseline.FileName} → {Diff.Current.FileName}")" />
+        </div>
+
+        <div class="alloc-table-wrapper">
+            <table class="gen-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Baseline</th>
+                        <th>Current</th>
+                        <th>Delta Size</th>
+                        <th>Delta Count</th>
+                        <th>Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var td in Diff.TypeDiffs.Take(25))
+                    {
+                        var growthClass = GetGrowthClass(td.DeltaSizeBytes);
+                        <tr class="@growthClass">
+                            <td class="type-name">@ShortenTypeName(td.TypeName)</td>
+                            <td>@FormatBytes(td.BaselineSizeBytes)</td>
+                            <td>@FormatBytes(td.CurrentSizeBytes)</td>
+                            <td class="@GetDeltaTextClass(td.DeltaSizeBytes)">
+                                @FormatSignedBytes(td.DeltaSizeBytes)
+                            </td>
+                            <td class="@GetDeltaTextClass(td.DeltaCount)">
+                                @FormatSigned(td.DeltaCount)
+                            </td>
+                            <td class="@GetGrowthTextClass(td.GrowthPercent)">
+                                @FormatGrowthPercent(td.GrowthPercent)
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Need at least two analyzed dumps for diff comparison.</div>
+    }
+</div>
+
+@code {
+    [Parameter] public DumpDiffResult? Diff { get; set; }
+
+    private static string GetGrowthClass(long delta) => delta switch
+    {
+        > 0 => "diff-growth",
+        _ when delta < 0 => "diff-shrink",
+        _ => ""
+    };
+
+    private static string GetDeltaTextClass(long delta) => delta switch
+    {
+        > 0 => "metric-danger-text",
+        _ when delta < 0 => "metric-ok-text",
+        _ => ""
+    };
+
+    private static string GetGrowthTextClass(double pct) => pct switch
+    {
+        > 10 => "metric-danger-text",
+        _ when pct < -10 => "metric-ok-text",
+        _ => ""
+    };
+
+    private static string FormatGrowthPercent(double pct)
+    {
+        if (pct > 0) return $"+{pct:F1}%";
+        if (pct < 0) return $"{pct:F1}%";
+        return "0.0%";
+    }
+
+    private static string FormatSignedBytes(long bytes)
+    {
+        var sign = bytes >= 0 ? "+" : "";
+        var abs = Math.Abs(bytes);
+        if (abs >= 1_073_741_824) return $"{sign}{bytes / 1_073_741_824.0:F1} GB";
+        if (abs >= 1_048_576) return $"{sign}{bytes / 1_048_576.0:F1} MB";
+        if (abs >= 1_024) return $"{sign}{bytes / 1_024.0:F1} KB";
+        return $"{sign}{bytes} B";
+    }
+
+    private static string FormatSigned(long value)
+    {
+        if (value > 0) return $"+{value:N0}";
+        if (value < 0) return $"{value:N0}";
+        return "0";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    private static string FormatTimeSpan(TimeSpan ts)
+    {
+        if (ts.TotalHours >= 1) return $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s";
+        if (ts.TotalMinutes >= 1) return $"{(int)ts.TotalMinutes}m {ts.Seconds}s";
+        return $"{(int)ts.TotalSeconds}s";
+    }
+
+    private static string ShortenTypeName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        if (lastDot >= 0 && lastDot < typeName.Length - 1)
+        {
+            var prefix = typeName[..lastDot];
+            if (!prefix.Contains('<'))
+                return typeName[(lastDot + 1)..];
+        }
+        return typeName;
+    }
+}

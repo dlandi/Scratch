@@ -1,9 +1,9 @@
 # AppSysMetrics Software Specification
 
-**Version:** 1.0
+**Version:** 4.0
 **Date:** February 6, 2026
 **Target Framework:** .NET 10.0 (SDK 10.0.102)
-**Solution:** `AppSysMetrics.slnx`
+**Package:** Razor Class Library (`Microsoft.NET.Sdk.Razor`)
 
 ---
 
@@ -13,12 +13,14 @@
 2. [Architecture](#2-architecture)
 3. [Phase 1 — Real-Time Metrics Dashboard](#3-phase-1--real-time-metrics-dashboard)
 4. [Phase 2 — Memory Diagnostics](#4-phase-2--memory-diagnostics)
-5. [Project Structure](#5-project-structure)
-6. [Data Models](#6-data-models)
-7. [Services and Hosting](#7-services-and-hosting)
-8. [UI Components](#8-ui-components)
-9. [Dependency Inventory](#9-dependency-inventory)
-10. [Design Decisions](#10-design-decisions)
+5. [Phase 3 — Razor Class Library Packaging](#5-phase-3--razor-class-library-packaging)
+6. [Phase 4 — Dump Analysis and Memory Leak Detection](#6-phase-4--dump-analysis-and-memory-leak-detection)
+7. [Project Structure](#7-project-structure)
+8. [Data Models](#8-data-models)
+9. [Services and Hosting](#9-services-and-hosting)
+10. [UI Components](#10-ui-components)
+11. [Dependency Inventory](#11-dependency-inventory)
+12. [Design Decisions](#12-design-decisions)
 
 ---
 
@@ -26,7 +28,7 @@
 
 ### 1.1 Purpose
 
-AppSysMetrics is a demonstration solution that provides real-time, in-process observability for .NET applications. It captures two distinct classes of runtime metrics:
+AppSysMetrics is a self-contained Razor Class Library that provides real-time, in-process observability for .NET applications. A single project reference gives consumers both the metrics backend (collection, diagnostics) and a full set of Blazor UI components (charts, panels, composite dashboard views). It captures two distinct classes of runtime metrics:
 
 - **Process-level metrics** — Working set, private memory, virtual memory, thread/handle counts, CPU utilization. These represent the OS view of the process.
 - **Managed heap metrics** — GC heap size, fragmentation, generation info, allocation rate, pause time, finalization queue depth. These represent the CLR view of managed memory.
@@ -36,10 +38,11 @@ The separation matters because the two can diverge significantly. A process may 
 ### 1.2 Goals
 
 1. Provide a live dashboard that refreshes every 2 seconds with process, CPU, and GC metrics.
-2. Generate controlled memory pressure via an unbounded data generator to simulate real-world leak behavior.
-3. Track allocation patterns by type using in-process event tracing, without external profiling tools.
-4. Offer on-demand diagnostic actions (Force GC, GC Dump capture) from the browser UI.
-5. Render all visualizations as pure SVG — no JavaScript charting dependencies.
+2. Track allocation patterns by type using in-process event tracing, without external profiling tools.
+3. Offer on-demand diagnostic actions (Force GC, GC Dump capture) from the browser UI.
+4. Render all visualizations as pure SVG — no JavaScript charting dependencies.
+5. Ship as a single Razor Class Library — one project reference provides both backend services and Blazor UI components.
+6. Automatically detect, analyze, and diff GC dump files for memory leak detection — no manual Visual Studio inspection required.
 
 ### 1.3 Non-Goals
 
@@ -54,27 +57,43 @@ The separation matters because the two can diverge significantly. A process may 
 
 ### 2.1 Single-Process Model
 
-All three projects run in a single OS process. The Travelogue Blazor Server app is the host. The AppSysMetrics and WeatherStatistics libraries are loaded as in-process DLLs. This is critical: the metrics library observes the same managed heap that the weather generator pressures.
+AppSysMetrics runs in-process with the host application. It observes the same managed heap, threads, and handles as the host's own workload. This is by design — the library provides self-observation, not remote monitoring.
 
 ```
 ┌───────────────────────────────────────────────────┐
-│  Travelogue Process (dotnet Travelogue.dll)       │
+│  Host Application Process                         │
 │                                                   │
 │  ┌─────────────────┐  ┌────────────────────────┐  │
-│  │ WeatherStatistics│  │    AppSysMetrics       │  │
-│  │  (memory         │  │  (metrics collection,  │  │
-│  │   pressure)      │  │   allocation tracking, │  │
-│  │                  │  │   diagnostics)         │  │
+│  │ Application      │  │    AppSysMetrics       │  │
+│  │  workload        │  │  (metrics collection,  │  │
+│  │  (observed by    │  │   allocation tracking, │  │
+│  │   the library)   │  │   diagnostics,         │  │
+│  │                  │  │   dump analysis,       │  │
+│  │                  │  │   Blazor UI components)│  │
 │  └─────────────────┘  └────────────────────────┘  │
 │                                                   │
 │  ┌─────────────────────────────────────────────┐  │
-│  │  Blazor Server (Interactive Server Mode)    │  │
-│  │  Dashboard · Weather Control · Diagnostics  │  │
+│  │  Blazor (Interactive Server / WebAssembly)  │  │
+│  │  Dashboard · Diagnostics · Dump Analysis    │  │
 │  └─────────────────────────────────────────────┘  │
 └───────────────────────────────────────────────────┘
 ```
 
-### 2.2 Data Flow
+### 2.2 Library Packaging Model (Phase 3)
+
+AppSysMetrics is a Razor Class Library (`Microsoft.NET.Sdk.Razor`). It ships:
+
+| Layer | Contents | Consumer Uses |
+|---|---|---|
+| **Backend** | Models, Collection, Hosting, Diagnostics, Extensions | `builder.Services.AddAppSysMetrics()` |
+| **Primitives** | BarChart, LineChart, GaugeChart, MetricCard | Mix-and-match in custom layouts |
+| **Panels** | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel | Drop individual panels into existing pages |
+| **Composites** | MetricsDashboardView, MemoryDiagnosticsView, DumpAnalysisView | Full dashboard experience with one tag |
+| **Stylesheet** | `_content/AppSysMetrics/AppSysMetrics.css` | Shared component styles (panels, tables, buttons) |
+
+The host application becomes a thin wrapper: route declarations, render mode selection, and any app-specific components.
+
+### 2.3 Data Flow
 
 ```
 PeriodicTimer (2s)          PeriodicTimer (2s)
@@ -91,15 +110,32 @@ MetricsCollector            AllocationEventListener
   (ring buffer + event)     (ring buffer + event)
       │                           │
       ▼                           ▼
-  Dashboard.razor           MemoryDiagnostics.razor
+  MetricsDashboardView      MemoryDiagnosticsView
   (subscribes to OnSnapshot) (subscribes to OnSnapshot)
+
+FileSystemWatcher (*.gcdump)
+      │ Created event
+      ▼
+Channel<string> → DumpWatcherService
+      │
+      ├─ WaitForFileReady()
+      ├─ DumpAnalyzerService.AnalyzeAsync()
+      │    └─ dotnet-gcdump report → DumpReportParser
+      ├─ DumpAnalysisHub.Publish(result)
+      └─ DumpDiffService.ComputeDiff()
+           └─ DumpAnalysisHub.PublishDiff(diff)
+                  │
+                  ▼
+           DumpAnalysisView
+           (subscribes to OnAnalysis + OnDiff)
 ```
 
-### 2.3 Threading Model
+### 2.4 Threading Model
 
 - **MetricsCollectionService** and **AllocationTrackingService** each run on their own `BackgroundService` with a `PeriodicTimer`. They never share a timer because allocation events operate at a different granularity than process/GC polling.
 - **AllocationEventListener** receives callbacks on the CLR's event thread. It aggregates into a `ConcurrentDictionary` using `Interlocked` operations, avoiding locks on the hot path.
 - **Hub classes** use `lock` on publish/read to protect the ring buffer. The `OnSnapshot` event is invoked outside the lock.
+- **DumpWatcherService** uses a `FileSystemWatcher` that raises events on a thread pool thread. Events are bridged to an `async` processing loop via `Channel<string>`, which provides natural async enumeration with cancellation token support.
 - **Blazor components** subscribe in `OnInitialized` and call `await InvokeAsync(StateHasChanged)` to marshal back to the sync context. All subscriptions are cleaned up in `Dispose`.
 
 ---
@@ -119,28 +155,14 @@ Phase 1 establishes the foundational metrics pipeline and the live dashboard.
 | GC generation detail | `GcMemoryInfo.GenerationInfo` — size before/after, fragmentation before/after per generation |
 | GC collection counts | `GC.CollectionCount(gen)` for Gen 0, 1, 2 |
 | Allocation rate | `GC.GetTotalAllocatedBytes(precise: false)` sampled over time, computed as bytes/second |
-| Memory pressure generator | Unbounded `List<WeatherReading>` that never trims — simulates a real-world memory leak |
 | Dashboard visualizations | Pure SVG charts (bar, line, gauge, metric cards) rendered via `StringBuilder` and `MarkupString` |
 
-### 3.2 Projects Introduced
+### 3.2 Library Structure Introduced
 
-**AppSysMetrics** (class library)
 - `Models/` — Immutable record types for all metric snapshots
 - `Collection/` — Stateful samplers (`CpuSampler`, `AllocationRateTracker`) and the orchestrating `MetricsCollector`
 - `Hosting/` — `MetricsHub` (singleton event hub with ring buffer), `MetricsCollectionService` (background poller), `MetricsCollectionOptions`
 - `Extensions/` — `AddAppSysMetrics()` DI registration
-
-**WeatherStatistics** (class library)
-- `Models/` — `WeatherReading` (sealed class, intentionally heap-allocated), `WeatherLocation`, `WeatherCondition`, `WeatherStats`
-- `Services/` — `WeatherGeneratorService` implements both `IHostedService` and `IWeatherGenerator`. Uses `PeriodicTimer`. Maintains an unbounded `List<WeatherReading>` as the memory pressure source.
-- `Extensions/` — `AddWeatherStatistics()` DI registration. Single instance pattern: one object registered as both `IHostedService` and `IWeatherGenerator`.
-
-**Travelogue** (Blazor Server app)
-- `Program.cs` — Wires `AddAppSysMetrics` (2s interval, 60-snapshot history) and `AddWeatherStatistics` (100ms interval, 5 readings/tick, no auto-start)
-- `Pages/Dashboard.razor` — Route `/`, subscribes to `MetricsHub.OnSnapshot`, renders four metric panels plus weather stats
-- `Pages/WeatherControl.razor` — Route `/weather`, start/stop toggle, interval slider (10–1000ms), readings-per-tick slider (1–50)
-- `Charts/` — `BarChart`, `LineChart`, `GaugeChart`, `MetricCard` — all pure SVG via `BuildSvg()` methods
-- `Panels/` — `ProcessMetricsPanel`, `CpuMetricsPanel`, `GcMetricsPanel`, `AllocationRatePanel`, `WeatherStatsPanel`
 
 ### 3.3 Key Design: SVG Rendering in Razor
 
@@ -161,10 +183,6 @@ cpuPercent = (currentCpuTime - previousCpuTime) / elapsedWallTime / processorCou
 ```
 
 The result is clamped to [0, 100].
-
-### 3.5 Key Design: Memory Pressure Generator
-
-`WeatherReading` is a `sealed class` (not a record struct) so every reading is a separate heap allocation. Each instance holds a `string Summary` property (~100 bytes of formatted text) to increase per-object cost. The `List<WeatherReading>` in `WeatherGeneratorService` is never trimmed, cleared, or bounded. At default settings (5 readings every 100ms = 50/second), the list grows indefinitely, providing a predictable memory ramp visible in the dashboard.
 
 ---
 
@@ -209,21 +227,12 @@ Phase 2 adds allocation tracking by type, finalization queue monitoring, and on-
 **Updated DI Registration:**
 - `AddAppSysMetrics()` — Registers `AllocationEventListener` (singleton), `AllocationTrackingHub` (singleton), `AllocationTrackingService` (hosted), `DiagnosticsOptions`, `IDiagnosticsService` → `DiagnosticsService` (singleton)
 
-### 4.3 Additions to Travelogue App
+### 4.3 New UI Panels
 
-**New Panels:**
 - `TopAllocationsPanel` — Table of top allocating types with rank, shortened type name, total bytes, allocation count. Takes first 15 entries from `AllocationSnapshot.TopAllocatingTypes`.
 - `LargeObjectAllocationsPanel` — Table of recent LOH allocations with warning styling. Shows "No large object allocations detected" when the queue is empty.
 - `DiagnosticsPanel` — Two action cards: Force GC button (shows before/after heap comparison with freed bytes) and Capture GC Dump button (shows file path, size, or error message).
-
-**Updated Panels:**
-- `GcMetricsPanel` — Added Finalizers `MetricCard` with warning class when `FinalizationPendingCount > 100`.
-
-**New Page:**
-- `MemoryDiagnostics.razor` — Route `/diagnostics`. Subscribes to both `AllocationTrackingHub` and `MetricsHub`. Four-cell grid layout: `TopAllocationsPanel`, `LargeObjectAllocationsPanel`, `GcMetricsPanel`, `DiagnosticsPanel`.
-
-**Updated Navigation:**
-- `NavMenu.razor` — Added "Memory Diagnostics" link with `bi-activity` icon.
+- `GcMetricsPanel` — Updated with Finalizers `MetricCard` with warning class when `FinalizationPendingCount > 100`.
 
 ### 4.4 Key Design: EventListener vs ETW
 
@@ -257,96 +266,313 @@ The service detects missing tool installation and returns a descriptive error wi
 
 ---
 
-## 5. Project Structure
+## 5. Phase 3 — Razor Class Library Packaging
+
+Phase 3 converts AppSysMetrics from a plain class library into a Razor Class Library (RCL), packaging all UI components alongside the backend services.
+
+### 5.1 Motivation
+
+Before Phase 3, consuming AppSysMetrics required copying chart components, panel components, and CSS separately. After Phase 3, a consumer adds one project reference and gets both the metrics backend and the full UI:
+
+```csharp
+// Program.cs
+builder.Services.AddAppSysMetrics();
+```
+
+```html
+<!-- App.razor / _Host.cshtml -->
+<link rel="stylesheet" href="_content/AppSysMetrics/AppSysMetrics.css" />
+```
+
+```razor
+<!-- Any page -->
+@page "/dashboard"
+@rendermode InteractiveServer
+<MetricsDashboardView />
+```
+
+### 5.2 SDK Change
+
+The `AppSysMetrics.csproj` SDK changed from `Microsoft.NET.Sdk` to `Microsoft.NET.Sdk.Razor`. A `FrameworkReference` to `Microsoft.AspNetCore.App` replaces the three explicit NuGet package references (`Hosting.Abstractions`, `Logging.Abstractions`, `Options`), which are all included in the shared framework.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+</Project>
+```
+
+### 5.3 Library Components
+
+All chart and panel components live in `AppSysMetrics/Components/`:
+
+| Component | Path | Notes |
+|---|---|---|
+| BarChart | Components/Charts/BarChart.razor (+.css) | Self-contained scoped CSS |
+| LineChart | Components/Charts/LineChart.razor (+.css) | Self-contained scoped CSS |
+| GaugeChart | Components/Charts/GaugeChart.razor (+.css) | Self-contained scoped CSS |
+| MetricCard | Components/Charts/MetricCard.razor (+.css) | Self-contained scoped CSS |
+| ProcessMetricsPanel | Components/Panels/ | |
+| CpuMetricsPanel | Components/Panels/ | |
+| GcMetricsPanel | Components/Panels/ | Scoped .razor.css for layout |
+| AllocationRatePanel | Components/Panels/ | |
+| TopAllocationsPanel | Components/Panels/ | |
+| LargeObjectAllocationsPanel | Components/Panels/ | Scoped .razor.css for LOH alert |
+| DiagnosticsPanel | Components/Panels/ | Scoped .razor.css for diagnostics layout |
+
+### 5.4 New Composite View Components
+
+Two composite components encapsulate the hub subscription logic and grid layout:
+
+**`MetricsDashboardView`** (`AppSysMetrics.Components.Views`)
+- Injects `MetricsHub`, subscribes to `OnSnapshot`
+- Renders a 2-column grid: ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel
+- Accepts `[Parameter] RenderFragment? AdditionalContent` for consumer-injected panels
+- No `@page` directive — routing is the consumer's responsibility
+- No `@rendermode` directive — render mode is the consumer's choice
+
+**`MemoryDiagnosticsView`** (`AppSysMetrics.Components.Views`)
+- Injects `AllocationTrackingHub` and `MetricsHub`, subscribes to both `OnSnapshot` events
+- Renders a 2-column grid: TopAllocationsPanel, LargeObjectAllocationsPanel, GcMetricsPanel, DiagnosticsPanel
+- No `@page` or `@rendermode` directives
+
+Both views use `asm-` prefixed CSS class names (e.g., `.asm-grid`, `.asm-cell`, `.asm-subtitle`) in their scoped `.razor.css` files to avoid collisions with consumer stylesheets.
+
+### 5.5 CSS Strategy
+
+The library uses a two-tier CSS approach:
+
+**Tier 1: Shared base stylesheet** — `AppSysMetrics/wwwroot/AppSysMetrics.css`
+Served at `_content/AppSysMetrics/AppSysMetrics.css`. Contains styles shared across multiple panels:
+- `.panel`, `.panel-heading`, `.panel-loading` — Panel container styles
+- `.metric-row` — Flexbox row for MetricCard groups
+- `.metric-ok`, `.metric-warning`, `.metric-danger` — State border colors
+- `.metric-ok-text`, `.metric-danger-text` — State text colors
+- `.gen-table`, `.gen-table-wrapper` — Data table styles (th, td, hover)
+- `.type-name` — Monospace type name display
+- `.alloc-table-wrapper`, `.alloc-summary` — Allocation table layout
+- `.btn`, `.btn-warning`, `.btn-info` — Button styles
+
+The consumer must add one `<link>` tag to include these shared styles.
+
+**Tier 2: Scoped component CSS** — `.razor.css` per component
+Automatically bundled into `AppSysMetrics.styles.css` by Blazor's CSS isolation. Contains layout-specific styles unique to each panel:
+- `GcMetricsPanel.razor.css` — `.gc-top-row`, `.gc-counters` layout
+- `DiagnosticsPanel.razor.css` — `.diag-actions`, `.gc-comparison`, `.dump-result` layout
+- `LargeObjectAllocationsPanel.razor.css` — `.loh-alert` styling
+- `MetricsDashboardView.razor.css` — `.asm-grid`, `.asm-cell`, `.asm-subtitle` layout
+- `MemoryDiagnosticsView.razor.css` — Same grid layout pattern
+
+All chart components already had self-contained scoped CSS from Phase 1.
+
+### 5.6 Consumer Integration Pattern
+
+A typical host application becomes a thin wrapper. Each page is a few lines: a `@page` directive, a `@rendermode` directive, and one library view tag. For example:
+
+```razor
+@page "/dashboard"
+@rendermode InteractiveServer
+<MetricsDashboardView />
+```
+
+The consumer controls routing, render mode, layout, and navigation. The library's composite views handle all hub subscriptions and panel arrangement internally.
+
+### 5.7 Key Design: One Library, Not Two
+
+The existing `AppSysMetrics.csproj` was converted in-place rather than creating a separate `AppSysMetrics.Blazor` package. Rationale:
+
+- The Razor SDK is additive — all existing C# code compiles identically
+- A single package avoids version coordination between a "core" and "UI" package
+- Consumers who only need the backend can ignore the Components namespace; the Razor components add negligible binary size
+- The `FrameworkReference` to `Microsoft.AspNetCore.App` replaces all three explicit NuGet packages, resulting in a cleaner `.csproj`
+
+### 5.8 Key Design: Composite Views Without @page
+
+The library's `MetricsDashboardView` and `MemoryDiagnosticsView` deliberately omit `@page` and `@rendermode` directives. This gives consumers full control over:
+
+- **Route paths** — The consumer chooses where the dashboard lives (`/`, `/metrics`, `/admin/diagnostics`, etc.)
+- **Render mode** — InteractiveServer, InteractiveWebAssembly, InteractiveAuto
+- **Layout** — The consumer wraps the view in their own layout with their own navigation
+- **Extensibility** — `RenderFragment? AdditionalContent` allows injecting app-specific panels into the dashboard grid
+
+### 5.9 Key Design: No Bootstrap Dependency in Library
+
+The library components use zero Bootstrap CSS classes. All panel styling is self-contained via the shared `AppSysMetrics.css` and per-component scoped CSS. This makes the library portable to any CSS framework or custom design system — Bootstrap, Tailwind, MudBlazor, Fluent UI, or bare custom CSS.
+
+---
+
+## 6. Phase 4 — Dump Analysis and Memory Leak Detection
+
+Phase 4 adds automated GC dump file monitoring, analysis, and diff-based memory leak detection. When a new `.gcdump` file appears in the watch folder, it is automatically analyzed and compared against the previous dump to surface memory growth patterns.
+
+### 6.1 Scope
+
+| Capability | Implementation |
+|---|---|
+| Dump file watching | `FileSystemWatcher` on configurable folder, `Channel<string>` for async processing |
+| Report parsing | Shell out to `dotnet-gcdump report {file}`, parse fixed-width text into structured models |
+| Heap type analysis | Top N types by total size with instance counts |
+| Diff analysis | Join two analysis results on type name, compute delta size/count/growth % |
+| Auto-diff on arrival | Each new dump is automatically diffed against the previous one |
+| Manual diff | User selects any two dumps from history for comparison |
+| Cross-platform | Windows (NTFS + mandatory locks) and Linux (inotify + advisory locks) |
+
+### 6.2 Additions to AppSysMetrics Library
+
+**New Models** (`AppSysMetrics.Diagnostics.Models`):
+- `HeapTypeInfo` — Type name, instance count, total size bytes (from `dotnet-gcdump report` output)
+- `DumpAnalysisResult` — Complete analysis of one dump file: file path, capture time, analysis time, file size, total heap bytes, total object count, list of top types
+- `HeapTypeDiff` — Per-type diff between two analyses: baseline/current counts and sizes, delta values, growth percent
+- `DumpDiffResult` — Complete diff: baseline result, current result, time between dumps, list of type diffs sorted by delta size descending, total heap/object deltas
+
+**New Options:**
+- `DumpAnalyzerOptions` — `WatchFolder` (nullable, cascading default from `DiagnosticsOptions.GcDumpOutputDirectory` then temp path), `MaxAnalysisHistory` (10), `FileReadyTimeoutSeconds` (30), `FileReadyRetryDelayMs` (500), `TopTypesCount` (50)
+
+**New Services:**
+- `DumpReportParser` (static) — Pure function that parses `dotnet-gcdump report` stdout. Extracts summary lines (heap bytes, object count), finds the column header, then parses fixed-width data rows: positions [0..15] = size, [15..23] = count, [25..] = type name. Strips `[Assembly.dll]` suffixes. Skips unparseable rows gracefully.
+- `DumpAnalyzerService` — Shells out to `dotnet-gcdump report "{filePath}"` using the same `ProcessStartInfo` pattern as `DiagnosticsService.CaptureGcDumpAsync()`. Cross-platform timestamp handling: falls back from `CreationTimeUtc` to `LastWriteTimeUtc` on Linux where creation time may not be available.
+- `DumpDiffService` — Pure computation: builds dictionaries keyed by type name from both results, computes the union, calculates deltas for each type. Types only in current = new allocations (growth 100%). Types only in baseline = freed. Sorts by `DeltaSizeBytes` descending (biggest growers = leak suspects).
+
+**New Hosting:**
+- `DumpAnalysisHub` — Ring buffer of `DumpAnalysisResult` with two events: `OnAnalysis` (new analysis) and `OnDiff` (new diff). Follows the `MetricsHub` pattern: `object _lock`, defensive copy `GetHistory()`, `Latest`/`LatestDiff` properties. Two events because analysis can arrive without a diff (first dump), and diffs can be manually triggered from the UI.
+- `DumpWatcherService` — `BackgroundService` that watches the configured dump folder using `FileSystemWatcher`. On `Created` events, file paths are written to a `Channel<string>` which decouples the synchronous FSW callback from the async analysis pipeline. The processing loop: skips already-analyzed files, waits for file readiness, runs analysis, publishes to hub, and auto-diffs against previous. On startup, scans for existing `.gcdump` files to handle app restarts.
+
+**Updated DI Registration:**
+- `AddAppSysMetrics()` — Registers `DumpAnalyzerOptions` (options), `DumpAnalyzerService` (singleton), `DumpDiffService` (singleton), `DumpAnalysisHub` (singleton), `DumpWatcherService` (hosted)
+
+### 6.3 New UI Components
+
+**Panels** (`AppSysMetrics.Components.Panels`):
+- `DumpAnalysisPanel` — Shows the latest analysis: header MetricCards (heap size, object count, file name with capture time), ranked table of top 20 types with size and count
+- `DumpDiffPanel` — Shows diff between two dumps: header MetricCards (heap delta, object delta, time span), 6-column diff table (type, baseline size, current size, delta size, delta count, growth %). Red for growth, green for shrinkage. Row tinting for visual emphasis.
+- `DumpHistoryPanel` — Interactive table of all analyzed dumps. Click-to-select: first click = baseline ("BASE" tag), second click = current ("CUR" tag), third click = reset. "Compare Selected" button triggers `DumpDiffService.ComputeDiff()` and bubbles the result via `EventCallback<DumpDiffResult>`.
+
+**View** (`AppSysMetrics.Components.Views`):
+- `DumpAnalysisView` — Composite view subscribing to `DumpAnalysisHub.OnAnalysis` and `OnDiff`. Grid layout: DumpHistoryPanel (full width, top row), DumpAnalysisPanel (left), DumpDiffPanel (right). Handles both auto-diff (from watcher) and manual comparison (from history panel).
+
+Consumers integrate the view with a thin page wrapper (e.g., `@page "/dump-analysis"`, `@rendermode InteractiveServer`, `<DumpAnalysisView />`).
+
+### 6.4 Key Design: Cross-Platform File-Ready Detection
+
+`dotnet-gcdump collect` writes `.gcdump` files that can take several seconds to complete. `FileSystemWatcher.Created` fires when the file *starts* being written, not when it's done. The file-ready detection uses a hybrid approach:
+
+1. Initial 500ms delay to let the writer begin
+2. Retry loop (max 30s): attempt `FileStream` open with `FileAccess.Read`, `FileShare.None`
+   - **Windows**: The file is locked by `dotnet-gcdump` during writing, so `IOException` is thrown until the write completes — this is reliable
+   - **Linux**: File locks are advisory, so the exclusive open may succeed even during writing — the size > 0 check catches this
+3. Timeout: log warning and proceed — on Linux the file is likely ready; let `dotnet-gcdump report` decide
+
+### 6.5 Key Design: Text Parsing Over Binary Format
+
+`dotnet-gcdump report` has **no `--format json` flag** as of v9.0. The output is a fixed-width text table with culture-invariant formatting (`{value,15:N0}`). Parsing this text is:
+
+- **Stable** — The format string is simple and hasn't changed across tool versions
+- **Cross-platform identical** — Same output on Windows and Linux
+- **Zero-dependency** — No NuGet packages needed (no TraceEvent, no ClrMD)
+- **Testable** — `DumpReportParser.Parse()` is a static pure function; unit tests pass in sample strings
+
+The alternative — reading the `.gcdump` binary format directly via `Microsoft.Diagnostics.Runtime` or the `TraceEvent` library — would require heavy dependencies and deal with an internal format subject to version changes.
+
+### 6.6 Key Design: Channel for FileSystemWatcher Bridging
+
+`FileSystemWatcher` raises `Created` events synchronously on a thread pool thread. Rather than performing async analysis directly in the event handler (which would require `async void` with no error propagation), the handler writes to a `Channel<string>`. The `BackgroundService.ExecuteAsync` loop reads from the channel via `await foreach (var path in channel.Reader.ReadAllAsync(stoppingToken))`, which provides:
+
+- Natural async/await with proper cancellation
+- Sequential processing (one file at a time) preventing concurrent `dotnet-gcdump report` invocations
+- Error isolation: individual file failures are caught and logged without losing subsequent events
+- Startup file scanning: existing `.gcdump` files are enqueued through the same channel
+
+### 6.7 Key Design: Dual Hub Events
+
+`DumpAnalysisHub` has two separate events (`OnAnalysis` and `OnDiff`) rather than a single combined event because:
+
+- The first dump produces an analysis but no diff — subscribers shouldn't receive a null diff event
+- Manual comparisons from `DumpHistoryPanel` produce a diff without a new analysis — the diff panel should update without the analysis panel re-rendering
+- The separation maps cleanly to the two bottom panels in `DumpAnalysisView`: each subscribes to exactly the event it needs
+
+---
+
+## 7. Project Structure
 
 ```
-AppSysMetrics.slnx
-│
-├── AppSysMetrics/                          (Class Library — net10.0)
-│   ├── AppSysMetrics.csproj
-│   ├── Collection/
-│   │   ├── IMetricsCollector.cs
-│   │   ├── MetricsCollector.cs
-│   │   ├── CpuSampler.cs
-│   │   ├── AllocationRateTracker.cs
-│   │   └── AllocationEventListener.cs      (Phase 2)
-│   ├── Diagnostics/                        (Phase 2)
-│   │   ├── DiagnosticsOptions.cs
-│   │   ├── IDiagnosticsService.cs
-│   │   └── DiagnosticsService.cs
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs
-│   ├── Hosting/
-│   │   ├── MetricsCollectionOptions.cs
-│   │   ├── MetricsHub.cs
-│   │   ├── MetricsCollectionService.cs
-│   │   ├── AllocationTrackingHub.cs        (Phase 2)
-│   │   └── AllocationTrackingService.cs    (Phase 2)
-│   └── Models/
-│       ├── MetricsSnapshot.cs
-│       ├── ProcessMetrics.cs
-│       ├── CpuMetrics.cs
-│       ├── GcMetrics.cs
-│       ├── GcGenerationInfo.cs
-│       ├── AllocationTypeInfo.cs           (Phase 2)
-│       └── AllocationSnapshot.cs           (Phase 2)
-│
-├── WeatherStatistics/                      (Class Library — net10.0)
-│   ├── WeatherStatistics.csproj
-│   ├── Extensions/
-│   │   └── ServiceCollectionExtensions.cs
-│   ├── Models/
-│   │   ├── WeatherCondition.cs
-│   │   ├── WeatherLocation.cs
-│   │   ├── WeatherReading.cs
-│   │   └── WeatherStats.cs
-│   └── Services/
-│       ├── IWeatherGenerator.cs
-│       ├── WeatherGeneratorOptions.cs
-│       └── WeatherGeneratorService.cs
-│
-├── Travelogue/                             (Blazor Server App — net10.0)
-│   ├── Travelogue.csproj
-│   ├── Program.cs
-│   ├── wwwroot/
-│   │   └── app.css
-│   └── Components/
-│       ├── _Imports.razor
-│       ├── App.razor
-│       ├── Routes.razor
-│       ├── Layout/
-│       │   ├── MainLayout.razor (+.css)
-│       │   └── NavMenu.razor (+.css)
-│       ├── Charts/
-│       │   ├── MetricCard.razor (+.css)
-│       │   ├── BarChart.razor (+.css)
-│       │   ├── LineChart.razor (+.css)
-│       │   └── GaugeChart.razor (+.css)
-│       ├── Panels/
-│       │   ├── ProcessMetricsPanel.razor
-│       │   ├── CpuMetricsPanel.razor
-│       │   ├── GcMetricsPanel.razor
-│       │   ├── AllocationRatePanel.razor
-│       │   ├── WeatherStatsPanel.razor
-│       │   ├── TopAllocationsPanel.razor          (Phase 2)
-│       │   ├── LargeObjectAllocationsPanel.razor  (Phase 2)
-│       │   └── DiagnosticsPanel.razor             (Phase 2)
-│       └── Pages/
-│           ├── Dashboard.razor (+.css)
-│           ├── WeatherControl.razor (+.css)
-│           └── MemoryDiagnostics.razor (+.css)    (Phase 2)
-│
-└── Docs/
-    └── AppSysMetrics_SoftwareSpecification.md
+AppSysMetrics/                              (Razor Class Library — net10.0)
+├── AppSysMetrics.csproj                    (Sdk="Microsoft.NET.Sdk.Razor")
+├── Collection/
+│   ├── IMetricsCollector.cs
+│   ├── MetricsCollector.cs
+│   ├── CpuSampler.cs
+│   ├── AllocationRateTracker.cs
+│   └── AllocationEventListener.cs          (Phase 2)
+├── Components/                             (Phase 3)
+│   ├── _Imports.razor
+│   ├── Charts/
+│   │   ├── MetricCard.razor (+.css)
+│   │   ├── BarChart.razor (+.css)
+│   │   ├── LineChart.razor (+.css)
+│   │   └── GaugeChart.razor (+.css)
+│   ├── Panels/
+│   │   ├── ProcessMetricsPanel.razor (+.css)
+│   │   ├── CpuMetricsPanel.razor (+.css)
+│   │   ├── GcMetricsPanel.razor (+.css)
+│   │   ├── AllocationRatePanel.razor (+.css)
+│   │   ├── TopAllocationsPanel.razor (+.css)
+│   │   ├── LargeObjectAllocationsPanel.razor (+.css)
+│   │   ├── DiagnosticsPanel.razor (+.css)
+│   │   ├── DumpAnalysisPanel.razor (+.css)     (Phase 4)
+│   │   ├── DumpDiffPanel.razor (+.css)         (Phase 4)
+│   │   └── DumpHistoryPanel.razor (+.css)      (Phase 4)
+│   └── Views/
+│       ├── MetricsDashboardView.razor (+.css)
+│       ├── MemoryDiagnosticsView.razor (+.css)
+│       └── DumpAnalysisView.razor (+.css)      (Phase 4)
+├── Diagnostics/                            (Phase 2+4)
+│   ├── DiagnosticsOptions.cs
+│   ├── IDiagnosticsService.cs
+│   ├── DiagnosticsService.cs
+│   ├── DumpAnalyzerOptions.cs              (Phase 4)
+│   ├── DumpReportParser.cs                 (Phase 4)
+│   ├── DumpAnalyzerService.cs              (Phase 4)
+│   ├── DumpDiffService.cs                  (Phase 4)
+│   └── Models/                             (Phase 4)
+│       ├── HeapTypeInfo.cs
+│       ├── DumpAnalysisResult.cs
+│       ├── HeapTypeDiff.cs
+│       └── DumpDiffResult.cs
+├── Extensions/
+│   └── ServiceCollectionExtensions.cs
+├── Hosting/
+│   ├── MetricsCollectionOptions.cs
+│   ├── MetricsHub.cs
+│   ├── MetricsCollectionService.cs
+│   ├── AllocationTrackingHub.cs            (Phase 2)
+│   ├── AllocationTrackingService.cs        (Phase 2)
+│   ├── DumpAnalysisHub.cs                  (Phase 4)
+│   └── DumpWatcherService.cs               (Phase 4)
+├── Models/
+│   ├── MetricsSnapshot.cs
+│   ├── ProcessMetrics.cs
+│   ├── CpuMetrics.cs
+│   ├── GcMetrics.cs
+│   ├── GcGenerationInfo.cs
+│   ├── AllocationTypeInfo.cs               (Phase 2)
+│   └── AllocationSnapshot.cs               (Phase 2)
+└── wwwroot/                                (Phase 3)
+    └── AppSysMetrics.css
 ```
 
 ---
 
-## 6. Data Models
+## 8. Data Models
 
-All models are in the `AppSysMetrics.Models` namespace. All are `sealed record` types (immutable, value-equality).
+All library models are `sealed record` types (immutable, value-equality). Core metrics models are in `AppSysMetrics.Models`; dump analysis models are in `AppSysMetrics.Diagnostics.Models`.
 
-### 6.1 MetricsSnapshot
+### 8.1 MetricsSnapshot
 
 The top-level container produced by `MetricsCollector.Collect()` every 2 seconds.
 
@@ -358,7 +584,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | Cpu | CpuMetrics | `CpuSampler.Sample()` |
 | Gc | GcMetrics | `GC.GetGCMemoryInfo()` + `GC.CollectionCount()` |
 
-### 6.2 ProcessMetrics
+### 8.2 ProcessMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -369,7 +595,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | ThreadCount | int | OS thread count |
 | HandleCount | int | OS handle count |
 
-### 6.3 CpuMetrics
+### 8.3 CpuMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -377,7 +603,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | TotalProcessorTime | TimeSpan | Cumulative CPU time since process start |
 | ProcessorCount | int | `Environment.ProcessorCount` |
 
-### 6.4 GcMetrics
+### 8.4 GcMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -395,7 +621,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | FinalizationPendingCount | long | Objects waiting for finalization (Phase 2) |
 | GenerationInfo | IReadOnlyList\<GcGenerationInfo\> | Per-generation size/fragmentation detail |
 
-### 6.5 GcGenerationInfo
+### 8.5 GcGenerationInfo
 
 | Property | Type | Description |
 |---|---|---|
@@ -405,7 +631,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | FragmentationBeforeBytes | long | Fragmentation before last collection |
 | FragmentationAfterBytes | long | Fragmentation after last collection |
 
-### 6.6 AllocationTypeInfo (Phase 2)
+### 8.6 AllocationTypeInfo (Phase 2)
 
 | Property | Type | Description |
 |---|---|---|
@@ -414,7 +640,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | AllocationCount | int | Number of allocation ticks observed |
 | IsLargeObject | bool | True if allocated on the LOH (>= 85,000 bytes) |
 
-### 6.7 AllocationSnapshot (Phase 2)
+### 8.7 AllocationSnapshot (Phase 2)
 
 | Property | Type | Description |
 |---|---|---|
@@ -424,40 +650,67 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | TotalTrackedBytes | long | Sum of all tracked allocation bytes |
 | TotalTrackedCount | int | Sum of all tracked allocation counts |
 
-### 6.8 WeatherStatistics Models
+### 8.8 HeapTypeInfo (Phase 4)
 
-| Type | Kind | Key Properties |
+| Property | Type | Description |
 |---|---|---|
-| WeatherCondition | enum | Sunny, PartlyCloudy, Cloudy, Rainy, Stormy, Snowy, Foggy, Windy |
-| WeatherLocation | sealed record | City, Country, Latitude, Longitude |
-| WeatherReading | sealed class | Location, TemperatureCelsius, HumidityPercent, WindSpeedKmh, Condition, Timestamp, Summary |
-| WeatherStats | sealed record | TotalReadings, ReadingsPerLocation, ApproximateMemoryBytes, IsRunning, GenerationInterval, ReadingsPerTick |
+| TypeName | string | Fully qualified type name from `dotnet-gcdump report` output |
+| InstanceCount | long | Number of instances of this type on the heap |
+| TotalSizeBytes | long | Total bytes consumed by all instances of this type |
 
-`WeatherReading` is deliberately a `sealed class` (not a struct or record struct) to ensure each instance is a heap allocation.
+### 8.9 DumpAnalysisResult (Phase 4)
+
+| Property | Type | Description |
+|---|---|---|
+| FilePath | string | Full path to the analyzed `.gcdump` file |
+| FileName | string | File name only (for display) |
+| CapturedAtUtc | DateTimeOffset | When the dump was captured (from file timestamp) |
+| AnalyzedAtUtc | DateTimeOffset | When the analysis completed |
+| FileSizeBytes | long | Size of the `.gcdump` file on disk |
+| TotalHeapBytes | long | Total GC heap size from report summary |
+| TotalObjectCount | long | Total GC heap object count from report summary |
+| TopTypes | IReadOnlyList\<HeapTypeInfo\> | Top N types by total size, descending |
+
+### 8.10 HeapTypeDiff (Phase 4)
+
+| Property | Type | Description |
+|---|---|---|
+| TypeName | string | Fully qualified type name |
+| BaselineCount | long | Instance count in the baseline dump |
+| CurrentCount | long | Instance count in the current dump |
+| DeltaCount | long | `CurrentCount - BaselineCount` |
+| BaselineSizeBytes | long | Total size in baseline dump |
+| CurrentSizeBytes | long | Total size in current dump |
+| DeltaSizeBytes | long | `CurrentSizeBytes - BaselineSizeBytes` |
+| GrowthPercent | double | `(DeltaSizeBytes / BaselineSizeBytes) * 100` (0 if baseline is 0) |
+
+### 8.11 DumpDiffResult (Phase 4)
+
+| Property | Type | Description |
+|---|---|---|
+| Baseline | DumpAnalysisResult | The older dump analysis |
+| Current | DumpAnalysisResult | The newer dump analysis |
+| TimeBetweenDumps | TimeSpan | `Current.CapturedAtUtc - Baseline.CapturedAtUtc` |
+| TypeDiffs | IReadOnlyList\<HeapTypeDiff\> | Per-type diffs, sorted by `DeltaSizeBytes` descending |
+| TotalHeapDelta | long | `Current.TotalHeapBytes - Baseline.TotalHeapBytes` |
+| TotalObjectDelta | long | `Current.TotalObjectCount - Baseline.TotalObjectCount` |
 
 ---
 
-## 7. Services and Hosting
+## 9. Services and Hosting
 
-### 7.1 DI Registration
+### 9.1 DI Registration
 
 ```csharp
-// Program.cs
+// Consumer's Program.cs
 builder.Services.AddAppSysMetrics(options =>
 {
     options.CollectionInterval = TimeSpan.FromSeconds(2);
     options.MaxHistorySize = 60;
 });
-
-builder.Services.AddWeatherStatistics(options =>
-{
-    options.GenerationInterval = TimeSpan.FromMilliseconds(100);
-    options.ReadingsPerTick = 5;
-    options.AutoStart = false;
-});
 ```
 
-### 7.2 AppSysMetrics Service Registrations
+### 9.2 AppSysMetrics Service Registrations
 
 | Service | Lifetime | Interface |
 |---|---|---|
@@ -471,16 +724,7 @@ builder.Services.AddWeatherStatistics(options =>
 | MetricsCollectionOptions | Options | IOptions\<T\> |
 | DiagnosticsOptions | Options | IOptions\<T\> |
 
-### 7.3 WeatherStatistics Service Registrations
-
-| Service | Lifetime | Interface |
-|---|---|---|
-| WeatherGeneratorService | Singleton | IWeatherGenerator, IHostedService |
-| WeatherGeneratorOptions | Options | IOptions\<T\> |
-
-Single instance pattern: one `WeatherGeneratorService` instance is registered as both `IHostedService` and `IWeatherGenerator` using factory resolution.
-
-### 7.4 Hub Pattern
+### 9.3 Hub Pattern
 
 Both `MetricsHub` and `AllocationTrackingHub` follow the same pattern:
 
@@ -490,7 +734,7 @@ Both `MetricsHub` and `AllocationTrackingHub` follow the same pattern:
 - **Latest**: Property holding the most recent snapshot for newly subscribing components
 - **GetHistory()**: Returns a copy of the ring buffer for chart rendering
 
-### 7.5 Background Services
+### 9.4 Background Services
 
 Both `MetricsCollectionService` and `AllocationTrackingService` use `PeriodicTimer` in `ExecuteAsync`:
 
@@ -504,19 +748,67 @@ while (await timer.WaitForNextTickAsync(stoppingToken))
 
 Exceptions within the loop are caught and logged, not propagated, to keep the service running.
 
+### 9.5 Dump Analysis Service Registrations (Phase 4)
+
+| Service | Lifetime | Interface |
+|---|---|---|
+| DumpAnalyzerService | Singleton | (concrete) |
+| DumpDiffService | Singleton | (concrete) |
+| DumpAnalysisHub | Singleton | (concrete) |
+| DumpWatcherService | Hosted | BackgroundService |
+| DumpAnalyzerOptions | Options | IOptions\<T\> |
+
+### 9.6 DumpAnalysisHub Pattern (Phase 4)
+
+`DumpAnalysisHub` follows the same ring buffer pattern as `MetricsHub` and `AllocationTrackingHub` but with two events:
+
+- **`OnAnalysis`** — Fires when a new dump is analyzed. Subscribers receive the `DumpAnalysisResult`.
+- **`OnDiff`** — Fires when a diff is computed (either auto-diff from the watcher or manual comparison from the UI). Subscribers receive the `DumpDiffResult`.
+
+Properties: `Latest` (most recent analysis), `LatestDiff` (most recent diff), `GetHistory()` (defensive copy of all analyses).
+
+### 9.7 DumpWatcherService Pattern (Phase 4)
+
+Unlike timer-based background services, `DumpWatcherService` uses event-driven processing via `Channel<string>`:
+
+```
+FileSystemWatcher (*.gcdump Created)
+    → Channel<string>.Writer.TryWrite(filePath)
+        → await foreach (channel.Reader.ReadAllAsync(stoppingToken))
+            → WaitForFileReadyAsync → AnalyzeAsync → Publish → ComputeDiff
+```
+
+**Folder resolution chain**: `DumpAnalyzerOptions.WatchFolder` → `DiagnosticsOptions.GcDumpOutputDirectory` → `Path.Combine(Path.GetTempPath(), "AppSysMetrics", "gcdumps")`
+
+On startup, existing `.gcdump` files are scanned and enqueued to handle application restarts. Individual file failures are caught and logged without killing the service.
+
 ---
 
-## 8. UI Components
+## 10. UI Components
 
-### 8.1 Pages
+All chart, panel, and view components listed below are shipped in the library.
 
-| Route | Component | Subscribes To | Description |
-|---|---|---|---|
-| `/` | Dashboard | MetricsHub | 4-panel grid + weather stats. Process, CPU, GC, allocation rate. |
-| `/weather` | WeatherControl | IWeatherGenerator | Start/stop toggle, interval/rate sliders, latest readings grid. |
-| `/diagnostics` | MemoryDiagnostics | AllocationTrackingHub, MetricsHub | Allocation types, LOH alerts, GC detail, diagnostic actions. |
+### 10.1 Component Namespaces
 
-### 8.2 Chart Components
+| Namespace | Contents |
+|---|---|
+| `AppSysMetrics.Components.Charts` | BarChart, LineChart, GaugeChart, MetricCard |
+| `AppSysMetrics.Components.Panels` | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel |
+| `AppSysMetrics.Components.Views` | MetricsDashboardView, MemoryDiagnosticsView, DumpAnalysisView |
+
+### 10.2 Consumer Page Integration
+
+The library ships views, not pages. Consumers create their own thin page wrappers:
+
+| View Tag | Typical Route | Purpose |
+|---|---|---|
+| `<MetricsDashboardView />` | `/`, `/dashboard`, `/metrics` | Live process, CPU, GC, and allocation rate metrics |
+| `<MemoryDiagnosticsView />` | `/diagnostics` | Allocation tracking, LOH alerts, Force GC, GC Dump capture |
+| `<DumpAnalysisView />` | `/dump-analysis` | Dump file analysis, diff comparison, memory leak detection |
+
+Each page is typically 3–6 lines: `@page`, `@rendermode`, `<PageTitle>`, and the view tag. `MetricsDashboardView` accepts a `RenderFragment? AdditionalContent` parameter for injecting app-specific panels.
+
+### 10.3 Chart Components (AppSysMetrics library)
 
 | Component | Visualization | Rendering |
 |---|---|---|
@@ -527,7 +819,7 @@ Exceptions within the loop are caught and logged, not propagated, to keep the se
 
 All chart components accept parameters for data, titles, units, colors, and ranges. None use JavaScript.
 
-### 8.3 Panel Components
+### 10.4 Panel Components (AppSysMetrics library)
 
 | Panel | Data Source | Key Visuals |
 |---|---|---|
@@ -535,14 +827,24 @@ All chart components accept parameters for data, titles, units, colors, and rang
 | CpuMetricsPanel | List\<MetricsSnapshot\> | LineChart (CPU % history), MetricCards (current, processors, total time) |
 | GcMetricsPanel | MetricsSnapshot | GaugeChart (memory load %), generation table, MetricCards (collections, pause %, finalizers) |
 | AllocationRatePanel | List\<MetricsSnapshot\> | LineChart (allocation rate MB/s), MetricCards (current rate, total allocated) |
-| WeatherStatsPanel | IWeatherGenerator | Status indicator, MetricCards (total readings, est. memory), location grid |
 | TopAllocationsPanel | AllocationSnapshot | Ranked table of types with monospace type names, bytes, counts |
 | LargeObjectAllocationsPanel | AllocationSnapshot | LOH allocation table with alert styling, or "no LOH" indicator |
 | DiagnosticsPanel | IDiagnosticsService | Force GC button with before/after comparison, GC Dump button with file path result |
+| DumpAnalysisPanel | DumpAnalysisResult | MetricCards (heap size, object count, file name), ranked top 20 types table |
+| DumpDiffPanel | DumpDiffResult | MetricCards (heap delta, object delta, time span), 6-column diff table with color-coded growth/shrinkage |
+| DumpHistoryPanel | IReadOnlyList\<DumpAnalysisResult\> | Interactive click-to-select table (BASE/CUR tags), "Compare Selected" button |
 
-### 8.4 Blazor Component Lifecycle Pattern
+### 10.5 Composite View Components (AppSysMetrics library)
 
-All subscribing components follow this pattern:
+| View | Injects | Grid Content | Parameter |
+|---|---|---|---|
+| MetricsDashboardView | MetricsHub | ProcessMetrics, CPU, GC, AllocationRate (2x2) + optional full-width slot | `RenderFragment? AdditionalContent` |
+| MemoryDiagnosticsView | AllocationTrackingHub, MetricsHub | TopAllocations, LOH, GC, Diagnostics (2x2) | — |
+| DumpAnalysisView | DumpAnalysisHub | DumpHistory (full width), DumpAnalysis (left), DumpDiff (right) | — |
+
+### 10.6 Blazor Component Lifecycle Pattern
+
+All subscribing view components follow this pattern:
 
 ```csharp
 protected override void OnInitialized()
@@ -568,33 +870,34 @@ The `ObjectDisposedException` catch handles the race condition where a snapshot 
 
 ---
 
-## 9. Dependency Inventory
+## 11. Dependency Inventory
 
-### 9.1 NuGet Packages
+### 11.1 NuGet Packages
 
-| Package | Version | Used By |
+AppSysMetrics has **no direct NuGet package references**. All dependencies are provided by the `Microsoft.AspNetCore.App` shared framework via `FrameworkReference`.
+
+### 11.2 Framework References
+
+| Reference | Used By | Provides |
 |---|---|---|
-| Microsoft.Extensions.Hosting.Abstractions | 10.0.0-preview.1.25080.5 | AppSysMetrics, WeatherStatistics |
-| Microsoft.Extensions.Logging.Abstractions | 10.0.0-preview.1.25080.5 | AppSysMetrics, WeatherStatistics |
-| Microsoft.Extensions.Options | 10.0.0-preview.1.25080.5 | AppSysMetrics, WeatherStatistics |
+| Microsoft.AspNetCore.App | AppSysMetrics | Razor component compilation, Hosting.Abstractions, Logging.Abstractions, Options, DI |
 
-Travelogue has no direct NuGet references; it receives all dependencies transitively through project references and the Web SDK.
-
-### 9.2 CDN Resources
-
-| Resource | Version | Purpose |
-|---|---|---|
-| Bootstrap | 5.3.3 | Layout grid and base component styling (via jsDelivr) |
-
-### 9.3 External Tools
+### 11.3 External Tools
 
 | Tool | Required By | Install Command |
 |---|---|---|
-| dotnet-gcdump | DiagnosticsService (GC Dump only) | `dotnet tool install --global dotnet-gcdump` |
+| dotnet-gcdump | DiagnosticsService (GC Dump capture), DumpAnalyzerService (report parsing) | `dotnet tool install --global dotnet-gcdump` |
 
-The tool is only required for the "Capture GC Dump" feature. All other functionality works without it.
+The tool is required for both "Capture GC Dump" (Phase 2) and "Dump Analysis" (Phase 4) features. Phase 4 uses `dotnet-gcdump report` to parse heap type information from `.gcdump` files. All other functionality works without it.
 
-### 9.4 Runtime APIs
+### 11.4 Static Assets
+
+| Asset | Path | Purpose |
+|---|---|---|
+| AppSysMetrics.css | `_content/AppSysMetrics/AppSysMetrics.css` | Shared library component styles (panels, tables, buttons, state colors) |
+| AppSysMetrics.styles.css | Auto-generated by Blazor CSS isolation | Scoped component CSS for charts, panels, views |
+
+### 11.5 Runtime APIs
 
 | API | Namespace | Purpose |
 |---|---|---|
@@ -610,31 +913,57 @@ The tool is only required for the "Capture GC Dump" feature. All other functiona
 | `EventListener` | System.Diagnostics.Tracing | Allocation event subscription |
 | `Environment.ProcessorCount` | System | CPU normalization |
 | `Environment.ProcessId` | System | GC dump target PID |
+| `FileSystemWatcher` | System.IO | File system event monitoring (Phase 4) |
+| `Channel<T>` | System.Threading.Channels | Async producer-consumer bridging (Phase 4) |
 
 ---
 
-## 10. Design Decisions
+## 12. Design Decisions
 
-### 10.1 Why sealed records for metrics?
+### 12.1 Why sealed records for metrics?
 
 Records provide value equality and immutable snapshots. `sealed` prevents inheritance overhead. The combination is ideal for data that's created once, published to a hub, and read by multiple consumers — no defensive copying needed.
 
-### 10.2 Why MarkupString + StringBuilder for SVG?
+### 12.2 Why MarkupString + StringBuilder for SVG?
 
 Razor's parser treats `<text>` as a directive, not an HTML/SVG element. Since SVG uses `<text>` extensively for labels, axis values, and gauge readouts, the only clean solution is to build the SVG string outside of Razor's parser and inject it as raw markup. This also avoids Razor issues with `<` in switch expressions used for threshold-based coloring.
 
-### 10.3 Why not use a JavaScript charting library?
+### 12.3 Why not use a JavaScript charting library?
 
 The solution demonstrates that Blazor Server can render rich visualizations without any JavaScript interop. The SVG approach has zero JS payload, no npm dependencies, no bundling, and updates instantly via SignalR without client-side re-rendering.
 
-### 10.4 Why an unbounded list for weather readings?
-
-The `List<WeatherReading>` in `WeatherGeneratorService` is intentionally unbounded to simulate a real-world memory leak. This gives the dashboard something meaningful to observe — a steadily growing heap, increasing Gen 2 collections, and `WeatherReading` climbing to the top of the allocation tracking table. The user controls the leak rate via the Weather Control page.
-
-### 10.5 Why two separate hubs?
+### 12.4 Why two separate hubs?
 
 Metrics snapshots and allocation snapshots serve different diagnostic questions. Metrics answer "how is the process doing right now?" while allocation snapshots answer "what types are consuming the most memory?" Coupling them into a single snapshot would force both collection mechanisms onto the same timer and make the API less composable for consumers that only need one view.
 
-### 10.6 Why shell out for GC dumps instead of using the diagnostics NuGet?
+### 12.5 Why shell out for GC dumps instead of using the diagnostics NuGet?
 
 `Microsoft.Diagnostics.NETCore.Client` and its transitive dependencies (`Microsoft.Diagnostics.Runtime`, etc.) add significant binary size and complexity. For a diagnostic feature used infrequently and on-demand, shelling out to an already-installed global tool is a pragmatic trade-off that keeps the library dependency graph clean.
+
+### 12.6 Why one library instead of separate Core + UI packages?
+
+The Razor SDK is additive — existing C# compiles identically. A single package avoids version coordination between "core" and "UI" packages. Consumers who only need the backend can ignore the Components namespace; Razor components add negligible binary size. The `FrameworkReference` to `Microsoft.AspNetCore.App` actually simplified the `.csproj` by replacing three explicit NuGet package references.
+
+### 12.7 Why no @page or @rendermode in library view components?
+
+Hardcoding routes in a library claims URL paths from the consumer. Hardcoding render mode prevents consumers from choosing InteractiveServer vs InteractiveWebAssembly vs InteractiveAuto. By shipping views as plain components, the library remains composable: the consumer wraps them in their own pages with their own routing and render mode decisions. The `RenderFragment? AdditionalContent` parameter on `MetricsDashboardView` further enables extensibility without modification.
+
+### 12.8 Why no Bootstrap dependency in library components?
+
+Library components use zero Bootstrap CSS classes. All styling is self-contained via `AppSysMetrics.css` (shared base) and scoped `.razor.css` (per-component layout). This makes the library portable to any CSS framework or custom design system.
+
+### 12.9 Why parse text output instead of the .gcdump binary format? (Phase 4)
+
+`dotnet-gcdump report` outputs a fixed-width text table with no `--format json` option. Parsing this text is stable, cross-platform identical, and requires zero NuGet dependencies. The alternative — reading `.gcdump` files directly via `Microsoft.Diagnostics.Runtime` or `TraceEvent` — would add heavy transitive dependencies and couple the parser to an internal binary format subject to version changes. See Section 6.5 for details.
+
+### 12.10 Why Channel\<string\> for FileSystemWatcher bridging? (Phase 4)
+
+`FileSystemWatcher.Created` fires synchronously on a thread pool thread. Using `Channel<string>` as an intermediary provides proper async/await, natural cancellation via `ReadAllAsync(stoppingToken)`, sequential processing (preventing concurrent `dotnet-gcdump report` invocations), and error isolation per file. See Section 6.6 for details.
+
+### 12.11 Why dual events on DumpAnalysisHub? (Phase 4)
+
+`DumpAnalysisHub` separates `OnAnalysis` and `OnDiff` events because the first dump has no diff, and manual UI comparisons produce diffs without new analyses. Each bottom panel in `DumpAnalysisView` subscribes to exactly the event it needs. See Section 6.7 for details.
+
+### 12.12 Why a third hub instead of extending existing hubs? (Phase 4)
+
+`DumpAnalysisHub` is independent from `MetricsHub` and `AllocationTrackingHub` because dump analysis operates on a fundamentally different trigger (file system events) rather than a periodic timer. The data lifecycle is different — analyses accumulate as discrete events per dump file, not continuous time-series data. This follows the same separation principle described in Section 12.4 for the first two hubs.

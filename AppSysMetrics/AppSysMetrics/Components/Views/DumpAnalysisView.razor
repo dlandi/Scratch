@@ -1,0 +1,77 @@
+@implements IDisposable
+@inject DumpAnalysisHub AnalysisHub
+
+<div class="asm-dashboard">
+    <div class="asm-dashboard-header">
+        <h1>Dump Analysis</h1>
+        <p class="asm-subtitle">
+            GC dump file monitoring, heap analysis, and memory leak detection via diff comparison.
+            @if (_latestAnalysis is not null)
+            {
+                <span class="asm-last-updated">
+                    Last analysis: @_latestAnalysis.AnalyzedAtUtc.ToLocalTime().ToString("HH:mm:ss")
+                </span>
+            }
+        </p>
+    </div>
+
+    <div class="asm-grid asm-grid-dump">
+        <div class="asm-cell asm-cell-full">
+            <DumpHistoryPanel History="_history" OnCompare="HandleManualCompare" />
+        </div>
+        <div class="asm-cell">
+            <DumpAnalysisPanel Result="_latestAnalysis" />
+        </div>
+        <div class="asm-cell">
+            <DumpDiffPanel Diff="_activeDiff" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private DumpAnalysisResult? _latestAnalysis;
+    private DumpDiffResult? _activeDiff;
+    private List<DumpAnalysisResult> _history = [];
+
+    protected override void OnInitialized()
+    {
+        _latestAnalysis = AnalysisHub.Latest;
+        _activeDiff = AnalysisHub.LatestDiff;
+        _history = AnalysisHub.GetHistory().ToList();
+        AnalysisHub.OnAnalysis += HandleAnalysis;
+        AnalysisHub.OnDiff += HandleDiff;
+    }
+
+    private async void HandleAnalysis(DumpAnalysisResult result)
+    {
+        _latestAnalysis = result;
+        _history = AnalysisHub.GetHistory().ToList();
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async void HandleDiff(DumpDiffResult diff)
+    {
+        _activeDiff = diff;
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private void HandleManualCompare(DumpDiffResult diff)
+    {
+        _activeDiff = diff;
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        AnalysisHub.OnAnalysis -= HandleAnalysis;
+        AnalysisHub.OnDiff -= HandleDiff;
+    }
+}

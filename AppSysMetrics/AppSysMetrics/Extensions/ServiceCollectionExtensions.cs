@@ -30,6 +30,13 @@ public static class ServiceCollectionExtensions
         services.Configure<DiagnosticsOptions>(_ => { });
         services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
 
+        // Tier 3: Dump Analysis (file watching, report parsing, diff analysis)
+        services.Configure<DumpAnalyzerOptions>(_ => { });
+        services.AddSingleton<DumpAnalyzerService>();
+        services.AddSingleton<DumpDiffService>();
+        services.AddSingleton<DumpAnalysisHub>();
+        services.AddHostedService<DumpWatcherService>();
+
         return services;
     }
 }

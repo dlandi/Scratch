@@ -1,0 +1,67 @@
+<div class="panel">
+    <h5 class="panel-heading">Latest Dump Analysis</h5>
+    @if (Result is not null)
+    {
+        <div class="dump-analysis-header">
+            <MetricCard Title="Heap Size" Value="@FormatBytes(Result.TotalHeapBytes)" />
+            <MetricCard Title="Object Count" Value="@Result.TotalObjectCount.ToString("N0")" />
+            <MetricCard Title="File"
+                        Value="@Result.FileName"
+                        Subtitle="@Result.CapturedAtUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")" />
+        </div>
+
+        <div class="alloc-table-wrapper">
+            <table class="gen-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ var rank = 0; }
+                    @foreach (var type in Result.TopTypes.Take(20))
+                    {
+                        rank++;
+                        <tr>
+                            <td>@rank</td>
+                            <td class="type-name">@ShortenTypeName(type.TypeName)</td>
+                            <td>@FormatBytes(type.TotalSizeBytes)</td>
+                            <td>@type.InstanceCount.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">No dump analysis available. Capture a GC dump from the Diagnostics page.</div>
+    }
+</div>
+
+@code {
+    [Parameter] public DumpAnalysisResult? Result { get; set; }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+
+    private static string ShortenTypeName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        if (lastDot >= 0 && lastDot < typeName.Length - 1)
+        {
+            var prefix = typeName[..lastDot];
+            if (!prefix.Contains('<'))
+                return typeName[(lastDot + 1)..];
+        }
+        return typeName;
+    }
+}

@@ -1,0 +1,114 @@
+@inject DumpDiffService DiffService
+
+<div class="panel">
+    <h5 class="panel-heading">Dump History</h5>
+    @if (History is not null && History.Count > 0)
+    {
+        <div class="dump-history-list">
+            <table class="gen-table">
+                <thead>
+                    <tr>
+                        <th>Select</th>
+                        <th>File</th>
+                        <th>Captured</th>
+                        <th>Heap</th>
+                        <th>Objects</th>
+                        <th>File Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in History)
+                    {
+                        var isBaseline = item == _selectedBaseline;
+                        var isCurrent = item == _selectedCurrent;
+                        var isSelected = isBaseline || isCurrent;
+                        <tr class="@(isSelected ? "dump-selected" : "")"
+                            @onclick="() => HandleSelect(item)">
+                            <td>
+                                @if (isBaseline)
+                                {
+                                    <span class="dump-tag dump-tag-baseline">BASE</span>
+                                }
+                                else if (isCurrent)
+                                {
+                                    <span class="dump-tag dump-tag-current">CUR</span>
+                                }
+                            </td>
+                            <td class="type-name">@item.FileName</td>
+                            <td>@item.CapturedAtUtc.ToLocalTime().ToString("MM-dd HH:mm:ss")</td>
+                            <td>@FormatBytes(item.TotalHeapBytes)</td>
+                            <td>@item.TotalObjectCount.ToString("N0")</td>
+                            <td>@FormatBytes(item.FileSizeBytes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (_selectedBaseline is not null && _selectedCurrent is not null)
+        {
+            <div class="dump-compare-action">
+                <button class="btn btn-info" @onclick="HandleCompare">
+                    Compare Selected
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="dump-compare-hint">
+                Click two dumps to select baseline and current for comparison.
+            </div>
+        }
+    }
+    else
+    {
+        <div class="panel-loading">No analyzed dumps yet.</div>
+    }
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<DumpAnalysisResult>? History { get; set; }
+    [Parameter] public EventCallback<DumpDiffResult> OnCompare { get; set; }
+
+    private DumpAnalysisResult? _selectedBaseline;
+    private DumpAnalysisResult? _selectedCurrent;
+
+    private void HandleSelect(DumpAnalysisResult item)
+    {
+        if (_selectedBaseline is null)
+        {
+            _selectedBaseline = item;
+        }
+        else if (_selectedCurrent is null && item != _selectedBaseline)
+        {
+            _selectedCurrent = item;
+        }
+        else
+        {
+            // Reset: start new selection
+            _selectedBaseline = item;
+            _selectedCurrent = null;
+        }
+    }
+
+    private async Task HandleCompare()
+    {
+        if (_selectedBaseline is null || _selectedCurrent is null) return;
+
+        // Ensure baseline is the older dump
+        var (baseline, current) = _selectedBaseline.CapturedAtUtc <= _selectedCurrent.CapturedAtUtc
+            ? (_selectedBaseline, _selectedCurrent)
+            : (_selectedCurrent, _selectedBaseline);
+
+        var diff = DiffService.ComputeDiff(baseline, current);
+        await OnCompare.InvokeAsync(diff);
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

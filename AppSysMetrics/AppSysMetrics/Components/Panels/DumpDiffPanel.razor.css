@@ -1,0 +1,19 @@
+.diff-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.diff-summary > :deep(*) {
+    flex: 1;
+    min-width: 120px;
+}
+
+.diff-growth {
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.diff-shrink {
+    background: rgba(34, 197, 94, 0.05);
+}
