@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/Docs/">
+    <File Path="Docs/AppSysMem-Glossary.md" />
+    <File Path="Docs/AppSysMetrics_ImplementationPlan.md" />
     <File Path="Docs/AppSysMetrics_SoftwareSpecification.md" />
   </Folder>
   <Project Path="AppSysMetrics/AppSysMetrics.csproj" />
