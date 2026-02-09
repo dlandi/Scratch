@@ -45,8 +45,29 @@
         </div>
 
         <div class="diag-action-group">
-            <button class="btn btn-info" @onclick="HandleCaptureGcDump" disabled="@_isCapturing">
-                @(_isCapturing ? "Capturing..." : "Capture GC Dump")
+            <button class="btn btn-info" @onclick="HandleCaptureHeapSnapshot" disabled="@_isCapturing">
+                @(_isCapturing ? "Capturing..." : "Capture Heap Snapshot")
+            </button>
+            @if (_heapSnapshotResult is not null)
+            {
+                @if (_heapSnapshotResult.Success)
+                {
+                    <div class="dump-result dump-success">
+                        Heap snapshot captured at @_heapSnapshotResult.CapturedAt.ToLocalTime().ToString("HH:mm:ss")
+                    </div>
+                }
+                else
+                {
+                    <div class="dump-result dump-error">
+                        Failed: @_heapSnapshotResult.ErrorMessage
+                    </div>
+                }
+            }
+        </div>
+
+        <div class="diag-action-group">
+            <button class="btn btn-info" @onclick="HandleCaptureGcDump" disabled="@_isDumping">
+                @(_isDumping ? "Capturing..." : "Capture GC Dump")
             </button>
             <div class="dump-hint-prereq">Requires: <code>dotnet tool install -g dotnet-gcdump</code></div>
             @if (_gcDumpResult is not null)
@@ -72,9 +93,11 @@
 
 @code {
     private ForceGcResult? _forceGcResult;
+    private GcDumpResult? _heapSnapshotResult;
     private GcDumpResult? _gcDumpResult;
     private bool _isForcing;
     private bool _isCapturing;
+    private bool _isDumping;
 
     private void HandleForceGc()
     {
@@ -91,16 +114,29 @@
         }
     }
 
-    private async Task HandleCaptureGcDump()
+    private async Task HandleCaptureHeapSnapshot()
     {
         _isCapturing = true;
         try
         {
-            _gcDumpResult = await DiagnosticsService.CaptureGcDumpAsync();
+            _heapSnapshotResult = await DiagnosticsService.CaptureGcDumpAsync();
         }
         finally
         {
             _isCapturing = false;
+        }
+    }
+
+    private async Task HandleCaptureGcDump()
+    {
+        _isDumping = true;
+        try
+        {
+            _gcDumpResult = await DiagnosticsService.CaptureGcDumpFileAsync();
+        }
+        finally
+        {
+            _isDumping = false;
         }
     }
 

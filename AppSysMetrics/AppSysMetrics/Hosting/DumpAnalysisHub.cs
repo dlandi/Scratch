@@ -17,6 +17,7 @@ public sealed class DumpAnalysisHub
 
     public event Action<DumpAnalysisResult>? OnAnalysis;
     public event Action<DumpDiffResult>? OnDiff;
+    public event Action? OnCleared;
 
     public DumpAnalysisResult? Latest { get; private set; }
     public DumpDiffResult? LatestDiff { get; private set; }
@@ -45,5 +46,16 @@ public sealed class DumpAnalysisHub
     {
         LatestDiff = diff;
         OnDiff?.Invoke(diff);
+    }
+
+    public void Clear()
+    {
+        lock (_lock)
+        {
+            _history.Clear();
+            Latest = null;
+            LatestDiff = null;
+        }
+        OnCleared?.Invoke();
     }
 }

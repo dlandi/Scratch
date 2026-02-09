@@ -16,8 +16,13 @@
                     <tr>
                         <th>#</th>
                         <th>Type</th>
-                        <th>Size</th>
-                        <th>Count</th>
+                        <th>Retained</th>
+                        <th>Instances</th>
+                        @if (_allocMap is not null)
+                        {
+                            <th>Allocated</th>
+                            <th>Alloc Count</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
@@ -25,16 +30,38 @@
                     @foreach (var type in Result.TopTypes.Take(20))
                     {
                         rank++;
+                        AllocationTypeInfo? allocInfo = null;
+                        _allocMap?.TryGetValue(type.TypeName, out allocInfo);
                         <tr>
                             <td>@rank</td>
                             <td class="type-name">@ShortenTypeName(type.TypeName)</td>
                             <td>@FormatBytes(type.TotalSizeBytes)</td>
                             <td>@type.InstanceCount.ToString("N0")</td>
+                            @if (_allocMap is not null)
+                            {
+                                <td>@(allocInfo is not null ? FormatBytes(allocInfo.TotalBytes) : "—")</td>
+                                <td>@(allocInfo is not null ? allocInfo.AllocationCount.ToString("N0") : "—")</td>
+                            }
                         </tr>
                     }
                 </tbody>
             </table>
         </div>
+
+        @if (Result.UnresolvedTypeCount > 0)
+        {
+            <div class="panel-note metric-warning-text">
+                ⚠ @Result.UnresolvedTypeCount type name@(Result.UnresolvedTypeCount == 1 ? "" : "s")
+                could not be resolved (UNKNOWN). The dump may be incomplete — try capturing again
+                after a few seconds.
+            </div>
+        }
+        else if (_allocMap is null && Result.AllocationAtCapture is null)
+        {
+            <div class="panel-note">
+                Capture a new GC dump to see allocation correlation data.
+            </div>
+        }
     }
     else
     {
@@ -44,6 +71,21 @@
 
 @code {
     [Parameter] public DumpAnalysisResult? Result { get; set; }
+
+    private Dictionary<string, AllocationTypeInfo>? _allocMap;
+
+    protected override void OnParametersSet()
+    {
+        if (Result?.AllocationAtCapture is not null)
+        {
+            _allocMap = Result.AllocationAtCapture.TopAllocatingTypes
+                .ToDictionary(a => a.TypeName, a => a);
+        }
+        else
+        {
+            _allocMap = null;
+        }
+    }
 
     private static string FormatBytes(long bytes)
     {

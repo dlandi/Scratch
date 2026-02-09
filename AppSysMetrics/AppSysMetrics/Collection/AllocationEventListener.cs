@@ -10,10 +10,16 @@ public sealed class AllocationEventListener : EventListener
     private const string DotNetRuntimeProviderName = "Microsoft-Windows-DotNETRuntime";
     private const long GCKeyword = 0x1;
 
+    private const string LibraryNamespacePrefix = "AppSysMetrics.";
+
     private readonly ConcurrentDictionary<string, AllocationAggregation> _aggregations = new();
     private readonly ConcurrentQueue<LargeObjectRecord> _recentLargeObjects = new();
     private readonly int _maxLargeObjectRecords;
     private readonly int _topNTypes;
+
+    // Library-specific counters for App vs Library UI split
+    private long _libraryTotalBytes;
+    private int _libraryTotalCount;
 
     public AllocationEventListener(int topNTypes = 20, int maxLargeObjectRecords = 50)
     {
@@ -74,6 +80,12 @@ public sealed class AllocationEventListener : EventListener
                 return existing;
             });
 
+        if (typeName.StartsWith(LibraryNamespacePrefix, StringComparison.Ordinal))
+        {
+            Interlocked.Add(ref _libraryTotalBytes, allocationAmount);
+            Interlocked.Increment(ref _libraryTotalCount);
+        }
+
         if (isLarge)
         {
             _recentLargeObjects.Enqueue(new LargeObjectRecord(
@@ -109,8 +121,17 @@ public sealed class AllocationEventListener : EventListener
             })
             .ToList();
 
-        var totalBytes = _aggregations.Values.Sum(a => Interlocked.Read(ref a.TotalBytes));
-        var totalCount = _aggregations.Values.Sum(a => a.Count);
+        // Single-pass totals (avoids two separate .Sum() iterations)
+        long totalBytes = 0;
+        int totalCount = 0;
+        foreach (var agg in _aggregations.Values)
+        {
+            totalBytes += Interlocked.Read(ref agg.TotalBytes);
+            totalCount += agg.Count;
+        }
+
+        var libBytes = Interlocked.Read(ref _libraryTotalBytes);
+        var libCount = _libraryTotalCount;
 
         return new AllocationSnapshot
         {
@@ -118,7 +139,11 @@ public sealed class AllocationEventListener : EventListener
             TopAllocatingTypes = topTypes,
             RecentLargeObjectAllocations = largeObjects,
             TotalTrackedBytes = totalBytes,
-            TotalTrackedCount = totalCount
+            TotalTrackedCount = totalCount,
+            AppTrackedBytes = totalBytes - libBytes,
+            AppTrackedCount = totalCount - libCount,
+            LibraryTrackedBytes = libBytes,
+            LibraryTrackedCount = libCount
         };
     }
 
@@ -126,6 +151,8 @@ public sealed class AllocationEventListener : EventListener
     {
         _aggregations.Clear();
         while (_recentLargeObjects.TryDequeue(out _)) { }
+        Interlocked.Exchange(ref _libraryTotalBytes, 0);
+        Interlocked.Exchange(ref _libraryTotalCount, 0);
     }
 
     private sealed class AllocationAggregation

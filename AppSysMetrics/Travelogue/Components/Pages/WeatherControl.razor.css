@@ -16,6 +16,19 @@
     margin-bottom: 1.25rem;
 }
 
+.button-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.trim-message {
+    color: #fbbf24;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
 .control-label {
     display: block;
     color: #e2e8f0;

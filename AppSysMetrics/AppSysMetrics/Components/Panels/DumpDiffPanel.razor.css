@@ -17,3 +17,101 @@
 .diff-shrink {
     background: rgba(34, 197, 94, 0.05);
 }
+
+/* ─── Correlation Narrative Banner ─── */
+
+.correlation-narrative {
+    margin: 0.75rem 0;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    border-left: 3px solid #334155;
+    background: rgba(30, 41, 59, 0.5);
+}
+
+.correlation-narrative.narrative-ok {
+    border-left-color: #22c55e;
+    background: rgba(34, 197, 94, 0.06);
+}
+
+.correlation-narrative.narrative-warning {
+    border-left-color: #eab308;
+    background: rgba(234, 179, 8, 0.06);
+}
+
+.correlation-narrative.narrative-danger {
+    border-left-color: #ef4444;
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.narrative-text {
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    line-height: 1.4;
+}
+
+.narrative-detail {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* ─── Leak Suspects Call-out ─── */
+
+.leak-suspects {
+    margin: 0.5rem 0 0.75rem 0;
+    padding: 0.5rem 0.75rem;
+    background: rgba(239, 68, 68, 0.04);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+}
+
+.leak-suspects-heading {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #ef4444;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.leak-suspects-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    font-size: 0.6rem;
+    font-weight: 700;
+    min-width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    padding: 0 0.3rem;
+}
+
+.leak-suspect-item {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.2rem 0;
+    font-size: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.leak-suspect-item :deep(.type-name) {
+    flex-shrink: 0;
+    max-width: 200px;
+}
+
+.suspect-detail {
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.suspect-arrow {
+    color: #64748b;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}

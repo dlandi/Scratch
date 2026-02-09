@@ -1,0 +1,229 @@
+<div class="panel memory-health-panel">
+    <h5 class="panel-heading">Memory Health</h5>
+    @if (Snapshot is not null)
+    {
+        <div class="health-row">
+            @* ── Primary indicators (larger) ── *@
+            <div class="health-primary @GetAllocationRateClass()">
+                <div class="health-label">Allocation Rate</div>
+                <div class="health-value">@FormatRate(Snapshot.Gc.AllocationRateBytesPerSecond)</div>
+                <div class="health-status">@GetAllocationRateStatus()</div>
+            </div>
+
+            <div class="health-primary @GetHeapSizeClass()">
+                <div class="health-label">GC Heap Size</div>
+                <div class="health-value">@FormatBytes(Snapshot.Gc.HeapSizeBytes)</div>
+                <div class="health-status">@GetHeapSizeStatus()</div>
+            </div>
+
+            <div class="health-primary @GetGen2Class()">
+                <div class="health-label">Gen 2 Collections</div>
+                <div class="health-value">@Snapshot.Gc.Gen2Collections</div>
+                <div class="health-status">@GetGen2Status()</div>
+            </div>
+
+            <div class="health-divider"></div>
+
+            @* ── Secondary context (compact) ── *@
+            <div class="health-secondary @GetMemoryLoadClass()">
+                <div class="health-label">Mem Load</div>
+                <div class="health-value">@($"{Snapshot.Gc.MemoryLoadPercent:F0}%")</div>
+            </div>
+
+            <div class="health-secondary @GetPauseTimeClass()">
+                <div class="health-label">GC Pause</div>
+                <div class="health-value">@($"{Snapshot.Gc.PauseTimePercentage:F2}%")</div>
+            </div>
+
+            <div class="health-secondary">
+                <div class="health-label">Fragmented</div>
+                <div class="health-value">@FormatBytes(Snapshot.Gc.FragmentedBytes)</div>
+                <div class="health-sub">@GetFragmentationPercent()</div>
+            </div>
+
+            <div class="health-secondary @(Snapshot.Gc.FinalizationPendingCount > 100 ? "health-warning" : "")">
+                <div class="health-label">Finalizers</div>
+                <div class="health-value">@Snapshot.Gc.FinalizationPendingCount.ToString("N0")</div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="panel-loading">Waiting for metrics...</div>
+    }
+</div>
+
+@code {
+    [Parameter] public MetricsSnapshot? Snapshot { get; set; }
+    [Parameter] public IReadOnlyList<MetricsSnapshot>? History { get; set; }
+
+    // ── Trailing-window size: 5 samples (~10 s at 2 s interval). ──
+    // We compare the most recent window to the window just before it.
+    // This avoids startup-burst skew that poisoned the old half-buffer split.
+    private const int Window = 5;
+
+    // --- Allocation Rate assessment ---
+    private string GetAllocationRateClass()
+    {
+        if (Snapshot is null) return "";
+        var (recent, earlier) = GetRateAverages();
+        if (recent < 0) return "health-ok"; // still collecting
+        if (recent < 512 && earlier < 512) return "health-ok"; // idle
+        if (earlier < 512) return "health-ok"; // baseline near zero
+        var ratio = recent / earlier;
+        if (ratio > 2.0) return "health-danger";
+        if (ratio > 1.5) return "health-warning";
+        return "health-ok";
+    }
+
+    private string GetAllocationRateStatus()
+    {
+        if (Snapshot is null) return "";
+        var (recent, earlier) = GetRateAverages();
+        if (recent < 0) return "Collecting baseline...";
+        // Both windows near zero — rate is idle, not "decreasing".
+        if (recent < 512 && earlier < 512) return "Idle";
+        // Earlier near zero but recent isn't — ramping up from idle.
+        if (earlier < 512) return "Ramping up";
+        var ratio = recent / earlier;
+        if (ratio > 2.0) return "Accelerating rapidly";
+        if (ratio > 1.5) return "Increasing";
+        if (ratio > 0.8) return "Stable";
+        if (ratio > 0.5) return "Easing";
+        return "Settling";
+    }
+
+    private (double recent, double earlier) GetRateAverages()
+    {
+        if (History is null || History.Count < Window * 2)
+            return (-1, -1);
+
+        var count = History.Count;
+        var recent = 0.0;
+        for (var i = count - Window; i < count; i++)
+            recent += History[i].Gc.AllocationRateBytesPerSecond;
+        recent /= Window;
+
+        var earlier = 0.0;
+        for (var i = count - Window * 2; i < count - Window; i++)
+            earlier += History[i].Gc.AllocationRateBytesPerSecond;
+        earlier /= Window;
+
+        return (recent, earlier);
+    }
+
+    // --- GC Heap Size assessment ---
+    private string GetHeapSizeClass()
+    {
+        if (History is null || History.Count < Window * 2) return "health-ok";
+        var (recentAvg, earlierAvg) = GetHeapAverages();
+        if (recentAvg < 0) return "health-ok";
+        if (earlierAvg <= 0) return "health-ok";
+        var ratio = recentAvg / earlierAvg;
+        if (ratio > 1.5) return "health-danger";
+        if (ratio > 1.2) return "health-warning";
+        return "health-ok";
+    }
+
+    private string GetHeapSizeStatus()
+    {
+        if (History is null || History.Count < Window * 2) return "Collecting baseline...";
+        var (recentAvg, earlierAvg) = GetHeapAverages();
+        if (recentAvg < 0) return "Collecting baseline...";
+        if (earlierAvg <= 0) return "Collecting baseline...";
+        var ratio = recentAvg / earlierAvg;
+        if (ratio > 1.5) return "Trending up sharply";
+        if (ratio > 1.2) return "Trending up";
+        if (ratio > 0.8) return "Stable band";
+        return "Shrinking";
+    }
+
+    private (double recent, double earlier) GetHeapAverages()
+    {
+        if (History is null || History.Count < Window * 2)
+            return (-1, -1);
+
+        var count = History.Count;
+        var recent = 0.0;
+        for (var i = count - Window; i < count; i++)
+            recent += History[i].Gc.HeapSizeBytes;
+        recent /= Window;
+
+        var earlier = 0.0;
+        for (var i = count - Window * 2; i < count - Window; i++)
+            earlier += History[i].Gc.HeapSizeBytes;
+        earlier /= Window;
+
+        return (recent, earlier);
+    }
+
+    // --- Gen 2 Collections assessment ---
+    // Monitors rate of Gen 2 collections over the history window.
+    private string GetGen2Class()
+    {
+        if (History is null || History.Count < 4) return "health-ok";
+        var first = History[0].Gc.Gen2Collections;
+        var last = History[^1].Gc.Gen2Collections;
+        var delta = last - first;
+        var samples = History.Count;
+        // More than 1 Gen 2 collection per 10 samples (~20 seconds) is concerning.
+        var rate = (double)delta / samples;
+        if (rate > 0.2) return "health-danger";   // ~1 per 5 samples (10s)
+        if (rate > 0.1) return "health-warning";   // ~1 per 10 samples (20s)
+        return "health-ok";
+    }
+
+    private string GetGen2Status()
+    {
+        if (History is null || History.Count < 4) return "Collecting baseline...";
+        var first = History[0].Gc.Gen2Collections;
+        var last = History[^1].Gc.Gen2Collections;
+        var delta = last - first;
+        if (delta == 0) return "None in window";
+        var samples = History.Count;
+        var rate = (double)delta / samples;
+        if (rate > 0.2) return $"+{delta} (frequent)";
+        if (rate > 0.1) return $"+{delta} (moderate)";
+        return $"+{delta} (infrequent)";
+    }
+
+    // --- Context helpers ---
+    private string GetMemoryLoadClass()
+    {
+        if (Snapshot is null) return "";
+        if (Snapshot.Gc.MemoryLoadPercent > 85) return "health-danger";
+        if (Snapshot.Gc.MemoryLoadPercent > 65) return "health-warning";
+        return "";
+    }
+
+    private string GetPauseTimeClass()
+    {
+        if (Snapshot is null) return "";
+        if (Snapshot.Gc.PauseTimePercentage > 5.0) return "health-danger";
+        if (Snapshot.Gc.PauseTimePercentage > 2.0) return "health-warning";
+        return "";
+    }
+
+    private string GetFragmentationPercent()
+    {
+        if (Snapshot is null || Snapshot.Gc.HeapSizeBytes == 0) return "";
+        var pct = (double)Snapshot.Gc.FragmentedBytes / Snapshot.Gc.HeapSizeBytes * 100.0;
+        return $"{pct:F1}% of heap";
+    }
+
+    private static string FormatRate(double bytesPerSecond)
+    {
+        if (bytesPerSecond >= 1_073_741_824) return $"{bytesPerSecond / 1_073_741_824.0:F1} GB/s";
+        if (bytesPerSecond >= 1_048_576) return $"{bytesPerSecond / 1_048_576.0:F1} MB/s";
+        if (bytesPerSecond >= 1_024) return $"{bytesPerSecond / 1_024.0:F1} KB/s";
+        return $"{bytesPerSecond:F0} B/s";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

@@ -2,21 +2,10 @@
 
 <div class="panel">
     <h5 class="panel-heading">Process Memory</h5>
-    @if (Snapshot is not null)
+    @if (_barItems is not null && Snapshot is not null)
     {
-        var ws = Snapshot.Process.WorkingSet64 / (1024.0 * 1024.0);
-        var priv = Snapshot.Process.PrivateMemorySize64 / (1024.0 * 1024.0);
-        var heap = Snapshot.Gc.HeapSizeBytes / (1024.0 * 1024.0);
-        var frag = Snapshot.Gc.FragmentedBytes / (1024.0 * 1024.0);
-
         <BarChart Title="Memory Breakdown" Unit="MB"
-                  Items="@(new List<BarChartItem>
-                  {
-                      new("Working Set", ws, "#3b82f6"),
-                      new("Private", priv, "#8b5cf6"),
-                      new("GC Heap", heap, "#06b6d4"),
-                      new("Fragmented", frag, "#f97316")
-                  })" />
+                  Items="_barItems" />
 
         <div class="metric-row">
             <MetricCard Title="Threads" Value="@Snapshot.Process.ThreadCount.ToString()" />
@@ -32,4 +21,29 @@
 
 @code {
     [Parameter] public MetricsSnapshot? Snapshot { get; set; }
+
+    private List<BarChartItem>? _barItems;
+
+    protected override void OnParametersSet()
+    {
+        if (Snapshot is not null)
+        {
+            var ws = Snapshot.Process.WorkingSet64 / (1024.0 * 1024.0);
+            var priv = Snapshot.Process.PrivateMemorySize64 / (1024.0 * 1024.0);
+            var heap = Snapshot.Gc.HeapSizeBytes / (1024.0 * 1024.0);
+            var frag = Snapshot.Gc.FragmentedBytes / (1024.0 * 1024.0);
+
+            _barItems =
+            [
+                new("Working Set", ws, "#3b82f6"),
+                new("Private", priv, "#8b5cf6"),
+                new("GC Heap", heap, "#06b6d4"),
+                new("Fragmented", frag, "#f97316")
+            ];
+        }
+        else
+        {
+            _barItems = null;
+        }
+    }
 }

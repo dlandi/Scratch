@@ -5,24 +5,24 @@ namespace AppSysMetrics.Collection;
 
 public sealed class MetricsCollector : IMetricsCollector
 {
+    private readonly Process _process = Process.GetCurrentProcess();
     private readonly CpuSampler _cpuSampler = new();
     private readonly AllocationRateTracker _allocationTracker = new();
 
     public MetricsSnapshot Collect()
     {
-        var process = Process.GetCurrentProcess();
-        process.Refresh();
+        _process.Refresh();
 
         var gcInfo = GC.GetGCMemoryInfo();
 
         var processMetrics = new ProcessMetrics
         {
-            WorkingSet64 = process.WorkingSet64,
-            PrivateMemorySize64 = process.PrivateMemorySize64,
-            VirtualMemorySize64 = process.VirtualMemorySize64,
-            PagedMemorySize64 = process.PagedMemorySize64,
-            ThreadCount = process.Threads.Count,
-            HandleCount = process.HandleCount
+            WorkingSet64 = _process.WorkingSet64,
+            PrivateMemorySize64 = _process.PrivateMemorySize64,
+            VirtualMemorySize64 = _process.VirtualMemorySize64,
+            PagedMemorySize64 = _process.PagedMemorySize64,
+            ThreadCount = _process.Threads.Count,
+            HandleCount = _process.HandleCount
         };
 
         var cpuMetrics = _cpuSampler.Sample();

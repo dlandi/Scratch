@@ -1,1 +1,8 @@
-/* TopAllocationsPanel — no panel-specific layout beyond shared classes */
+.alloc-note {
+    color: #64748b;
+    font-size: 0.7rem;
+    font-style: italic;
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+    padding: 0 0.25rem;
+}

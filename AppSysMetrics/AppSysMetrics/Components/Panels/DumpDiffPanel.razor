@@ -2,6 +2,7 @@
     <h5 class="panel-heading">Memory Diff Analysis</h5>
     @if (Diff is not null)
     {
+        @* ── Zone 1: Summary MetricCards ── *@
         <div class="diff-summary">
             <MetricCard Title="Heap Delta"
                         Value="@FormatSignedBytes(Diff.TotalHeapDelta)"
@@ -12,8 +13,84 @@
             <MetricCard Title="Time Span"
                         Value="@FormatTimeSpan(Diff.TimeBetweenDumps)"
                         Subtitle="@($"{Diff.Baseline.FileName} → {Diff.Current.FileName}")" />
+            @if (Diff.HasAllocationCorrelation)
+            {
+                <MetricCard Title="Throughput"
+                            Value="@FormatBytes(Diff.TotalAllocatedBetween ?? 0)"
+                            Subtitle="allocated between dumps" />
+                <MetricCard Title="Collected"
+                            Value="@FormatBytes(Diff.TotalCollectedBetween ?? 0)"
+                            Subtitle="@GetCollectionEfficiencySubtitle()"
+                            CssClass="@GetCollectedCardClass()" />
+            }
         </div>
 
+        @* ── Zone 2: Correlation Narrative Banner ── *@
+        @if (Diff.HasAllocationCorrelation)
+        {
+            <div class="correlation-narrative @GetOverallHealthClass()">
+                @if (Diff.TotalAllocatedBetween is > 0)
+                {
+                    <div class="narrative-text">
+                        @FormatBytes(Diff.TotalAllocatedBetween.Value) allocated between dumps,
+                        @FormatBytes(Diff.TotalCollectedBetween ?? 0) collected
+                        (@(_collectionEfficiency.ToString("P0")) efficiency),
+                        @FormatSignedBytes(Diff.TotalHeapDelta) net heap growth
+                    </div>
+                    <div class="narrative-detail">
+                        @if (_leakSuspects.Count > 0)
+                        {
+                            <span class="@(_leakSuspects.Count >= 3 ? "metric-danger-text" : "metric-warning-text")">
+                                @_leakSuspects.Count type@(_leakSuspects.Count == 1 ? "" : "s")
+                                with ≥80% retention detected
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="metric-ok-text">
+                                No high-retention types detected — healthy allocation churn
+                            </span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="narrative-text">
+                        No allocation throughput detected between dumps — correlation data unavailable
+                    </div>
+                }
+            </div>
+        }
+
+        @* ── Zone 3: Leak Suspects Call-out ── *@
+        @if (Diff.HasAllocationCorrelation && _leakSuspects.Count > 0)
+        {
+            <div class="leak-suspects">
+                <div class="leak-suspects-heading">
+                    Leak Suspects
+                    <span class="leak-suspects-count">@_leakSuspects.Count</span>
+                </div>
+                @foreach (var suspect in _leakSuspects)
+                {
+                    var allocated = suspect.AllocatedBetweenBytes ?? 0;
+                    var retained = Math.Max(0, suspect.DeltaSizeBytes);
+                    var collected = Math.Max(0, allocated - retained);
+                    <div class="leak-suspect-item">
+                        <span class="type-name">@ShortenTypeName(suspect.TypeName)</span>
+                        <span class="suspect-detail">
+                            allocated @FormatBytes(allocated)
+                        </span>
+                        <span class="suspect-arrow">→</span>
+                        <span class="suspect-detail metric-danger-text">
+                            retained @FormatBytes(retained), collected @FormatBytes(collected)
+                            — @FormatRetention(suspect.RetentionRatio) retention
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+
+        @* ── Zone 4: Full Type Diff Table ── *@
         <div class="alloc-table-wrapper">
             <table class="gen-table">
                 <thead>
@@ -22,12 +99,20 @@
                         <th>Baseline</th>
                         <th>Current</th>
                         <th>Delta Size</th>
-                        <th>Delta Count</th>
-                        <th>Growth</th>
+                        @if (Diff.HasAllocationCorrelation)
+                        {
+                            <th>Throughput</th>
+                            <th>Retention</th>
+                        }
+                        else
+                        {
+                            <th>Delta Count</th>
+                            <th>Growth</th>
+                        }
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var td in Diff.TypeDiffs.Take(25))
+                    @foreach (var td in _sortedTypeDiffs.Take(25))
                     {
                         var growthClass = GetGrowthClass(td.DeltaSizeBytes);
                         <tr class="@growthClass">
@@ -37,12 +122,31 @@
                             <td class="@GetDeltaTextClass(td.DeltaSizeBytes)">
                                 @FormatSignedBytes(td.DeltaSizeBytes)
                             </td>
-                            <td class="@GetDeltaTextClass(td.DeltaCount)">
-                                @FormatSigned(td.DeltaCount)
-                            </td>
-                            <td class="@GetGrowthTextClass(td.GrowthPercent)">
-                                @FormatGrowthPercent(td.GrowthPercent)
-                            </td>
+                            @if (Diff.HasAllocationCorrelation)
+                            {
+                                <td>
+                                    @if (td.AllocatedBetweenBytes.HasValue)
+                                    {
+                                        @FormatBytes(td.AllocatedBetweenBytes.Value)
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="@GetRetentionClass(td.RetentionRatio)">
+                                    @FormatRetention(td.RetentionRatio)
+                                </td>
+                            }
+                            else
+                            {
+                                <td class="@GetDeltaTextClass(td.DeltaCount)">
+                                    @FormatSigned(td.DeltaCount)
+                                </td>
+                                <td class="@GetGrowthTextClass(td.GrowthPercent)">
+                                    @FormatGrowthPercent(td.GrowthPercent)
+                                </td>
+                            }
                         </tr>
                     }
                 </tbody>
@@ -57,6 +161,74 @@
 
 @code {
     [Parameter] public DumpDiffResult? Diff { get; set; }
+
+    // ── Computed fields (cached in OnParametersSet) ──
+    private double _collectionEfficiency;
+    private List<HeapTypeDiff> _leakSuspects = [];
+    private IReadOnlyList<HeapTypeDiff> _sortedTypeDiffs = [];
+
+    protected override void OnParametersSet()
+    {
+        if (Diff is null)
+        {
+            _collectionEfficiency = 0;
+            _leakSuspects = [];
+            _sortedTypeDiffs = [];
+            return;
+        }
+
+        // Collection efficiency: what % of throughput was reclaimed by GC
+        _collectionEfficiency = Diff.TotalAllocatedBetween is > 0
+            ? (double)(Diff.TotalCollectedBetween ?? 0) / Diff.TotalAllocatedBetween.Value
+            : 0.0;
+
+        // Leak suspects: types with ≥80% retention and meaningful throughput
+        if (Diff.HasAllocationCorrelation)
+        {
+            _leakSuspects = Diff.TypeDiffs
+                .Where(t => t.RetentionRatio >= 0.8 && t.AllocatedBetweenBytes is > 0)
+                .OrderByDescending(t => t.RetentionRatio)
+                .ThenByDescending(t => t.DeltaSizeBytes)
+                .Take(5)
+                .ToList();
+
+            // Sort by retention descending (nulls last), then delta descending
+            _sortedTypeDiffs = Diff.TypeDiffs
+                .OrderByDescending(t => t.RetentionRatio ?? -1)
+                .ThenByDescending(t => t.DeltaSizeBytes)
+                .ToList();
+        }
+        else
+        {
+            _leakSuspects = [];
+            _sortedTypeDiffs = Diff.TypeDiffs;
+        }
+    }
+
+    // ── Narrative helpers ──
+
+    private string GetOverallHealthClass()
+    {
+        if (Diff is null || !Diff.HasAllocationCorrelation) return "";
+        if (_collectionEfficiency < 0.5 || _leakSuspects.Count >= 3) return "narrative-danger";
+        if (_collectionEfficiency < 0.8 || _leakSuspects.Count >= 1) return "narrative-warning";
+        return "narrative-ok";
+    }
+
+    private string GetCollectionEfficiencySubtitle()
+    {
+        if (Diff?.TotalAllocatedBetween is not > 0) return "reclaimed by GC";
+        return $"{_collectionEfficiency:P0} of throughput reclaimed";
+    }
+
+    private string GetCollectedCardClass()
+    {
+        if (_collectionEfficiency >= 0.8) return "metric-ok";
+        if (_collectionEfficiency >= 0.5) return "metric-warning";
+        return "metric-danger";
+    }
+
+    // ── Existing helpers (unchanged) ──
 
     private static string GetGrowthClass(long delta) => delta switch
     {
@@ -78,6 +250,20 @@
         _ when pct < -10 => "metric-ok-text",
         _ => ""
     };
+
+    private static string GetRetentionClass(double? ratio) => ratio switch
+    {
+        null => "",
+        >= 0.8 => "metric-danger-text",
+        >= 0.5 => "metric-warning-text",
+        _ => "metric-ok-text"
+    };
+
+    private static string FormatRetention(double? ratio)
+    {
+        if (ratio is null) return "\u2014";
+        return $"{ratio.Value:P0}";
+    }
 
     private static string FormatGrowthPercent(double pct)
     {

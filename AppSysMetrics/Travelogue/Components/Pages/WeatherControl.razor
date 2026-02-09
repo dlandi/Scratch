@@ -12,11 +12,19 @@
 </p>
 
 <div class="control-panel">
-    <div class="control-row">
+    <div class="control-row button-row">
         <button class="btn @(_stats.IsRunning ? "btn-danger" : "btn-success") btn-lg"
                 @onclick="ToggleGenerator">
             @(_stats.IsRunning ? "Stop Generator" : "Start Generator")
         </button>
+        <button class="btn btn-warning btn-lg" @onclick="TrimCollection"
+                disabled="@(_stats.TotalReadings <= 1)">
+            Trim Collection
+        </button>
+        @if (_trimMessage is not null)
+        {
+            <span class="trim-message">@_trimMessage</span>
+        }
     </div>
 
     <div class="control-row">
@@ -77,6 +85,7 @@
     private int _intervalMs = 100;
     private int _readingsPerTick = 5;
     private IReadOnlyList<WeatherReading> _latestReadings = [];
+    private string? _trimMessage;
 
     protected override void OnInitialized()
     {
@@ -96,6 +105,16 @@
             WeatherGenerator.Start();
 
         _stats = WeatherGenerator.GetStats();
+    }
+
+    private void TrimCollection()
+    {
+        var removed = WeatherGenerator.TrimToLatest();
+        _trimMessage = removed > 0
+            ? $"Removed {removed:N0} readings — kept 1"
+            : null;
+        _stats = WeatherGenerator.GetStats();
+        _latestReadings = WeatherGenerator.GetLatestReadings(10);
     }
 
     private void UpdateInterval()

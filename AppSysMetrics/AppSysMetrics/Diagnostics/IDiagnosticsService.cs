@@ -6,6 +6,7 @@ public interface IDiagnosticsService
 {
     ForceGcResult ForceGC();
     Task<GcDumpResult> CaptureGcDumpAsync(CancellationToken cancellationToken = default);
+    Task<GcDumpResult> CaptureGcDumpFileAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed record ForceGcResult

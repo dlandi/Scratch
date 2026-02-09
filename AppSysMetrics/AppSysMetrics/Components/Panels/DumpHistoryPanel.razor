@@ -17,19 +17,18 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var item in History)
+                    @foreach (var item in History.Reverse())
                     {
-                        var isBaseline = item == _selectedBaseline;
-                        var isCurrent = item == _selectedCurrent;
-                        var isSelected = isBaseline || isCurrent;
+                        var isSelected = item == _selectedFirst || item == _selectedSecond;
+                        var tag = GetTag(item);
                         <tr class="@(isSelected ? "dump-selected" : "")"
                             @onclick="() => HandleSelect(item)">
                             <td>
-                                @if (isBaseline)
+                                @if (tag == "BASE")
                                 {
                                     <span class="dump-tag dump-tag-baseline">BASE</span>
                                 }
-                                else if (isCurrent)
+                                else if (tag == "CUR")
                                 {
                                     <span class="dump-tag dump-tag-current">CUR</span>
                                 }
@@ -45,20 +44,29 @@
             </table>
         </div>
 
-        @if (_selectedBaseline is not null && _selectedCurrent is not null)
-        {
-            <div class="dump-compare-action">
+        <div class="dump-actions">
+            @if (_selectedFirst is not null && _selectedSecond is not null)
+            {
                 <button class="btn btn-info" @onclick="HandleCompare">
                     Compare Selected
                 </button>
-            </div>
-        }
-        else
-        {
-            <div class="dump-compare-hint">
-                Click two dumps to select baseline and current for comparison.
-            </div>
-        }
+            }
+            else
+            {
+                <span class="dump-compare-hint">
+                    Click two dumps to select baseline and current for comparison.
+                </span>
+            }
+
+            <button class="btn btn-danger" @onclick="HandleClearAll">
+                Clear All
+            </button>
+
+            @if (_clearMessage is not null)
+            {
+                <span class="dump-clear-message">@_clearMessage</span>
+            }
+        </div>
     }
     else
     {
@@ -69,39 +77,92 @@
 @code {
     [Parameter] public IReadOnlyList<DumpAnalysisResult>? History { get; set; }
     [Parameter] public EventCallback<DumpDiffResult> OnCompare { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
 
-    private DumpAnalysisResult? _selectedBaseline;
-    private DumpAnalysisResult? _selectedCurrent;
+    private DumpAnalysisResult? _selectedFirst;
+    private DumpAnalysisResult? _selectedSecond;
+    private string? _clearMessage;
 
     private void HandleSelect(DumpAnalysisResult item)
     {
-        if (_selectedBaseline is null)
+        if (_selectedFirst is null)
         {
-            _selectedBaseline = item;
+            _selectedFirst = item;
         }
-        else if (_selectedCurrent is null && item != _selectedBaseline)
+        else if (_selectedSecond is null && item != _selectedFirst)
         {
-            _selectedCurrent = item;
+            _selectedSecond = item;
         }
         else
         {
             // Reset: start new selection
-            _selectedBaseline = item;
-            _selectedCurrent = null;
+            _selectedFirst = item;
+            _selectedSecond = null;
         }
+    }
+
+    /// <summary>
+    /// Returns "BASE" for the older dump, "CUR" for the newer dump,
+    /// or null if the item is not selected. Tags are based on chronological
+    /// order (CapturedAtUtc), not click order.
+    /// </summary>
+    private string? GetTag(DumpAnalysisResult item)
+    {
+        if (_selectedFirst is null) return null;
+
+        // Only one selected — it's shown as BASE (waiting for second pick)
+        if (_selectedSecond is null)
+            return item == _selectedFirst ? "BASE" : null;
+
+        // Two selected — derive baseline/current from timestamps
+        var (baseline, current) = _selectedFirst.CapturedAtUtc <= _selectedSecond.CapturedAtUtc
+            ? (_selectedFirst, _selectedSecond)
+            : (_selectedSecond, _selectedFirst);
+
+        if (item == baseline) return "BASE";
+        if (item == current) return "CUR";
+        return null;
     }
 
     private async Task HandleCompare()
     {
-        if (_selectedBaseline is null || _selectedCurrent is null) return;
+        if (_selectedFirst is null || _selectedSecond is null) return;
 
         // Ensure baseline is the older dump
-        var (baseline, current) = _selectedBaseline.CapturedAtUtc <= _selectedCurrent.CapturedAtUtc
-            ? (_selectedBaseline, _selectedCurrent)
-            : (_selectedCurrent, _selectedBaseline);
+        var (baseline, current) = _selectedFirst.CapturedAtUtc <= _selectedSecond.CapturedAtUtc
+            ? (_selectedFirst, _selectedSecond)
+            : (_selectedSecond, _selectedFirst);
 
         var diff = DiffService.ComputeDiff(baseline, current);
         await OnCompare.InvokeAsync(diff);
+    }
+
+    private async Task HandleClearAll()
+    {
+        if (History is null || History.Count == 0) return;
+
+        var deleted = 0;
+        foreach (var item in History)
+        {
+            try
+            {
+                if (File.Exists(item.FilePath))
+                {
+                    File.Delete(item.FilePath);
+                    deleted++;
+                }
+            }
+            catch (IOException)
+            {
+                // File may be locked — skip it
+            }
+        }
+
+        _selectedFirst = null;
+        _selectedSecond = null;
+        _clearMessage = $"Deleted {deleted} dump file{(deleted == 1 ? "" : "s")} from disk.";
+
+        await OnClear.InvokeAsync();
     }
 
     private static string FormatBytes(long bytes)

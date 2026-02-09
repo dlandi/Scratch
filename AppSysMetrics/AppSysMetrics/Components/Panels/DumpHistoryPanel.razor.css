@@ -32,15 +32,22 @@
     border: 1px solid #3b82f6;
 }
 
-.dump-compare-action {
+.dump-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
     margin-top: 0.75rem;
-    text-align: center;
+    flex-wrap: wrap;
 }
 
 .dump-compare-hint {
     color: #64748b;
     font-size: 0.75rem;
-    margin-top: 0.5rem;
-    text-align: center;
+    font-style: italic;
+}
+
+.dump-clear-message {
+    color: #fbbf24;
+    font-size: 0.85rem;
     font-style: italic;
 }

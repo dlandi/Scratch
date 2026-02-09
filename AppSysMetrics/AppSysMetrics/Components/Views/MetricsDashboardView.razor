@@ -14,6 +14,9 @@
     </div>
 
     <div class="asm-grid">
+        <div class="asm-cell asm-cell-full">
+            <MemoryHealthPanel Snapshot="_latest" History="_history" />
+        </div>
         <div class="asm-cell">
             <ProcessMetricsPanel Snapshot="_latest" />
         </div>
@@ -39,11 +42,11 @@
     [Parameter] public RenderFragment? AdditionalContent { get; set; }
 
     private MetricsSnapshot? _latest;
-    private List<MetricsSnapshot> _history = [];
+    private IReadOnlyList<MetricsSnapshot> _history = [];
 
     protected override void OnInitialized()
     {
-        _history = MetricsHub.GetHistory().ToList();
+        _history = MetricsHub.GetHistory();
         _latest = MetricsHub.Latest;
         MetricsHub.OnSnapshot += HandleSnapshot;
     }
@@ -51,7 +54,7 @@
     private async void HandleSnapshot(MetricsSnapshot snapshot)
     {
         _latest = snapshot;
-        _history = MetricsHub.GetHistory().ToList();
+        _history = MetricsHub.GetHistory();
         try
         {
             await InvokeAsync(StateHasChanged);

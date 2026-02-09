@@ -5,21 +5,21 @@ namespace AppSysMetrics.Collection;
 
 public sealed class CpuSampler
 {
+    private readonly Process _process = Process.GetCurrentProcess();
     private long _previousTimestamp;
     private TimeSpan _previousCpuTime;
 
     public CpuSampler()
     {
-        var process = Process.GetCurrentProcess();
         _previousTimestamp = Stopwatch.GetTimestamp();
-        _previousCpuTime = process.TotalProcessorTime;
+        _previousCpuTime = _process.TotalProcessorTime;
     }
 
     public CpuMetrics Sample()
     {
         var currentTimestamp = Stopwatch.GetTimestamp();
-        var process = Process.GetCurrentProcess();
-        var currentCpuTime = process.TotalProcessorTime;
+        _process.Refresh();
+        var currentCpuTime = _process.TotalProcessorTime;
 
         var elapsedTime = Stopwatch.GetElapsedTime(_previousTimestamp, currentTimestamp);
         var cpuUsed = currentCpuTime - _previousCpuTime;

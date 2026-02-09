@@ -17,7 +17,13 @@
     </div>
 
     <div class="asm-grid">
-        <div class="asm-cell">
+        <div class="asm-cell-full">
+            <MemoryHealthPanel Snapshot="_latestMetrics" History="_metricsHistory" />
+        </div>
+        <div class="asm-cell-full">
+            <DiagnosticsPanel />
+        </div>
+        <div class="asm-cell-full">
             <TopAllocationsPanel Snapshot="_latestAllocation" />
         </div>
         <div class="asm-cell">
@@ -26,20 +32,19 @@
         <div class="asm-cell">
             <GcMetricsPanel Snapshot="_latestMetrics" />
         </div>
-        <div class="asm-cell">
-            <DiagnosticsPanel />
-        </div>
     </div>
 </div>
 
 @code {
     private AllocationSnapshot? _latestAllocation;
     private MetricsSnapshot? _latestMetrics;
+    private IReadOnlyList<MetricsSnapshot> _metricsHistory = [];
 
     protected override void OnInitialized()
     {
         _latestAllocation = AllocationHub.Latest;
         _latestMetrics = MetricsHub.Latest;
+        _metricsHistory = MetricsHub.GetHistory();
         AllocationHub.OnSnapshot += HandleAllocationSnapshot;
         MetricsHub.OnSnapshot += HandleMetricsSnapshot;
     }
@@ -57,6 +62,7 @@
     private async void HandleMetricsSnapshot(MetricsSnapshot snapshot)
     {
         _latestMetrics = snapshot;
+        _metricsHistory = MetricsHub.GetHistory();
         try
         {
             await InvokeAsync(StateHasChanged);

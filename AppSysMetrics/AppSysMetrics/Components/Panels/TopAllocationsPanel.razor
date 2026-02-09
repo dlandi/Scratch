@@ -3,9 +3,16 @@
     @if (Snapshot is not null && Snapshot.TopAllocatingTypes.Count > 0)
     {
         <div class="alloc-summary">
-            <MetricCard Title="Tracked Total"
-                        Value="@FormatBytes(Snapshot.TotalTrackedBytes)"
-                        Subtitle="@($"{Snapshot.TotalTrackedCount:N0} allocations")" />
+            <MetricCard Title="Lifetime Allocations"
+                        Value="@FormatBytes(Snapshot.AppTrackedBytes)"
+                        Subtitle="@($"{Snapshot.AppTrackedCount:N0} allocations")" />
+            <MetricCard Title="Library Overhead"
+                        Value="@FormatBytes(Snapshot.LibraryTrackedBytes)"
+                        Subtitle="@($"{Snapshot.LibraryTrackedCount:N0} allocations")" />
+        </div>
+        <div class="alloc-note">
+            Library overhead tracks AppSysMetrics.* types only.
+            Framework types allocated by library code are counted under App.
         </div>
 
         <div class="alloc-table-wrapper">

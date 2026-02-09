@@ -128,6 +128,25 @@ public sealed class WeatherGeneratorService : IHostedService, IWeatherGenerator,
         }
     }
 
+    public int TrimToLatest()
+    {
+        int removed;
+        lock (_lock)
+        {
+            if (_readings.Count <= 1)
+                return 0;
+
+            removed = _readings.Count - 1;
+            var latest = _readings[^1];
+            _readings.Clear();
+            _readings.Add(latest);
+        }
+
+        _logger.LogInformation("Trimmed {Removed} readings, kept 1", removed);
+        OnStatsUpdated?.Invoke(GetStats());
+        return removed;
+    }
+
     private async Task GenerateLoopAsync(CancellationToken ct)
     {
         try

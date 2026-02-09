@@ -1,5 +1,6 @@
 @implements IDisposable
 @inject DumpAnalysisHub AnalysisHub
+@inject MetricsHub MetricsHub
 
 <div class="asm-dashboard">
     <div class="asm-dashboard-header">
@@ -17,7 +18,10 @@
 
     <div class="asm-grid asm-grid-dump">
         <div class="asm-cell asm-cell-full">
-            <DumpHistoryPanel History="_history" OnCompare="HandleManualCompare" />
+            <MemoryHealthPanel Snapshot="_latestMetrics" History="_metricsHistory" />
+        </div>
+        <div class="asm-cell asm-cell-full">
+            <DumpHistoryPanel History="_history" OnCompare="HandleManualCompare" OnClear="HandleClear" />
         </div>
         <div class="asm-cell">
             <DumpAnalysisPanel Result="_latestAnalysis" />
@@ -32,14 +36,20 @@
     private DumpAnalysisResult? _latestAnalysis;
     private DumpDiffResult? _activeDiff;
     private List<DumpAnalysisResult> _history = [];
+    private MetricsSnapshot? _latestMetrics;
+    private IReadOnlyList<MetricsSnapshot> _metricsHistory = [];
 
     protected override void OnInitialized()
     {
         _latestAnalysis = AnalysisHub.Latest;
         _activeDiff = AnalysisHub.LatestDiff;
         _history = AnalysisHub.GetHistory().ToList();
+        _latestMetrics = MetricsHub.Latest;
+        _metricsHistory = MetricsHub.GetHistory();
         AnalysisHub.OnAnalysis += HandleAnalysis;
         AnalysisHub.OnDiff += HandleDiff;
+        AnalysisHub.OnCleared += HandleCleared;
+        MetricsHub.OnSnapshot += HandleMetricsSnapshot;
     }
 
     private async void HandleAnalysis(DumpAnalysisResult result)
@@ -69,9 +79,42 @@
         StateHasChanged();
     }
 
+    private void HandleClear()
+    {
+        AnalysisHub.Clear();
+        _latestAnalysis = null;
+        _activeDiff = null;
+        _history = [];
+    }
+
+    private async void HandleCleared()
+    {
+        _latestAnalysis = null;
+        _activeDiff = null;
+        _history = [];
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async void HandleMetricsSnapshot(MetricsSnapshot snapshot)
+    {
+        _latestMetrics = snapshot;
+        _metricsHistory = MetricsHub.GetHistory();
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
     public void Dispose()
     {
         AnalysisHub.OnAnalysis -= HandleAnalysis;
         AnalysisHub.OnDiff -= HandleDiff;
+        AnalysisHub.OnCleared -= HandleCleared;
+        MetricsHub.OnSnapshot -= HandleMetricsSnapshot;
     }
 }

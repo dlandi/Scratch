@@ -26,16 +26,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<AllocationTrackingHub>();
         services.AddHostedService<AllocationTrackingService>();
 
-        // Tier 2: Diagnostics (Force GC, GC Dump)
+        // Tier 2: Heap analysis infrastructure (ClrMD, diff, hub)
         services.Configure<DiagnosticsOptions>(_ => { });
-        services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
-
-        // Tier 3: Dump Analysis (file watching, report parsing, diff analysis)
         services.Configure<DumpAnalyzerOptions>(_ => { });
-        services.AddSingleton<DumpAnalyzerService>();
+        services.AddSingleton<ClrMdHeapAnalyzer>();
         services.AddSingleton<DumpDiffService>();
         services.AddSingleton<DumpAnalysisHub>();
-        services.AddHostedService<DumpWatcherService>();
+
+        // Tier 3: Diagnostics (Force GC, Heap Snapshot via ClrMD → enrichment → hub)
+        services.AddSingleton<IDiagnosticsService, DiagnosticsService>();
 
         return services;
     }

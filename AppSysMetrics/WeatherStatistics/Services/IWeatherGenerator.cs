@@ -11,5 +11,6 @@ public interface IWeatherGenerator
     void SetReadingsPerTick(int count);
     WeatherStats GetStats();
     IReadOnlyList<WeatherReading> GetLatestReadings(int count);
+    int TrimToLatest();
     event Action<WeatherStats>? OnStatsUpdated;
 }

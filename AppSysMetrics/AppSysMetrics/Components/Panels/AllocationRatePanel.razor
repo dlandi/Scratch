@@ -1,14 +1,11 @@
 <div class="panel">
     <h5 class="panel-heading">Allocation Rate</h5>
-    @if (History is not null && History.Count > 0)
+    @if (_chartData is not null && History is not null && History.Count > 0)
     {
-        var rateData = History
-            .Select(h => h.Gc.AllocationRateBytesPerSecond / (1024.0 * 1024.0))
-            .ToList();
         var latest = History[^1];
 
         <LineChart Title="Allocation Rate Over Time" Unit="MB/s"
-                   DataPoints="rateData"
+                   DataPoints="_chartData"
                    MinValue="0"
                    StrokeColor="#f59e0b" FillColor="#f59e0b" />
 
@@ -27,6 +24,15 @@
 
 @code {
     [Parameter] public IReadOnlyList<MetricsSnapshot>? History { get; set; }
+
+    private List<double>? _chartData;
+
+    protected override void OnParametersSet()
+    {
+        _chartData = History is not null && History.Count > 0
+            ? History.Select(h => h.Gc.AllocationRateBytesPerSecond / (1024.0 * 1024.0)).ToList()
+            : null;
+    }
 
     private static string FormatBytes(long bytes)
     {
