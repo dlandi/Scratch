@@ -6,7 +6,7 @@ namespace Travelogue.Services;
 /// </summary>
 public sealed class MemoryLeakService
 {
-    private readonly Lock _lock = new();
+    private readonly object _lock = new();
     private readonly List<byte[]> _leakedBlobs = [];
     private readonly List<string> _leakedStrings = [];
 
