@@ -1,0 +1,198 @@
+@using AppSysMetrics.Diagnostics.Models
+
+<div class="panel">
+    <h5 class="panel-heading">GC Root Analysis — Why Are Leak Suspects Retained?</h5>
+
+    @if (_displayTypes.Count > 0)
+    {
+        @* ── Summary bar ── *@
+        <div class="root-analysis-summary">
+            Analyzed @RootAnalysis!.TypeAnalyses.Count type@(RootAnalysis!.TypeAnalyses.Count == 1 ? "" : "s")
+            in @FormatDuration(RootAnalysis.TotalDuration)
+            @if (RootAnalysis.WasTimedOut)
+            {
+                <span class="metric-warning-text"> (timed out)</span>
+            }
+            @if (RootAnalysis.SkippedTypes.Count > 0)
+            {
+                <span class="text-muted">
+                    — @RootAnalysis.SkippedTypes.Count type@(RootAnalysis.SkippedTypes.Count == 1 ? "" : "s") not found on heap
+                </span>
+            }
+            @if (_showingPredicted)
+            {
+                <span class="text-muted"> — showing predicted suspects from previous diff</span>
+            }
+        </div>
+
+        @* ── Per-type sections ── *@
+        @foreach (var typeAnalysis in _displayTypes)
+        {
+            var isExpanded = _expandedTypes.Contains(typeAnalysis.TypeName);
+            var isConfirmed = _confirmedTypeNames.Contains(typeAnalysis.TypeName);
+            <div class="root-type-section">
+                <div class="root-type-header" @onclick="() => ToggleType(typeAnalysis.TypeName)">
+                    <span class="root-expand-icon">@(isExpanded ? "▼" : "▶")</span>
+                    <span class="type-name">@ShortenTypeName(typeAnalysis.TypeName)</span>
+                    @if (isConfirmed)
+                    {
+                        <span class="root-confirmed-badge">confirmed</span>
+                    }
+                    <span class="root-type-meta">
+                        @typeAnalysis.TotalRootCount root@(typeAnalysis.TotalRootCount == 1 ? "" : "s") found
+                        (@FormatDuration(typeAnalysis.AnalysisDuration))
+                    </span>
+                    @if (typeAnalysis.WasTruncated)
+                    {
+                        <span class="root-truncated">truncated</span>
+                    }
+                </div>
+
+                @if (isExpanded)
+                {
+                    <div class="root-type-body">
+                        <table class="gen-table">
+                            <thead>
+                                <tr>
+                                    <th>Root Kind</th>
+                                    <th>Root Object Type</th>
+                                    <th>Retention Path</th>
+                                    <th>Retained</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var root in typeAnalysis.Roots)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="root-kind-badge @GetRootKindClass(root.RootKind)">
+                                                @root.RootKind
+                                            </span>
+                                        </td>
+                                        <td class="type-name">@ShortenTypeName(root.RootObjectTypeName)</td>
+                                        <td class="retention-path">
+                                            @if (root.RetentionPath is not null)
+                                            {
+                                                @root.RetentionPath
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">(direct)</span>
+                                            }
+                                        </td>
+                                        <td>@root.RetainedInstanceCount.ToString("N0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <div class="panel-loading">
+            @if (RootAnalysis is null)
+            {
+                <text>Root analysis activates after 3+ heap snapshots — the first two establish a baseline diff, and the third captures roots for predicted leak suspects.</text>
+            }
+            else if (RootAnalysis.TypeAnalyses.Count == 0)
+            {
+                <text>No leak suspects with root data found. Either no types have high retention, or target types were not found on the heap.</text>
+            }
+            else
+            {
+                <text>Root analysis completed but all analyzed types had zero roots.</text>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RootAnalysisResult? RootAnalysis { get; set; }
+    [Parameter] public IReadOnlyList<HeapTypeDiff>? LeakSuspects { get; set; }
+
+    private List<TypeRootAnalysis> _displayTypes = [];
+    private HashSet<string> _expandedTypes = [];
+    private HashSet<string> _confirmedTypeNames = [];
+    private bool _showingPredicted;
+
+    protected override void OnParametersSet()
+    {
+        if (RootAnalysis is null || RootAnalysis.TypeAnalyses.Count == 0)
+        {
+            _displayTypes = [];
+            _showingPredicted = false;
+            _confirmedTypeNames = [];
+            return;
+        }
+
+        // Build the set of confirmed leak suspects from the current diff
+        _confirmedTypeNames = LeakSuspects is { Count: > 0 }
+            ? new HashSet<string>(LeakSuspects.Select(s => s.TypeName))
+            : [];
+
+        // Cross-reference: show confirmed suspects that have root analysis data
+        var confirmed = RootAnalysis.TypeAnalyses
+            .Where(ta => _confirmedTypeNames.Contains(ta.TypeName))
+            .ToList();
+
+        if (confirmed.Count > 0)
+        {
+            // Have confirmed suspects — show only those
+            _displayTypes = confirmed;
+            _showingPredicted = false;
+        }
+        else
+        {
+            // No confirmed suspects in current diff, but root analysis ran
+            // (based on predicted suspects from previous diff).
+            // Show all analyzed types — they were suspects recently and the data is valuable.
+            _displayTypes = RootAnalysis.TypeAnalyses
+                .Where(ta => ta.Roots.Count > 0)
+                .ToList();
+            _showingPredicted = _displayTypes.Count > 0;
+        }
+
+        // Auto-expand all types when there are few
+        if (_displayTypes.Count <= 3)
+        {
+            _expandedTypes = new HashSet<string>(_displayTypes.Select(t => t.TypeName));
+        }
+    }
+
+    private void ToggleType(string typeName)
+    {
+        if (!_expandedTypes.Remove(typeName))
+            _expandedTypes.Add(typeName);
+    }
+
+    private static string GetRootKindClass(string rootKind) => rootKind switch
+    {
+        "UserCode" => "root-kind-usercode",
+        "StrongHandle" => "root-kind-strong",
+        "PinnedHandle" or "AsyncPinnedHandle" => "root-kind-pinned",
+        "Stack" => "root-kind-stack",
+        "FinalizerQueue" => "root-kind-finalizer",
+        _ => "root-kind-other"
+    };
+
+    private static string FormatDuration(TimeSpan ts)
+    {
+        if (ts.TotalSeconds >= 1) return $"{ts.TotalSeconds:F1}s";
+        return $"{ts.TotalMilliseconds:F0}ms";
+    }
+
+    private static string ShortenTypeName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        if (lastDot >= 0 && lastDot < typeName.Length - 1)
+        {
+            var prefix = typeName[..lastDot];
+            if (!prefix.Contains('<'))
+                return typeName[(lastDot + 1)..];
+        }
+        return typeName;
+    }
+}

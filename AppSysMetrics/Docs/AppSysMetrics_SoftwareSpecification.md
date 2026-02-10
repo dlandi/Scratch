@@ -1,7 +1,7 @@
 # AppSysMetrics Software Specification
 
-**Version:** 1.0
-**Date:** February 9, 2026
+**Version:** 2.0
+**Date:** February 10, 2026
 **Target Framework:** .NET 10.0 (SDK 10.0.102)
 **Package:** Razor Class Library (`Microsoft.NET.Sdk.Razor`)
 
@@ -42,8 +42,9 @@ It captures two distinct classes of runtime data:
 2. Allocation tracking by type using in-process event tracing, without external profiling tools.
 3. On-demand diagnostic actions (Force GC, Heap Snapshot, GC Dump file export) from the browser UI.
 4. In-process heap analysis via ClrMD with allocation/retention correlation and leak detection narrative.
-5. Pure SVG visualizations — no JavaScript charting dependencies.
-6. Single Razor Class Library — one project reference provides both backend services and Blazor UI.
+5. GC retention path tracing from leak suspects back to user code, producing field-level ownership chains.
+6. Pure SVG visualizations — no JavaScript charting dependencies.
+7. Single Razor Class Library — one project reference provides both backend services and Blazor UI.
 
 ### 1.3 Non-Goals
 
@@ -86,7 +87,7 @@ AppSysMetrics runs in-process with the host application. It observes the same ma
 |---|---|---|
 | **Backend** | Models, Collection, Hosting, Diagnostics, Extensions | `builder.Services.AddAppSysMetrics()` |
 | **Primitives** | BarChart, LineChart, GaugeChart, MetricCard | Mix-and-match in custom layouts |
-| **Panels** | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel, MemoryHealthPanel | Drop individual panels into existing pages |
+| **Panels** | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel, MemoryHealthPanel, GcRootAnalysisPanel | Drop individual panels into existing pages |
 | **Composites** | MetricsDashboardView, MemoryDiagnosticsView, DumpAnalysisView | Full dashboard experience with one tag |
 | **Stylesheet** | `_content/AppSysMetrics/AppSysMetrics.css` | Shared component styles (panels, tables, buttons) |
 
@@ -115,9 +116,15 @@ UI Button: "Capture Heap Snapshot"
       ▼
 DiagnosticsService.CaptureGcDumpAsync()
       │
-      ├─ ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync()
-      │    └─ DataTarget.CreateSnapshotAndAttach(pid)
-      │         └─ heap.EnumerateObjects() → DumpAnalysisResult
+      ├─ PredictLeakSuspectTypes()                 (two-track: high retention OR large growth)
+      ├─ ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync(rootTargets)
+      │    ├─ DataTarget.CreateSnapshotAndAttach(pid)
+      │    ├─ heap.EnumerateObjects() → DumpAnalysisResult
+      │    └─ GcRootAnalyzer.AnalyzeRoots(heap, targets)
+      │         ├─ Build GC root address set
+      │         ├─ Single heap pass: parent map + target instances
+      │         ├─ Score instances by user-code proximity
+      │         └─ Walk backward → retention paths
       ├─ AllocationEventListener.CreateSnapshot()  (enrichment)
       ├─ DumpAnalysisHub.Publish(result)
       └─ DumpDiffService.ComputeDiff()             (auto-diff)
@@ -138,6 +145,7 @@ DiagnosticsService.CaptureGcDumpAsync()
 | MetricsHub, AllocationTrackingHub | Any thread via `Publish()` | `lock` on ring buffer; event invoked outside lock |
 | DumpAnalysisHub | Any thread via `Publish()` | `lock` on ring buffer; event invoked outside lock |
 | ClrMdHeapAnalyzer | `Task.Run` for CPU-bound enumeration | `SemaphoreSlim(1)` with 5-second timeout |
+| GcRootAnalyzer | Called synchronously within `ClrMdHeapAnalyzer.CaptureCore()` | Per-type and global `Stopwatch` timeouts |
 | Blazor components | Sync context via `InvokeAsync` | Subscribe in `OnInitialized`, unsubscribe in `Dispose` |
 
 ---
@@ -171,23 +179,29 @@ AppSysMetrics/                              (Razor Class Library — net10.0)
 │   │   ├── MemoryHealthPanel.razor (+.css)
 │   │   ├── DumpAnalysisPanel.razor (+.css)
 │   │   ├── DumpDiffPanel.razor (+.css)
-│   │   └── DumpHistoryPanel.razor (+.css)
+│   │   ├── DumpHistoryPanel.razor (+.css)
+│   │   └── GcRootAnalysisPanel.razor (+.css)
 │   └── Views/
 │       ├── MetricsDashboardView.razor (+.css)
 │       ├── MemoryDiagnosticsView.razor (+.css)
 │       └── DumpAnalysisView.razor (+.css)
 ├── Diagnostics/
+│   ├── AnalyzeMemoryLeaksAttribute.cs
 │   ├── DiagnosticsOptions.cs
 │   ├── IDiagnosticsService.cs
 │   ├── DiagnosticsService.cs
 │   ├── ClrMdHeapAnalyzer.cs
+│   ├── GcRootAnalyzer.cs
 │   ├── DumpAnalyzerOptions.cs
 │   ├── DumpDiffService.cs
 │   └── Models/
 │       ├── HeapTypeInfo.cs
 │       ├── DumpAnalysisResult.cs
 │       ├── HeapTypeDiff.cs
-│       └── DumpDiffResult.cs
+│       ├── DumpDiffResult.cs
+│       ├── RootAnalysisResult.cs
+│       ├── TypeRootAnalysis.cs
+│       └── GcRootInfo.cs
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs
 ├── Hosting/
@@ -319,6 +333,7 @@ Top-level container produced by `MetricsCollector.Collect()` every 2 seconds.
 | TopTypes | IReadOnlyList\<HeapTypeInfo\> | Top N types by total size, descending |
 | UnresolvedTypeCount | int | Types with unresolved names. Always 0 for ClrMD. |
 | AllocationAtCapture | AllocationSnapshot? | Allocation snapshot at capture time for correlation analysis |
+| RootAnalysis | RootAnalysisResult? | GC root analysis for predicted leak-suspect types, captured during the same heap snapshot. Null when root analysis was not requested (first two captures) or failed. |
 
 ### 4.10 HeapTypeDiff
 
@@ -351,7 +366,44 @@ Top-level container produced by `MetricsCollector.Collect()` every 2 seconds.
 | TotalAllocatedBetween | long? | Total bytes allocated (app-only) between the two dumps |
 | TotalCollectedBetween | long? | Total bytes collected between dumps (allocated minus heap growth) |
 
-### 4.12 ForceGcResult
+### 4.12 RootAnalysisResult
+
+Aggregate result for GC root analysis across all analyzed leak-suspect types. Attached to `DumpAnalysisResult.RootAnalysis`.
+
+| Property | Type | Description |
+|---|---|---|
+| AnalyzedAtUtc | DateTimeOffset | When the root analysis was performed |
+| TypeAnalyses | IReadOnlyList\<TypeRootAnalysis\> | Per-type root analysis results for each predicted leak-suspect type |
+| TotalDuration | TimeSpan | Total wall-clock time for all root analysis across all types |
+| WasTimedOut | bool | True if analysis was cut short by the global timeout |
+| SkippedTypes | IReadOnlyList\<string\> | Type names requested but not found on the heap |
+
+### 4.13 TypeRootAnalysis
+
+Per-type root analysis result, containing the top roots retaining instances of a specific leak-suspect type.
+
+| Property | Type | Description |
+|---|---|---|
+| TypeName | string | Fully-qualified type name that was analyzed |
+| TotalRootCount | int | Total number of distinct retention paths found for this type |
+| Roots | IReadOnlyList\<GcRootInfo\> | Top roots retaining this type, limited by `DumpAnalyzerOptions.MaxRootsPerType`. Sorted by `RetainedInstanceCount` descending |
+| WasTruncated | bool | True if analysis was truncated due to timeout or max-root limits |
+| AnalysisDuration | TimeSpan | Wall-clock time spent analyzing roots for this specific type |
+
+### 4.14 GcRootInfo
+
+A single retention path entry for a specific leak-suspect type. Roots are grouped by retention path with `RetainedInstanceCount` aggregated across matching instances.
+
+| Property | Type | Description |
+|---|---|---|
+| RootKind | string | Root kind: `UserCode`, `StrongHandle`, `PinnedHandle`, `AsyncPinnedHandle`, `Stack`, `FinalizerQueue`, or `Unknown` |
+| RootAddress | ulong | Address of the root object (for deduplication) |
+| RootObjectTypeName | string | Type name of the root object — the user-code type or GC root that retains the target |
+| RetentionPath | string? | Human-readable retention path (e.g., `MemoryLeakService → _leakedBlobs:List<Byte[]> → _items:Byte[][] → [*]:Byte[]`). Null when the root directly holds the target type |
+| RetainedInstanceCount | int | Number of instances of the target type reachable via this path |
+| HasUserCode | bool | True if the retention path passes through a user/application code type within `MaxDirectOwnershipDepth` (4) hops |
+
+### 4.15 ForceGcResult
 
 Defined in `IDiagnosticsService.cs`. Returned by `IDiagnosticsService.ForceGC()`.
 
@@ -362,7 +414,7 @@ Defined in `IDiagnosticsService.cs`. Returned by `IDiagnosticsService.ForceGC()`
 | Duration | TimeSpan | Wall-clock time for the GC operation (required) |
 | PerformedAt | DateTimeOffset | When the operation completed (required) |
 
-### 4.13 GcDumpResult
+### 4.16 GcDumpResult
 
 Defined in `IDiagnosticsService.cs`. Returned by `CaptureGcDumpAsync()` and `CaptureGcDumpFileAsync()`.
 
@@ -428,6 +480,7 @@ All services are registered via `AddAppSysMetrics()`:
 | AllocationEventListener | Singleton | (concrete) |
 | AllocationTrackingHub | Singleton | (concrete) |
 | AllocationTrackingService | Hosted | BackgroundService |
+| GcRootAnalyzer | Singleton | (concrete) |
 | ClrMdHeapAnalyzer | Singleton | (concrete) |
 | DumpDiffService | Singleton | (concrete) |
 | DumpAnalysisHub | Singleton | (concrete) |
@@ -493,25 +546,29 @@ public interface IDiagnosticsService
 
 ### 7.2 ClrMdHeapAnalyzer
 
-On-demand singleton service (not a background service). Uses `DataTarget.CreateSnapshotAndAttach(Environment.ProcessId)` via `PssCreateSnapshot` on Windows.
+On-demand singleton service (not a background service). Uses `DataTarget.CreateSnapshotAndAttach(Environment.ProcessId)` via `PssCreateSnapshot` on Windows. Injects `GcRootAnalyzer` for retention path analysis.
 
 **Capture flow:**
 1. Acquire `SemaphoreSlim(1)` with 5-second timeout (skip if already in progress)
 2. `Task.Run(() => CaptureCore())` for CPU-bound work
 3. Enumerate `heap.EnumerateObjects()`, aggregate by `obj.Type?.Name`
-4. Return top N types by total size as `DumpAnalysisResult` with synthetic path `clrmd://heap_yyyyMMdd_HHmmss`
+4. If `rootAnalysisTargets` are provided, call `GcRootAnalyzer.AnalyzeRoots(heap, targets)` within the snapshot scope
+5. Return top N types by total size as `DumpAnalysisResult` with synthetic path `clrmd://heap_yyyyMMdd_HHmmss`
 
-Type names are always resolved — no UNKNOWN entries.
+`CaptureAndAnalyzeAsync()` has two overloads: parameterless (no root analysis) and with optional `IReadOnlyList<string>? rootAnalysisTargets`. Type names are always resolved — no UNKNOWN entries.
 
 ### 7.3 Enrichment Pipeline
 
-`DiagnosticsService.CaptureGcDumpAsync()` orchestrates a 5-step pipeline:
+`DiagnosticsService.CaptureGcDumpAsync()` orchestrates a 6-step pipeline:
 
-1. **Capture** — `ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync()` → `DumpAnalysisResult`
-2. **Enrich** — Attach `AllocationEventListener.CreateSnapshot()` as `AllocationAtCapture`
-3. **Previous** — Read `DumpAnalysisHub.Latest` before publishing
-4. **Publish** — `DumpAnalysisHub.Publish(result)` → notifies all UI subscribers
-5. **Auto-diff** — If previous exists, `DumpDiffService.ComputeDiff()` + `DumpAnalysisHub.PublishDiff(diff)`
+1. **Predict** — `PredictLeakSuspectTypes()` selects up to 5 leak-suspect type names from the previous diff (see §7.6)
+2. **Capture + Root Analysis** — `ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync(rootTargets)` → `DumpAnalysisResult` with optional `RootAnalysis` attached
+3. **Enrich** — Attach `AllocationEventListener.CreateSnapshot()` as `AllocationAtCapture`
+4. **Previous** — Read `DumpAnalysisHub.Latest` before publishing
+5. **Publish** — `DumpAnalysisHub.Publish(result)` → notifies all UI subscribers
+6. **Auto-diff** — If previous exists, `DumpDiffService.ComputeDiff()` + `DumpAnalysisHub.PublishDiff(diff)`
+
+Root analysis requires at least 3 heap captures: the first two establish a baseline diff with leak suspect candidates; the third (and subsequent) captures analyze roots for those predicted suspects.
 
 ### 7.4 DumpDiffService
 
@@ -527,18 +584,68 @@ When both dumps carry `AllocationAtCapture`, computes per-type allocation correl
 - **0.0** = 0% retention — everything allocated was collected (healthy churn)
 - **null** = no allocation data or zero throughput for this type
 
-### 7.5 DiagnosticsOptions
+### 7.5 GcRootAnalyzer
+
+Singleton service that performs reverse-reference root analysis on a live `ClrHeap` within the DataTarget snapshot scope. Exposes `public bool IsUserCode(string typeName)` for use by the prediction layer.
+
+**Algorithm (5 phases):**
+
+1. **Phase 1 — Build GC root address set.** `heap.EnumerateRoots()` → index every root's address, kind, and type name.
+
+2. **Phase 2 — Single heap pass.** Enumerate all objects: collect target instances by type name, and build a `parentMap` (childAddr → parentAddr) via `EnumerateReferenceAddresses()`. User-code parent preference: when a user-code type claims parenthood of a child that already has a framework parent, the user-code type overwrites it.
+
+3. **Phase 3 — Score and sample.** For each target type, stride-sample up to 500 instances, score each by walking up the parent map (max 10 hops) checking for user-code types. Sort by score descending, take top 50 for root walking.
+
+4. **Phase 4 — Backward walk.** For each sampled instance, walk backward through the parent map until reaching a user-code type (primary goal) or a GC root (fallback). When user code is found, set `rootKind = "UserCode"` and `rootTypeName` to the user-code type name. Framework intermediary check: if the immediate child of the user-code type is a `Microsoft.*`/`Internal.*`/`Interop.*` type, downgrade `foundUserCode` to false (framework plumbing, not deliberate allocation). Resolve field names lazily via `EnumerateReferencesWithFields` only for objects on the final chain.
+
+5. **Phase 5 — Group, filter, rank.** Group hits by retention path. Mark `HasUserCode` when user code appears within `MaxDirectOwnershipDepth` (4) hops. When user-code groups exist, suppress framework-only groups. Sort: user-code paths first, then by retained count descending.
+
+**User assembly detection (two tiers):**
+
+- **Tier 1 (Explicit):** If any loaded assembly carries `[AnalyzeMemoryLeaks]`, only attributed assemblies are user code.
+- **Tier 2 (Auto):** If no assemblies have the attribute, all non-framework, non-dynamic assemblies are included. Framework prefixes: `System`, `Microsoft`, `Internal`, `Interop`, `Newtonsoft`, `netstandard`, `mscorlib`, `WindowsBase`.
+- In both tiers, the AppSysMetrics assembly itself is excluded via `typeof(GcRootAnalyzer).Assembly.GetName().Name`.
+
+### 7.6 Leak Suspect Prediction
+
+`DiagnosticsService.PredictLeakSuspectTypes()` selects up to 5 leak-suspect types from the most recent diff using two complementary tracks:
+
+**Track 1 — High retention:** `RetentionRatio >= 0.8`. Catches pure leaks where most allocations are retained.
+
+**Track 2 — Large absolute growth:** `RetentionRatio > 0 and < 0.8` with `DeltaSizeBytes >= 1 MB` (absolute floor) or `DeltaSizeBytes >= 20% of TotalHeapDelta` (proportional threshold). Catches diluted leaks where framework throughput (e.g. Kestrel's MemoryPoolBlock) masks the retention ratio for shared types like `Byte[]`.
+
+**Framework noise filtering** (`IsFrameworkOnlyType`): User-code types pass; `System.*` types pass; dot-free types pass only if they match a well-known primitive allowlist (`Byte`, `SByte`, `String`, `Char`, `Int16`, `UInt16`, `Int32`, `UInt32`, `Int64`, `UInt64`, `Double`, `Single`, `Boolean`, `Object`, `IntPtr`, `UIntPtr`, `Decimal`, `Guid`, `DateTime`, `DateTimeOffset`, `TimeSpan`, and their array variants); all other namespaced types (`Microsoft.*`, `Internal.*`, `Interop.*`) are excluded.
+
+Both tracks are unioned, deduplicated, sorted by retention ratio descending then delta size descending, and capped at 5.
+
+### 7.7 DiagnosticsOptions
 
 | Property | Type | Default | Description |
 |---|---|---|---|
 | GcDumpOutputDirectory | string? | `%TEMP%/AppSysMetrics/gcdumps` | Output directory for `.gcdump` files |
 
-### 7.6 DumpAnalyzerOptions
+### 7.8 DumpAnalyzerOptions
 
 | Property | Type | Default | Description |
 |---|---|---|---|
 | MaxAnalysisHistory | int | 10 | Ring buffer capacity for DumpAnalysisHub |
 | TopTypesCount | int | 50 | Number of top types to include in analysis results |
+| MaxRootAnalysisTypes | int | 5 | Maximum leak-suspect types to analyze per capture |
+| MaxRootsPerType | int | 10 | Maximum roots to report per type |
+| RootAnalysisPerTypeTimeout | TimeSpan | 10 seconds | Per-type timeout to prevent a single type from blocking the pipeline |
+| RootAnalysisGlobalTimeout | TimeSpan | 60 seconds | Global timeout for all root analysis |
+| TraceRetentionPaths | bool | true | Whether to build the parent map and trace paths. When false, root analysis runs but skips the expensive heap-wide parent map. |
+| MaxRetentionPathDepth | int | 20 | Maximum hops in backward retention path walk |
+
+### 7.9 AnalyzeMemoryLeaksAttribute
+
+Assembly-level attribute for explicit user-code marking during GC root analysis.
+
+```csharp
+[assembly: AppSysMetrics.Diagnostics.AnalyzeMemoryLeaks]
+```
+
+When any loaded assembly carries this attribute, only attributed assemblies are considered "user code" (Tier 1 detection). If no assemblies have the attribute, auto-discovery is used (Tier 2). See §7.5 for details.
 
 ---
 
@@ -572,6 +679,7 @@ All chart components accept parameters for data, titles, units, colors, and rang
 | DumpAnalysisPanel | DumpAnalysisResult | MetricCards (heap size, object count, file name), ranked top 20 types table |
 | DumpDiffPanel | DumpDiffResult | 4-zone layout when correlation available (see 8.4), standard diff table otherwise |
 | DumpHistoryPanel | IReadOnlyList\<DumpAnalysisResult\> | Click-to-select table (BASE/CUR tags by chronological order), "Compare Selected" button, "Clear All" button |
+| GcRootAnalysisPanel | RootAnalysisResult?, IReadOnlyList\<HeapTypeDiff\>? | Collapsible per-type sections: color-coded root kind badge (green=UserCode, red=StrongHandle, yellow=PinnedHandle, blue=Stack, orange=FinalizerQueue), root object type, monospace retention path, retained count. Cross-references with current diff's leak suspects for "confirmed" badge. Auto-expands when ≤ 3 types. |
 
 ### 8.3 Composite View Components (`Components.Views`)
 
@@ -579,7 +687,7 @@ All chart components accept parameters for data, titles, units, colors, and rang
 |---|---|---|---|
 | MetricsDashboardView | MetricsHub | MemoryHealth (full width), ProcessMetrics + CPU + GC + AllocationRate (2×2), optional full-width slot | `RenderFragment? AdditionalContent` |
 | MemoryDiagnosticsView | AllocationTrackingHub, MetricsHub | MemoryHealth (full width), Diagnostics (full width), TopAllocations (full width), LOH + GC (side-by-side) | — |
-| DumpAnalysisView | DumpAnalysisHub, MetricsHub | MemoryHealth (full width), DumpHistory (full width), DumpAnalysis + DumpDiff (side-by-side) | — |
+| DumpAnalysisView | DumpAnalysisHub, MetricsHub | MemoryHealth (full width), DumpHistory (full width), DumpAnalysis + DumpDiff (side-by-side), GcRootAnalysisPanel (full width) | — |
 
 ### 8.4 DumpDiffPanel — 4-Zone Correlation Narrative
 
@@ -587,7 +695,7 @@ When `DumpDiffResult.HasAllocationCorrelation` is true, the panel renders:
 
 1. **Zone 1: Summary MetricCards** — Heap delta, object delta, time span, collection efficiency % (green ≥ 80%, yellow ≥ 50%, red < 50%)
 2. **Zone 2: Narrative Banner** — Prose summary with color-coded left border. Reports heap growth, allocation throughput, collected bytes, and efficiency %.
-3. **Zone 3: Leak Suspects** — Red alert box showing up to 5 types with retention ratio ≥ 0.8. Per-suspect: type name, allocated bytes, retained bytes, collected bytes, retention %.
+3. **Zone 3: Leak Suspects** — Red alert box showing up to 5 types detected via two-track logic matching `DiagnosticsService.PredictLeakSuspectTypes()` (see §7.6): high retention (≥ 80%) or significant heap growth (≥ 1 MB or ≥ 20% of heap delta). Framework noise types are excluded via `IsFrameworkNoise()`. Per-suspect: type name, allocated bytes, retained bytes, collected bytes, retention %.
 4. **Zone 4: Full Type Diff Table** — Sorted by retention ratio descending (nulls last). Includes allocation throughput and retention % columns.
 
 ### 8.5 Component Lifecycle Pattern
@@ -698,6 +806,9 @@ Only required for the "Capture GC Dump" file export button. The primary "Capture
 | `EventListener` | Allocation event subscription |
 | `DataTarget.CreateSnapshotAndAttach` | In-process heap snapshot (ClrMD) |
 | `ClrHeap.EnumerateObjects` | Heap object enumeration (ClrMD) |
+| `ClrHeap.EnumerateRoots` | GC root enumeration (ClrMD) |
+| `ClrObject.EnumerateReferenceAddresses` | Parent map construction (ClrMD) |
+| `ClrObject.EnumerateReferencesWithFields` | Field name resolution on retention paths (ClrMD) |
 
 ---
 
@@ -751,3 +862,23 @@ Raw diff tables show numbers but don't answer "is the heap healthy?" The 4-zone 
 ### 11.11 EventListener over ETW
 
 The in-process `EventListener` base class requires no NuGet dependency, works cross-platform, needs no elevated permissions, and provides low-overhead allocation event subscription via sampled ticks (~100 KB granularity).
+
+### 11.12 User-code parent preference in parent map
+
+The parent map uses `TryAdd` (first-parent-wins) for performance, but framework transients can claim parenthood before the actual owner. When a user-code type tries to overwrite an existing framework parent, the overwrite is allowed. This ensures paths name the developer's class (e.g., `MemoryLeakService`) rather than framework internals (e.g., `List<T>+Enumerator`).
+
+### 11.13 Framework intermediary check
+
+A user-code type (like a Blazor component) may own framework objects via framework plumbing (e.g., `_renderHandle:EndpointHtmlRenderer`). The depth threshold alone can't distinguish deliberate from incidental ownership. The intermediary check examines the first hop from the user-code type: if it's `Microsoft.*`/`Internal.*`/`Interop.*`, the path is framework plumbing and downgraded to `HasUserCode = false`. If it's `System.*` (container like `List<T>`), it's direct ownership.
+
+### 11.14 Two-track leak prediction
+
+A single retention ratio threshold (≥ 80%) misses diluted leaks where framework throughput inflates the denominator. For example, `Byte[]` shared by Kestrel's MemoryPoolBlock (high allocation/collection churn) and a leaking service (retained) drops to ~38% retention despite real heap growth. Track 2 catches these by looking at absolute growth (≥ 1 MB or ≥ 20% of heap delta) independent of the ratio.
+
+### 11.15 Dot-free type filtering
+
+Some framework internal types (e.g., `ClrDacType` from `Microsoft.Diagnostics.Runtime`) appear on the heap without namespace qualifiers. The prediction filter uses a well-known primitive allowlist for dot-free types rather than allowing all through, preventing framework noise from consuming root analysis time.
+
+### 11.16 Self-assembly exclusion
+
+AppSysMetrics observes the same process it runs in. Without explicit exclusion, its own types (and ClrMD's) would appear as user code. `BuildUserAssemblyPrefixes()` excludes the library's own assembly name, ensuring the diagnostics tool never reports its own infrastructure as a leak suspect.

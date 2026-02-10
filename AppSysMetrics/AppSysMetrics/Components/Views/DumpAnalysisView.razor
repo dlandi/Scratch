@@ -29,6 +29,9 @@
         <div class="asm-cell">
             <DumpDiffPanel Diff="_activeDiff" />
         </div>
+        <div class="asm-cell asm-cell-full">
+            <GcRootAnalysisPanel RootAnalysis="_rootAnalysis" LeakSuspects="_confirmedLeakSuspects" />
+        </div>
     </div>
 </div>
 
@@ -39,6 +42,10 @@
     private MetricsSnapshot? _latestMetrics;
     private IReadOnlyList<MetricsSnapshot> _metricsHistory = [];
 
+    // Phase 6: Root analysis for confirmed leak suspects
+    private RootAnalysisResult? _rootAnalysis;
+    private IReadOnlyList<HeapTypeDiff>? _confirmedLeakSuspects;
+
     protected override void OnInitialized()
     {
         _latestAnalysis = AnalysisHub.Latest;
@@ -46,6 +53,7 @@
         _history = AnalysisHub.GetHistory().ToList();
         _latestMetrics = MetricsHub.Latest;
         _metricsHistory = MetricsHub.GetHistory();
+        UpdateRootAnalysisState();
         AnalysisHub.OnAnalysis += HandleAnalysis;
         AnalysisHub.OnDiff += HandleDiff;
         AnalysisHub.OnCleared += HandleCleared;
@@ -66,6 +74,7 @@
     private async void HandleDiff(DumpDiffResult diff)
     {
         _activeDiff = diff;
+        UpdateRootAnalysisState();
         try
         {
             await InvokeAsync(StateHasChanged);
@@ -76,6 +85,7 @@
     private void HandleManualCompare(DumpDiffResult diff)
     {
         _activeDiff = diff;
+        UpdateRootAnalysisState();
         StateHasChanged();
     }
 
@@ -85,6 +95,8 @@
         _latestAnalysis = null;
         _activeDiff = null;
         _history = [];
+        _rootAnalysis = null;
+        _confirmedLeakSuspects = null;
     }
 
     private async void HandleCleared()
@@ -92,6 +104,8 @@
         _latestAnalysis = null;
         _activeDiff = null;
         _history = [];
+        _rootAnalysis = null;
+        _confirmedLeakSuspects = null;
         try
         {
             await InvokeAsync(StateHasChanged);
@@ -108,6 +122,18 @@
             await InvokeAsync(StateHasChanged);
         }
         catch (ObjectDisposedException) { }
+    }
+
+    private void UpdateRootAnalysisState()
+    {
+        _rootAnalysis = _activeDiff?.Current.RootAnalysis;
+        _confirmedLeakSuspects = _activeDiff is { HasAllocationCorrelation: true }
+            ? _activeDiff.TypeDiffs
+                .Where(t => t.RetentionRatio >= 0.8 && t.AllocatedBetweenBytes is > 0)
+                .OrderByDescending(t => t.RetentionRatio)
+                .ThenByDescending(t => t.DeltaSizeBytes)
+                .ToList()
+            : null;
     }
 
     public void Dispose()

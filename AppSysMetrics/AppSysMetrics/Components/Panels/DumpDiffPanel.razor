@@ -41,8 +41,8 @@
                         @if (_leakSuspects.Count > 0)
                         {
                             <span class="@(_leakSuspects.Count >= 3 ? "metric-danger-text" : "metric-warning-text")">
-                                @_leakSuspects.Count type@(_leakSuspects.Count == 1 ? "" : "s")
-                                with ≥80% retention detected
+                                @_leakSuspects.Count leak suspect@(_leakSuspects.Count == 1 ? "" : "s")
+                                detected (high retention or significant heap growth)
                             </span>
                         }
                         else
@@ -182,11 +182,32 @@
             ? (double)(Diff.TotalCollectedBetween ?? 0) / Diff.TotalAllocatedBetween.Value
             : 0.0;
 
-        // Leak suspects: types with ≥80% retention and meaningful throughput
+        // Leak suspects: two-track detection matching DiagnosticsService.PredictLeakSuspectTypes()
+        //   Track 1 — High retention (≥ 80%): nearly everything allocated was retained
+        //   Track 2 — Large absolute growth (≥ 1 MB or ≥ 20% of heap delta) with positive
+        //             retention: catches diluted leaks like Byte[] shared by framework pooling
         if (Diff.HasAllocationCorrelation)
         {
-            _leakSuspects = Diff.TypeDiffs
-                .Where(t => t.RetentionRatio >= 0.8 && t.AllocatedBetweenBytes is > 0)
+            var eligible = Diff.TypeDiffs
+                .Where(t => t.AllocatedBetweenBytes is > 0 && t.DeltaSizeBytes > 0)
+                .Where(t => !IsFrameworkNoise(t.TypeName));
+
+            var highRetention = eligible
+                .Where(t => t.RetentionRatio >= 0.8);
+
+            var totalHeapDelta = Math.Max(1, Diff.TotalHeapDelta);
+            const long absoluteGrowthFloor = 1_048_576; // 1 MB
+            const double heapShareThreshold = 0.20;
+
+            var largeAbsoluteGrowth = eligible
+                .Where(t => t.RetentionRatio is > 0 and < 0.8)
+                .Where(t => t.DeltaSizeBytes >= absoluteGrowthFloor
+                         || (totalHeapDelta > 0
+                             && (double)t.DeltaSizeBytes / totalHeapDelta >= heapShareThreshold));
+
+            _leakSuspects = highRetention
+                .Concat(largeAbsoluteGrowth)
+                .DistinctBy(t => t.TypeName)
                 .OrderByDescending(t => t.RetentionRatio)
                 .ThenByDescending(t => t.DeltaSizeBytes)
                 .Take(5)
@@ -314,5 +335,36 @@
                 return typeName[(lastDot + 1)..];
         }
         return typeName;
+    }
+
+    /// <summary>
+    /// Returns true if a type name is framework noise that should be excluded from the
+    /// leak suspects call-out. Mirrors the logic in DiagnosticsService.IsFrameworkOnlyType:
+    /// framework-prefixed types (Microsoft.*, Internal.*, etc.) are excluded, and dot-free
+    /// types are only allowed through if they are well-known primitives/arrays.
+    /// </summary>
+    private static bool IsFrameworkNoise(string typeName)
+    {
+        // System.* container types (Byte[], String, List<T>, etc.) are legitimate suspects
+        if (typeName.StartsWith("System.", StringComparison.Ordinal))
+            return false;
+
+        // Dot-free types: only allow well-known primitives/arrays
+        if (!typeName.Contains('.'))
+        {
+            var baseName = typeName;
+            while (baseName.EndsWith("[]", StringComparison.Ordinal))
+                baseName = baseName[..^2];
+
+            return baseName is not ("Byte" or "String" or "Char" or "Int32" or "Int64"
+                or "UInt32" or "UInt64" or "Int16" or "UInt16" or "Double" or "Single"
+                or "Boolean" or "Object" or "IntPtr" or "UIntPtr" or "Decimal"
+                or "SByte" or "Guid" or "DateTime" or "DateTimeOffset" or "TimeSpan");
+        }
+
+        // Known framework prefixes — not user code, not actionable
+        return typeName.StartsWith("Microsoft.", StringComparison.Ordinal)
+            || typeName.StartsWith("Internal.", StringComparison.Ordinal)
+            || typeName.StartsWith("Interop.", StringComparison.Ordinal);
     }
 }

@@ -23,4 +23,11 @@ public sealed record DumpAnalysisResult
     /// Null for dumps loaded from disk on app restart (no live listener at that time).
     /// </summary>
     public AllocationSnapshot? AllocationAtCapture { get; init; }
+
+    /// <summary>
+    /// GC root analysis for predicted leak-suspect types, captured during the same heap snapshot.
+    /// Identifies which GC roots (static fields, handles, thread locals) keep leak-suspect
+    /// objects alive. Null when root analysis was not requested (first two captures) or failed.
+    /// </summary>
+    public RootAnalysisResult? RootAnalysis { get; init; }
 }

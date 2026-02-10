@@ -1,0 +1,169 @@
+@page "/leak-lab"
+@rendermode InteractiveServer
+@using Travelogue.Services
+@inject MemoryLeakService LeakService
+
+<PageTitle>Leak Lab</PageTitle>
+
+<h1>Leak Lab</h1>
+<p class="page-subtitle">
+    Deliberately allocate objects that are never released, creating real memory leaks
+    for testing the GC Root Analysis pipeline.
+</p>
+
+@* ── Stats Banner ── *@
+<div class="stats-banner">
+    <div class="stat-card">
+        <div class="stat-label">Leaked Blobs</div>
+        <div class="stat-value">@_stats.BlobCount.ToString("N0")</div>
+        <div class="stat-detail">@FormatBytes(_stats.BlobBytes)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Leaked Strings</div>
+        <div class="stat-value">@_stats.StringCount.ToString("N0")</div>
+        <div class="stat-detail">@FormatBytes(_stats.StringBytes)</div>
+    </div>
+    <div class="stat-card stat-card-total">
+        <div class="stat-label">Total Retained</div>
+        <div class="stat-value">@FormatBytes(_stats.TotalBytes)</div>
+        <div class="stat-detail">@_stats.TotalCount.ToString("N0") objects</div>
+    </div>
+</div>
+
+@* ── Allocation Controls ── *@
+<div class="control-panel">
+    <h5 class="control-heading">Allocation Controls</h5>
+
+    <div class="alloc-group">
+        <div class="alloc-row">
+            <button class="btn btn-danger btn-sm" @onclick="HandleAllocateBlobs">
+                Allocate Blobs
+            </button>
+            <label class="control-label">
+                Count: <strong>@_blobCount</strong>
+            </label>
+            <input type="range" class="form-range" min="10" max="500" step="10"
+                   @bind="_blobCount" />
+            <label class="control-label">
+                Size: <strong>@_blobSizeKb KB</strong> each
+            </label>
+            <input type="range" class="form-range" min="1" max="100" step="1"
+                   @bind="_blobSizeKb" />
+        </div>
+        <div class="alloc-estimate">
+            ~@FormatBytes((long)_blobCount * _blobSizeKb * 1024) per click
+        </div>
+    </div>
+
+    <div class="alloc-group">
+        <div class="alloc-row">
+            <button class="btn btn-danger btn-sm" @onclick="HandleAllocateStrings">
+                Allocate Strings
+            </button>
+            <label class="control-label">
+                Count: <strong>@_stringCount</strong>
+            </label>
+            <input type="range" class="form-range" min="100" max="5000" step="100"
+                   @bind="_stringCount" />
+            <label class="control-label">
+                Length: <strong>@_stringLength chars</strong>
+            </label>
+            <input type="range" class="form-range" min="50" max="1000" step="50"
+                   @bind="_stringLength" />
+        </div>
+        <div class="alloc-estimate">
+            ~@FormatBytes((long)_stringCount * _stringLength * 2) per click
+        </div>
+    </div>
+
+    <div class="clear-row">
+        <button class="btn btn-warning btn-sm" @onclick="HandleClear" disabled="@(_stats.TotalCount == 0)">
+            Clear All Leaks
+        </button>
+        @if (_clearMessage is not null)
+        {
+            <span class="clear-message">@_clearMessage</span>
+        }
+    </div>
+</div>
+
+@* ── Allocation Log ── *@
+@if (_log.Count > 0)
+{
+    <div class="alloc-log">
+        <h5 class="log-heading">Allocation Log</h5>
+        @foreach (var entry in _log)
+        {
+            <div class="log-entry">@entry</div>
+        }
+    </div>
+}
+
+@* ── Test Procedure ── *@
+<div class="procedure-guide">
+    <h5 class="procedure-heading">Test Procedure — Triggering GC Root Analysis</h5>
+    <ol class="procedure-steps">
+        <li>Click <strong>Allocate Blobs</strong> a few times to create retained <code>byte[]</code> objects.</li>
+        <li>Go to <strong>Memory Diagnostics</strong> and click <strong>Capture Heap Snapshot</strong>. This is Dump #1 (baseline).</li>
+        <li>Return here and allocate more blobs and some strings.</li>
+        <li>Capture <strong>Heap Snapshot #2</strong>. The diff will identify <code>byte[]</code> and <code>String</code> as leak suspects (retention &ge; 80%).</li>
+        <li>Allocate more, then capture <strong>Heap Snapshot #3</strong>. This time, the pipeline predicts suspects from the previous diff and runs GC Root Analysis during capture.</li>
+        <li>Go to <strong>Dump Analysis</strong>. The <strong>GC Root Analysis</strong> panel will show root kinds, retention paths, and per-type breakdowns.</li>
+    </ol>
+</div>
+
+@code {
+    private LeakStats _stats;
+    private int _blobCount = 100;
+    private int _blobSizeKb = 10;
+    private int _stringCount = 500;
+    private int _stringLength = 200;
+    private string? _clearMessage;
+    private readonly List<string> _log = [];
+
+    protected override void OnInitialized()
+    {
+        _stats = LeakService.GetStats();
+    }
+
+    private void HandleAllocateBlobs()
+    {
+        var result = LeakService.AllocateBlobs(_blobCount, _blobSizeKb);
+        _stats = LeakService.GetStats();
+        _clearMessage = null;
+        _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Allocated {result.Count} blobs ({FormatBytes(result.AllocatedBytes)})");
+        TrimLog();
+    }
+
+    private void HandleAllocateStrings()
+    {
+        var result = LeakService.AllocateStrings(_stringCount, _stringLength);
+        _stats = LeakService.GetStats();
+        _clearMessage = null;
+        _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Allocated {result.Count} strings ({FormatBytes(result.AllocatedBytes)})");
+        TrimLog();
+    }
+
+    private void HandleClear()
+    {
+        var before = LeakService.Clear();
+        _stats = LeakService.GetStats();
+        _clearMessage = $"Released {before.TotalCount:N0} objects ({FormatBytes(before.TotalBytes)})";
+        _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Cleared all — freed {FormatBytes(before.TotalBytes)}");
+        TrimLog();
+    }
+
+    private void TrimLog()
+    {
+        while (_log.Count > 20)
+            _log.RemoveAt(_log.Count - 1);
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1_073_741_824) return $"{bytes / 1_073_741_824.0:F1} GB";
+        if (bytes >= 1_048_576) return $"{bytes / 1_048_576.0:F1} MB";
+        if (bytes >= 1_024) return $"{bytes / 1_024.0:F1} KB";
+        return $"{bytes} B";
+    }
+}

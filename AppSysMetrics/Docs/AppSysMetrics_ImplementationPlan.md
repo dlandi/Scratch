@@ -1,10 +1,10 @@
 # AppSysMetrics Implementation Plan
 
-**Version:** 5.0
-**Date:** February 9, 2026
+**Version:** 6.0
+**Date:** February 10, 2026
 **Target Framework:** .NET 10.0 (SDK 10.0.102)
 **Package:** Razor Class Library (`Microsoft.NET.Sdk.Razor`)
-**Status:** All phases complete (Phase 1–5 implemented)
+**Status:** All phases complete (Phase 1–6 implemented)
 
 > This document records the phased implementation history of AppSysMetrics — what was built in each phase, what was changed or replaced, and the design decisions made along the way. For the current-state specification of the library (architecture, models, services, UI, APIs), see **AppSysMetrics_SoftwareSpecification.md**.
 
@@ -19,12 +19,13 @@
 5. [Phase 3 — Razor Class Library Packaging](#5-phase-3--razor-class-library-packaging)
 6. [Phase 4 — Dump Analysis and Memory Leak Detection](#6-phase-4--dump-analysis-and-memory-leak-detection)
 7. [Phase 5 — ClrMD In-Process Heap Analysis and Correlation Narrative](#7-phase-5--clrmd-in-process-heap-analysis-and-correlation-narrative)
-8. [Project Structure](#8-project-structure)
-9. [Data Models](#9-data-models)
-10. [Services and Hosting](#10-services-and-hosting)
-11. [UI Components](#11-ui-components)
-12. [Dependency Inventory](#12-dependency-inventory)
-13. [Design Decisions](#13-design-decisions)
+8. [Phase 6 — GC Root Analysis and Retention Path Tracing](#8-phase-6--gc-root-analysis-and-retention-path-tracing)
+9. [Project Structure](#9-project-structure)
+10. [Data Models](#10-data-models)
+11. [Services and Hosting](#11-services-and-hosting)
+12. [UI Components](#12-ui-components)
+13. [Dependency Inventory](#13-dependency-inventory)
+14. [Design Decisions](#14-design-decisions)
 
 ---
 
@@ -48,6 +49,7 @@ The separation matters because the two can diverge significantly. A process may 
 5. Ship as a single Razor Class Library — one project reference provides both backend services and Blazor UI components.
 6. Analyze and diff heap snapshots for memory leak detection with allocation/retention correlation narrative — no manual Visual Studio inspection required.
 7. Capture heap snapshots in-process via ClrMD, immune to the .NET 8+ EventPipe type-name regression.
+8. Trace GC retention paths from leak suspects back to user code, producing field-level ownership chains that answer "which of MY types is holding this?"
 
 ### 1.3 Non-Goals
 
@@ -123,9 +125,15 @@ UI Button: "Capture Heap Snapshot"
       ▼
 DiagnosticsService.CaptureGcDumpAsync()
       │
-      ├─ ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync()
-      │    └─ DataTarget.CreateSnapshotAndAttach(pid)
-      │         └─ heap.EnumerateObjects() → DumpAnalysisResult
+      ├─ PredictLeakSuspectTypes()                 (two-track: high retention OR large growth)
+      ├─ ClrMdHeapAnalyzer.CaptureAndAnalyzeAsync(rootTargets)
+      │    ├─ DataTarget.CreateSnapshotAndAttach(pid)
+      │    ├─ heap.EnumerateObjects() → DumpAnalysisResult
+      │    └─ GcRootAnalyzer.AnalyzeRoots(heap, targets)  (Phase 6)
+      │         ├─ Build GC root address set
+      │         ├─ Single heap pass: parent map + target instances
+      │         ├─ Score instances by user-code proximity
+      │         └─ Walk backward → retention paths
       ├─ AllocationEventListener.CreateSnapshot()  (enrichment)
       ├─ DumpAnalysisHub.Publish(result)
       └─ DumpDiffService.ComputeDiff()             (auto-diff)
@@ -581,7 +589,146 @@ Only types with `allocBetween > 0 && deltaSize > 0` get a non-null, non-zero ret
 
 ---
 
-## 8. Project Structure
+## 8. Phase 6 — GC Root Analysis and Retention Path Tracing
+
+Phase 6 answers the question Phase 5 raised but couldn't answer: "Why are leak suspects retained?" Phase 5 identifies *which* types are growing and their retention ratios; Phase 6 traces the GC retention paths from those types backward through the object graph to the user's own code, producing field-level ownership chains like `MemoryLeakService → _leakedBlobs:List<Byte[]> → _items:Byte[][] → [*]:Byte[]`.
+
+### 8.1 Motivation
+
+Phase 5's diff panel identifies leak suspects by retention ratio, but knowing "Byte[] has 38% retention" doesn't tell the developer *where* in their code the leak originates. Developers still needed external tools (Visual Studio Memory Analyzer, dotMemory) to trace retention paths. Phase 6 eliminates this by performing in-process root analysis during the same ClrMD snapshot, producing actionable retention paths that name the owning class, field, and container chain.
+
+### 8.2 Scope
+
+| Capability | Implementation |
+|---|---|
+| Reverse-reference parent map | Single heap pass builds `Dictionary<ulong, ulong>` (childAddr → parentAddr) for all objects |
+| User-code parent preference | When a user-code type claims parenthood, it overwrites any existing framework parent in the map |
+| Backward retention path walk | From each target instance, walk the parent map until reaching a user-code type or GC root |
+| Field name resolution | `EnumerateReferencesWithFields` resolves field names only for objects on the final path (lazy) |
+| "Just My Code" prioritization | Score and sort instances by user-code proximity; sample top candidates for root walking |
+| Two-tier user assembly detection | Tier 1: explicit `[AnalyzeMemoryLeaks]` attribute. Tier 2: auto-discover by excluding framework prefixes |
+| Self-assembly exclusion | AppSysMetrics' own assembly is never considered user code |
+| Two-track leak prediction | Track 1: RetentionRatio ≥ 80%. Track 2: DeltaSizeBytes ≥ 1 MB or ≥ 20% of TotalHeapDelta |
+| Framework noise filtering | Dot-free non-primitive types (e.g. `ClrDacType`) and `Microsoft.*`/`Internal.*` types excluded from prediction |
+| Direct ownership validation | Paths where the first hop from user code enters `Microsoft.*` infrastructure are downgraded (framework plumbing, not deliberate allocation) |
+| Depth threshold | User-code type must be within 4 hops of the target to count as direct owner |
+| Roots-level filtering | When user-code paths exist for a type, framework-only paths are hidden as noise |
+| Configurable timeouts | Per-type timeout (10s), global timeout (60s), max path depth (20), max roots per type (10) |
+
+### 8.3 Additions to AppSysMetrics Library
+
+**New Attribute:**
+- `AnalyzeMemoryLeaksAttribute` — Assembly-level attribute for explicit user-code marking. When any loaded assembly has this attribute, only attributed assemblies are considered user code (Tier 1 detection). Otherwise, auto-discovery excludes known framework prefixes (Tier 2).
+
+**New Service:**
+- `GcRootAnalyzer` — Singleton. Performs reverse-reference root analysis on a live `ClrHeap` within the DataTarget snapshot scope. Uses a 5-phase algorithm: (1) index GC root addresses, (2) single heap pass building parent map with user-code preference, (3) score and sample instances by user-code proximity, (4) walk backward from targets to user code resolving field names, (5) group, filter, and rank results. Exposes `public bool IsUserCode(string typeName)` for use by `DiagnosticsService` prediction layer.
+
+**New Models** (`AppSysMetrics.Diagnostics.Models`):
+- `RootAnalysisResult` — Aggregate result: list of `TypeRootAnalysis`, total duration, timeout flag, skipped types.
+- `TypeRootAnalysis` — Per-type: type name, total root count, top `GcRootInfo` entries, truncation flag, analysis duration.
+- `GcRootInfo` — Per-root: root kind (`UserCode`, `StrongHandle`, etc.), root object type name, retention path string, retained instance count, `HasUserCode` flag.
+
+**New UI Components:**
+- `GcRootAnalysisPanel` (+`.razor.css`) — Collapsible per-type sections showing root kind badge (color-coded: green for UserCode, red for StrongHandle, etc.), root object type, retention path in monospace, and retained count. Auto-expands when ≤ 3 types. Cross-references with current diff's leak suspects to show "confirmed" badge. Shows contextual messages when root analysis hasn't run yet or found no results.
+
+**New Options** (`DumpAnalyzerOptions`):
+- `MaxRootAnalysisTypes` (int, default 5) — Maximum leak-suspect types to analyze per capture
+- `MaxRootsPerType` (int, default 10) — Maximum roots to report per type
+- `RootAnalysisPerTypeTimeout` (TimeSpan, default 10s) — Per-type timeout
+- `RootAnalysisGlobalTimeout` (TimeSpan, default 60s) — Global timeout for all root analysis
+- `TraceRetentionPaths` (bool, default true) — Whether to build the parent map and trace paths
+- `MaxRetentionPathDepth` (int, default 20) — Maximum hops in backward walk
+
+### 8.4 Modifications to Existing Code
+
+**Modified Service — `DiagnosticsService`:**
+- Now injects `GcRootAnalyzer` directly (in addition to `ClrMdHeapAnalyzer`)
+- `CaptureGcDumpAsync()` calls `PredictLeakSuspectTypes()` before capture, passes targets to `ClrMdHeapAnalyzer`
+- `PredictLeakSuspectTypes()` uses a two-track approach: Track 1 catches types with ≥ 80% retention ratio. Track 2 catches types with lower retention but significant absolute heap growth (≥ 1 MB or ≥ 20% of total heap delta), which addresses retention ratio dilution where framework allocations (e.g. Kestrel's MemoryPoolBlock) inflate the denominator for shared types like `Byte[]`.
+- `IsFrameworkOnlyType()` filters prediction candidates: user-code types pass; `System.*` container types pass; dot-free types pass only if they are well-known primitives/arrays (via `IsWellKnownContainerType`); all other namespaced types with `Microsoft.*`, `Internal.*`, or `Interop.*` prefixes are excluded.
+
+**Modified Service — `ClrMdHeapAnalyzer`:**
+- Now injects `GcRootAnalyzer`
+- `CaptureAndAnalyzeAsync()` accepts optional `IReadOnlyList<string>? rootAnalysisTargets`
+- When targets are provided, calls `GcRootAnalyzer.AnalyzeRoots(heap, targets)` within the DataTarget scope and attaches the `RootAnalysisResult` to the `DumpAnalysisResult`
+
+**Modified Model — `DumpAnalysisResult`:**
+- Added `RootAnalysis` property (`RootAnalysisResult?`, nullable) — attached when root analysis is performed
+
+**Modified Panel — `DumpDiffPanel`:**
+- Leak suspects computation updated to use two-track detection matching `DiagnosticsService.PredictLeakSuspectTypes()`
+- Added `IsFrameworkNoise()` filter to exclude framework-prefixed types and dot-free non-primitive types from the leak suspects call-out
+- Narrative text updated: "X leak suspects detected (high retention or significant heap growth)"
+
+**Modified View — `DumpAnalysisView`:**
+- Added `GcRootAnalysisPanel` below the diff panel, passing `RootAnalysis` and `LeakSuspects` parameters
+
+**Modified DI Registration:**
+- `AddAppSysMetrics()` — Added `GcRootAnalyzer` (singleton)
+
+### 8.5 GcRootAnalyzer Algorithm
+
+The analysis runs in 5 phases within a single DataTarget snapshot:
+
+**Phase 1 — Build GC root address set.** Enumerate `heap.EnumerateRoots()` and index every root's address, kind, and type name into a `Dictionary<ulong, (string Kind, string TypeName)>`.
+
+**Phase 2 — Single heap pass: parent map + target instances.** Enumerate all heap objects once. For each object: (a) collect its address if it matches a target type name, (b) index outgoing references into a `parentMap` (childAddr → parentAddr). The parent map uses user-code preference: when `TryAdd` fails and the current object is a user-code type, it overwrites any existing framework parent. This ensures `MemoryLeakService` wins parenthood over transient framework types like `List<T>+Enumerator` that happen to be enumerated first.
+
+**Phase 3 — Score and sample instances.** For each target type, score a stride-based sample of up to 500 instances by walking up the parent map (max 10 hops) and checking for user-code types. Instances with user-code in their parent chain get higher scores. Sort by score descending and take the top 50 for root walking. This "Just My Code" prioritization ensures leaked instances (held by user code) are analyzed before framework-held instances.
+
+**Phase 4 — Backward retention path walk.** For each sampled instance, walk backward through the parent map until reaching either a user-code type (primary goal) or a GC root (fallback). When a user-code type is found, set `rootKind = "UserCode"` and `rootTypeName` to the user-code type name. Then validate direct ownership: if the walk depth is ≥ 2, check the immediate child of the user-code type — if it's a `Microsoft.*`/`Internal.*`/`Interop.*` framework infrastructure type, downgrade `foundUserCode` to false (the user-code type reaches the target through framework plumbing, not its own data structures). Resolve field names via `EnumerateReferencesWithFields` only for objects on the final chain (lazy resolution — expensive but targeted). Build human-readable path strings: `MemoryLeakService → _leakedBlobs:List<Byte[]> → _items:Byte[][] → [*]:Byte[]`.
+
+**Phase 5 — Group, filter, rank.** Group root hits by retention path. For each group, mark `HasUserCode` only if a user-code type appears within `MaxDirectOwnershipDepth` (4) hops of the target. When user-code groups exist, show only those (framework-only paths are noise). Types with zero user-code groups are excluded from results entirely. Sort: user-code paths first, then by retained instance count descending.
+
+### 8.6 Two-Tier User Assembly Detection
+
+`GcRootAnalyzer.BuildUserAssemblyPrefixes()` discovers which assemblies represent user/application code:
+
+**Tier 1 — Explicit mode.** If any loaded assembly carries the `[AnalyzeMemoryLeaks]` attribute, only those assemblies are considered user code. Provides precise control for applications with complex assembly structures.
+
+**Tier 2 — Auto mode.** If no assemblies have the attribute, all non-framework, non-dynamic assemblies are included. Framework assemblies are identified by name prefix: `System`, `Microsoft`, `Internal`, `Interop`, `Newtonsoft`, `netstandard`, `mscorlib`, `WindowsBase`.
+
+In both tiers, the AppSysMetrics assembly itself (`typeof(GcRootAnalyzer).Assembly.GetName().Name`) is excluded — the diagnostics tool must never report its own types as leak suspects.
+
+The result is cached as a `HashSet<string>` for the process lifetime. Type classification uses prefix matching: `typeName.StartsWith(prefix) && typeName[prefix.Length] == '.'`.
+
+### 8.7 Two-Track Leak Prediction
+
+`DiagnosticsService.PredictLeakSuspectTypes()` uses two complementary tracks to identify leak suspects:
+
+**Track 1 — High retention.** `RetentionRatio >= 0.8`. Catches pure leaks where most allocations are retained. Example: a custom service that allocates String objects and never releases them — 95% retention.
+
+**Track 2 — Large absolute growth.** `RetentionRatio > 0` (positive retention) with `DeltaSizeBytes >= 1 MB` (absolute floor) or `DeltaSizeBytes >= 20% of TotalHeapDelta` (proportional threshold). Catches diluted leaks where a type has high framework throughput that masks the retention ratio. Example: `Byte[]` shared by Kestrel's MemoryPoolBlock (high allocation/collection churn) and `MemoryLeakService._leakedBlobs` (retained) — the combined ratio drops to ~38%, but absolute heap growth of 3+ MB clearly indicates a problem.
+
+Both tracks exclude framework-only types via `IsFrameworkOnlyType()`. Results are unioned, deduplicated, sorted by retention ratio descending then delta size descending, and capped at 5 types.
+
+### 8.8 Key Design: User-Code Parent Preference in Parent Map
+
+The parent map uses `TryAdd` (first-parent-wins) for performance, but this can produce misleading paths when framework transients claim parenthood before the actual owner. For example, `List<T>+Enumerator` (a short-lived framework object) might be enumerated before `MemoryLeakService` and claim parenthood of `Byte[][]` via `TryAdd`.
+
+The fix: when the current object is a user-code type and `TryAdd` fails, check the existing parent — if it's a framework type, overwrite it. This ensures user-code types like `MemoryLeakService` win parenthood over framework transients, producing paths that name the developer's class rather than framework internals.
+
+### 8.9 Key Design: Framework Intermediary Check
+
+A Blazor component like `LeakLab` is user code, but its ownership of `Int32[]` through `_renderHandle:EndpointHtmlRenderer` is framework plumbing — the component doesn't deliberately allocate or retain those arrays. The depth threshold alone (≤ 4 hops) can't distinguish this because the path `LeakLab → EndpointHtmlRenderer → Dictionary → _buckets:Int32[]` is only 3 hops.
+
+The framework intermediary check examines the first hop from the user-code type toward the target. If the immediate child is a `Microsoft.*`/`Internal.*`/`Interop.*` framework infrastructure type, the path is downgraded to `HasUserCode = false`. This distinguishes:
+- `MemoryLeakService → List<Byte[]>` — immediate child is `System.*` → **direct ownership** ✅
+- `LeakLab → EndpointHtmlRenderer` — immediate child is `Microsoft.*` → **framework plumbing** ❌
+
+### 8.10 Key Design: Dot-Free Type Filtering
+
+Some framework internal types appear on the heap without namespace qualifiers (e.g. `ClrDacType` from `Microsoft.Diagnostics.Runtime`). The prediction filter originally allowed all dot-free type names through (designed for `Byte[]`, `String`, etc.), which let `ClrDacType` slip into leak suspects at 100% retention.
+
+The fix: dot-free types pass the filter only if they match a well-known primitive/array allowlist (`Byte`, `SByte`, `String`, `Char`, `Int16`, `UInt16`, `Int32`, `UInt32`, `Int64`, `UInt64`, `Double`, `Single`, `Boolean`, `Object`, `IntPtr`, `UIntPtr`, `Decimal`, `Guid`, `DateTime`, `DateTimeOffset`, `TimeSpan`, and their array variants). Everything else without a dot is treated as framework noise.
+
+### 8.11 Key Design: Self-Assembly Exclusion
+
+The AppSysMetrics library observes the same process it runs in. Without explicit exclusion, types like `GcRootAnalyzer` and internal ClrMD types would appear as user code (the assembly is loaded alongside the application). `BuildUserAssemblyPrefixes()` derives the library's own assembly name via `typeof(GcRootAnalyzer).Assembly.GetName().Name` and excludes it from both Tier 1 and Tier 2 results. This ensures the diagnostics tool never reports its own infrastructure as a leak suspect.
+
+---
+
+## 9. Project Structure
 
 ```
 AppSysMetrics/                              (Razor Class Library — net10.0)
@@ -609,24 +756,30 @@ AppSysMetrics/                              (Razor Class Library — net10.0)
 │   │   ├── DiagnosticsPanel.razor (+.css)
 │   │   ├── MemoryHealthPanel.razor (+.css)     (Phase 5)
 │   │   ├── DumpAnalysisPanel.razor (+.css)     (Phase 4)
-│   │   ├── DumpDiffPanel.razor (+.css)         (Phase 4+5)
-│   │   └── DumpHistoryPanel.razor (+.css)      (Phase 4)
+│   │   ├── DumpDiffPanel.razor (+.css)         (Phase 4+5+6)
+│   │   ├── DumpHistoryPanel.razor (+.css)      (Phase 4)
+│   │   └── GcRootAnalysisPanel.razor (+.css)   (Phase 6)
 │   └── Views/
 │       ├── MetricsDashboardView.razor (+.css)
 │       ├── MemoryDiagnosticsView.razor (+.css)
 │       └── DumpAnalysisView.razor (+.css)      (Phase 4)
-├── Diagnostics/                            (Phase 2+4+5)
+├── Diagnostics/                            (Phase 2+4+5+6)
+│   ├── AnalyzeMemoryLeaksAttribute.cs      (Phase 6)
 │   ├── DiagnosticsOptions.cs
 │   ├── IDiagnosticsService.cs
 │   ├── DiagnosticsService.cs
 │   ├── ClrMdHeapAnalyzer.cs                (Phase 5)
-│   ├── DumpAnalyzerOptions.cs              (Phase 4)
+│   ├── GcRootAnalyzer.cs                   (Phase 6)
+│   ├── DumpAnalyzerOptions.cs              (Phase 4+6)
 │   ├── DumpDiffService.cs                  (Phase 4+5)
-│   └── Models/                             (Phase 4+5)
+│   └── Models/                             (Phase 4+5+6)
 │       ├── HeapTypeInfo.cs
 │       ├── DumpAnalysisResult.cs
 │       ├── HeapTypeDiff.cs
-│       └── DumpDiffResult.cs
+│       ├── DumpDiffResult.cs
+│       ├── RootAnalysisResult.cs            (Phase 6)
+│       ├── TypeRootAnalysis.cs              (Phase 6)
+│       └── GcRootInfo.cs                    (Phase 6)
 ├── Extensions/
 │   └── ServiceCollectionExtensions.cs
 ├── Hosting/
@@ -650,11 +803,11 @@ AppSysMetrics/                              (Razor Class Library — net10.0)
 
 ---
 
-## 9. Data Models
+## 10. Data Models
 
 All library models are `sealed record` types (immutable, value-equality, `with`-expression support). Core metrics models are in `AppSysMetrics.Models`; dump analysis models are in `AppSysMetrics.Diagnostics.Models`; diagnostics action results (`ForceGcResult`, `GcDumpResult`) are defined alongside `IDiagnosticsService` in `AppSysMetrics.Diagnostics`.
 
-### 9.1 MetricsSnapshot
+### 10.1 MetricsSnapshot
 
 The top-level container produced by `MetricsCollector.Collect()` every 2 seconds.
 
@@ -666,7 +819,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | Cpu | CpuMetrics | `CpuSampler.Sample()` |
 | Gc | GcMetrics | `GC.GetGCMemoryInfo()` + `GC.CollectionCount()` |
 
-### 9.2 ProcessMetrics
+### 10.2 ProcessMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -677,7 +830,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | ThreadCount | int | OS thread count |
 | HandleCount | int | OS handle count |
 
-### 9.3 CpuMetrics
+### 10.3 CpuMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -685,7 +838,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | TotalProcessorTime | TimeSpan | Cumulative CPU time since process start |
 | ProcessorCount | int | `Environment.ProcessorCount` |
 
-### 9.4 GcMetrics
+### 10.4 GcMetrics
 
 | Property | Type | Description |
 |---|---|---|
@@ -703,7 +856,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | FinalizationPendingCount | long | Objects waiting for finalization (Phase 2) |
 | GenerationInfo | IReadOnlyList\<GcGenerationInfo\> | Per-generation size/fragmentation detail |
 
-### 9.5 GcGenerationInfo
+### 10.5 GcGenerationInfo
 
 | Property | Type | Description |
 |---|---|---|
@@ -713,7 +866,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | FragmentationBeforeBytes | long | Fragmentation before last collection |
 | FragmentationAfterBytes | long | Fragmentation after last collection |
 
-### 9.6 AllocationTypeInfo (Phase 2)
+### 10.6 AllocationTypeInfo (Phase 2)
 
 | Property | Type | Description |
 |---|---|---|
@@ -722,7 +875,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | AllocationCount | int | Number of allocation ticks observed |
 | IsLargeObject | bool | True if allocated on the LOH (>= 85,000 bytes) |
 
-### 9.7 AllocationSnapshot (Phase 2+5)
+### 10.7 AllocationSnapshot (Phase 2+5)
 
 | Property | Type | Description |
 |---|---|---|
@@ -736,7 +889,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | LibraryTrackedBytes | long | Library overhead (types in `AppSysMetrics.*` namespace) (Phase 5) |
 | LibraryTrackedCount | int | Library allocation count (Phase 5) |
 
-### 9.8 HeapTypeInfo (Phase 4)
+### 10.8 HeapTypeInfo (Phase 4)
 
 | Property | Type | Description |
 |---|---|---|
@@ -744,7 +897,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | InstanceCount | long | Number of instances of this type on the heap |
 | TotalSizeBytes | long | Total bytes consumed by all instances of this type |
 
-### 9.9 DumpAnalysisResult (Phase 4+5)
+### 10.9 DumpAnalysisResult (Phase 4+5)
 
 | Property | Type | Description |
 |---|---|---|
@@ -758,8 +911,9 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | TopTypes | IReadOnlyList\<HeapTypeInfo\> | Top N types by total size, descending |
 | UnresolvedTypeCount | int | Types with unresolved names (UNKNOWN 0x...). Always 0 for ClrMD. (Phase 5) |
 | AllocationAtCapture | AllocationSnapshot? | Allocation snapshot at capture time for correlation analysis. Null for legacy path. (Phase 5) |
+| RootAnalysis | RootAnalysisResult? | GC root analysis for predicted leak-suspect types, captured during the same heap snapshot. Null when root analysis was not requested (first two captures) or failed. (Phase 6) |
 
-### 9.10 HeapTypeDiff (Phase 4+5)
+### 10.10 HeapTypeDiff (Phase 4+5)
 
 | Property | Type | Description |
 |---|---|---|
@@ -776,7 +930,7 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | AllocatedBetweenBytes | long? | Bytes allocated between the two dumps (throughput) (Phase 5) |
 | RetentionRatio | double? | `heapDelta / allocationThroughput` — 1.0 = leak suspect, 0.0 = healthy churn (Phase 5) |
 
-### 9.11 DumpDiffResult (Phase 4+5)
+### 10.11 DumpDiffResult (Phase 4+5)
 
 | Property | Type | Description |
 |---|---|---|
@@ -790,7 +944,44 @@ The top-level container produced by `MetricsCollector.Collect()` every 2 seconds
 | TotalAllocatedBetween | long? | Total bytes allocated (app-only) between the two dumps (Phase 5) |
 | TotalCollectedBetween | long? | Total bytes collected between dumps (allocated minus heap growth) (Phase 5) |
 
-### 9.12 ForceGcResult (Phase 2)
+### 10.12 RootAnalysisResult (Phase 6)
+
+Aggregate result for GC root analysis across all analyzed leak-suspect types. Attached to `DumpAnalysisResult.RootAnalysis` as an optional enrichment.
+
+| Property | Type | Description |
+|---|---|---|
+| AnalyzedAtUtc | DateTimeOffset | When the root analysis was performed |
+| TypeAnalyses | IReadOnlyList\<TypeRootAnalysis\> | Per-type root analysis results for each predicted leak-suspect type |
+| TotalDuration | TimeSpan | Total wall-clock time for all root analysis across all types |
+| WasTimedOut | bool | True if the overall analysis was cut short by the global timeout |
+| SkippedTypes | IReadOnlyList\<string\> | Type names that were requested but could not be analyzed (e.g., not found on heap) |
+
+### 10.13 TypeRootAnalysis (Phase 6)
+
+Per-type root analysis result, containing the top roots retaining instances of a specific leak-suspect type.
+
+| Property | Type | Description |
+|---|---|---|
+| TypeName | string | Fully-qualified type name that was analyzed |
+| TotalRootCount | int | Total number of distinct GC roots found that retain instances of this type |
+| Roots | IReadOnlyList\<GcRootInfo\> | Top roots retaining this type, limited by `DumpAnalyzerOptions.MaxRootsPerType`. Sorted by `RetainedInstanceCount` descending |
+| WasTruncated | bool | True if analysis was truncated due to timeout or max-root limits |
+| AnalysisDuration | TimeSpan | Wall-clock time spent analyzing roots for this specific type |
+
+### 10.14 GcRootInfo (Phase 6)
+
+A single GC root entry retaining objects of a specific type. Roots are grouped by retention path with `RetainedInstanceCount` aggregated across matching instances.
+
+| Property | Type | Description |
+|---|---|---|
+| RootKind | string | Root kind: `UserCode`, `StrongHandle`, `PinnedHandle`, `AsyncPinnedHandle`, `Stack`, `FinalizerQueue`, or `Unknown` |
+| RootAddress | ulong | Address of the root object (for deduplication) |
+| RootObjectTypeName | string | Type name of the root object — the user-code type or GC root object that retains the target |
+| RetentionPath | string? | Human-readable retention path (e.g., `MemoryLeakService → _leakedBlobs:List<Byte[]> → _items:Byte[][] → [*]:Byte[]`). Null when the root directly holds the target type |
+| RetainedInstanceCount | int | Number of instances of the target type reachable from this root |
+| HasUserCode | bool | True if the retention path passes through at least one user/application code type within `MaxDirectOwnershipDepth` hops. Used for "Just My Code" sorting |
+
+### 10.15 ForceGcResult (Phase 2)
 
 Defined in `IDiagnosticsService.cs`. Returned by `IDiagnosticsService.ForceGC()`.
 
@@ -801,7 +992,7 @@ Defined in `IDiagnosticsService.cs`. Returned by `IDiagnosticsService.ForceGC()`
 | Duration | TimeSpan | Wall-clock time for the GC operation (required) |
 | PerformedAt | DateTimeOffset | When the operation completed (required) |
 
-### 9.13 GcDumpResult (Phase 2)
+### 10.16 GcDumpResult (Phase 2)
 
 Defined in `IDiagnosticsService.cs`. Returned by `CaptureGcDumpAsync()` and `CaptureGcDumpFileAsync()`.
 
@@ -815,9 +1006,9 @@ Defined in `IDiagnosticsService.cs`. Returned by `CaptureGcDumpAsync()` and `Cap
 
 ---
 
-## 10. Services and Hosting
+## 11. Services and Hosting
 
-### 10.1 DI Registration
+### 11.1 DI Registration
 
 ```csharp
 // Consumer's Program.cs
@@ -828,7 +1019,7 @@ builder.Services.AddAppSysMetrics(options =>
 });
 ```
 
-### 10.2 AppSysMetrics Service Registrations
+### 11.2 AppSysMetrics Service Registrations
 
 | Service | Lifetime | Interface |
 |---|---|---|
@@ -842,7 +1033,7 @@ builder.Services.AddAppSysMetrics(options =>
 | MetricsCollectionOptions | Options | IOptions\<T\> |
 | DiagnosticsOptions | Options | IOptions\<T\> |
 
-### 10.3 Hub Pattern
+### 11.3 Hub Pattern
 
 Both `MetricsHub` and `AllocationTrackingHub` follow the same pattern:
 
@@ -852,7 +1043,7 @@ Both `MetricsHub` and `AllocationTrackingHub` follow the same pattern:
 - **Latest**: Property holding the most recent snapshot for newly subscribing components
 - **GetHistory()**: Returns a copy of the ring buffer for chart rendering
 
-### 10.4 Background Services
+### 11.4 Background Services
 
 Both `MetricsCollectionService` and `AllocationTrackingService` use `PeriodicTimer` in `ExecuteAsync`:
 
@@ -866,16 +1057,17 @@ while (await timer.WaitForNextTickAsync(stoppingToken))
 
 Exceptions within the loop are caught and logged, not propagated, to keep the service running.
 
-### 10.5 Heap Analysis Service Registrations (Phase 4+5)
+### 11.5 Heap Analysis Service Registrations (Phase 4+5+6)
 
 | Service | Lifetime | Interface |
 |---|---|---|
+| GcRootAnalyzer | Singleton | (concrete) (Phase 6) |
 | ClrMdHeapAnalyzer | Singleton | (concrete) |
 | DumpDiffService | Singleton | (concrete) |
 | DumpAnalysisHub | Singleton | (concrete) |
 | DumpAnalyzerOptions | Options | IOptions\<T\> |
 
-### 10.6 DumpAnalysisHub Pattern (Phase 4)
+### 11.6 DumpAnalysisHub Pattern (Phase 4)
 
 `DumpAnalysisHub` follows the same ring buffer pattern as `MetricsHub` and `AllocationTrackingHub` but with three events:
 
@@ -886,7 +1078,7 @@ Exceptions within the loop are caught and logged, not propagated, to keep the se
 Properties: `Latest` (most recent analysis), `LatestDiff` (most recent diff), `GetHistory()` (defensive copy of all analyses).
 Methods: `Publish()`, `PublishDiff()` (internal), `Clear()` (public, resets history and fires `OnCleared`).
 
-### 10.7 ClrMdHeapAnalyzer Pattern (Phase 5)
+### 11.7 ClrMdHeapAnalyzer Pattern (Phase 5)
 
 `ClrMdHeapAnalyzer` is an on-demand service (not a background service). It is invoked by `DiagnosticsService.CaptureGcDumpAsync()` when the user clicks "Capture Heap Snapshot":
 
@@ -906,19 +1098,19 @@ Concurrency is serialized via `SemaphoreSlim(1)` with a 5-second timeout. If a c
 
 ---
 
-## 11. UI Components
+## 12. UI Components
 
 All chart, panel, and view components listed below are shipped in the library.
 
-### 11.1 Component Namespaces
+### 12.1 Component Namespaces
 
 | Namespace | Contents |
 |---|---|
 | `AppSysMetrics.Components.Charts` | BarChart, LineChart, GaugeChart, MetricCard |
-| `AppSysMetrics.Components.Panels` | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, MemoryHealthPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel |
+| `AppSysMetrics.Components.Panels` | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, MemoryHealthPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel, GcRootAnalysisPanel |
 | `AppSysMetrics.Components.Views` | MetricsDashboardView, MemoryDiagnosticsView, DumpAnalysisView |
 
-### 11.2 Consumer Page Integration
+### 12.2 Consumer Page Integration
 
 The library ships views, not pages. Consumers create their own thin page wrappers:
 
@@ -930,7 +1122,7 @@ The library ships views, not pages. Consumers create their own thin page wrapper
 
 Each page is typically 3–6 lines: `@page`, `@rendermode`, `<PageTitle>`, and the view tag. `MetricsDashboardView` accepts a `RenderFragment? AdditionalContent` parameter for injecting app-specific panels.
 
-### 11.3 Chart Components (AppSysMetrics library)
+### 12.3 Chart Components (AppSysMetrics library)
 
 | Component | Visualization | Rendering |
 |---|---|---|
@@ -941,7 +1133,7 @@ Each page is typically 3–6 lines: `@page`, `@rendermode`, `<PageTitle>`, and t
 
 All chart components accept parameters for data, titles, units, colors, and ranges. None use JavaScript.
 
-### 11.4 Panel Components (AppSysMetrics library)
+### 12.4 Panel Components (AppSysMetrics library)
 
 | Panel | Data Source | Key Visuals |
 |---|---|---|
@@ -956,16 +1148,17 @@ All chart components accept parameters for data, titles, units, colors, and rang
 | DumpAnalysisPanel | DumpAnalysisResult | MetricCards (heap size, object count, file name), ranked top 20 types table, UNKNOWN type warning when present |
 | DumpDiffPanel | DumpDiffResult | 4-zone layout when correlation available: summary MetricCards with collection efficiency %, narrative banner (green/yellow/red), leak suspects call-out (top 5 by retention), retention-sorted type diff table. Falls back to standard diff table when no correlation. |
 | DumpHistoryPanel | IReadOnlyList\<DumpAnalysisResult\> | Interactive click-to-select table (BASE/CUR tags by chronological order), "Compare Selected" button, "Clear All" button (deletes files from disk) |
+| GcRootAnalysisPanel | RootAnalysisResult?, IReadOnlyList\<HeapTypeDiff\>? | Collapsible per-type sections: color-coded root kind badge (green=UserCode, red=StrongHandle, yellow=PinnedHandle, blue=Stack, orange=FinalizerQueue), root object type, monospace retention path, retained instance count. Cross-references with current diff's leak suspects for "confirmed" badge. Auto-expands when ≤ 3 types. (Phase 6) |
 
-### 11.5 Composite View Components (AppSysMetrics library)
+### 12.5 Composite View Components (AppSysMetrics library)
 
 | View | Injects | Grid Content | Parameter |
 |---|---|---|---|
 | MetricsDashboardView | MetricsHub | MemoryHealth (full width), ProcessMetrics + CPU + GC + AllocationRate (2x2), optional full-width slot | `RenderFragment? AdditionalContent` |
 | MemoryDiagnosticsView | AllocationTrackingHub, MetricsHub | MemoryHealth (full width), Diagnostics (full width), TopAllocations (full width), LOH + GC (side-by-side) | — |
-| DumpAnalysisView | DumpAnalysisHub, MetricsHub | MemoryHealth (full width), DumpHistory (full width), DumpAnalysis + DumpDiff (side-by-side) | — |
+| DumpAnalysisView | DumpAnalysisHub, MetricsHub | MemoryHealth (full width), DumpHistory (full width), DumpAnalysis + DumpDiff (side-by-side), GcRootAnalysisPanel (full width, Phase 6) | — |
 
-### 11.6 Blazor Component Lifecycle Pattern
+### 12.6 Blazor Component Lifecycle Pattern
 
 All subscribing view components follow this pattern:
 
@@ -993,21 +1186,21 @@ The `ObjectDisposedException` catch handles the race condition where a snapshot 
 
 ---
 
-## 12. Dependency Inventory
+## 13. Dependency Inventory
 
-### 12.1 NuGet Packages
+### 13.1 NuGet Packages
 
 | Package | Version | Used By | Purpose |
 |---|---|---|---|
 | Microsoft.Diagnostics.Runtime | 3.1.512801 | ClrMdHeapAnalyzer | In-process heap analysis via ClrMD (Phase 5) |
 
-### 12.2 Framework References
+### 13.2 Framework References
 
 | Reference | Used By | Provides |
 |---|---|---|
 | Microsoft.AspNetCore.App | AppSysMetrics | Razor component compilation, Hosting.Abstractions, Logging.Abstractions, Options, DI |
 
-### 12.3 External Tools
+### 13.3 External Tools
 
 | Tool | Required By | Install Command |
 |---|---|---|
@@ -1015,14 +1208,14 @@ The `ObjectDisposedException` catch handles the race condition where a snapshot 
 
 The tool is only required for the "Capture GC Dump" button which exports a `.gcdump` file to disk. The primary "Capture Heap Snapshot" feature uses ClrMD in-process and does not require any external tools.
 
-### 12.4 Static Assets
+### 13.4 Static Assets
 
 | Asset | Path | Purpose |
 |---|---|---|
 | AppSysMetrics.css | `_content/AppSysMetrics/AppSysMetrics.css` | Shared library component styles (panels, tables, buttons, state colors) |
 | AppSysMetrics.styles.css | Auto-generated by Blazor CSS isolation | Scoped component CSS for charts, panels, views |
 
-### 12.5 Runtime APIs
+### 13.5 Runtime APIs
 
 | API | Namespace | Purpose |
 |---|---|---|
@@ -1044,60 +1237,60 @@ The tool is only required for the "Capture GC Dump" button which exports a `.gcd
 
 ---
 
-## 13. Design Decisions
+## 14. Design Decisions
 
-### 13.1 Why sealed records for metrics?
+### 14.1 Why sealed records for metrics?
 
 Records provide value equality and immutable snapshots. `sealed` prevents inheritance overhead. The combination is ideal for data that's created once, published to a hub, and read by multiple consumers — no defensive copying needed.
 
-### 13.2 Why MarkupString + StringBuilder for SVG?
+### 14.2 Why MarkupString + StringBuilder for SVG?
 
 Razor's parser treats `<text>` as a directive, not an HTML/SVG element. Since SVG uses `<text>` extensively for labels, axis values, and gauge readouts, the only clean solution is to build the SVG string outside of Razor's parser and inject it as raw markup. This also avoids Razor issues with `<` in switch expressions used for threshold-based coloring.
 
-### 13.3 Why not use a JavaScript charting library?
+### 14.3 Why not use a JavaScript charting library?
 
 The solution demonstrates that Blazor Server can render rich visualizations without any JavaScript interop. The SVG approach has zero JS payload, no npm dependencies, no bundling, and updates instantly via SignalR without client-side re-rendering.
 
-### 13.4 Why two separate hubs?
+### 14.4 Why two separate hubs?
 
 Metrics snapshots and allocation snapshots serve different diagnostic questions. Metrics answer "how is the process doing right now?" while allocation snapshots answer "what types are consuming the most memory?" Coupling them into a single snapshot would force both collection mechanisms onto the same timer and make the API less composable for consumers that only need one view.
 
-### 13.5 Why ClrMD instead of dotnet-gcdump? (Phase 5)
+### 14.5 Why ClrMD instead of dotnet-gcdump? (Phase 5)
 
 `dotnet-gcdump` relies on EventPipe to emit `GCBulkType` events for type name resolution. A .NET 8+ regression (dotnet/diagnostics #5116) causes these events not to be re-emitted on subsequent captures from the same process, producing `UNKNOWN 0x...` type names. ClrMD (`Microsoft.Diagnostics.Runtime`) reads type metadata directly from CLR method tables and the DAC, which is immune to this regression. The trade-off is a NuGet dependency, but the gain is reliable type names on every capture and no external tool requirement for the primary heap snapshot path. The original `dotnet-gcdump collect` is retained as `CaptureGcDumpFileAsync()` for users who need `.gcdump` file export.
 
-### 13.6 Why one library instead of separate Core + UI packages?
+### 14.6 Why one library instead of separate Core + UI packages?
 
 The Razor SDK is additive — existing C# compiles identically. A single package avoids version coordination between "core" and "UI" packages. Consumers who only need the backend can ignore the Components namespace; Razor components add negligible binary size. The `FrameworkReference` to `Microsoft.AspNetCore.App` actually simplified the `.csproj` by replacing three explicit NuGet package references.
 
-### 13.7 Why no @page or @rendermode in library view components?
+### 14.7 Why no @page or @rendermode in library view components?
 
 Hardcoding routes in a library claims URL paths from the consumer. Hardcoding render mode prevents consumers from choosing InteractiveServer vs InteractiveWebAssembly vs InteractiveAuto. By shipping views as plain components, the library remains composable: the consumer wraps them in their own pages with their own routing and render mode decisions. The `RenderFragment? AdditionalContent` parameter on `MetricsDashboardView` further enables extensibility without modification.
 
-### 13.8 Why no Bootstrap dependency in library components?
+### 14.8 Why no Bootstrap dependency in library components?
 
 Library components use zero Bootstrap CSS classes. All styling is self-contained via `AppSysMetrics.css` (shared base) and scoped `.razor.css` (per-component layout). This makes the library portable to any CSS framework or custom design system.
 
-### 13.9 Why text parsing was replaced by ClrMD (Phase 4 → Phase 5)
+### 14.9 Why text parsing was replaced by ClrMD (Phase 4 → Phase 5)
 
 Phase 4 parsed `dotnet-gcdump report` text output to avoid NuGet dependencies. Phase 5 replaced this approach with ClrMD (`Microsoft.Diagnostics.Runtime`) because the EventPipe regression in .NET 8+ made the text output unreliable (UNKNOWN type names on repeated captures). The text parser (`DumpReportParser`), its consumer (`DumpAnalyzerService`), and the file watcher (`DumpWatcherService`) were removed. The trade-off of adding a NuGet dependency was justified by reliable type resolution and the elimination of external tool requirements for the primary analysis path.
 
-### 13.10 Why on-demand capture replaced file watching? (Phase 4 → Phase 5)
+### 14.10 Why on-demand capture replaced file watching? (Phase 4 → Phase 5)
 
 Phase 4 used `FileSystemWatcher` + `Channel<string>` to automatically process `.gcdump` files as they appeared. Phase 5 replaced this with on-demand in-process capture via `ClrMdHeapAnalyzer`, triggered by a UI button click. This is simpler (no background service, no file watching, no file-ready detection), more reliable (no race conditions with file locking or partial writes), and faster (no subprocess, no file I/O). The enrichment pipeline (allocation correlation, auto-diff) was consolidated into `DiagnosticsService` as a single entry point.
 
-### 13.11 Why dual events on DumpAnalysisHub? (Phase 4)
+### 14.11 Why dual events on DumpAnalysisHub? (Phase 4)
 
 `DumpAnalysisHub` separates `OnAnalysis` and `OnDiff` events because the first dump has no diff, and manual UI comparisons produce diffs without new analyses. Each bottom panel in `DumpAnalysisView` subscribes to exactly the event it needs. See Section 6.4 for details.
 
-### 13.12 Why a third hub instead of extending existing hubs? (Phase 4)
+### 14.12 Why a third hub instead of extending existing hubs? (Phase 4)
 
 `DumpAnalysisHub` is independent from `MetricsHub` and `AllocationTrackingHub` because heap analysis operates on a fundamentally different trigger (on-demand user action) rather than a periodic timer. The data lifecycle is different — analyses accumulate as discrete snapshots, not continuous time-series data. This follows the same separation principle described in Section 13.4 for the first two hubs.
 
-### 13.13 Why a 4-zone narrative UI for DumpDiffPanel? (Phase 5)
+### 14.13 Why a 4-zone narrative UI for DumpDiffPanel? (Phase 5)
 
 Raw diff tables show numbers but don't answer "is the heap healthy?". The 4-zone layout provides progressive disclosure: executive summary (MetricCards with collection efficiency), narrative prose (colored banner), actionable alerts (leak suspects with per-type breakdown), then full detail (retention-sorted table). This mirrors how a developer would manually analyze dumps: check overall health first, look for red flags, then drill into specifics. The narrative computes `collected = allocated − heapGrowth` and `efficiency = collected / allocated`, which are the two numbers that immediately distinguish healthy churn from a leak.
 
-### 13.14 Why enrich DumpAnalysisResult with AllocationSnapshot? (Phase 5)
+### 14.14 Why enrich DumpAnalysisResult with AllocationSnapshot? (Phase 5)
 
 Heap snapshots alone show what's on the heap but not what was allocated. By attaching an `AllocationSnapshot` at capture time, the diff service can compute per-type retention ratios: "Type X had 500 KB allocated but 500 KB retained = 100% retention = leak suspect". Without this enrichment, a type with 500 KB heap growth could be healthy (if 10 MB was allocated and 9.5 MB collected) or a leak (if only 500 KB was allocated). The `AllocationAtCapture` field is nullable to handle edge cases where the allocation listener isn't available.

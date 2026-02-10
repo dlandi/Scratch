@@ -10,22 +10,23 @@ namespace AppSysMetrics.Diagnostics;
 /// Creates a snapshot of the current process via <see cref="DataTarget.CreateSnapshotAndAttach"/>
 /// and enumerates heap objects to build type-level aggregates.
 ///
-/// This replaces <c>dotnet-gcdump</c> which suffers from a .NET 8+ EventPipe regression
-/// (dotnet/diagnostics #5116) where type names are not re-emitted on subsequent captures.
-/// ClrMD reads type metadata directly from CLR internals (method tables, DAC) and is immune
-/// to the EventPipe bug.
+/// Phase 6 extension: When <c>rootAnalysisTargets</c> are provided, runs GC root analysis
+/// for those types within the same DataTarget snapshot scope, avoiding a second snapshot.
 /// </summary>
 public sealed class ClrMdHeapAnalyzer
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly int _topTypesCount;
+    private readonly GcRootAnalyzer _rootAnalyzer;
     private readonly ILogger<ClrMdHeapAnalyzer> _logger;
 
     public ClrMdHeapAnalyzer(
         IOptions<DumpAnalyzerOptions> options,
+        GcRootAnalyzer rootAnalyzer,
         ILogger<ClrMdHeapAnalyzer> logger)
     {
         _topTypesCount = options.Value.TopTypesCount;
+        _rootAnalyzer = rootAnalyzer;
         _logger = logger;
     }
 
@@ -33,7 +34,16 @@ public sealed class ClrMdHeapAnalyzer
     /// Captures an in-process heap snapshot and returns structured analysis results.
     /// Serialized via semaphore — only one capture at a time.
     /// </summary>
+    public Task<DumpAnalysisResult?> CaptureAndAnalyzeAsync(
+        CancellationToken cancellationToken = default)
+        => CaptureAndAnalyzeAsync(rootAnalysisTargets: null, cancellationToken);
+
+    /// <summary>
+    /// Captures an in-process heap snapshot with optional GC root analysis for predicted
+    /// leak-suspect types. Root analysis runs within the same DataTarget snapshot scope.
+    /// </summary>
     public async Task<DumpAnalysisResult?> CaptureAndAnalyzeAsync(
+        IReadOnlyList<string>? rootAnalysisTargets,
         CancellationToken cancellationToken = default)
     {
         if (!await _gate.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken))
@@ -46,7 +56,8 @@ public sealed class ClrMdHeapAnalyzer
         {
             _logger.LogInformation("Starting in-process heap snapshot via ClrMD");
 
-            var result = await Task.Run(() => CaptureCore(), cancellationToken);
+            var result = await Task.Run(
+                () => CaptureCore(rootAnalysisTargets), cancellationToken);
 
             if (result is not null)
             {
@@ -75,7 +86,7 @@ public sealed class ClrMdHeapAnalyzer
         }
     }
 
-    private DumpAnalysisResult? CaptureCore()
+    private DumpAnalysisResult? CaptureCore(IReadOnlyList<string>? rootAnalysisTargets = null)
     {
         var pid = Environment.ProcessId;
         var capturedAt = DateTimeOffset.UtcNow;
@@ -124,6 +135,17 @@ public sealed class ClrMdHeapAnalyzer
             .Take(_topTypesCount)
             .ToList();
 
+        // Phase 6: Root analysis for predicted leak-suspect types
+        // Runs within the same DataTarget scope — heap is still alive
+        RootAnalysisResult? rootAnalysis = null;
+        if (rootAnalysisTargets is { Count: > 0 })
+        {
+            _logger.LogInformation(
+                "Running root analysis for {Count} predicted leak-suspect types",
+                rootAnalysisTargets.Count);
+            rootAnalysis = _rootAnalyzer.AnalyzeRoots(heap, rootAnalysisTargets);
+        }
+
         return new DumpAnalysisResult
         {
             FilePath = $"clrmd://heap_{tag}",
@@ -134,7 +156,8 @@ public sealed class ClrMdHeapAnalyzer
             TotalHeapBytes = totalHeapBytes,
             TotalObjectCount = totalObjects,
             TopTypes = topTypes,
-            UnresolvedTypeCount = 0 // ClrMD always resolves types
+            UnresolvedTypeCount = 0, // ClrMD always resolves types
+            RootAnalysis = rootAnalysis
         };
     }
 }

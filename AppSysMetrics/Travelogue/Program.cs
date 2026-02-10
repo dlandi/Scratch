@@ -1,6 +1,7 @@
 using AppSysMetrics.Extensions;
 using WeatherStatistics.Extensions;
 using Travelogue.Components;
+using Travelogue.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,8 @@ builder.Services.AddWeatherStatistics(options =>
     options.ReadingsPerTick = 5;
     options.AutoStart = false;
 });
+
+builder.Services.AddSingleton<MemoryLeakService>();
 
 var app = builder.Build();
 
