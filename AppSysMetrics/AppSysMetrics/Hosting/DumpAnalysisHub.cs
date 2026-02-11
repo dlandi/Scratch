@@ -21,6 +21,7 @@ public sealed class DumpAnalysisHub
 
     public DumpAnalysisResult? Latest { get; private set; }
     public DumpDiffResult? LatestDiff { get; private set; }
+    public IReadOnlyList<HeapTypeDiff>? LatestLeakSuspects { get; private set; }
 
     public IReadOnlyList<DumpAnalysisResult> GetHistory()
     {
@@ -42,9 +43,10 @@ public sealed class DumpAnalysisHub
         OnAnalysis?.Invoke(result);
     }
 
-    internal void PublishDiff(DumpDiffResult diff)
+    internal void PublishDiff(DumpDiffResult diff, IReadOnlyList<HeapTypeDiff>? leakSuspects)
     {
         LatestDiff = diff;
+        LatestLeakSuspects = leakSuspects;
         OnDiff?.Invoke(diff);
     }
 
@@ -55,6 +57,7 @@ public sealed class DumpAnalysisHub
             _history.Clear();
             Latest = null;
             LatestDiff = null;
+            LatestLeakSuspects = null;
         }
         OnCleared?.Invoke();
     }

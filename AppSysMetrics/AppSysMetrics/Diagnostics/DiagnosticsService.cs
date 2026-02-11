@@ -99,7 +99,8 @@ public sealed class DiagnosticsService : IDiagnosticsService
             if (previous is not null)
             {
                 var diff = _diffService.ComputeDiff(previous, result);
-                _hub.PublishDiff(diff);
+                var leakSuspects = LeakSuspectDetector.Detect(diff, IsFrameworkOnlyType);
+                _hub.PublishDiff(diff, leakSuspects);
                 _logger.LogInformation(
                     "Auto-diff computed: heap delta {HeapDelta}, {TypeCount} type diffs",
                     diff.TotalHeapDelta,
@@ -125,131 +126,27 @@ public sealed class DiagnosticsService : IDiagnosticsService
     }
 
     /// <summary>
-    /// Predicts which types are likely leak suspects for the next capture
-    /// by examining the previous diff's high-retention types.
-    /// Returns null when no previous diff exists (first two captures).
-    ///
-    /// Uses a two-track approach:
-    ///   Track 1 — High retention: RetentionRatio ≥ 80%. Catches pure leaks where most
-    ///             allocations are retained.
-    ///   Track 2 — Large absolute growth: DeltaSizeBytes is significant (≥ 20% of total
-    ///             heap growth or ≥ 1 MB absolute), with positive retention and throughput.
-    ///             Catches diluted leaks where a type has high framework throughput
-    ///             (e.g. Byte[] shared by Kestrel pooling and user code) masking the
-    ///             retention ratio, but the absolute heap growth is clearly abnormal.
+    /// Returns the leak-suspect type names from the latest diff (already computed and
+    /// stored in the hub at diff time). Returns null when no suspects are available.
     /// </summary>
     private IReadOnlyList<string>? PredictLeakSuspectTypes()
     {
-        var latestDiff = _hub.LatestDiff;
-        if (latestDiff is null)
+        var suspects = _hub.LatestLeakSuspects;
+        if (suspects is not { Count: > 0 })
             return null;
 
-        var eligible = latestDiff.TypeDiffs
-            .Where(t => t.AllocatedBetweenBytes is > 0 && t.DeltaSizeBytes > 0)
-            .Where(t => !IsFrameworkOnlyType(t.TypeName))
-            .ToList();
+        var typeNames = suspects.Select(t => t.TypeName).ToList();
 
-        // Track 1: High retention ratio (≥ 80%)
-        var highRetention = eligible
-            .Where(t => t.RetentionRatio >= 0.8);
+        _logger.LogInformation(
+            "Predicted {Count} leak-suspect types for root analysis: {Types}",
+            typeNames.Count,
+            string.Join(", ", typeNames));
 
-        // Track 2: Large absolute heap growth with positive retention
-        // Catches types like Byte[] where framework throughput dilutes the ratio,
-        // but the absolute growth is clearly significant.
-        var totalHeapDelta = Math.Max(1, latestDiff.TotalHeapDelta); // floor to avoid div-by-zero
-        const long absoluteGrowthFloor = 1_048_576; // 1 MB
-        const double heapShareThreshold = 0.20;     // 20% of total heap growth
-
-        var largeAbsoluteGrowth = eligible
-            .Where(t => t.RetentionRatio is > 0 and < 0.8) // Not already caught by Track 1
-            .Where(t => t.DeltaSizeBytes >= absoluteGrowthFloor
-                     || (totalHeapDelta > 0
-                         && (double)t.DeltaSizeBytes / totalHeapDelta >= heapShareThreshold));
-
-        // Union both tracks, deduplicate, sort, cap at 5
-        var suspects = highRetention
-            .Concat(largeAbsoluteGrowth)
-            .DistinctBy(t => t.TypeName)
-            .OrderByDescending(t => t.RetentionRatio)
-            .ThenByDescending(t => t.DeltaSizeBytes)
-            .Take(5)
-            .Select(t => t.TypeName)
-            .ToList();
-
-        if (suspects.Count > 0)
-        {
-            _logger.LogInformation(
-                "Predicted {Count} leak-suspect types for root analysis: {Types}",
-                suspects.Count,
-                string.Join(", ", suspects));
-        }
-
-        return suspects.Count > 0 ? suspects : null;
+        return typeNames;
     }
 
-    /// <summary>
-    /// Returns true if a type is definitely framework-only — not user code and not a
-    /// System.* container type. Framework implementation types (Microsoft.*, Internal.*, etc.)
-    /// are filtered out of leak-suspect prediction to avoid noise in root analysis.
-    /// System.* types (Byte[], String, List&lt;T&gt;, etc.) pass through because root analysis
-    /// traces their retention paths back to user code.
-    ///
-    /// Dot-free type names (no namespace) are only allowed through if they match well-known
-    /// primitive/array patterns (e.g. "Byte[]", "String", "Int32[]"). Other dot-free types
-    /// like "ClrDacType" are framework internals that leaked into the heap without namespaces.
-    /// </summary>
-    private bool IsFrameworkOnlyType(string typeName)
-    {
-        if (_rootAnalyzer.IsUserCode(typeName))
-            return false;
-
-        if (typeName.StartsWith("System.", StringComparison.Ordinal))
-            return false;
-
-        // Dot-free type names: only allow well-known primitives and arrays through.
-        // Framework internal types often appear without namespaces on the heap
-        // (e.g. ClrDacType from Microsoft.Diagnostics.Runtime) — treat those as framework.
-        if (!typeName.Contains('.'))
-            return !IsWellKnownContainerType(typeName);
-
-        // Developer-facing framework types pass through — their growth
-        // signals developer misconfiguration (unbounded cache, long-lived DbContext, etc.)
-        if (IsDeveloperFacingFrameworkType(typeName))
-            return false;
-
-        return true;
-    }
-
-    /// <summary>
-    /// Returns true if a type belongs to a Microsoft.* namespace that represents
-    /// developer-controlled infrastructure. Growth in these types is actionable —
-    /// e.g. CacheEntry accumulation means an unbounded IMemoryCache, EntityEntry
-    /// growth means a long-lived DbContext with tracking enabled.
-    /// </summary>
-    private static bool IsDeveloperFacingFrameworkType(string typeName)
-    {
-        return typeName.StartsWith("Microsoft.Extensions.Caching.", StringComparison.Ordinal)
-            || typeName.StartsWith("Microsoft.EntityFrameworkCore.", StringComparison.Ordinal)
-            || typeName.StartsWith("Microsoft.AspNetCore.SignalR.", StringComparison.Ordinal);
-    }
-
-    /// <summary>
-    /// Returns true if a dot-free type name is a well-known primitive, array, or collection
-    /// type that could legitimately be a leak suspect (e.g. "Byte[]", "String", "Object[]").
-    /// These are the types that root analysis can trace back to user code via retention paths.
-    /// </summary>
-    private static bool IsWellKnownContainerType(string typeName)
-    {
-        // Strip trailing "[]" to normalize array types: "Byte[]" → "Byte", "Byte[][]" → "Byte[]"
-        var baseName = typeName;
-        while (baseName.EndsWith("[]", StringComparison.Ordinal))
-            baseName = baseName[..^2];
-
-        return baseName is "Byte" or "String" or "Char" or "Int32" or "Int64"
-            or "UInt32" or "UInt64" or "Int16" or "UInt16" or "Double" or "Single"
-            or "Boolean" or "Object" or "IntPtr" or "UIntPtr" or "Decimal"
-            or "SByte" or "Guid" or "DateTime" or "DateTimeOffset" or "TimeSpan";
-    }
+    private bool IsFrameworkOnlyType(string typeName) =>
+        TypeClassification.IsFrameworkOnlyType(typeName, _rootAnalyzer.IsUserCode);
 
     public async Task<GcDumpResult> CaptureGcDumpFileAsync(CancellationToken cancellationToken = default)
     {

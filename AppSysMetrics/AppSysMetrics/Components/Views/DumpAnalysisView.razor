@@ -1,6 +1,7 @@
 @implements IDisposable
 @inject DumpAnalysisHub AnalysisHub
 @inject MetricsHub MetricsHub
+@inject GcRootAnalyzer RootAnalyzer
 
 <div class="asm-dashboard">
     <div class="asm-dashboard-header">
@@ -21,16 +22,16 @@
             <MemoryHealthPanel Snapshot="_latestMetrics" History="_metricsHistory" />
         </div>
         <div class="asm-cell asm-cell-full">
-            <DumpHistoryPanel History="_history" OnCompare="HandleManualCompare" OnClear="HandleClear" />
-        </div>
-        <div class="asm-cell">
-            <DumpAnalysisPanel Result="_latestAnalysis" />
-        </div>
-        <div class="asm-cell">
-            <DumpDiffPanel Diff="_activeDiff" />
+            <DumpDiffPanel Diff="_activeDiff" LeakSuspects="_confirmedLeakSuspects" />
         </div>
         <div class="asm-cell asm-cell-full">
             <GcRootAnalysisPanel RootAnalysis="_rootAnalysis" LeakSuspects="_confirmedLeakSuspects" />
+        </div>
+        <div class="asm-cell asm-cell-full">
+            <DumpHistoryPanel History="_history" OnCompare="HandleManualCompare" OnClear="HandleClear" />
+        </div>
+        <div class="asm-cell asm-cell-full">
+            <DumpAnalysisPanel Result="_latestAnalysis" />
         </div>
     </div>
 </div>
@@ -50,10 +51,11 @@
     {
         _latestAnalysis = AnalysisHub.Latest;
         _activeDiff = AnalysisHub.LatestDiff;
+        _rootAnalysis = _activeDiff?.Current.RootAnalysis;
+        _confirmedLeakSuspects = AnalysisHub.LatestLeakSuspects;
         _history = AnalysisHub.GetHistory().ToList();
         _latestMetrics = MetricsHub.Latest;
         _metricsHistory = MetricsHub.GetHistory();
-        UpdateRootAnalysisState();
         AnalysisHub.OnAnalysis += HandleAnalysis;
         AnalysisHub.OnDiff += HandleDiff;
         AnalysisHub.OnCleared += HandleCleared;
@@ -74,7 +76,8 @@
     private async void HandleDiff(DumpDiffResult diff)
     {
         _activeDiff = diff;
-        UpdateRootAnalysisState();
+        _rootAnalysis = diff.Current.RootAnalysis;
+        _confirmedLeakSuspects = AnalysisHub.LatestLeakSuspects;
         try
         {
             await InvokeAsync(StateHasChanged);
@@ -85,7 +88,10 @@
     private void HandleManualCompare(DumpDiffResult diff)
     {
         _activeDiff = diff;
-        UpdateRootAnalysisState();
+        _rootAnalysis = diff.Current.RootAnalysis;
+        var suspects = LeakSuspectDetector.Detect(diff,
+            name => TypeClassification.IsFrameworkOnlyType(name, RootAnalyzer.IsUserCode));
+        _confirmedLeakSuspects = suspects.Count > 0 ? suspects : null;
         StateHasChanged();
     }
 
@@ -122,43 +128,6 @@
             await InvokeAsync(StateHasChanged);
         }
         catch (ObjectDisposedException) { }
-    }
-
-    private void UpdateRootAnalysisState()
-    {
-        _rootAnalysis = _activeDiff?.Current.RootAnalysis;
-        if (_activeDiff is { HasAllocationCorrelation: true })
-        {
-            var eligible = _activeDiff.TypeDiffs
-                .Where(t => t.AllocatedBetweenBytes is > 0 && t.DeltaSizeBytes > 0);
-
-            // Track 1: High retention (≥ 80%)
-            var highRetention = eligible
-                .Where(t => t.RetentionRatio >= 0.8);
-
-            // Track 2: Large absolute growth with positive but sub-80% retention
-            var totalHeapDelta = Math.Max(1, _activeDiff.TotalHeapDelta);
-            const long absoluteGrowthFloor = 1_048_576; // 1 MB
-            const double heapShareThreshold = 0.20;
-
-            var largeAbsoluteGrowth = eligible
-                .Where(t => t.RetentionRatio is > 0 and < 0.8)
-                .Where(t => t.DeltaSizeBytes >= absoluteGrowthFloor
-                         || (totalHeapDelta > 0
-                             && (double)t.DeltaSizeBytes / totalHeapDelta >= heapShareThreshold));
-
-            _confirmedLeakSuspects = highRetention
-                .Concat(largeAbsoluteGrowth)
-                .DistinctBy(t => t.TypeName)
-                .OrderByDescending(t => t.RetentionRatio)
-                .ThenByDescending(t => t.DeltaSizeBytes)
-                .Take(5)
-                .ToList();
-        }
-        else
-        {
-            _confirmedLeakSuspects = null;
-        }
     }
 
     public void Dispose()
