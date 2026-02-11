@@ -127,13 +127,38 @@
     private void UpdateRootAnalysisState()
     {
         _rootAnalysis = _activeDiff?.Current.RootAnalysis;
-        _confirmedLeakSuspects = _activeDiff is { HasAllocationCorrelation: true }
-            ? _activeDiff.TypeDiffs
-                .Where(t => t.RetentionRatio >= 0.8 && t.AllocatedBetweenBytes is > 0)
+        if (_activeDiff is { HasAllocationCorrelation: true })
+        {
+            var eligible = _activeDiff.TypeDiffs
+                .Where(t => t.AllocatedBetweenBytes is > 0 && t.DeltaSizeBytes > 0);
+
+            // Track 1: High retention (≥ 80%)
+            var highRetention = eligible
+                .Where(t => t.RetentionRatio >= 0.8);
+
+            // Track 2: Large absolute growth with positive but sub-80% retention
+            var totalHeapDelta = Math.Max(1, _activeDiff.TotalHeapDelta);
+            const long absoluteGrowthFloor = 1_048_576; // 1 MB
+            const double heapShareThreshold = 0.20;
+
+            var largeAbsoluteGrowth = eligible
+                .Where(t => t.RetentionRatio is > 0 and < 0.8)
+                .Where(t => t.DeltaSizeBytes >= absoluteGrowthFloor
+                         || (totalHeapDelta > 0
+                             && (double)t.DeltaSizeBytes / totalHeapDelta >= heapShareThreshold));
+
+            _confirmedLeakSuspects = highRetention
+                .Concat(largeAbsoluteGrowth)
+                .DistinctBy(t => t.TypeName)
                 .OrderByDescending(t => t.RetentionRatio)
                 .ThenByDescending(t => t.DeltaSizeBytes)
-                .ToList()
-            : null;
+                .Take(5)
+                .ToList();
+        }
+        else
+        {
+            _confirmedLeakSuspects = null;
+        }
     }
 
     public void Dispose()
