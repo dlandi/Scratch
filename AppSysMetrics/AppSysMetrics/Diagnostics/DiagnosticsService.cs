@@ -212,7 +212,25 @@ public sealed class DiagnosticsService : IDiagnosticsService
         if (!typeName.Contains('.'))
             return !IsWellKnownContainerType(typeName);
 
+        // Developer-facing framework types pass through — their growth
+        // signals developer misconfiguration (unbounded cache, long-lived DbContext, etc.)
+        if (IsDeveloperFacingFrameworkType(typeName))
+            return false;
+
         return true;
+    }
+
+    /// <summary>
+    /// Returns true if a type belongs to a Microsoft.* namespace that represents
+    /// developer-controlled infrastructure. Growth in these types is actionable —
+    /// e.g. CacheEntry accumulation means an unbounded IMemoryCache, EntityEntry
+    /// growth means a long-lived DbContext with tracking enabled.
+    /// </summary>
+    private static bool IsDeveloperFacingFrameworkType(string typeName)
+    {
+        return typeName.StartsWith("Microsoft.Extensions.Caching.", StringComparison.Ordinal)
+            || typeName.StartsWith("Microsoft.EntityFrameworkCore.", StringComparison.Ordinal)
+            || typeName.StartsWith("Microsoft.AspNetCore.SignalR.", StringComparison.Ordinal);
     }
 
     /// <summary>

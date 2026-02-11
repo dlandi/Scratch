@@ -362,9 +362,22 @@
                 or "SByte" or "Guid" or "DateTime" or "DateTimeOffset" or "TimeSpan");
         }
 
+        // Developer-facing framework types — growth here signals developer
+        // misconfiguration (unbounded cache, long-lived DbContext, hub state leak),
+        // not internal framework plumbing noise.
+        if (IsDeveloperFacingFrameworkType(typeName))
+            return false;
+
         // Known framework prefixes — not user code, not actionable
         return typeName.StartsWith("Microsoft.", StringComparison.Ordinal)
             || typeName.StartsWith("Internal.", StringComparison.Ordinal)
             || typeName.StartsWith("Interop.", StringComparison.Ordinal);
+    }
+
+    private static bool IsDeveloperFacingFrameworkType(string typeName)
+    {
+        return typeName.StartsWith("Microsoft.Extensions.Caching.", StringComparison.Ordinal)
+            || typeName.StartsWith("Microsoft.EntityFrameworkCore.", StringComparison.Ordinal)
+            || typeName.StartsWith("Microsoft.AspNetCore.SignalR.", StringComparison.Ordinal);
     }
 }

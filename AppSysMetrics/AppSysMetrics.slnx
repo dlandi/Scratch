@@ -3,6 +3,7 @@
     <File Path="Docs/AppSysMem-Glossary.md" />
     <File Path="Docs/AppSysMetrics_ImplementationPlan.md" />
     <File Path="Docs/AppSysMetrics_SoftwareSpecification.md" />
+    <File Path="Docs/BlazorServerMemLeakResearch01.md" />
   </Folder>
   <Project Path="AppSysMetrics/AppSysMetrics.csproj" />
   <Project Path="Travelogue/Travelogue.csproj" />
