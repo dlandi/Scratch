@@ -1,0 +1,131 @@
+@inject LeakLabRegistry Registry
+
+<h1>Leak Lab</h1>
+<p class="page-subtitle">
+    Multi-scenario memory leak simulators for testing the full detection pipeline
+    (diff &rarr; leak suspects &rarr; GC root analysis).
+</p>
+
+@* ── Stats Banner ── *@
+<div class="stats-banner">
+    <div class="stat-card">
+        <div class="stat-label">Scenarios</div>
+        <div class="stat-value">@_simulators.Count</div>
+        <div class="stat-detail">registered simulators</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active</div>
+        <div class="stat-value @(_activeCount > 0 ? "stat-value-active" : "")">@_activeCount</div>
+        <div class="stat-detail">currently running</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Bulk Actions</div>
+        <div class="stat-actions">
+            <button class="btn btn-danger btn-sm" @onclick="HandleStartAll"
+                    disabled="@(_activeCount == _simulators.Count || _isBusy)">
+                Start All
+            </button>
+            <button class="btn btn-secondary btn-sm" @onclick="HandleStopAll"
+                    disabled="@(_activeCount == 0 || _isBusy)">
+                Stop All
+            </button>
+            <button class="btn btn-warning btn-sm" @onclick="HandleResetAll"
+                    disabled="@(_activeCount > 0 || _isBusy)">
+                Reset All
+            </button>
+        </div>
+    </div>
+</div>
+
+@* ── Simulator Grid ── *@
+<div class="sim-grid">
+    @foreach (var sim in _simulators)
+    {
+        <SimulatorCard Simulator="sim"
+                       IsSelected="@(_selectedId == sim.ScenarioId)"
+                       OnSelected="HandleCardSelected"
+                       OnStateChanged="HandleStateChanged" />
+    }
+</div>
+
+@* ── Selected Simulator Detail ── *@
+@if (_selectedSimulator is not null)
+{
+    <div class="detail-section">
+        <SimulatorControlPanel Simulator="_selectedSimulator"
+                               OnStateChanged="HandleStateChanged" />
+    </div>
+}
+
+@code {
+    private IReadOnlyList<ILeakSimulator> _simulators = [];
+    private string? _selectedId;
+    private ILeakSimulator? _selectedSimulator;
+    private int _activeCount;
+    private bool _isBusy;
+
+    protected override void OnInitialized()
+    {
+        _simulators = Registry.GetAll();
+        RefreshCounts();
+    }
+
+    private void HandleCardSelected(string scenarioId)
+    {
+        if (_selectedId == scenarioId)
+        {
+            _selectedId = null;
+            _selectedSimulator = null;
+        }
+        else
+        {
+            _selectedId = scenarioId;
+            _selectedSimulator = Registry.GetSimulator(scenarioId);
+        }
+    }
+
+    private void HandleStateChanged(string _)
+    {
+        RefreshCounts();
+        // Re-resolve selected simulator to pick up state changes
+        if (_selectedId is not null)
+            _selectedSimulator = Registry.GetSimulator(_selectedId);
+    }
+
+    private async Task HandleStartAll()
+    {
+        _isBusy = true;
+        try
+        {
+            foreach (var sim in _simulators.Where(s => !s.IsRunning))
+                await sim.StartAsync();
+            RefreshCounts();
+        }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandleStopAll()
+    {
+        _isBusy = true;
+        try
+        {
+            foreach (var sim in _simulators.Where(s => s.IsRunning))
+                await sim.StopAsync();
+            RefreshCounts();
+        }
+        finally { _isBusy = false; }
+    }
+
+    private Task HandleResetAll()
+    {
+        foreach (var sim in _simulators.Where(s => !s.IsRunning))
+            sim.Reset();
+        RefreshCounts();
+        return Task.CompletedTask;
+    }
+
+    private void RefreshCounts()
+    {
+        _activeCount = _simulators.Count(s => s.IsRunning);
+    }
+}

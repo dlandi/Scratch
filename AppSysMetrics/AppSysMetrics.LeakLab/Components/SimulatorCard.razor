@@ -1,0 +1,80 @@
+@* Per-scenario simulator card — shows ID, description, status, and controls *@
+
+<div class="sim-card @(Simulator.IsRunning ? "sim-card-running" : "") @(IsSelected ? "sim-card-selected" : "")"
+     @onclick="HandleSelect">
+    <div class="sim-header">
+        <span class="sim-id">@Simulator.ScenarioId</span>
+        <span class="sim-status @(Simulator.IsRunning ? "sim-status-running" : "sim-status-stopped")">
+            @(Simulator.IsRunning ? "Running" : "Stopped")
+        </span>
+    </div>
+    <div class="sim-description">@Simulator.Description</div>
+    <div class="sim-types">
+        @foreach (var t in Simulator.ExpectedLeakTypes)
+        {
+            <span class="sim-type-chip">@ShortenTypeName(t)</span>
+        }
+    </div>
+    <div class="sim-actions">
+        <button class="btn btn-danger btn-sm" @onclick="HandleStart" @onclick:stopPropagation="true"
+                disabled="@(Simulator.IsRunning || _isBusy)">
+            Start
+        </button>
+        <button class="btn btn-secondary btn-sm" @onclick="HandleStop" @onclick:stopPropagation="true"
+                disabled="@(!Simulator.IsRunning || _isBusy)">
+            Stop
+        </button>
+        <button class="btn btn-outline-warning btn-sm" @onclick="HandleReset" @onclick:stopPropagation="true"
+                disabled="@(Simulator.IsRunning || _isBusy)">
+            Reset
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ILeakSimulator Simulator { get; set; } = null!;
+    [Parameter] public bool IsSelected { get; set; }
+    [Parameter] public EventCallback<string> OnSelected { get; set; }
+    [Parameter] public EventCallback<string> OnStateChanged { get; set; }
+
+    private bool _isBusy;
+
+    private async Task HandleStart()
+    {
+        _isBusy = true;
+        try
+        {
+            await Simulator.StartAsync();
+            await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+        }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandleStop()
+    {
+        _isBusy = true;
+        try
+        {
+            await Simulator.StopAsync();
+            await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+        }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandleReset()
+    {
+        Simulator.Reset();
+        await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+    }
+
+    private async Task HandleSelect()
+    {
+        await OnSelected.InvokeAsync(Simulator.ScenarioId);
+    }
+
+    private static string ShortenTypeName(string fullName)
+    {
+        var lastDot = fullName.LastIndexOf('.');
+        return lastDot >= 0 ? fullName[(lastDot + 1)..] : fullName;
+    }
+}

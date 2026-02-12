@@ -1,0 +1,113 @@
+@* Expanded detail panel for the currently selected simulator *@
+
+<div class="control-panel">
+    <div class="control-header">
+        <h5 class="control-heading">@Simulator.ScenarioId — @Simulator.Description</h5>
+        <span class="control-status @(Simulator.IsRunning ? "control-status-running" : "control-status-stopped")">
+            @(Simulator.IsRunning ? "Running" : "Stopped")
+        </span>
+    </div>
+
+    <div class="control-section">
+        <div class="control-label">Expected Leak Types</div>
+        <div class="control-types">
+            @foreach (var t in Simulator.ExpectedLeakTypes)
+            {
+                <code class="control-type">@t</code>
+            }
+        </div>
+    </div>
+
+    <div class="control-section">
+        <div class="control-label">Actions</div>
+        <div class="control-actions">
+            <button class="btn btn-danger btn-sm" @onclick="HandleStart"
+                    disabled="@(Simulator.IsRunning || _isBusy)">
+                @(_isBusy && _lastAction == "start" ? "Starting..." : "Start Simulator")
+            </button>
+            <button class="btn btn-secondary btn-sm" @onclick="HandleStop"
+                    disabled="@(!Simulator.IsRunning || _isBusy)">
+                @(_isBusy && _lastAction == "stop" ? "Stopping..." : "Stop Simulator")
+            </button>
+            <button class="btn btn-warning btn-sm" @onclick="HandleReset"
+                    disabled="@(Simulator.IsRunning || _isBusy)">
+                Reset (Release All)
+            </button>
+        </div>
+    </div>
+
+    @if (_log.Count > 0)
+    {
+        <div class="control-section">
+            <div class="control-label">Activity Log</div>
+            <div class="control-log">
+                @foreach (var entry in _log)
+                {
+                    <div class="log-entry">@entry</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="control-guide">
+        <div class="control-label">Test Procedure</div>
+        <ol class="guide-steps">
+            <li>Click <strong>Start Simulator</strong> to begin allocating objects.</li>
+            <li>Go to <strong>Memory Diagnostics</strong> and capture <strong>Heap Snapshot #1</strong> (baseline).</li>
+            <li>Wait a few seconds, then capture <strong>Heap Snapshot #2</strong> (diff detects leak suspects).</li>
+            <li>Capture <strong>Heap Snapshot #3</strong> (root analysis traces retention to user code).</li>
+            <li>Open <strong>Dump Analysis</strong> to see the expected types in Leak Suspects and GC Root Analysis.</li>
+        </ol>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ILeakSimulator Simulator { get; set; } = null!;
+    [Parameter] public EventCallback<string> OnStateChanged { get; set; }
+
+    private bool _isBusy;
+    private string _lastAction = "";
+    private readonly List<string> _log = [];
+
+    private async Task HandleStart()
+    {
+        _isBusy = true;
+        _lastAction = "start";
+        try
+        {
+            await Simulator.StartAsync();
+            _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Started {Simulator.ScenarioId}");
+            TrimLog();
+            await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+        }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandleStop()
+    {
+        _isBusy = true;
+        _lastAction = "stop";
+        try
+        {
+            await Simulator.StopAsync();
+            _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Stopped {Simulator.ScenarioId}");
+            TrimLog();
+            await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+        }
+        finally { _isBusy = false; }
+    }
+
+    private async Task HandleReset()
+    {
+        Simulator.Reset();
+        _log.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Reset {Simulator.ScenarioId} — all retained objects released");
+        TrimLog();
+        await OnStateChanged.InvokeAsync(Simulator.ScenarioId);
+    }
+
+    private void TrimLog()
+    {
+        while (_log.Count > 15)
+            _log.RemoveAt(_log.Count - 1);
+    }
+}

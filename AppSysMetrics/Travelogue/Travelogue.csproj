@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\AppSysMetrics\AppSysMetrics.csproj" />
+    <ProjectReference Include="..\AppSysMetrics.LeakLab\AppSysMetrics.LeakLab.csproj" />
     <ProjectReference Include="..\WeatherStatistics\WeatherStatistics.csproj" />
   </ItemGroup>
 </Project>

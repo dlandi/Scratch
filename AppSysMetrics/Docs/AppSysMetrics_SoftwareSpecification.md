@@ -1,8 +1,8 @@
 # AppSysMetrics Software Specification
 
-**Version:** 2.0
-**Date:** February 10, 2026
-**Target Framework:** .NET 10.0 (SDK 10.0.102)
+**Version:** 3.0
+**Date:** February 11, 2026
+**Target Frameworks:** .NET 8.0 / 9.0 / 10.0 (AppSysMetrics multi-targets `net8.0;net9.0;net10.0`); .NET 8.0 (LeakLab, LeakLab.Tests)
 **Package:** Razor Class Library (`Microsoft.NET.Sdk.Razor`)
 
 > This document specifies the current state of the AppSysMetrics library — its architecture, data models, services, UI components, and APIs. For implementation history (phases, what changed, what was replaced), see **AppSysMetrics_ImplementationPlan.md**.
@@ -18,10 +18,12 @@
 5. [Collection Layer](#5-collection-layer)
 6. [Hosting Layer](#6-hosting-layer)
 7. [Diagnostics Layer](#7-diagnostics-layer)
-8. [UI Components](#8-ui-components)
-9. [Consumer Integration](#9-consumer-integration)
-10. [Dependencies](#10-dependencies)
-11. [Design Rationale](#11-design-rationale)
+8. [LeakLab Library](#8-leaklab-library)
+9. [LeakLab.Tests](#9-leaklabtests)
+10. [UI Components](#10-ui-components)
+11. [Consumer Integration](#11-consumer-integration)
+12. [Dependencies](#12-dependencies)
+13. [Design Rationale](#13-design-rationale)
 
 ---
 
@@ -45,6 +47,7 @@ It captures two distinct classes of runtime data:
 5. GC retention path tracing from leak suspects back to user code, producing field-level ownership chains.
 6. Pure SVG visualizations — no JavaScript charting dependencies.
 7. Single Razor Class Library — one project reference provides both backend services and Blazor UI.
+8. Per-scenario leak simulators (LeakLab) with xUnit integration tests proving the detection pipeline identifies each leak mechanism and traces retention paths to user code.
 
 ### 1.3 Non-Goals
 
@@ -62,23 +65,30 @@ It captures two distinct classes of runtime data:
 AppSysMetrics runs in-process with the host application. It observes the same managed heap, threads, and handles as the host's own workload. This is by design — the library provides self-observation, not remote monitoring.
 
 ```
-┌───────────────────────────────────────────────────┐
-│  Host Application Process                         │
-│                                                   │
-│  ┌─────────────────┐  ┌────────────────────────┐  │
-│  │ Application      │  │    AppSysMetrics       │  │
-│  │  workload        │  │  (metrics collection,  │  │
-│  │  (observed by    │  │   allocation tracking, │  │
-│  │   the library)   │  │   diagnostics,         │  │
-│  │                  │  │   dump analysis,       │  │
-│  │                  │  │   Blazor UI components)│  │
-│  └─────────────────┘  └────────────────────────┘  │
-│                                                   │
-│  ┌─────────────────────────────────────────────┐  │
-│  │  Blazor (Interactive Server / WebAssembly)  │  │
-│  │  Dashboard · Diagnostics · Dump Analysis    │  │
-│  └─────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  Host Application Process                               │
+│                                                         │
+│  ┌─────────────────┐  ┌────────────────────────┐        │
+│  │ Application      │  │    AppSysMetrics       │        │
+│  │  workload        │  │  (metrics collection,  │        │
+│  │  (observed by    │  │   allocation tracking, │        │
+│  │   the library)   │  │   diagnostics,         │        │
+│  │                  │  │   dump analysis,       │        │
+│  │                  │  │   Blazor UI components)│        │
+│  └─────────────────┘  └────────────────────────┘        │
+│                                                         │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │ AppSysMetrics.LeakLab  (sibling Razor Class Lib)   │ │
+│  │  10 leak simulators · registry · dashboard UI      │ │
+│  │  (standalone — no dependency on AppSysMetrics)     │ │
+│  └────────────────────────────────────────────────────┘ │
+│                                                         │
+│  ┌─────────────────────────────────────────────┐        │
+│  │  Blazor (Interactive Server / WebAssembly)  │        │
+│  │  Dashboard · Diagnostics · Dump Analysis    │        │
+│  │  · Leak Lab                                 │        │
+│  └─────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### 2.2 Library Layers
@@ -90,6 +100,7 @@ AppSysMetrics runs in-process with the host application. It observes the same ma
 | **Panels** | ProcessMetricsPanel, CpuMetricsPanel, GcMetricsPanel, AllocationRatePanel, TopAllocationsPanel, LargeObjectAllocationsPanel, DiagnosticsPanel, DumpAnalysisPanel, DumpDiffPanel, DumpHistoryPanel, MemoryHealthPanel, GcRootAnalysisPanel | Drop individual panels into existing pages |
 | **Composites** | MetricsDashboardView, MemoryDiagnosticsView, DumpAnalysisView | Full dashboard experience with one tag |
 | **Stylesheet** | `_content/AppSysMetrics/AppSysMetrics.css` | Shared component styles (panels, tables, buttons) |
+| **LeakLab** (sibling library) | ILeakSimulator, 10 simulators, LeakLabRegistry, LeakLabDashboard, SimulatorCard, SimulatorControlPanel | `builder.Services.AddLeakLab()` — standalone leak producers for testing the detection pipeline |
 
 ### 2.3 Data Flow
 
@@ -153,7 +164,7 @@ DiagnosticsService.CaptureGcDumpAsync()
 ## 3. Project Structure
 
 ```
-AppSysMetrics/                              (Razor Class Library — net10.0)
+AppSysMetrics/                              (Razor Class Library — net8.0;net9.0;net10.0)
 ├── AppSysMetrics.csproj                    (Sdk="Microsoft.NET.Sdk.Razor")
 ├── Collection/
 │   ├── IMetricsCollector.cs
@@ -221,6 +232,62 @@ AppSysMetrics/                              (Razor Class Library — net10.0)
 │   └── AllocationSnapshot.cs
 └── wwwroot/
     └── AppSysMetrics.css
+```
+
+```
+AppSysMetrics.LeakLab/                     (Razor Class Library — net8.0)
+├── AppSysMetrics.LeakLab.csproj           (Sdk="Microsoft.NET.Sdk.Razor")
+├── ILeakSimulator.cs
+├── LeakSimulatorBase.cs
+├── LeakLabRegistry.cs
+├── LeakLabOptions.cs
+├── Extensions/
+│   └── ServiceCollectionExtensions.cs
+├── Simulators/
+│   ├── S01_DotNetObjectRefSimulator.cs
+│   ├── S03_EventHandlerSimulator.cs
+│   ├── S05_ClosureCaptureSimulator.cs
+│   ├── S06_LargeCircuitStateSimulator.cs
+│   ├── S08_StaticDictionarySimulator.cs
+│   ├── S10_MiddlewareFieldSimulator.cs
+│   ├── S13_UnboundedCacheSimulator.cs
+│   ├── S15_HostedServiceSimulator.cs
+│   ├── S16_UnboundedChannelSimulator.cs
+│   ├── S17_EfCoreTrackingSimulator.cs
+│   └── Helpers/
+│       ├── DotNetObjectRefTarget.cs
+│       ├── SingletonEventPublisher.cs
+│       ├── EventSubscriberComponent.cs
+│       ├── LeakLabDbContext.cs
+│       └── SensorReading.cs
+└── Components/
+    ├── _Imports.razor
+    ├── LeakLabDashboard.razor (+.css)
+    ├── SimulatorCard.razor (+.css)
+    └── SimulatorControlPanel.razor (+.css)
+```
+
+```
+AppSysMetrics.LeakLab.Tests/               (xUnit test project — net8.0)
+├── AppSysMetrics.LeakLab.Tests.csproj
+├── xunit.runner.json
+├── Infrastructure/
+│   ├── LeakLabTestFixture.cs
+│   ├── LeakLabTestBase.cs
+│   ├── LeakDetectionResult.cs
+│   └── LeakAssertions.cs
+└── Tests/
+    ├── LeakLabRegistryTests.cs
+    ├── S01_DotNetObjectRefTests.cs
+    ├── S03_EventHandlerTests.cs
+    ├── S05_ClosureCaptureTests.cs
+    ├── S06_LargeCircuitStateTests.cs
+    ├── S08_StaticDictionaryTests.cs
+    ├── S10_MiddlewareFieldTests.cs
+    ├── S13_UnboundedCacheTests.cs
+    ├── S15_HostedServiceTests.cs
+    ├── S16_UnboundedChannelTests.cs
+    └── S17_EfCoreTrackingTests.cs
 ```
 
 ---
@@ -514,8 +581,10 @@ Common behavior:
 
 `DumpAnalysisHub` additionally provides:
 - `LatestDiff` property for the most recent `DumpDiffResult`
-- `Clear()` method that resets all state and fires `OnCleared`
-- `Publish()` and `PublishDiff()` (internal) for analysis and diff events
+- `LatestLeakSuspects` property (`IReadOnlyList<HeapTypeDiff>?`) for the most recent leak suspects, used by `PredictLeakSuspectTypes()` and the test infrastructure
+- `Clear()` method that resets all state (including `LatestLeakSuspects`) and fires `OnCleared`
+- `Publish(result)` (internal) for analysis events
+- `PublishDiff(diff, leakSuspects)` (internal) for diff events with associated leak suspect list
 
 ### 6.4 Background Services
 
@@ -649,11 +718,210 @@ When any loaded assembly carries this attribute, only attributed assemblies are 
 
 ---
 
-## 8. UI Components
+## 8. LeakLab Library
+
+`AppSysMetrics.LeakLab` is a sibling Razor Class Library (`Microsoft.NET.Sdk.Razor`, net8.0) that provides 10 per-scenario leak simulators, a simulator registry, configuration options, and a Blazor dashboard UI. It has **no dependency on AppSysMetrics** — simulators are standalone leak producers that exercise the detection pipeline from the consumer side.
+
+Namespace: `AppSysMetrics.LeakLab` (core types), `AppSysMetrics.LeakLab.Simulators` (simulators), `AppSysMetrics.LeakLab.Simulators.Helpers` (helper types), `AppSysMetrics.LeakLab.Components` (UI), `AppSysMetrics.LeakLab.Extensions` (DI).
+
+### 8.1 ILeakSimulator
+
+Testable contract for all leak simulators. Extends `IAsyncDisposable` and `IDisposable`.
+
+```csharp
+public interface ILeakSimulator : IAsyncDisposable, IDisposable
+{
+    string ScenarioId { get; }
+    string Description { get; }
+    IReadOnlyList<string> ExpectedLeakTypes { get; }
+    bool IsRunning { get; }
+    Task StartAsync(CancellationToken ct = default);
+    Task StopAsync(CancellationToken ct = default);
+    void Reset();
+}
+```
+
+| Member | Purpose |
+|---|---|
+| ScenarioId | Identifier (e.g. `"S01"`, `"S08"`) matching the Blazor Server memory leak research scenario |
+| Description | Human-readable description of the leak mechanism |
+| ExpectedLeakTypes | Type names ClrMD will report on the heap — assertion contract for tests |
+| IsRunning | True while the simulator is actively producing leaked objects |
+| StartAsync | Activate the simulator. Batch simulators complete all allocations before returning; continuous simulators (S15, S16) start a background task and return immediately |
+| StopAsync | Stop the simulator. Background tasks are cancelled but retained objects remain |
+| Reset | Release all retained references, allowing leaked objects to be collected |
+
+### 8.2 LeakSimulatorBase
+
+Abstract base class providing lifecycle management. Handles `CancellationTokenSource` creation and linking in `StartAsync`, cancellation in `StopAsync`, and disposal.
+
+| Member | Purpose |
+|---|---|
+| `volatile _isRunning` | Thread-safe running flag |
+| `StoppingToken` | Token linked to the external `CancellationToken` + internal CTS, cancelled by `StopAsync` |
+| `OnStartAsync(CancellationToken)` | Abstract — subclasses perform leak-producing allocations |
+| `OnStopAsync(CancellationToken)` | Virtual — override for cleanup (e.g. awaiting background tasks) |
+| `Dispose()` / `DisposeAsync()` | Call `StopAsync` then dispose the CTS |
+
+### 8.3 LeakLabRegistry
+
+Singleton service populated via DI. Constructor receives `IEnumerable<ILeakSimulator>` and builds a `Dictionary<string, ILeakSimulator>` keyed by `ScenarioId` (ordinal comparison).
+
+| Method | Returns |
+|---|---|
+| `GetSimulator(string scenarioId)` | The simulator instance, or throws `KeyNotFoundException` |
+| `GetAll()` | All registered simulators as `IReadOnlyList<ILeakSimulator>` |
+| `ScenarioIds` | All registered scenario IDs |
+
+### 8.4 LeakLabOptions
+
+Configurable defaults for simulators. Simulators use these values unless overridden by scenario-specific requirements.
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| DefaultChunkSizeBytes | int | 50,000 | Allocation chunk size per simulator tick |
+| DefaultTickInterval | TimeSpan | 100ms | Interval between allocation ticks |
+| DefaultTickCount | int | 200 | Number of allocation ticks per `StartAsync` call |
+
+### 8.5 Service Registrations (AddLeakLab)
+
+`AddLeakLab()` extension method in `AppSysMetrics.LeakLab.Extensions.ServiceCollectionExtensions`:
+
+| Service | Lifetime | Purpose |
+|---|---|---|
+| SingletonEventPublisher | Singleton | Shared event source for S03 (event handler leak) |
+| S01_DotNetObjectRefSimulator | Singleton | DotNetObjectReference retention |
+| S03_EventHandlerSimulator | Singleton | Event handler subscription without unsubscription |
+| S05_ClosureCaptureSimulator | Singleton | Lambda closures capturing byte arrays |
+| S06_LargeCircuitStateSimulator | Singleton | Accumulated large payloads (simulated circuit state) |
+| S08_StaticDictionarySimulator | Singleton | ConcurrentDictionary entries never removed |
+| S10_MiddlewareFieldSimulator | Singleton | List field accumulating per-request payloads |
+| S13_UnboundedCacheSimulator | Singleton | MemoryCache with no SizeLimit or expiration |
+| S15_HostedServiceSimulator | Singleton | Background task appending to list continuously |
+| S16_UnboundedChannelSimulator | Singleton | Fast producer, slow consumer on unbounded channel |
+| S17_EfCoreTrackingSimulator | Singleton | Long-lived DbContext with change tracking |
+| LeakLabRegistry | Singleton | Collects all `ILeakSimulator` registrations via DI |
+| LeakLabOptions | Options | Configurable simulator defaults |
+
+All simulators are registered as `ILeakSimulator` singletons — they hold state (leaked objects) across heap captures.
+
+### 8.6 Simulator Specifications
+
+Each simulator allocates enough to cross detection thresholds: **Track 1** (RetentionRatio ≥ 0.8) or **Track 2** (≥ 1 MB delta or ≥ 20% heap share). All simulators target ≥ 3 MB retained for comfortable margin.
+
+| ID | Class | Leak Mechanism | ExpectedLeakTypes | Volume |
+|---|---|---|---|---|
+| S01 | S01_DotNetObjectRefSimulator | `DotNetObjectReference.Create()` holds strong ref | `DotNetObjectRefTarget` | 300 × 10 KB |
+| S03 | S03_EventHandlerSimulator | Subscribe to singleton event, never unsubscribe | `EventSubscriberComponent` | 300 × 10 KB |
+| S05 | S05_ClosureCaptureSimulator | Lambda closures capture `byte[]` stored in list | `System.Byte[]` | 60 × 50 KB |
+| S06 | S06_LargeCircuitStateSimulator | Accumulated `byte[]` payloads (simulated circuit state) | `System.Byte[]` | 40 × 100 KB |
+| S08 | S08_StaticDictionarySimulator | `ConcurrentDictionary` entries never removed | `System.Byte[]` | 80 × 50 KB |
+| S10 | S10_MiddlewareFieldSimulator | `List` field accumulating per-request payloads | `System.Byte[]` | 200 × 20 KB |
+| S13 | S13_UnboundedCacheSimulator | `MemoryCache` with no SizeLimit/expiration | `System.Byte[]` | 150 × 30 KB |
+| S15 | S15_HostedServiceSimulator | Background task appending to list (continuous) | `System.Byte[]` | ~200 × 25 KB |
+| S16 | S16_UnboundedChannelSimulator | Fast producer, slow consumer on unbounded channel | `System.Byte[]` | ~990 × 20 KB |
+| S17 | S17_EfCoreTrackingSimulator | Long-lived DbContext with tracking, in-memory SQLite | `SensorReading` | 600 × 5 KB |
+
+**Deferred scenarios:** S04 (CircuitHandler — requires Blazor Server hosting) and S14 (session state — requires full HTTP pipeline).
+
+All simulators spread allocations over time with `Task.Delay` between batches to ensure multiple ETW `AllocationTick` events fire, enabling `RetentionRatio` computation.
+
+### 8.7 Helper Types
+
+| Type | Namespace | Used By | Purpose |
+|---|---|---|---|
+| DotNetObjectRefTarget | Simulators.Helpers | S01 | Target class with `byte[] Payload` for `DotNetObjectReference<T>` wrapping |
+| SingletonEventPublisher | Simulators.Helpers | S03 | Singleton exposing `event Action<byte[]>` — registered as DI singleton |
+| EventSubscriberComponent | Simulators.Helpers | S03 | Subscriber with `byte[] State` and `OnData` handler — retained by event delegate chain |
+| LeakLabDbContext | Simulators.Helpers | S17 | `DbContext` subclass with `DbSet<SensorReading>` for EF Core tracking leak |
+| SensorReading | Simulators.Helpers | S17 | Entity class with Id, Timestamp, `byte[] Data`, Category |
+
+### 8.8 ExpectedLeakTypes Semantics
+
+`ExpectedLeakTypes` lists the type names that the detection pipeline reports on the heap — typically the **payload type** (e.g. `System.Byte[]`), not the wrapper. This is because `DumpAnalyzerOptions.TopTypesCount` (default 50) limits what ClrMD returns; the payload dominates heap share while the wrapper may not make the top-50 cut.
+
+For simulators with custom wrapper types (S01, S03, S17), the expected type is the wrapper itself (`DotNetObjectRefTarget`, `EventSubscriberComponent`, `SensorReading`) because these types are distinctive enough to appear as top-N entries.
+
+---
+
+## 9. LeakLab.Tests
+
+`AppSysMetrics.LeakLab.Tests` is an xUnit test project (net8.0) that proves each simulator's leak mechanism is detected by the full AppSysMetrics pipeline (diff → leak suspects → GC root analysis). References both `AppSysMetrics` (diagnostics engine) and `AppSysMetrics.LeakLab` (simulators).
+
+### 9.1 Test Configuration
+
+**Sequential execution** — `xunit.runner.json`:
+```json
+{ "parallelizeTestCollections": false, "maxParallelThreads": 1 }
+```
+
+ClrMD snapshots are process-wide; simulators share heap state. Parallel execution would cause cross-test heap pollution where one simulator's leaked objects appear in another test's diff.
+
+### 9.2 LeakLabTestFixture
+
+Shared `IAsyncLifetime` xUnit collection fixture. Builds a generic `IHost` (no web hosting) with `AddAppSysMetrics()` and `AddLeakLab()`. Exposes `IDiagnosticsService`, `DumpAnalysisHub`, and `LeakLabRegistry` via properties.
+
+`InitializeAsync` performs warm-up: two throwaway ClrMD captures after host startup drain framework noise (String/Char[] growth from logging, config, DI), then clears the analysis hub. Without warm-up, the first test would see startup-related types dominate the diff.
+
+### 9.3 LeakLabTestBase
+
+Abstract base class for per-simulator integration tests. Provides `RunDetectionPipelineAsync(scenarioId)` which executes the full 3-capture pipeline:
+
+1. `simulator.Reset()` + `AnalysisHub.Clear()` — clean slate
+2. Force GC (Gen 2, blocking) — flush prior garbage
+3. **Capture 1** (baseline) via `Diagnostics.CaptureGcDumpAsync()`
+4. `simulator.StartAsync()` — create leaked objects
+5. `await Task.Delay(activationDuration)` — default 5 seconds
+6. **Capture 2** (diff) — triggers `LeakSuspectDetector.Detect()`, stores suspects in hub
+7. `await Task.Delay(interCapturePause)` — default 3 seconds, for continuous simulators
+8. **Capture 3** (root analysis) — uses suspects from capture 2 as `rootTargets`
+9. `simulator.StopAsync()`
+
+Returns `LeakDetectionResult` containing `DiffSuspects`, `RootAnalysis`, and the `Simulator` reference.
+
+### 9.4 LeakDetectionResult
+
+| Property | Type | Description |
+|---|---|---|
+| DiffSuspects | List\<HeapTypeDiff\> | Leak suspects from capture 2 diff |
+| RootAnalysis | RootAnalysisResult? | Root analysis from capture 3 (null if no suspects predicted) |
+| Simulator | ILeakSimulator | The tested simulator |
+
+### 9.5 LeakAssertions
+
+Static assertion helpers with tolerant matching:
+
+| Method | Asserts |
+|---|---|
+| `AssertLeakDetected(result)` | At least one `ExpectedLeakType` appears in `DiffSuspects`. Uses bidirectional `Contains` matching for tolerance against generic type name variations |
+| `AssertRootAnalysisHasUserCode(result)` | Root analysis found at least one retention path with `HasUserCode = true` — proving the leaked objects are retained through user code, not just framework plumbing |
+| `AssertHighRetention(result, minRatio)` | At least one suspect has `RetentionRatio >= minRatio` |
+
+### 9.6 Test Pattern
+
+Each of the 10 per-simulator test classes has 3 facts:
+
+| Fact | Timeout | Description |
+|---|---|---|
+| `Simulator_Produces_Detectable_Leak` | 120s | Runs 3-capture pipeline, asserts `AssertLeakDetected` |
+| `Root_Analysis_Traces_To_User_Code` | 120s | Runs 3-capture pipeline, asserts `AssertRootAnalysisHasUserCode` |
+| `ExpectedLeakTypes_Are_Specified` | — | Contract check: `ExpectedLeakTypes` is non-empty and contains expected entries |
+
+The 120-second timeout accommodates 3 ClrMD captures (5–15s each) plus allocation time and inter-capture pauses.
+
+### 9.7 Test Count
+
+62 tests total:
+- 30 per-simulator integration tests (10 simulators × 3 facts)
+- 32 registry/contract tests: 1 (`Registry_Contains_All_10_Simulators`) + 10 (`Registry_Resolves_Simulator_By_Id`) + 10 (`Simulator_Has_Valid_Metadata`) + 1 (`Registry_Throws_For_Unknown_Scenario`) + 10 (`Simulator_Starts_Not_Running`)
+
+---
+
+## 10. UI Components
 
 All components are shipped in the library under `AppSysMetrics.Components`.
 
-### 8.1 Chart Components (`Components.Charts`)
+### 10.1 Chart Components (`Components.Charts`)
 
 | Component | Visualization | Rendering |
 |---|---|---|
@@ -664,7 +932,7 @@ All components are shipped in the library under `AppSysMetrics.Components`.
 
 All chart components accept parameters for data, titles, units, colors, and ranges. None use JavaScript.
 
-### 8.2 Panel Components (`Components.Panels`)
+### 10.2 Panel Components (`Components.Panels`)
 
 | Panel | Data Source | Key Visuals |
 |---|---|---|
@@ -677,11 +945,11 @@ All chart components accept parameters for data, titles, units, colors, and rang
 | DiagnosticsPanel | IDiagnosticsService (injected) | Force GC button (before/after comparison), Capture Heap Snapshot button (ClrMD), Capture GC Dump button (dotnet-gcdump file export) |
 | MemoryHealthPanel | MetricsSnapshot + IReadOnlyList\<MetricsSnapshot\> | Primary indicators (allocation rate, heap size, Gen 2 collections) with trend detection using trailing-window comparison (5 samples, ~10s). Secondary indicators (memory load, GC pause, fragmentation, pending finalizers). |
 | DumpAnalysisPanel | DumpAnalysisResult | MetricCards (heap size, object count, file name), ranked top 20 types table |
-| DumpDiffPanel | DumpDiffResult | 4-zone layout when correlation available (see 8.4), standard diff table otherwise |
+| DumpDiffPanel | DumpDiffResult | 4-zone layout when correlation available (see 10.4), standard diff table otherwise |
 | DumpHistoryPanel | IReadOnlyList\<DumpAnalysisResult\> | Click-to-select table (BASE/CUR tags by chronological order), "Compare Selected" button, "Clear All" button |
 | GcRootAnalysisPanel | RootAnalysisResult?, IReadOnlyList\<HeapTypeDiff\>? | Collapsible per-type sections: color-coded root kind badge (green=UserCode, red=StrongHandle, yellow=PinnedHandle, blue=Stack, orange=FinalizerQueue), root object type, monospace retention path, retained count. Cross-references with current diff's leak suspects for "confirmed" badge. Auto-expands when ≤ 3 types. |
 
-### 8.3 Composite View Components (`Components.Views`)
+### 10.3 Composite View Components (`Components.Views`)
 
 | View | Injects | Grid Content | Parameter |
 |---|---|---|---|
@@ -689,16 +957,16 @@ All chart components accept parameters for data, titles, units, colors, and rang
 | MemoryDiagnosticsView | AllocationTrackingHub, MetricsHub | MemoryHealth (full width), Diagnostics (full width), TopAllocations (full width), LOH + GC (side-by-side) | — |
 | DumpAnalysisView | DumpAnalysisHub, MetricsHub | MemoryHealth (full width), DumpHistory (full width), DumpAnalysis + DumpDiff (side-by-side), GcRootAnalysisPanel (full width) | — |
 
-### 8.4 DumpDiffPanel — 4-Zone Correlation Narrative
+### 10.4 DumpDiffPanel — 4-Zone Correlation Narrative
 
 When `DumpDiffResult.HasAllocationCorrelation` is true, the panel renders:
 
 1. **Zone 1: Summary MetricCards** — Heap delta, object delta, time span, collection efficiency % (green ≥ 80%, yellow ≥ 50%, red < 50%)
 2. **Zone 2: Narrative Banner** — Prose summary with color-coded left border. Reports heap growth, allocation throughput, collected bytes, and efficiency %.
-3. **Zone 3: Leak Suspects** — Red alert box showing up to 5 types detected via two-track logic matching `DiagnosticsService.PredictLeakSuspectTypes()` (see §7.6): high retention (≥ 80%) or significant heap growth (≥ 1 MB or ≥ 20% of heap delta). Framework noise types are excluded via `IsFrameworkNoise()`. Per-suspect: type name, allocated bytes, retained bytes, collected bytes, retention %.
+3. **Zone 3: Leak Suspects** — Red alert box showing up to 5 types detected via two-track logic matching `DiagnosticsService.PredictLeakSuspectTypes()` (see §7.6): high retention (≥ 80%) or significant heap growth (≥ 1 MB or ≥ 20% of heap delta). Framework noise types are excluded via `IsFrameworkOnlyType()`. Per-suspect: type name, allocated bytes, retained bytes, collected bytes, retention %.
 4. **Zone 4: Full Type Diff Table** — Sorted by retention ratio descending (nulls last). Includes allocation throughput and retention % columns.
 
-### 8.5 Component Lifecycle Pattern
+### 10.5 Component Lifecycle Pattern
 
 All subscribing view components follow this pattern:
 
@@ -724,11 +992,21 @@ public void Dispose()
 
 The `ObjectDisposedException` catch handles the race where a snapshot arrives after disposal but before unsubscription.
 
+### 10.6 LeakLab Components (`AppSysMetrics.LeakLab.Components`)
+
+These components are shipped in the sibling `AppSysMetrics.LeakLab` library, not in `AppSysMetrics`.
+
+| Component | Parameters | Purpose |
+|---|---|---|
+| LeakLabDashboard | — | Main dashboard. Injects `LeakLabRegistry`. Stats banner (scenario count, active count), grid of `SimulatorCard` components, expandable `SimulatorControlPanel` for selected simulator. Bulk actions: Start All, Stop All, Reset All. |
+| SimulatorCard | `ILeakSimulator Simulator`, `bool IsSelected`, `EventCallback<string> OnSelected`, `EventCallback<string> OnStateChanged` | Per-scenario card showing ScenarioId badge, description, running/stopped status, `ExpectedLeakTypes` as type chips, Start/Stop/Reset buttons. |
+| SimulatorControlPanel | `ILeakSimulator Simulator`, `EventCallback<string> OnStateChanged` | Expanded detail panel for selected simulator. Shows description, expected leak types as `<code>` elements, Start/Stop/Reset buttons, activity log (last 15 entries), and test procedure guide. |
+
 ---
 
-## 9. Consumer Integration
+## 11. Consumer Integration
 
-### 9.1 Setup
+### 11.1 Setup
 
 ```csharp
 // Program.cs
@@ -737,6 +1015,8 @@ builder.Services.AddAppSysMetrics(options =>
     options.CollectionInterval = TimeSpan.FromSeconds(2);
     options.MaxHistorySize = 60;
 });
+
+builder.Services.AddLeakLab();  // optional — registers 10 leak simulators + dashboard
 ```
 
 ```html
@@ -744,9 +1024,9 @@ builder.Services.AddAppSysMetrics(options =>
 <link rel="stylesheet" href="_content/AppSysMetrics/AppSysMetrics.css" />
 ```
 
-### 9.2 Page Wrappers
+### 11.2 Page Wrappers
 
-The library ships views, not pages. Consumers create thin page wrappers:
+Both libraries ship views/components, not pages. Consumers create thin page wrappers:
 
 ```razor
 @page "/dashboard"
@@ -754,9 +1034,16 @@ The library ships views, not pages. Consumers create thin page wrappers:
 <MetricsDashboardView />
 ```
 
+```razor
+@page "/leak-lab"
+@rendermode InteractiveServer
+<PageTitle>Leak Lab</PageTitle>
+<LeakLabDashboard />
+```
+
 Each view deliberately omits `@page` and `@rendermode`, giving consumers full control over routing and render mode.
 
-### 9.3 CSS Strategy
+### 11.3 CSS Strategy
 
 **Tier 1: Shared base stylesheet** — `_content/AppSysMetrics/AppSysMetrics.css`
 - `.panel`, `.panel-heading`, `.panel-loading` — Panel container styles
@@ -770,21 +1057,40 @@ All components use `asm-` prefixed class names to avoid collisions with consumer
 
 ---
 
-## 10. Dependencies
+## 12. Dependencies
 
-### 10.1 NuGet Packages
+### 12.1 NuGet Packages
+
+**AppSysMetrics:**
 
 | Package | Version | Used By | Purpose |
 |---|---|---|---|
 | Microsoft.Diagnostics.Runtime | 3.1.512801 | ClrMdHeapAnalyzer | In-process heap analysis via ClrMD |
 
-### 10.2 Framework References
+**AppSysMetrics.LeakLab:**
 
-| Reference | Provides |
-|---|---|
-| Microsoft.AspNetCore.App | Razor compilation, Hosting.Abstractions, Logging.Abstractions, Options, DI |
+| Package | Version | Used By | Purpose |
+|---|---|---|---|
+| Microsoft.Extensions.Caching.Memory | 8.0.1 | S13_UnboundedCacheSimulator | Standalone MemoryCache with no SizeLimit |
+| Microsoft.EntityFrameworkCore.Sqlite | 8.0.11 | S17_EfCoreTrackingSimulator | In-memory SQLite for EF Core tracking leak |
 
-### 10.3 External Tools (Optional)
+**AppSysMetrics.LeakLab.Tests:**
+
+| Package | Version | Purpose |
+|---|---|---|
+| Microsoft.NET.Test.Sdk | 17.12.0 | Test SDK host |
+| Microsoft.Extensions.Hosting | 8.0.1 | Generic `IHost` for test fixture (registers AppSysMetrics + LeakLab services) |
+| xunit | 2.9.3 | Test framework |
+| xunit.runner.visualstudio | 2.8.2 | Test runner adapter |
+
+### 12.2 Framework References
+
+| Reference | Project | Provides |
+|---|---|---|
+| Microsoft.AspNetCore.App | AppSysMetrics | Razor compilation, Hosting.Abstractions, Logging.Abstractions, Options, DI |
+| Microsoft.AspNetCore.App | AppSysMetrics.LeakLab | Razor compilation for dashboard components, DI abstractions |
+
+### 12.3 External Tools (Optional)
 
 | Tool | Required By | Install Command |
 |---|---|---|
@@ -792,7 +1098,7 @@ All components use `asm-` prefixed class names to avoid collisions with consumer
 
 Only required for the "Capture GC Dump" file export button. The primary "Capture Heap Snapshot" feature uses ClrMD in-process and requires no external tools.
 
-### 10.4 Runtime APIs
+### 12.4 Runtime APIs
 
 | API | Purpose |
 |---|---|
@@ -812,21 +1118,21 @@ Only required for the "Capture GC Dump" file export button. The primary "Capture
 
 ---
 
-## 11. Design Rationale
+## 13. Design Rationale
 
-### 11.1 Sealed records for metrics
+### 13.1 Sealed records for metrics
 
 Records provide value equality and immutable snapshots. `sealed` prevents inheritance overhead. The combination is ideal for data created once, published to a hub, and read by multiple consumers — no defensive copying needed.
 
-### 11.2 MarkupString + StringBuilder for SVG
+### 13.2 MarkupString + StringBuilder for SVG
 
 Razor's parser treats `<text>` as a directive, conflicting with SVG's `<text>` element. Chart components build SVG strings in `BuildSvg()` methods and inject via `@((MarkupString)BuildSvg())`. This also avoids Razor issues with `<` in switch expressions.
 
-### 11.3 Pure SVG, no JavaScript
+### 13.3 Pure SVG, no JavaScript
 
 The library renders all visualizations as pure SVG with zero JS payload, no npm dependencies, and no bundling. Updates propagate instantly via SignalR without client-side re-rendering.
 
-### 11.4 Separate hubs for different concerns
+### 13.4 Separate hubs for different concerns
 
 Three independent hubs (`MetricsHub`, `AllocationTrackingHub`, `DumpAnalysisHub`) serve different diagnostic questions at different cadences:
 - Metrics: periodic 2-second polling (process health)
@@ -835,50 +1141,74 @@ Three independent hubs (`MetricsHub`, `AllocationTrackingHub`, `DumpAnalysisHub`
 
 Coupling them would force all onto the same timer and reduce API composability.
 
-### 11.5 ClrMD over dotnet-gcdump
+### 13.5 ClrMD over dotnet-gcdump
 
 `dotnet-gcdump` relies on EventPipe `GCBulkType` events for type resolution. A .NET 8+ regression (dotnet/diagnostics #5116) causes UNKNOWN type names on repeated captures from the same process. ClrMD reads type metadata directly from CLR method tables and the DAC, which is immune to this regression. The trade-off is one NuGet dependency; the gain is reliable type names and no external tool requirement. The original `dotnet-gcdump collect` is retained as `CaptureGcDumpFileAsync()` for `.gcdump` file export.
 
-### 11.6 Single library, not Core + UI split
+### 13.6 Single library, not Core + UI split
 
 The Razor SDK is additive — existing C# compiles identically. A single package avoids version coordination. Consumers who only need the backend can ignore the Components namespace. The `FrameworkReference` to `Microsoft.AspNetCore.App` replaces all explicit NuGet packages, resulting in a cleaner `.csproj`.
 
-### 11.7 No @page or @rendermode in library views
+### 13.7 No @page or @rendermode in library views
 
 Hardcoding routes in a library claims URL paths from the consumer. Hardcoding render mode prevents consumer choice. By shipping views as plain components, the library stays composable — consumers wrap in their own pages with their own routing, render mode, and layout decisions.
 
-### 11.8 Zero Bootstrap dependency
+### 13.8 Zero Bootstrap dependency
 
 Library components use no Bootstrap CSS classes. All styling is self-contained via `AppSysMetrics.css` and scoped `.razor.css` files, making the library portable to any CSS framework or custom design system.
 
-### 11.9 Allocation enrichment for retention analysis
+### 13.9 Allocation enrichment for retention analysis
 
 Heap snapshots alone show what's on the heap but not what was allocated. Attaching an `AllocationSnapshot` at capture time lets the diff service compute per-type retention ratios: a type with 500 KB heap growth could be healthy (if 10 MB allocated, 9.5 MB collected) or a leak (if only 500 KB allocated). The `AllocationAtCapture` field is nullable for edge cases.
 
-### 11.10 4-zone narrative UI for diff analysis
+### 13.10 4-zone narrative UI for diff analysis
 
 Raw diff tables show numbers but don't answer "is the heap healthy?" The 4-zone layout provides progressive disclosure: executive summary (efficiency %), narrative prose (colored banner), actionable alerts (leak suspects), then full detail (retention-sorted table). The two key numbers — `collected / allocated` efficiency and per-type retention ratio — immediately distinguish healthy churn from a leak.
 
-### 11.11 EventListener over ETW
+### 13.11 EventListener over ETW
 
 The in-process `EventListener` base class requires no NuGet dependency, works cross-platform, needs no elevated permissions, and provides low-overhead allocation event subscription via sampled ticks (~100 KB granularity).
 
-### 11.12 User-code parent preference in parent map
+### 13.12 User-code parent preference in parent map
 
 The parent map uses `TryAdd` (first-parent-wins) for performance, but framework transients can claim parenthood before the actual owner. When a user-code type tries to overwrite an existing framework parent, the overwrite is allowed. This ensures paths name the developer's class (e.g., `MemoryLeakService`) rather than framework internals (e.g., `List<T>+Enumerator`).
 
-### 11.13 Framework intermediary check
+### 13.13 Framework intermediary check
 
 A user-code type (like a Blazor component) may own framework objects via framework plumbing (e.g., `_renderHandle:EndpointHtmlRenderer`). The depth threshold alone can't distinguish deliberate from incidental ownership. The intermediary check examines the first hop from the user-code type: if it's `Microsoft.*`/`Internal.*`/`Interop.*`, the path is framework plumbing and downgraded to `HasUserCode = false`. If it's `System.*` (container like `List<T>`), it's direct ownership.
 
-### 11.14 Two-track leak prediction
+### 13.14 Two-track leak prediction
 
 A single retention ratio threshold (≥ 80%) misses diluted leaks where framework throughput inflates the denominator. For example, `Byte[]` shared by Kestrel's MemoryPoolBlock (high allocation/collection churn) and a leaking service (retained) drops to ~38% retention despite real heap growth. Track 2 catches these by looking at absolute growth (≥ 1 MB or ≥ 20% of heap delta) independent of the ratio.
 
-### 11.15 Dot-free type filtering
+### 13.15 Dot-free type filtering
 
 Some framework internal types (e.g., `ClrDacType` from `Microsoft.Diagnostics.Runtime`) appear on the heap without namespace qualifiers. The prediction filter uses a well-known primitive allowlist for dot-free types rather than allowing all through, preventing framework noise from consuming root analysis time.
 
-### 11.16 Self-assembly exclusion
+### 13.16 Self-assembly exclusion
 
 AppSysMetrics observes the same process it runs in. Without explicit exclusion, its own types (and ClrMD's) would appear as user code. `BuildUserAssemblyPrefixes()` excludes the library's own assembly name, ensuring the diagnostics tool never reports its own infrastructure as a leak suspect.
+
+### 13.17 LeakLab as standalone library
+
+LeakLab has no project reference to AppSysMetrics. Simulators are standalone leak producers — they allocate and retain objects without knowing how detection works. This separation ensures tests prove the detection pipeline works end-to-end from the consumer's perspective, not by coupling to internal APIs.
+
+### 13.18 No AnalyzeMemoryLeaks attribute on LeakLab
+
+Adding `[assembly: AnalyzeMemoryLeaks]` to LeakLab would switch the root analyzer to Tier 1 (explicit) mode globally, breaking auto-discovery for Travelogue and other consumer assemblies. In Tier 2 (auto) mode, `BuildUserAssemblyPrefixes()` auto-discovers `AppSysMetrics.LeakLab` as user code because its assembly name doesn't match any framework prefix.
+
+### 13.19 ExpectedLeakTypes as payload types
+
+Simulators declare the type names the detector reports (typically `System.Byte[]`), not wrapper types. `TopTypesCount` (50) limits ClrMD output — the payload dominates heap share while wrappers may not make the cut. For simulators with distinctive wrapper types (S01, S03, S17), the wrapper itself is declared because it appears in the top-N.
+
+### 13.20 Warm-up captures in test fixture
+
+Two throwaway ClrMD captures after host startup drain framework noise (String, Char[], internal allocations from logging, config, and DI initialization). Without warm-up, the first test sees startup-related types dominate the diff, causing spurious failures or masking the simulator's actual leak.
+
+### 13.21 Sequential test execution
+
+ClrMD snapshots capture the entire process heap. Parallel test execution would allow one simulator's leaked objects to appear in another test's diff, producing non-deterministic results. Sequential execution via `xunit.runner.json` (`parallelizeTestCollections: false`) ensures each test has a clean heap context.
+
+### 13.22 Razor SDK for dual-purpose library
+
+LeakLab uses `Microsoft.NET.Sdk.Razor` (not `Microsoft.NET.Sdk`) so that the same project ships both C# simulator logic and Blazor dashboard components. The Razor SDK is additive — plain C# compiles identically. This avoids splitting into separate `LeakLab.Core` and `LeakLab.UI` packages while keeping the library consumable by both xUnit tests (C# only) and Travelogue (C# + Razor).

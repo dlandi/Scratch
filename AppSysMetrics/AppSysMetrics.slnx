@@ -8,4 +8,6 @@
   <Project Path="AppSysMetrics/AppSysMetrics.csproj" />
   <Project Path="Travelogue/Travelogue.csproj" />
   <Project Path="WeatherStatistics/WeatherStatistics.csproj" />
+  <Project Path="AppSysMetrics.LeakLab/AppSysMetrics.LeakLab.csproj" />
+  <Project Path="AppSysMetrics.LeakLab.Tests/AppSysMetrics.LeakLab.Tests.csproj" />
 </Solution>

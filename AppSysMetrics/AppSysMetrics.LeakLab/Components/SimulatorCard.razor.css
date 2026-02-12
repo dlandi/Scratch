@@ -1,0 +1,102 @@
+/* ─── Simulator Card ─── */
+
+.sim-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sim-card:hover {
+    border-color: #475569;
+}
+
+.sim-card-selected {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.sim-card-running {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.sim-card-running.sim-card-selected {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 1px #ef4444;
+}
+
+.sim-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.sim-id {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #f1f5f9;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+.sim-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+}
+
+.sim-status-stopped {
+    color: #94a3b8;
+    background: rgba(148, 163, 184, 0.1);
+}
+
+.sim-status-running {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    animation: pulse-status 2s infinite;
+}
+
+@keyframes pulse-status {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.sim-description {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    margin-bottom: 0.75rem;
+}
+
+.sim-types {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+}
+
+.sim-type-chip {
+    font-size: 0.7rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    color: #93c5fd;
+    background: rgba(59, 130, 246, 0.1);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.sim-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sim-actions .btn {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+}

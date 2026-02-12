@@ -1,7 +1,7 @@
 using AppSysMetrics.Extensions;
+using AppSysMetrics.LeakLab.Extensions;
 using WeatherStatistics.Extensions;
 using Travelogue.Components;
-using Travelogue.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +21,7 @@ builder.Services.AddWeatherStatistics(options =>
     options.AutoStart = false;
 });
 
-builder.Services.AddSingleton<MemoryLeakService>();
+builder.Services.AddLeakLab();
 
 var app = builder.Build();
 
