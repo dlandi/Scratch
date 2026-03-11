@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/GCP.PubSub.BlazorServer/GCP.PubSub.BlazorServer.csproj" />
+    <Project Path="samples/GCP.PubSub.Console/GCP.PubSub.Console.csproj" />
+    <Project Path="samples/GCP.PubSub.WinForms/GCP.PubSub.WinForms.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/GCP.PubSub/GCP.PubSub.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GCP.PubSub.Tests/GCP.PubSub.Tests.csproj" />
+  </Folder>
+</Solution>

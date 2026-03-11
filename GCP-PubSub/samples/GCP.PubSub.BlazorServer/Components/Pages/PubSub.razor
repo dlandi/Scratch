@@ -1,0 +1,152 @@
+@page "/pubsub"
+@rendermode InteractiveServer
+@inject IPubSubPublisher Publisher
+@inject IPubSubSubscriber Subscriber
+@inject IPubSubAdmin Admin
+
+<h3>Pub/Sub Demo</h3>
+
+<div style="margin-bottom: 1rem;">
+    <input @bind="messageText" placeholder="Enter message..." style="width: 300px;" />
+    <button @onclick="PublishMessage" disabled="@isPublishing">
+        @(isPublishing ? "Publishing..." : "Publish")
+    </button>
+</div>
+
+<div style="margin-bottom: 1rem;">
+    <label>
+        Listen duration (seconds):
+        <input type="number" @bind="listenSeconds" min="1" max="60" style="width: 60px;" />
+    </label>
+    <button @onclick="SubscribeMessages" disabled="@isSubscribing">
+        @(isSubscribing ? "Listening..." : "Subscribe")
+    </button>
+</div>
+
+<div style="margin-bottom: 1rem;">
+    <button @onclick="ListTopics" disabled="@isListing">List Topics</button>
+    <button @onclick="ListSubscriptions" disabled="@isListing">List Subscriptions</button>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div style="color: red; margin-bottom: 1rem;">@errorMessage</div>
+}
+
+<h4>Messages</h4>
+<ul>
+    @foreach (var msg in messages)
+    {
+        <li>@msg</li>
+    }
+</ul>
+
+@code {
+    private string messageText = string.Empty;
+    private int listenSeconds = 10;
+    private bool isPublishing;
+    private bool isSubscribing;
+    private bool isListing;
+    private string? errorMessage;
+    private readonly List<string> messages = new();
+
+    private async Task PublishMessage()
+    {
+        if (string.IsNullOrWhiteSpace(messageText))
+            return;
+
+        isPublishing = true;
+        errorMessage = null;
+
+        try
+        {
+            var messageId = await Publisher.PublishAsync(messageText);
+            messages.Insert(0, $"[PUB] {DateTime.Now:HH:mm:ss} ID: {messageId} - {messageText}");
+            messageText = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Publish error: {ex.Message}";
+        }
+        finally
+        {
+            isPublishing = false;
+        }
+    }
+
+    private async Task SubscribeMessages()
+    {
+        isSubscribing = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var count = await Subscriber.PullMessagesAsync(
+                async (text, attributes, ct) =>
+                {
+                    await InvokeAsync(() =>
+                    {
+                        messages.Insert(0, $"[SUB] {DateTime.Now:HH:mm:ss} - {text}");
+                        StateHasChanged();
+                    });
+                    return true; // ACK
+                },
+                TimeSpan.FromSeconds(listenSeconds));
+
+            messages.Insert(0, $"--- Received {count} messages ---");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Subscribe error: {ex.Message}";
+        }
+        finally
+        {
+            isSubscribing = false;
+        }
+    }
+
+    private async Task ListTopics()
+    {
+        isListing = true;
+        errorMessage = null;
+
+        try
+        {
+            var topics = await Admin.ListTopicsAsync();
+            messages.Insert(0, $"--- {topics.Count} topics ---");
+            foreach (var topic in topics)
+                messages.Insert(0, $"[TOPIC] {topic}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"List topics error: {ex.Message}";
+        }
+        finally
+        {
+            isListing = false;
+        }
+    }
+
+    private async Task ListSubscriptions()
+    {
+        isListing = true;
+        errorMessage = null;
+
+        try
+        {
+            var subs = await Admin.ListSubscriptionsAsync();
+            messages.Insert(0, $"--- {subs.Count} subscriptions ---");
+            foreach (var sub in subs)
+                messages.Insert(0, $"[SUB] {sub}");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"List subscriptions error: {ex.Message}";
+        }
+        finally
+        {
+            isListing = false;
+        }
+    }
+}
