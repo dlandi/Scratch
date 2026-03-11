@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Docs/">
+    <File Path="Docs/GCP-PubSub-Specification.md" />
+    <File Path="Docs/Installing-and-Authentication-gcloud-Client.md" />
+    <File Path="Docs/Plan-GCP-PubSub.md" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/GCP.PubSub.BlazorServer/GCP.PubSub.BlazorServer.csproj" />
     <Project Path="samples/GCP.PubSub.Console/GCP.PubSub.Console.csproj" />
