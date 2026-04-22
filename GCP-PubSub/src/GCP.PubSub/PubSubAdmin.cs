@@ -20,6 +20,7 @@ public sealed class PubSubAdmin : IPubSubAdmin
     {
         var opts = _options.Value;
         var projectName = new ProjectName(opts.ProjectId);
+        var configuredTopicName = TopicName.FromProjectTopic(opts.ProjectId, opts.TopicId);
 
         var client = await PublisherServiceApiClient.CreateAsync(cancellationToken).ConfigureAwait(false);
         var topics = client.ListTopicsAsync(projectName);
@@ -31,6 +32,12 @@ public sealed class PubSubAdmin : IPubSubAdmin
             topicIds.Add(topic.TopicName.TopicId);
         }
 
+        if (topicIds.Count == 0)
+        {
+            var configuredTopic = await client.GetTopicAsync(configuredTopicName, cancellationToken).ConfigureAwait(false);
+            topicIds.Add(configuredTopic.TopicName.TopicId);
+        }
+
         _logger.ListedTopics(topicIds.Count);
         return topicIds;
     }
@@ -39,6 +46,7 @@ public sealed class PubSubAdmin : IPubSubAdmin
     {
         var opts = _options.Value;
         var projectName = new ProjectName(opts.ProjectId);
+        var configuredSubscriptionName = SubscriptionName.FromProjectSubscription(opts.ProjectId, opts.SubscriptionId);
 
         var client = await SubscriberServiceApiClient.CreateAsync(cancellationToken).ConfigureAwait(false);
         var subscriptions = client.ListSubscriptionsAsync(projectName);
@@ -48,6 +56,12 @@ public sealed class PubSubAdmin : IPubSubAdmin
         {
             cancellationToken.ThrowIfCancellationRequested();
             subscriptionIds.Add(sub.SubscriptionName.SubscriptionId);
+        }
+
+        if (subscriptionIds.Count == 0)
+        {
+            var configuredSubscription = await client.GetSubscriptionAsync(configuredSubscriptionName, cancellationToken).ConfigureAwait(false);
+            subscriptionIds.Add(configuredSubscription.SubscriptionName.SubscriptionId);
         }
 
         _logger.ListedSubscriptions(subscriptionIds.Count);

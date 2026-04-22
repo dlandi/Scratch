@@ -1,4 +1,5 @@
 using GCP.PubSub;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -12,6 +13,11 @@ internal static class Program
         ApplicationConfiguration.Initialize();
 
         var host = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration(config =>
+            {
+                config.SetBasePath(AppContext.BaseDirectory);
+                config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
+            })
             .ConfigureServices((ctx, services) =>
             {
                 services.AddGcpPubSub();
