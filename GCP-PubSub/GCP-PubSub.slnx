@@ -1,13 +1,12 @@
 <Solution>
-  <Folder Name="/samples/">
-    <Project Path="samples/GCP.PubSub.BlazorServer/GCP.PubSub.BlazorServer.csproj" />
-    <Project Path="samples/GCP.PubSub.Console/GCP.PubSub.Console.csproj" />
-    <Project Path="samples/GCP.PubSub.WinForms/GCP.PubSub.WinForms.csproj" />
+  <Folder Name="/Docs/">
+    <File Path="Docs/google-cloud-pubsub-dotnet8-local-setup.md" />
+    <File Path="Docs/service-account-for-pierre-mertz.md" />
+    <File Path="Docs/simple-gcp-session-2026-04-22.md" />
+    <File Path="Docs/simple-gcp-setup-for-pierre.md" />
+    <File Path="scratch.txt" />
   </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/GCP.PubSub/GCP.PubSub.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/GCP.PubSub.Tests/GCP.PubSub.Tests.csproj" />
+  <Folder Name="/Simple-GCP/">
+    <Project Path="Simple-GCP/Simple-GCP.csproj" />
   </Folder>
 </Solution>
