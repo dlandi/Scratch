@@ -1,11 +1,5 @@
 <Solution>
-  <Folder Name="/Docs/">
-    <File Path="Docs/google-cloud-pubsub-dotnet8-local-setup.md" />
-    <File Path="Docs/service-account-for-pierre-mertz.md" />
-    <File Path="Docs/simple-gcp-session-2026-04-22.md" />
-    <File Path="Docs/simple-gcp-setup-for-pierre.md" />
-    <File Path="scratch.txt" />
-  </Folder>
+  <Folder Name="/Docs/" />
   <Folder Name="/Simple-GCP/">
     <Project Path="Simple-GCP/Simple-GCP.csproj" />
   </Folder>
