@@ -1,4 +1,4 @@
-# Simple-GCP setup for Pierre Mertz
+# Simple-GCP setup for shared access
 
 This document walks you through getting the `Simple-GCP` console app running on your machine against our shared Google Cloud Pub/Sub project. You will receive one file from me, and you will do a small amount of local configuration on your side.
 
@@ -8,7 +8,7 @@ A .NET 8 console app that publishes a message to a Google Pub/Sub topic and then
 
 ## What I will send you
 
-A single file named `pubsub-demo-dev.json`. It is a Google Cloud service account key. Treat it like a password:
+A single file containing a Google Cloud service account key. Treat it like a password:
 
 - Do not commit it to any repo.
 - Do not paste its contents anywhere.
@@ -31,10 +31,10 @@ Create a folder for cloud credentials, well away from any folder git watches:
 New-Item -ItemType Directory -Path "C:\Users\<you>\gcp-keys" -Force
 ```
 
-Move `pubsub-demo-dev.json` into that folder so the full path is:
+Move the key file into that folder so the full path is:
 
 ```
-C:\Users\<you>\gcp-keys\pubsub-demo-dev.json
+C:\Users\<you>\gcp-keys\ssu-pubsub-proj-1c74130096a1.json
 ```
 
 Replace `<you>` with your Windows username throughout this doc.
@@ -48,7 +48,7 @@ In PowerShell, run:
 ```powershell
 [Environment]::SetEnvironmentVariable(
   "GOOGLE_APPLICATION_CREDENTIALS",
-  "C:\Users\<you>\gcp-keys\pubsub-demo-dev.json",
+	"C:\Users\<you>\gcp-keys\ssu-pubsub-proj-1c74130096a1.json",
   "User"
 )
 ```
@@ -94,9 +94,9 @@ The app reads three environment variables for the project id, topic, and subscri
 ## Expected output
 
 ```
-Project: pubsub-demo-01-494119
-Topic: demo-topic-01
-Subscription: my-sub
+Project: ssu-pubsub-proj
+Topic: SSU-1-PubSub-Topic
+Subscription: SSU-1-PubSub-Topic-sub
 Published message ID: <some 16-digit number>
 Received message ID: <the same number>
 Received payload: Hello from .NET 8 at 2026-04-22T...
@@ -117,12 +117,13 @@ The key file is not being found.
 - Confirm the env var is set: `echo $env:GOOGLE_APPLICATION_CREDENTIALS`.
 - Confirm the file at that path exists: `Test-Path $env:GOOGLE_APPLICATION_CREDENTIALS` (should return `True`).
 - Confirm you restarted the terminal or IDE after setting the env var.
+- Confirm the app is targeting project `ssu-pubsub-proj` through `Simple-GCP\Properties\launchSettings.json`.
 
 ### `Grpc.Core.RpcException: Status(StatusCode="PermissionDenied", ...)`
 
 The key file is valid but the service account does not have the right role. Send me the full error; it may mean I need to re-grant the role on my side.
 
-### `Grpc.Core.RpcException: Status(StatusCode="NotFound", "Resource not found (resource=demo-topic-01).")`
+### `Grpc.Core.RpcException: Status(StatusCode="NotFound", "Resource not found (resource=SSU-1-PubSub-Topic).")`
 
 The topic or subscription was deleted or renamed on my side. Ping me.
 
@@ -135,14 +136,14 @@ Publish succeeded but subscribe did not complete in time. Rerun the app. If it k
 - Do not set `GOOGLE_APPLICATION_CREDENTIALS` at the "Machine" scope. Keep it in your user profile.
 - Do not commit the key file, ever. Check `git status` before every commit and verify nothing in `C:\Users\<you>\gcp-keys\` is referenced.
 - Do not copy the key into a CI pipeline, container image, or publish output. It is valid until I manually revoke it.
-- Do not share the key with anyone else on the Nokia team without asking me. I need to know who has it.
+- Do not share the key with anyone else on the team without asking me. I need to know who has it.
 
 ## Cleanup when you are done with the demo
 
 Delete the key file:
 
 ```powershell
-Remove-Item "C:\Users\<you>\gcp-keys\pubsub-demo-dev.json"
+Remove-Item "C:\Users\<you>\gcp-keys\ssu-pubsub-proj-1c74130096a1.json"
 ```
 
 Unset the env var:

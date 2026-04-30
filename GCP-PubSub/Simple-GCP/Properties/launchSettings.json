@@ -1,12 +1,7 @@
 {
   "profiles": {
     "Simple-GCP": {
-      "commandName": "Project",
-      "environmentVariables": {
-        "GCP_PROJECT_ID": "pubsub-demo-01-494119",
-        "PUBSUB_TOPIC_ID": "demo-topic-01",
-        "PUBSUB_SUBSCRIPTION_ID": "my-sub"
-      }
+      "commandName": "Project"
     }
   }
 }

@@ -4,14 +4,16 @@ This is a record of the session where the `Simple-GCP` console project was creat
 
 ## Outcome
 
-A `.NET 8` console app at `Simple-GCP/Simple-GCP.csproj` publishes a message to a Pub/Sub topic and receives it through a pull subscription, using Application Default Credentials with no credentials in code and no `GOOGLE_APPLICATION_CREDENTIALS` env var.
+A `.NET 8` console app at `Simple-GCP/Simple-GCP.csproj` publishes a message to a Pub/Sub topic and receives it through a pull subscription, with no credentials in code.
+
+The original 2026-04-22 verification used user-based Application Default Credentials on a different machine. The current machine now uses a service account key via `GOOGLE_APPLICATION_CREDENTIALS`.
 
 Verified run output:
 
 ```
 Project: pubsub-demo-01-494119
-Topic: demo-topic-01
-Subscription: my-sub
+Topic: SSU-1-PubSub-Topic
+Subscription: SSU-1-PubSub-Topic-sub
 Published message ID: 18770939703703971
 Received message ID: 18770939703703971
 Received payload: Hello from .NET 8 at 2026-04-22T20:06:00.1523561+00:00
@@ -27,26 +29,28 @@ Nothing else in the repo was modified.
 
 ## Google Cloud resources used
 
-All resources live in GCP project `pubsub-demo-01-494119`.
+The current machine is configured to run against GCP project `ssu-pubsub-proj`.
 
 | Resource | Value |
 |---|---|
-| Project id | `pubsub-demo-01-494119` |
-| Topic | `demo-topic-01` |
-| Subscription | `my-sub` (pull, bound to `demo-topic-01`) |
-| ADC auth mode | User-based Application Default Credentials |
-| ADC file | `C:\Users\dland\AppData\Roaming\gcloud\application_default_credentials.json` |
-| Quota project | Set to `pubsub-demo-01-494119` |
+| Project id | `ssu-pubsub-proj` |
+| Topic | `SSU-1-PubSub-Topic` |
+| Subscription | `SSU-1-PubSub-Topic-sub` (pull, bound to `SSU-1-PubSub-Topic`) |
+| Auth mode on current machine | Service account key via `GOOGLE_APPLICATION_CREDENTIALS` |
+| Windows user profile | `C:\Users\landi` |
+| Credential file location | `C:\Users\landi\gcp-keys\ssu-pubsub-proj-1c74130096a1.json` |
 
-Note: the original setup doc (`Docs/google-cloud-pubsub-dotnet8-local-setup.md`) uses `my-topic` throughout. The live topic is `demo-topic-01`. The doc was not rewritten; the difference is called out here instead.
+Note: the original setup doc (`Docs/google-cloud-pubsub-dotnet8-local-setup.md`) still shows generic examples in some sections. The current topic is `SSU-1-PubSub-Topic`.
 
 ## Environment variables for the app
 
 ```powershell
-$env:GCP_PROJECT_ID="pubsub-demo-01-494119"
-$env:PUBSUB_TOPIC_ID="demo-topic-01"
-$env:PUBSUB_SUBSCRIPTION_ID="my-sub"
+$env:GCP_PROJECT_ID="ssu-pubsub-proj"
+$env:PUBSUB_TOPIC_ID="SSU-1-PubSub-Topic"
+$env:PUBSUB_SUBSCRIPTION_ID="SSU-1-PubSub-Topic-sub"
 ```
+
+Authentication on this machine comes from `GOOGLE_APPLICATION_CREDENTIALS` pointing at the service account key file, not from `gcloud auth application-default login`.
 
 ## Run command
 
@@ -73,3 +77,9 @@ During the session, Claude Web produced a "milestone 10" recap with suggestions.
 - Delete unused sibling GCP projects if still around (`gcp-pubsub-01`, `gen-lang-client-0107425200`, `jukeboxpostcard`, `psintegration01`). Destructive, so do manually from the GCP Console.
 - If concerned about ADC token exposure in prior transcripts, run `gcloud auth application-default revoke` followed by `gcloud auth application-default login` and re-set the quota project.
 - Decide whether to rename topic `demo-topic-01` to `my-topic` (to match the original setup doc) or to update the doc to match reality. Picking one eliminates the drift.
+
+## Related docs
+
+- service-account-for-shared-access.md - service-account record for the current shared-access setup.
+- simple-gcp-setup-for-shared-access.md - receiving-side setup instructions.
+

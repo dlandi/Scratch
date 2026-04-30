@@ -9,6 +9,9 @@
     <PackageReference Include="Google.Cloud.PubSub.V1" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Scripts\**\*" />
   </ItemGroup>
 </Project>

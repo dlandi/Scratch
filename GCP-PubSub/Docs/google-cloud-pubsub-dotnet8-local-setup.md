@@ -151,7 +151,9 @@ This enables Pub/Sub for the current project.
 
 ## 7. Configure local authentication for your .NET app
 
-For local development, the recommended path is to use Application Default Credentials with your user account.
+For local development, you can use either user-based Application Default Credentials or a service account key file.
+
+### Option A: user-based ADC through `gcloud`
 
 Run:
 
@@ -176,6 +178,18 @@ Example:
 ```bash
 gcloud auth application-default set-quota-project dennis-pubsub-demo-123456
 ```
+
+### Option B: service account key file through `GOOGLE_APPLICATION_CREDENTIALS`
+
+If you already have a service account JSON key, set `GOOGLE_APPLICATION_CREDENTIALS` to that file instead of using `gcloud auth application-default login`.
+
+PowerShell example:
+
+```powershell
+$env:GOOGLE_APPLICATION_CREDENTIALS="C:\Users\landi\gcp-keys\ssu-pubsub-proj-1c74130096a1.json"
+```
+
+On the current machine in this repo, the sample is configured this way and targets project `ssu-pubsub-proj`.
 
 ### Optional: use service account impersonation instead of user credentials
 
@@ -337,36 +351,36 @@ What this code does:
 ### PowerShell
 
 ```powershell
-$env:GCP_PROJECT_ID="YOUR_PROJECT_ID"
-$env:PUBSUB_TOPIC_ID="my-topic"
-$env:PUBSUB_SUBSCRIPTION_ID="my-sub"
+$env:GCP_PROJECT_ID="ssu-pubsub-proj"
+$env:PUBSUB_TOPIC_ID="SSU-1-PubSub-Topic"
+$env:PUBSUB_SUBSCRIPTION_ID="SSU-1-PubSub-Topic-sub"
 dotnet run
 ```
 
 ### Command Prompt
 
 ```cmd
-set GCP_PROJECT_ID=YOUR_PROJECT_ID
-set PUBSUB_TOPIC_ID=my-topic
-set PUBSUB_SUBSCRIPTION_ID=my-sub
+set GCP_PROJECT_ID=ssu-pubsub-proj
+set PUBSUB_TOPIC_ID=SSU-1-PubSub-Topic
+set PUBSUB_SUBSCRIPTION_ID=SSU-1-PubSub-Topic-sub
 dotnet run
 ```
 
 ### Bash
 
 ```bash
-export GCP_PROJECT_ID="YOUR_PROJECT_ID"
-export PUBSUB_TOPIC_ID="my-topic"
-export PUBSUB_SUBSCRIPTION_ID="my-sub"
+export GCP_PROJECT_ID="ssu-pubsub-proj"
+export PUBSUB_TOPIC_ID="SSU-1-PubSub-Topic"
+export PUBSUB_SUBSCRIPTION_ID="SSU-1-PubSub-Topic-sub"
 dotnet run
 ```
 
 Expected output will look roughly like this:
 
 ```text
-Project: your-project-id
-Topic: my-topic
-Subscription: my-sub
+Project: ssu-pubsub-proj
+Topic: SSU-1-PubSub-Topic
+Subscription: SSU-1-PubSub-Topic-sub
 Published message ID: 1234567890123456
 Received message ID: 1234567890123456
 Received payload: Hello from .NET 8 at 2026-04-22T12:34:56.7890000+00:00
@@ -414,11 +428,13 @@ Make sure the environment variables match the names you actually created.
 
 ### Error: authentication not found
 
-Recreate ADC locally:
+If you are using user-based ADC, recreate it locally:
 
 ```bash
 gcloud auth application-default login
 ```
+
+If you are using a service account key file, verify that `GOOGLE_APPLICATION_CREDENTIALS` points to the right file and that the file still exists.
 
 ---
 
