@@ -1,5 +1,6 @@
 @page "/groups"
 @inject IClientService Client
+@inject TimeProvider Time
 
 <PageTitle>Device-Groups · Resource.Scheduler</PageTitle>
 
@@ -58,7 +59,7 @@
                             <span>
                                 @if (next is not null)
                                 {
-                                    @($"next: {next.StartUtc.ToLocalTime():ddd HH:mm}")
+                                    @($"next: {Time.ToLocal(next.StartUtc):ddd HH:mm}")
                                 }
                                 else
                                 {
@@ -108,7 +109,7 @@
 
     private ReservationDto? NextReservationFor(Guid groupId)
     {
-        var now = DateTime.UtcNow;
+        var now = Time.GetUtcNow().UtcDateTime;
         return _reservations
             .Where(r => r.DeviceGroupId == groupId
                 && r.EndUtc >= now

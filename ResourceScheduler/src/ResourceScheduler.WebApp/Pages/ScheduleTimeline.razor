@@ -2,6 +2,8 @@
 @inject IClientService Client
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject TimeProvider Time
+@inject UserTimeProvider TzPref
 @implements IAsyncDisposable
 
 <PageTitle>Schedule Timeline · Resource.Scheduler</PageTitle>
@@ -43,13 +45,15 @@
         var hourW = HourW;
         var totalW = hourW * HOURS_PER_DAY * DAYS_VISIBLE;
         var totalH = ROW_H * orderedGroups.Count;
-        var today = DateTime.Now.Date;
+        var anchorUtc = ViewAnchorUtc;
+        var endAnchorUtc = anchorUtc.AddHours(HOURS_PER_DAY * DAYS_VISIBLE);
 
-        var visible = _reservations.Where(r =>
-        {
-            var off = (r.StartUtc.ToLocalTime().Date - today).Days;
-            return off >= fromOffset && off <= toOffset;
-        }).ToList();
+        // UTC-overlap filter: a reservation is visible if any portion of
+        // its UTC window lies inside the canvas's UTC window. This keeps
+        // reservations stable across timezone switches.
+        var visible = _reservations
+            .Where(r => r.StartUtc < endAnchorUtc && r.EndUtc > anchorUtc)
+            .ToList();
 
         @if (!string.IsNullOrEmpty(_dragError))
         {
@@ -75,7 +79,7 @@
                 }
             </div>
 
-            <div class="rs-timeline-canvas">
+            <div class="rs-timeline-canvas" @ref="_canvasRef">
                 <svg @ref="_svgRef" width="@totalW" height="@(40 + totalH)" style="display:block"
                      @onmousemove="OnSvgMouseMove" @onmouseup="OnSvgMouseUp">
                     <rect x="0" y="0" width="@totalW" height="40" fill="var(--rs-surface)" />
@@ -83,11 +87,20 @@
 
                     @if (View == "week")
                     {
+                        var nowUtcDate = Time.GetUtcNow().UtcDateTime;
                         @for (int i = 0; i < DAYS_VISIBLE; i++)
                         {
                             var x = i * HOURS_PER_DAY * hourW;
-                            var d = today.AddDays(fromOffset + i);
-                            var isToday = (fromOffset + i) == 0;
+                            // Day label: local date in the chosen zone for
+                            // the column's UTC midpoint. Using midpoint
+                            // (anchor + 12h) avoids edge-case wraparound
+                            // when the chosen zone shifts a day boundary
+                            // by a few hours.
+                            var dayMidUtc = anchorUtc.AddHours(i * 24 + 12);
+                            var d = Time.ToLocal(dayMidUtc).Date;
+                            var dayStartUtc = anchorUtc.AddHours(i * 24);
+                            var dayEndUtc = dayStartUtc.AddHours(24);
+                            var isToday = nowUtcDate >= dayStartUtc && nowUtcDate < dayEndUtc;
                             <g>
                                 <line x1="@x" y1="0" x2="@x" y2="@(40 + totalH)"
                                       stroke="var(--rs-line-2)" stroke-width="@(i == 0 ? 0 : 1)" />
@@ -111,8 +124,11 @@
                     @for (int i = 0; i <= HOURS_PER_DAY * DAYS_VISIBLE; i++)
                     {
                         var x = i * hourW;
-                        var hourOfDay = (i % HOURS_PER_DAY) + START_H;
-                        var major = (hourOfDay % majorEvery) == 0;
+                        // Hour-tick label is the local hour in the chosen
+                        // zone of the UTC moment at this canvas X.
+                        var tickLocal = Time.ToLocal(anchorUtc.AddHours(i));
+                        var localHour = tickLocal.Hour;
+                        var major = (localHour % majorEvery) == 0;
                         <g>
                             <line x1="@x" y1="40" x2="@x" y2="@(40 + totalH)"
                                   stroke="@(major ? "var(--rs-line-2)" : "var(--rs-line)")"
@@ -124,7 +140,7 @@
                                     <text x="@(x + 4)" y="@(View == "week" ? 32 : 28)"
                                           font-family="IBM Plex Mono, ui-monospace, monospace"
                                           font-size="10" fill="var(--rs-ink-4)">
-                                        @($"{hourOfDay:D2}:00")
+                                        @($"{localHour:D2}:00")
                                     </text>
                                 </g>
                             }
@@ -147,41 +163,38 @@
                         </g>
                     }
 
-                    @if (fromOffset <= 0 && toOffset >= 0)
+                    @{
+                        var nowUtc = Time.GetUtcNow().UtcDateTime;
+                        var nowOnCanvas = nowUtc >= anchorUtc && nowUtc <= endAnchorUtc;
+                    }
+                    @if (nowOnCanvas)
                     {
-                        var now = DateTime.Now;
-                        var nowH = now.Hour + now.Minute / 60.0;
-                        if (nowH >= START_H && nowH <= END_H)
-                        {
-                            var todayIdx = -fromOffset;
-                            var nx = todayIdx * HOURS_PER_DAY * hourW + (nowH - START_H) * hourW;
-                            <g>
-                                <line x1="@nx" y1="40" x2="@nx" y2="@(40 + totalH)"
-                                      stroke="var(--rs-bad)" stroke-width="1" stroke-dasharray="3 3" />
-                                <rect x="@(nx - 30)" y="40" width="60" height="14" fill="var(--rs-bad)" rx="2" />
-                                <text x="@nx" y="51" text-anchor="middle"
-                                      font-family="IBM Plex Mono, ui-monospace, monospace"
-                                      font-size="9" fill="white" letter-spacing="0.06em">
-                                    @($"NOW · {now:HH:mm}")
-                                </text>
-                            </g>
-                        }
+                        var nx = (nowUtc - anchorUtc).TotalHours * hourW;
+                        var nowLocal = Time.ToLocal(nowUtc);
+                        <g>
+                            <line x1="@nx" y1="40" x2="@nx" y2="@(40 + totalH)"
+                                  stroke="var(--rs-bad)" stroke-width="1" stroke-dasharray="3 3" />
+                            <rect x="@(nx - 30)" y="40" width="60" height="14" fill="var(--rs-bad)" rx="2" />
+                            <text x="@nx" y="51" text-anchor="middle"
+                                  font-family="IBM Plex Mono, ui-monospace, monospace"
+                                  font-size="9" fill="white" letter-spacing="0.06em">
+                                @($"NOW · {nowLocal:HH:mm}")
+                            </text>
+                        </g>
                     }
 
                     @foreach (var r in visible)
                     {
                         var ri = orderedGroups.FindIndex(g => g.DeviceGroupId == r.DeviceGroupId);
                         if (ri < 0) { continue; }
-                        var localStart = r.StartUtc.ToLocalTime();
-                        var localEnd = r.EndUtc.ToLocalTime();
-                        var rOff = (localStart.Date - today).Days;
-                        var dayIdx = rOff - fromOffset;
-                        var startHour = localStart.Hour + localStart.Minute / 60.0;
-                        var endHour = localEnd.Hour + localEnd.Minute / 60.0;
-                        if (localEnd.Date > localStart.Date) { endHour = END_H; }
-                        var rx = dayIdx * HOURS_PER_DAY * hourW + (startHour - START_H) * hourW;
+                        // UTC-anchored layout: x = hours from canvas anchor.
+                        // Clip to the canvas bounds so a reservation that
+                        // spans the visible range still draws cleanly.
+                        var clipStart = r.StartUtc < anchorUtc ? anchorUtc : r.StartUtc;
+                        var clipEnd = r.EndUtc > endAnchorUtc ? endAnchorUtc : r.EndUtc;
+                        var rx = (clipStart - anchorUtc).TotalHours * hourW;
+                        var rw = (clipEnd - clipStart).TotalHours * hourW;
                         var ry = 40 + ri * ROW_H + 6;
-                        var rw = (endHour - startHour) * hourW;
                         var rh = ROW_H - 12;
                         var tg = _testGroups.FirstOrDefault(t => t.TestGroupId == r.TestGroupId);
                         var isSel = SelectedReservationId == r.ReservationId;
@@ -231,13 +244,15 @@
                                 </g>
                                 @if (rh > 26 && rw > 80)
                                 {
+                                    var rsLocal = Time.ToLocal(r.StartUtc);
+                                    var reLocal = Time.ToLocal(r.EndUtc);
                                     <g>
                                         <text x="@(rx + 8)" y="@(ry + 30)"
                                               font-family="IBM Plex Mono, ui-monospace, monospace"
                                               font-size="10"
                                               fill="@(isConfirmed ? "rgba(255,255,255,0.85)" : "var(--rs-ink-3)")"
                                               style="pointer-events:none">
-                                            @($"{FmtHour(startHour)}-{FmtHour(endHour)}")
+                                            @($"{rsLocal:HH:mm}-{reLocal:HH:mm}")
                                         </text>
                                     </g>
                                 }
@@ -258,18 +273,16 @@
                         {
                             var dStartX = Math.Min(dr.StartX, dr.CurrentX);
                             var dEndX = Math.Max(dr.StartX, dr.CurrentX);
-                            var startTime = XToTime(dStartX, fromOffset);
-                            var endTime = XToTime(dEndX, fromOffset);
-                            var sd = startTime.DayOffset;
-                            var sh = SnapHour(startTime.Hour);
-                            var ed = endTime.DayOffset;
-                            var eh = SnapHour(endTime.Hour);
+                            var candStartUtc = XToUtc(dStartX, snap: true);
+                            var candEndUtc = XToUtc(dEndX, snap: true);
                             var dragRowY = 40 + dragRowIdx * ROW_H + 6;
                             var dragRowH = ROW_H - 12;
                             var firstTg = _testGroups.Count > 0 ? (Guid?)_testGroups[0].TestGroupId : null;
-                            var conflict = HasDragConflict(dr.GroupId, firstTg, sd, sh, ed, eh);
+                            var conflict = HasDragConflict(dr.GroupId, firstTg, candStartUtc, candEndUtc);
                             var fillCol = conflict ? "var(--rs-bad-soft)" : "var(--rs-accent-soft)";
                             var strokeCol = conflict ? "var(--rs-bad)" : "var(--rs-accent)";
+                            var dragStartLocal = Time.ToLocal(candStartUtc);
+                            var dragEndLocal = Time.ToLocal(candEndUtc);
                             <g style="pointer-events:none">
                                 <rect x="@dStartX" y="@dragRowY"
                                       width="@(Math.Max(2, dEndX - dStartX))"
@@ -282,7 +295,7 @@
                                         <text x="@(dStartX + 6)" y="@(dragRowY + 14)"
                                               font-family="IBM Plex Mono, ui-monospace, monospace"
                                               font-size="10" fill="var(--rs-ink)">
-                                            @($"{FmtHour(sh)}-{FmtHour(eh)}")
+                                            @($"{dragStartLocal:HH:mm}-{dragEndLocal:HH:mm}")
                                         </text>
                                     </g>
                                     @if (conflict)
@@ -307,8 +320,8 @@
         {
             var grp = _groups.FirstOrDefault(g => g.DeviceGroupId == sel.DeviceGroupId);
             var stg = _testGroups.FirstOrDefault(t => t.TestGroupId == sel.TestGroupId);
-            var localStart = sel.StartUtc.ToLocalTime();
-            var localEnd = sel.EndUtc.ToLocalTime();
+            var localStart = Time.ToLocal(sel.StartUtc);
+            var localEnd = Time.ToLocal(sel.EndUtc);
             var shortId = sel.ReservationId.ToString("N").Substring(0, 6);
             <div style="position:absolute;right:24px;bottom:24px;width:360px;
                         background:var(--rs-surface-2);border:1px solid var(--rs-line);
@@ -356,9 +369,15 @@
 
 @code {
     private const int ROW_H = 48;
-    private const int START_H = 6;
-    private const int END_H = 22;
-    private const int HOURS_PER_DAY = END_H - START_H;
+    // The canvas X axis is anchored to UTC. Each day shows the full 24
+    // hour window, with hour-tick labels computed from
+    // <see cref="TimeProvider.LocalTimeZone"/>. Switching the chosen zone
+    // re-labels the ticks but does NOT move reservations or the NOW
+    // marker, because their positions are pure UTC offsets from the
+    // canvas's anchor.
+    private const int START_H = 0;
+    private const int END_H = 24;
+    private const int HOURS_PER_DAY = 24;
 
     private bool _loaded;
     private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
@@ -375,11 +394,23 @@
     // ---------- Drag-to-create state ----------
     private SvgInterop? _interop;
     private ElementReference _svgRef;
+    private ElementReference _canvasRef;
     private (Guid GroupId, double StartX, double CurrentX)? _drag;
     private string? _dragError;
     private string? _dragErrorRuleId;
 
-    private int HourW => View == "day" ? 70 : 28;
+    /// <summary>
+    /// Tracks the (View, DayOffset) we last auto-scrolled to. We only
+    /// scroll once per change so user-initiated horizontal scrolling is
+    /// not undone on every render.
+    /// </summary>
+    private (string View, int DayOffset)? _lastScrolled;
+
+    // 90 px in day view (canvas is HOURS_PER_DAY * 90 = 1620 px) so
+    // typical viewports overflow and the auto-scroll-to-NOW positioning
+    // can pull the now-line left of centre. 28 in week view is tighter
+    // because the canvas spans 7 days.
+    private int HourW => View == "day" ? 90 : 28;
     private int DAYS_VISIBLE => View == "day" ? 1 : 7;
 
     private int FromOffset
@@ -387,18 +418,35 @@
         get
         {
             if (View == "day") { return DayOffset; }
-            var d = DateTime.Now.Date.AddDays(DayOffset);
+            var d = Time.GetLocalNow().Date.AddDays(DayOffset);
             // ISO Monday alignment: shift back to Monday.
             var dow = ((int)d.DayOfWeek + 6) % 7; // Mon=0..Sun=6
             return DayOffset - dow;
         }
     }
 
+    /// <summary>
+    /// Base anchor: host's local-today midnight, expressed in UTC. This
+    /// is intentionally derived from the OS zone (<c>DateTime.Today</c>),
+    /// not from <see cref="TimeProvider.LocalTimeZone"/>, so that
+    /// switching the user-chosen zone via the header dropdown does not
+    /// shift the canvas. Reservations and the NOW marker stay anchored;
+    /// only the hour-tick labels reflect the chosen zone.
+    /// </summary>
+    private DateTime BaseAnchorUtc =>
+        DateTime.SpecifyKind(DateTime.Today, DateTimeKind.Local).ToUniversalTime();
+
+    /// <summary>
+    /// Canvas X=0 in UTC. <see cref="FromOffset"/> shifts the visible
+    /// window forward or back in 24-hour increments.
+    /// </summary>
+    private DateTime ViewAnchorUtc => BaseAnchorUtc.AddDays(FromOffset);
+
     private string HeaderDate
     {
         get
         {
-            var today = DateTime.Now.Date;
+            var today = Time.GetLocalNow().Date;
             if (View == "day")
             {
                 var d = today.AddDays(DayOffset);
@@ -419,6 +467,14 @@
     {
         await ReloadAsync();
         _loaded = true;
+        TzPref.Changed += OnZoneChanged;
+    }
+
+    private void OnZoneChanged()
+    {
+        // Force a re-scroll to today's column on the new zone, then redraw.
+        _lastScrolled = null;
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task ReloadAsync()
@@ -516,11 +572,53 @@
         {
             _interop = new SvgInterop(JS);
         }
-        await Task.CompletedTask;
+        // Auto-scroll the canvas so today's column is the leftmost visible
+        // column when entering or paging through week view. Only scroll
+        // once per (View, DayOffset) change so user horizontal scrolling
+        // is not clobbered on subsequent re-renders.
+        var key = (View, DayOffset);
+        if (_loaded && _interop is not null && _lastScrolled != key)
+        {
+            _lastScrolled = key;
+            if (View == "week")
+            {
+                var todayIdx = -FromOffset;
+                if (todayIdx >= 0 && todayIdx < DAYS_VISIBLE)
+                {
+                    var x = todayIdx * HOURS_PER_DAY * HourW;
+                    try { await _interop.SetScrollLeftAsync(_canvasRef, x); }
+                    catch (JSException) { /* canvas not in DOM yet, retry on next render */ _lastScrolled = null; }
+                    catch (JSDisconnectedException) { }
+                }
+            }
+            else
+            {
+                // Day view: when NOW falls inside the visible UTC window,
+                // position it about a quarter of the way in from the left.
+                // Otherwise reset to the left edge of the canvas.
+                var anchorUtc = ViewAnchorUtc;
+                var endAnchorUtc = anchorUtc.AddHours(HOURS_PER_DAY * DAYS_VISIBLE);
+                var nowUtc = Time.GetUtcNow().UtcDateTime;
+                if (nowUtc >= anchorUtc && nowUtc <= endAnchorUtc)
+                {
+                    var nowX = (nowUtc - anchorUtc).TotalHours * HourW;
+                    try { await _interop.ScrollToShowAtAsync(_canvasRef, nowX, 0.25); }
+                    catch (JSException) { _lastScrolled = null; }
+                    catch (JSDisconnectedException) { }
+                }
+                else
+                {
+                    try { await _interop.SetScrollLeftAsync(_canvasRef, 0); }
+                    catch (JSException) { _lastScrolled = null; }
+                    catch (JSDisconnectedException) { }
+                }
+            }
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
+        TzPref.Changed -= OnZoneChanged;
         if (_interop is not null)
         {
             await _interop.DisposeAsync();
@@ -559,23 +657,14 @@
             return;
         }
 
-        var fromOffset = FromOffset;
-        var (sd, sh) = XToTime(startX, fromOffset);
-        var (ed, eh) = XToTime(endX, fromOffset);
-        sh = SnapHour(sh);
-        eh = SnapHour(eh);
-        if (eh <= sh && sd == ed)
+        var startUtc = XToUtc(startX, snap: true);
+        var endUtc = XToUtc(endX, snap: true);
+        if (endUtc <= startUtc)
         {
             _drag = null;
             StateHasChanged();
             return;
         }
-
-        var today = DateTime.Now.Date;
-        var localStart = today.AddDays(sd).AddHours(sh);
-        var localEnd = today.AddDays(ed).AddHours(eh);
-        var startUtc = localStart.ToUniversalTime();
-        var endUtc = localEnd.ToUniversalTime();
 
         var groupId = d.GroupId;
         if (_testGroups.Count == 0)
@@ -613,39 +702,31 @@
         StateHasChanged();
     }
 
-    // Convert an SVG x coordinate to a (dayOffset, hourOfDay) pair anchored
-    // to today + fromOffset. Hours are clamped to [START_H, END_H].
-    private (int DayOffset, double Hour) XToTime(double x, int fromOffset)
+    /// <summary>
+    /// Convert a canvas X coordinate to a UTC moment using the
+    /// <see cref="ViewAnchorUtc"/> + hour offset. When <paramref name="snap"/>
+    /// is true the result is snapped to the nearest 15 minutes.
+    /// </summary>
+    private DateTime XToUtc(double x, bool snap)
     {
         var hourW = (double)HourW;
-        var totalHours = x / hourW;
-        var dayIdx = (int)Math.Floor(totalHours / HOURS_PER_DAY);
-        if (dayIdx < 0) dayIdx = 0;
-        if (dayIdx > DAYS_VISIBLE - 1) dayIdx = DAYS_VISIBLE - 1;
-        var hourInDay = totalHours - dayIdx * HOURS_PER_DAY + START_H;
-        if (hourInDay < START_H) hourInDay = START_H;
-        if (hourInDay > END_H) hourInDay = END_H;
-        return (fromOffset + dayIdx, hourInDay);
-    }
-
-    private static double SnapHour(double h)
-    {
-        var snapped = Math.Round(h * 4.0) / 4.0;
-        return snapped;
+        var hours = x / hourW;
+        var maxHours = (double)(HOURS_PER_DAY * DAYS_VISIBLE);
+        if (hours < 0) hours = 0;
+        if (hours > maxHours) hours = maxHours;
+        if (snap) hours = Math.Round(hours * 4.0) / 4.0;
+        return ViewAnchorUtc.AddHours(hours);
     }
 
     // Advisory conflict check during drag. Service is the source of truth.
     private bool HasDragConflict(Guid groupId, Guid? testGroupId,
-                                  int sd, double sh, int ed, double eh)
+                                  DateTime candStartUtc, DateTime candEndUtc)
     {
-        var today = DateTime.Now.Date;
-        var candStart = today.AddDays(sd).AddHours(sh).ToUniversalTime();
-        var candEnd = today.AddDays(ed).AddHours(eh).ToUniversalTime();
-        if (candEnd <= candStart) return false;
+        if (candEndUtc <= candStartUtc) return false;
         foreach (var r in _reservations)
         {
             if (r.Status != ReservationStatus.Confirmed) continue;
-            if (!(candStart < r.EndUtc && candEnd > r.StartUtc)) continue;
+            if (!(candStartUtc < r.EndUtc && candEndUtc > r.StartUtc)) continue;
             if (r.DeviceGroupId == groupId) return true; // R10
             if (testGroupId is { } tg && r.TestGroupId == tg) return true; // R11
         }

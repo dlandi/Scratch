@@ -14,3 +14,21 @@ export function getRect(el) {
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
 }
+
+export function setScrollLeft(el, x) {
+    if (!el) return;
+    el.scrollLeft = x;
+}
+
+/**
+ * Position the element's horizontal scroll so that the given x coordinate
+ * lands at `fraction` of the visible viewport width from the left. Useful
+ * for keeping a NOW-marker near (but not at) the left edge of a timeline
+ * after a re-render.
+ */
+export function scrollToShowAt(el, x, fraction) {
+    if (!el) return;
+    const w = el.clientWidth || 0;
+    const target = x - w * (fraction || 0);
+    el.scrollLeft = Math.max(0, target);
+}

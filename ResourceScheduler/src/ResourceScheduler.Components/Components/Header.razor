@@ -31,6 +31,21 @@
     <div class="rs-header-right">
         <span><span class="dot"></span>@StoreLabel</span>
         <span>·</span>
+        @if (CanSwitchTimeZone && TimeZoneOptions.Count > 0)
+        {
+            <select class="rs-tz-select" title="@TimeZoneTitle"
+                    value="@CurrentTimeZoneId" @onchange="OnTzSelectChanged">
+                @foreach (var tz in TimeZoneOptions)
+                {
+                    <option value="@tz.Id">@FormatOption(tz)</option>
+                }
+            </select>
+        }
+        else
+        {
+            <span title="@TimeZoneTitle">@TimeZoneLabel</span>
+        }
+        <span>·</span>
         <span>@Version</span>
     </div>
 </header>
@@ -58,5 +73,43 @@
 
     [Parameter] public string Version { get; set; } = "v0.1";
 
+    /// <summary>Short label for the host's local timezone, e.g. "UTC-04:00".
+    /// All schedule times in the app render in this timezone; the label
+    /// makes that explicit so users know what they're seeing.</summary>
+    [Parameter] public string TimeZoneLabel { get; set; } = string.Empty;
+
+    /// <summary>Hover-tooltip with the full timezone display name.</summary>
+    [Parameter] public string TimeZoneTitle { get; set; } = string.Empty;
+
+    /// <summary>When true, the timezone label becomes a dropdown that
+    /// raises <see cref="TimeZoneChanged"/> on selection. Driven by the
+    /// <c>Features:TimeZoneSwitcher:Enabled</c> appsettings flag.</summary>
+    [Parameter] public bool CanSwitchTimeZone { get; set; }
+
+    /// <summary>Available zones for the dropdown. Empty when the switcher is off.</summary>
+    [Parameter] public IReadOnlyList<TimeZoneInfo> TimeZoneOptions { get; set; } = Array.Empty<TimeZoneInfo>();
+
+    /// <summary>The id of the currently selected zone (used as the select's value).</summary>
+    [Parameter] public string CurrentTimeZoneId { get; set; } = string.Empty;
+
+    /// <summary>Raised with the chosen TimeZoneInfo.Id when the user changes the dropdown.</summary>
+    [Parameter] public EventCallback<string> TimeZoneChanged { get; set; }
+
     private Task OnNav(string id) => ScreenChanged.InvokeAsync(id);
+
+    private async Task OnTzSelectChanged(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(id))
+        {
+            await TimeZoneChanged.InvokeAsync(id);
+        }
+    }
+
+    private static string FormatOption(TimeZoneInfo tz)
+    {
+        var offset = tz.BaseUtcOffset;
+        var sign = offset >= TimeSpan.Zero ? "+" : "-";
+        return $"UTC{sign}{offset.Duration():hh\\:mm} · {tz.Id}";
+    }
 }

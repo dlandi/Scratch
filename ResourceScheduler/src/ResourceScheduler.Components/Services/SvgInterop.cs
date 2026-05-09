@@ -27,6 +27,28 @@ public sealed class SvgInterop : IAsyncDisposable
         return await m.InvokeAsync<Point>("pointToSvg", svg, clientX, clientY);
     }
 
+    /// <summary>Set <c>scrollLeft</c> on the given element. Used by the
+    /// schedule timeline to position the week-view canvas on today's
+    /// column after the initial render.</summary>
+    public async ValueTask SetScrollLeftAsync(ElementReference el, double x)
+    {
+        var m = await ModuleAsync();
+        await m.InvokeVoidAsync("setScrollLeft", el, x);
+    }
+
+    /// <summary>
+    /// Scroll the element so that the given x coordinate lands at
+    /// <paramref name="fraction"/> of the visible viewport from the left.
+    /// Use 0.0 to put x at the left edge, 0.25 to put it a quarter in,
+    /// 0.5 to centre it. Internally consults <c>el.clientWidth</c>, which
+    /// is the live viewport width including any DPI scaling.
+    /// </summary>
+    public async ValueTask ScrollToShowAtAsync(ElementReference el, double x, double fraction)
+    {
+        var m = await ModuleAsync();
+        await m.InvokeVoidAsync("scrollToShowAt", el, x, fraction);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_module is not null)

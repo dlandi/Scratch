@@ -24,8 +24,23 @@ public sealed class InMemoryClientService : IClientService
     private readonly ConcurrentDictionary<Guid, TestGroupDto> _testGroups = new();
     private readonly ConcurrentDictionary<Guid, ReservationDto> _reservations = new();
 
-    public InMemoryClientService()
+    private readonly TimeProvider _time;
+
+    /// <summary>
+    /// Default constructor used by the existing test fixture. Hands
+    /// <see cref="TimeProvider.System"/> to the parameterised overload.
+    /// </summary>
+    public InMemoryClientService() : this(TimeProvider.System) { }
+
+    /// <summary>
+    /// Production constructor. Blazor's DI container resolves this
+    /// overload because <see cref="TimeProvider"/> is registered in
+    /// <c>Program.cs</c>. Tests that want deterministic time can pass a
+    /// <c>FakeTimeProvider</c> here.
+    /// </summary>
+    public InMemoryClientService(TimeProvider time)
     {
+        _time = time;
         Seed();
     }
 
@@ -476,8 +491,14 @@ public sealed class InMemoryClientService : IClientService
 
     // ============================================================
     // Seed data: representative fixture so the UI has something to show
-    // on first load. Anchored to DateTime.UtcNow.Date so reservations
-    // straddle yesterday, today, and tomorrow regardless of run time.
+    // on first load. Times are anchored to local midnight so a "9" in the
+    // seed renders as 9:00 local in any timezone, then converted to UTC
+    // for storage. The timeline renders in local time, so this ordering
+    // keeps reservation hours within the workday window (6-22) wherever
+    // the host browser is.
+    // Counts: 2 buildings, 24 devices (covering all DeviceStatus values),
+    // 6 device-groups (4 Active, 2 Inactive drafts), 4 people, 2 test-groups,
+    // 11 reservations across yesterday/today/tomorrow.
     // ============================================================
     private void Seed()
     {
@@ -510,23 +531,45 @@ public sealed class InMemoryClientService : IClientService
                 Version = 1,
             };
 
-        var scope01 = NewDevice("SCOPE-01", DeviceStatus.Available,   bNorth.BuildingId);
-        var scope02 = NewDevice("SCOPE-02", DeviceStatus.Available,   bNorth.BuildingId);
-        var scope03 = NewDevice("SCOPE-03", DeviceStatus.Maintenance, bNorth.BuildingId);
-        var awg01   = NewDevice("AWG-01",   DeviceStatus.Available,   bNorth.BuildingId);
-        var awg02   = NewDevice("AWG-02",   DeviceStatus.Available,   bSouth.BuildingId);
-        var dmm01   = NewDevice("DMM-01",   DeviceStatus.Available,   bNorth.BuildingId);
-        var dmm02   = NewDevice("DMM-02",   DeviceStatus.Available,   bSouth.BuildingId);
-        var dmm03   = NewDevice("DMM-03",   DeviceStatus.Offline,     bSouth.BuildingId);
-        var psu01   = NewDevice("PSU-01",   DeviceStatus.Available,   bNorth.BuildingId);
-        var psu02   = NewDevice("PSU-02",   DeviceStatus.Available,   bSouth.BuildingId);
-        var load01  = NewDevice("LOAD-01",  DeviceStatus.Available,   bSouth.BuildingId);
-        var probe99 = NewDevice("PROBE-99", DeviceStatus.Retired,     bSouth.BuildingId);
+        var scope01 = NewDevice("SCOPE-01",  DeviceStatus.Available,   bNorth.BuildingId);
+        var scope02 = NewDevice("SCOPE-02",  DeviceStatus.Available,   bNorth.BuildingId);
+        var scope03 = NewDevice("SCOPE-03",  DeviceStatus.Maintenance, bNorth.BuildingId);
+        var scope04 = NewDevice("SCOPE-04",  DeviceStatus.Available,   bSouth.BuildingId);
+        var awg01   = NewDevice("AWG-01",    DeviceStatus.Available,   bNorth.BuildingId);
+        var awg02   = NewDevice("AWG-02",    DeviceStatus.Available,   bSouth.BuildingId);
+        var awg03   = NewDevice("AWG-03",    DeviceStatus.Available,   bNorth.BuildingId);
+        var dmm01   = NewDevice("DMM-01",    DeviceStatus.Available,   bNorth.BuildingId);
+        var dmm02   = NewDevice("DMM-02",    DeviceStatus.Available,   bSouth.BuildingId);
+        var dmm03   = NewDevice("DMM-03",    DeviceStatus.Offline,     bSouth.BuildingId);
+        var dmm04   = NewDevice("DMM-04",    DeviceStatus.Available,   bSouth.BuildingId);
+        var psu01   = NewDevice("PSU-01",    DeviceStatus.Available,   bNorth.BuildingId);
+        var psu02   = NewDevice("PSU-02",    DeviceStatus.Available,   bSouth.BuildingId);
+        var psu03   = NewDevice("PSU-03",    DeviceStatus.Available,   bSouth.BuildingId);
+        var load01  = NewDevice("LOAD-01",   DeviceStatus.Available,   bSouth.BuildingId);
+        var load02  = NewDevice("LOAD-02",   DeviceStatus.Available,   bSouth.BuildingId);
+        var rfgen01 = NewDevice("RFGEN-01",  DeviceStatus.Available,   bNorth.BuildingId);
+        var rfgen02 = NewDevice("RFGEN-02",  DeviceStatus.Maintenance, bNorth.BuildingId);
+        var spec01  = NewDevice("SPEC-01",   DeviceStatus.Available,   bNorth.BuildingId);
+        var vna01   = NewDevice("VNA-01",    DeviceStatus.Available,   bNorth.BuildingId);
+        var refclk  = NewDevice("REF-CLK",   DeviceStatus.Available,   bNorth.BuildingId);
+        var tempChm = NewDevice("TEMP-CHM-01", DeviceStatus.Available, bSouth.BuildingId);
+        var daq01   = NewDevice("DAQ-01",    DeviceStatus.Available,   bSouth.BuildingId);
+        var probe99 = NewDevice("PROBE-99",  DeviceStatus.Retired,     bSouth.BuildingId);
 
-        foreach (var d in new[] { scope01, scope02, scope03, awg01, awg02, dmm01, dmm02, dmm03, psu01, psu02, load01, probe99 })
+        foreach (var d in new[]
+        {
+            scope01, scope02, scope03, scope04,
+            awg01,   awg02,   awg03,
+            dmm01,   dmm02,   dmm03,   dmm04,
+            psu01,   psu02,   psu03,
+            load01,  load02,
+            rfgen01, rfgen02, spec01,  vna01,  refclk,
+            tempChm, daq01,
+            probe99,
+        })
             _devices[d.DeviceId] = d;
 
-        // ---- Device-Groups: 2 Active, 1 Inactive draft ----
+        // ---- Device-Groups: 4 Active, 2 Inactive drafts ----
         var groupAlpha = new DeviceGroupDto
         {
             DeviceGroupId = Guid.NewGuid(),
@@ -555,7 +598,36 @@ public sealed class InMemoryClientService : IClientService
             },
             Version = 1,
         };
-        var groupDraft = new DeviceGroupDto
+        var groupGamma = new DeviceGroupDto
+        {
+            DeviceGroupId = Guid.NewGuid(),
+            Name = "RF Suite, 24 GHz",
+            Status = DeviceGroupStatus.Active,
+            DeviceIds = new() { rfgen01.DeviceId, spec01.DeviceId, vna01.DeviceId, refclk.DeviceId },
+            Connections = new()
+            {
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = refclk.DeviceId,  ToDeviceId = rfgen01.DeviceId, Label = "10MHz" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = refclk.DeviceId,  ToDeviceId = spec01.DeviceId,  Label = "10MHz" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = refclk.DeviceId,  ToDeviceId = vna01.DeviceId,   Label = "10MHz" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = rfgen01.DeviceId, ToDeviceId = vna01.DeviceId,   Label = "RF-OUT" },
+            },
+            Version = 1,
+        };
+        var groupDelta = new DeviceGroupDto
+        {
+            DeviceGroupId = Guid.NewGuid(),
+            Name = "Rack 4, DAQ Cluster",
+            Status = DeviceGroupStatus.Active,
+            DeviceIds = new() { psu03.DeviceId, daq01.DeviceId, dmm04.DeviceId, scope04.DeviceId },
+            Connections = new()
+            {
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = psu03.DeviceId, ToDeviceId = daq01.DeviceId,   Label = "12V" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = daq01.DeviceId, ToDeviceId = dmm04.DeviceId,   Label = "AI-1" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = daq01.DeviceId, ToDeviceId = scope04.DeviceId, Label = "AI-2" },
+            },
+            Version = 1,
+        };
+        var groupDraftAudio = new DeviceGroupDto
         {
             DeviceGroupId = Guid.NewGuid(),
             Name = "Draft, Audio Lab",
@@ -564,15 +636,36 @@ public sealed class InMemoryClientService : IClientService
             Connections = new(),
             Version = 1,
         };
-        _deviceGroups[groupAlpha.DeviceGroupId] = groupAlpha;
-        _deviceGroups[groupBeta.DeviceGroupId]  = groupBeta;
-        _deviceGroups[groupDraft.DeviceGroupId] = groupDraft;
+        var groupDraftThermal = new DeviceGroupDto
+        {
+            DeviceGroupId = Guid.NewGuid(),
+            Name = "Draft, Thermal Sweep",
+            Status = DeviceGroupStatus.Inactive,
+            DeviceIds = new() { tempChm.DeviceId, awg03.DeviceId, load02.DeviceId },
+            Connections = new()
+            {
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = awg03.DeviceId,  ToDeviceId = tempChm.DeviceId, Label = "CTRL" },
+                new() { ConnectionId = Guid.NewGuid(), FromDeviceId = load02.DeviceId, ToDeviceId = tempChm.DeviceId, Label = "DUT" },
+            },
+            Version = 1,
+        };
+        _deviceGroups[groupAlpha.DeviceGroupId]        = groupAlpha;
+        _deviceGroups[groupBeta.DeviceGroupId]         = groupBeta;
+        _deviceGroups[groupGamma.DeviceGroupId]        = groupGamma;
+        _deviceGroups[groupDelta.DeviceGroupId]        = groupDelta;
+        _deviceGroups[groupDraftAudio.DeviceGroupId]   = groupDraftAudio;
+        _deviceGroups[groupDraftThermal.DeviceGroupId] = groupDraftThermal;
 
         // Reflect back the assignment convenience field for active groups.
-        foreach (var did in groupAlpha.DeviceIds)
-            if (_devices.TryGetValue(did, out var d)) d.AssignedDeviceGroupId = groupAlpha.DeviceGroupId;
-        foreach (var did in groupBeta.DeviceIds)
-            if (_devices.TryGetValue(did, out var d)) d.AssignedDeviceGroupId = groupBeta.DeviceGroupId;
+        void AssignTo(DeviceGroupDto g)
+        {
+            foreach (var did in g.DeviceIds)
+                if (_devices.TryGetValue(did, out var d)) d.AssignedDeviceGroupId = g.DeviceGroupId;
+        }
+        AssignTo(groupAlpha);
+        AssignTo(groupBeta);
+        AssignTo(groupGamma);
+        AssignTo(groupDelta);
 
         // ---- People ----
         var aoife = new PersonDto { PersonId = Guid.NewGuid(), Name = "Aoife O'Brien", Email = "aoife@lab.example" };
@@ -603,7 +696,11 @@ public sealed class InMemoryClientService : IClientService
         _testGroups[rfTeam.TestGroupId]    = rfTeam;
 
         // ---- Reservations across yesterday, today, tomorrow ----
-        var today     = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+        // Local midnight today, expressed in UTC. AddHours(N) on this
+        // value lands on local N:00 today after ToLocalTime() round-trip,
+        // independent of the host's UTC offset.
+        var localNow  = _time.GetLocalNow();
+        var today     = new DateTimeOffset(localNow.Date, localNow.Offset).UtcDateTime;
         var yesterday = today.AddDays(-1);
         var tomorrow  = today.AddDays(1);
 
@@ -628,18 +725,33 @@ public sealed class InMemoryClientService : IClientService
             NewResv(groupBeta.DeviceGroupId, rfTeam.TestGroupId,
                 yesterday.AddHours(13), yesterday.AddHours(16),
                 ReservationStatus.Cancelled, "Cancelled, instrument fault."),
+            NewResv(groupGamma.DeviceGroupId, rfTeam.TestGroupId,
+                yesterday.AddHours(10), yesterday.AddHours(15),
+                ReservationStatus.Completed, "S-parameter sweep at 24 GHz."),
             NewResv(groupAlpha.DeviceGroupId, powerTeam.TestGroupId,
                 today.AddHours(12),     today.AddHours(15),
                 ReservationStatus.Confirmed, "Production sweep, 1.2V to 3.3V rails."),
             NewResv(groupBeta.DeviceGroupId, rfTeam.TestGroupId,
                 today.AddHours(16),     today.AddHours(18),
                 ReservationStatus.Pending, "Awaiting RF team lead approval."),
+            NewResv(groupGamma.DeviceGroupId, rfTeam.TestGroupId,
+                today.AddHours(9),      today.AddHours(13),
+                ReservationStatus.Confirmed, "RF compliance pre-scan."),
+            NewResv(groupDelta.DeviceGroupId, powerTeam.TestGroupId,
+                today.AddHours(10),     today.AddHours(14),
+                ReservationStatus.Confirmed, "DAQ regression run."),
             NewResv(groupAlpha.DeviceGroupId, rfTeam.TestGroupId,
                 tomorrow.AddHours(9),   tomorrow.AddHours(11),
                 ReservationStatus.Confirmed, "Cross-team handover."),
             NewResv(groupBeta.DeviceGroupId, powerTeam.TestGroupId,
                 tomorrow.AddHours(13),  tomorrow.AddHours(17),
                 ReservationStatus.Pending, "Tentative load sweep."),
+            NewResv(groupDelta.DeviceGroupId, powerTeam.TestGroupId,
+                tomorrow.AddHours(8),   tomorrow.AddHours(12),
+                ReservationStatus.Pending, "Continuation of today's DAQ run."),
+            NewResv(groupGamma.DeviceGroupId, rfTeam.TestGroupId,
+                tomorrow.AddHours(14),  tomorrow.AddHours(18),
+                ReservationStatus.Confirmed, "Antenna characterization."),
         };
         foreach (var r in reservations)
             _reservations[r.ReservationId] = r;

@@ -2,6 +2,7 @@
 @inject IClientService Client
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject TimeProvider Time
 @implements IAsyncDisposable
 @using System.Globalization
 
@@ -325,14 +326,14 @@ else
                             <div class="rs-stack-2">
                                 @foreach (var r in upcoming)
                                 {
-                                    var startLocal = r.StartUtc.ToLocalTime();
+                                    var startLocal = Time.ToLocal(r.StartUtc);
                                     <div class="rs-prop-row" style="align-items:center">
                                         <div style="flex:1">
                                             <div class="rs-mono" style="font-size:11px;color:var(--rs-ink-3)">
                                                 @startLocal.ToString("ddd").ToUpperInvariant()
                                                 @startLocal.ToString("dd")
                                                 ·
-                                                @startLocal.ToString("HH:mm")-@r.EndUtc.ToLocalTime().ToString("HH:mm")
+                                                @startLocal.ToString("HH:mm")-@Time.ToLocal(r.EndUtc).ToString("HH:mm")
                                             </div>
                                         </div>
                                         <Pill Reservation="r.Status" />
@@ -713,7 +714,7 @@ else
     private List<ReservationDto> UpcomingForGroup()
     {
         if (_working is null) return new();
-        var now = DateTime.UtcNow;
+        var now = Time.GetUtcNow().UtcDateTime;
         return _reservations
             .Where(r => r.DeviceGroupId == _working.DeviceGroupId
                 && r.EndUtc >= now

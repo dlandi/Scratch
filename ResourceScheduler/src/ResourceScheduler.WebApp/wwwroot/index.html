@@ -13,15 +13,63 @@
     <link rel="stylesheet" href="_content/ResourceScheduler.Components/components.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <script type="importmap"></script>
+    <style>
+        /* Inline so the loading splash is styled even before components.css
+           has been fetched. Tokens are hard-coded copies of the rs-* palette
+           so the splash matches the rest of the shell. */
+        html, body { margin: 0; padding: 0; height: 100%; background: #f5f4f1; }
+        body { font-family: "IBM Plex Sans", system-ui, sans-serif; color: #14150f; }
+        #app { min-height: 100%; }
+
+        /* Splash wrapper handles positioning; SVG inside is a normal element. */
+        .rs-splash {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f5f4f1;
+        }
+        .rs-splash .loading-progress {
+            width: 5rem;
+            height: 5rem;
+            display: block;
+        }
+        .rs-splash .loading-progress circle {
+            fill: none;
+            stroke: #e3e0d8;
+            stroke-width: 4;
+            transform-origin: 50% 50%;
+            transform: rotate(-90deg);
+        }
+        .rs-splash .loading-progress circle:last-child {
+            stroke: #2a4d6b;
+            stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
+            transition: stroke-dasharray 0.05s ease-in-out;
+        }
+        .rs-splash .loading-progress-text {
+            margin-top: 1rem;
+            font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: #5b5c52;
+        }
+        .rs-splash .loading-progress-text:after {
+            content: var(--blazor-load-percentage-text, "loading resource.scheduler");
+        }
+    </style>
 </head>
 
 <body>
     <div id="app">
-        <svg class="loading-progress">
-            <circle r="40%" cx="50%" cy="50%" />
-            <circle r="40%" cx="50%" cy="50%" />
-        </svg>
-        <div class="loading-progress-text"></div>
+        <div class="rs-splash">
+            <svg class="loading-progress" viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="20" />
+                <circle cx="25" cy="25" r="20" />
+            </svg>
+            <div class="loading-progress-text"></div>
+        </div>
     </div>
 
     <div id="blazor-error-ui">

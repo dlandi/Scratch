@@ -1,8 +1,19 @@
 @inherits LayoutComponentBase
 @inject NavigationManager Nav
+@inject TimeProvider Time
+@inject UserTimeProvider TzPref
+@inject Microsoft.Extensions.Configuration.IConfiguration Config
+@implements IDisposable
 
 <div class="rs-app">
-    <Header ActiveScreen="@CurrentScreen" ScreenChanged="OnScreenChanged" />
+    <Header ActiveScreen="@CurrentScreen"
+            ScreenChanged="OnScreenChanged"
+            TimeZoneLabel="@TzLabel"
+            TimeZoneTitle="@TzTitle"
+            CanSwitchTimeZone="@TzSwitcherEnabled"
+            TimeZoneOptions="@TimeZoneOptions"
+            CurrentTimeZoneId="@Time.LocalTimeZone.Id"
+            TimeZoneChanged="OnTimeZoneChanged" />
     <div class="rs-main">
         @Body
     </div>
@@ -11,10 +22,7 @@
 @code {
     /// <summary>
     /// Mirrors the screen ids the <c>Header</c> emits. The host maps each
-    /// id to a route so the back/forward buttons keep working. Pages
-    /// hosted under a different route can override the highlighted item
-    /// by setting <see cref="HighlightedScreen"/> via cascading parameter
-    /// later if needed.
+    /// id to a route so the back/forward buttons keep working.
     /// </summary>
     private string CurrentScreen
     {
@@ -33,6 +41,94 @@
                 _              => "dashboard",
             };
         }
+    }
+
+    /// <summary>
+    /// Short UTC-offset label for the effective timezone, e.g.
+    /// "UTC-04:00". Recomputed each render so it updates on dropdown
+    /// change and on DST transitions.
+    /// </summary>
+    private string TzLabel
+    {
+        get
+        {
+            var offset = Time.GetLocalNow().Offset;
+            var sign = offset >= TimeSpan.Zero ? "+" : "-";
+            var abs = offset.Duration();
+            return $"UTC{sign}{abs:hh\\:mm}";
+        }
+    }
+
+    /// <summary>Hover tooltip with the full IANA / Windows zone display name.</summary>
+    private string TzTitle => Time.LocalTimeZone.DisplayName;
+
+    /// <summary>
+    /// Controls whether the header timezone label is rendered as a static
+    /// chip or an interactive dropdown. Driven by the
+    /// <c>Features:TimeZoneSwitcher:Enabled</c> appsettings flag.
+    /// </summary>
+    private bool TzSwitcherEnabled =>
+        Config.GetValue<bool>("Features:TimeZoneSwitcher:Enabled");
+
+    /// <summary>
+    /// One entry per integer-hour UTC offset, plus the host's own zone
+    /// when it has a fractional offset (e.g. India UTC+05:30). Each
+    /// integer-hour bucket is represented by its alphabetically-first
+    /// system zone so DST behaviour still applies when the user picks
+    /// it. The full system catalog (around 313 entries) was too noisy
+    /// for a developer testing aid.
+    /// </summary>
+    private static readonly IReadOnlyList<TimeZoneInfo> TimeZoneOptions = BuildTimeZoneOptions();
+
+    private static IReadOnlyList<TimeZoneInfo> BuildTimeZoneOptions()
+    {
+        // Prefer popular IANA regions over Antarctica and Etc/* aliases
+        // when picking a representative for each offset bucket. This
+        // gives "UTC+05:00 · Asia/Karachi" instead of
+        // "UTC+05:00 · Antarctica/Mawson".
+        static int RegionRank(string id)
+        {
+            if (id.StartsWith("Antarctica/", StringComparison.Ordinal)) return 9;
+            if (id.StartsWith("Etc/",         StringComparison.Ordinal)) return 8;
+            return 0;
+        }
+
+        var perHour = TimeZoneInfo.GetSystemTimeZones()
+            .Where(t => t.BaseUtcOffset.Minutes == 0 && t.BaseUtcOffset.Seconds == 0)
+            .GroupBy(t => t.BaseUtcOffset)
+            .Select(g => g
+                .OrderBy(t => RegionRank(t.Id))
+                .ThenBy(t => t.Id, StringComparer.Ordinal)
+                .First())
+            .ToList();
+
+        // Make sure the host's zone is selectable even when its offset is
+        // fractional (UTC+05:30 etc.); without this the dropdown would
+        // show no option matching the initial CurrentTimeZoneId.
+        var host = TimeZoneInfo.Local;
+        if (!perHour.Any(t => string.Equals(t.Id, host.Id, StringComparison.Ordinal)))
+        {
+            perHour.Add(host);
+        }
+
+        return perHour
+            .OrderBy(t => t.BaseUtcOffset)
+            .ThenBy(t => t.Id, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    protected override void OnInitialized()
+    {
+        TzPref.Changed += OnZoneChanged;
+    }
+
+    private void OnZoneChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnTimeZoneChanged(string id) => TzPref.SetTimeZoneById(id);
+
+    public void Dispose()
+    {
+        TzPref.Changed -= OnZoneChanged;
     }
 
     private void OnScreenChanged(string id)

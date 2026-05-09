@@ -1,6 +1,9 @@
 @page "/"
 @inject IClientService Client
 @inject NavigationManager Nav
+@inject TimeProvider Time
+@inject UserTimeProvider TzPref
+@implements IDisposable
 
 <PageTitle>Resource.Scheduler</PageTitle>
 
@@ -59,7 +62,7 @@
                             {
                                 var g = LookupGroup(r.DeviceGroupId);
                                 var t = LookupTestGroup(r.TestGroupId);
-                                var endLocal = r.EndUtc.ToLocalTime();
+                                var endLocal = Time.ToLocal(r.EndUtc);
                                 <div class="rs-dash-row">
                                     <span class="rs-dash-row-name">@(g?.Name)</span>
                                     <span class="rs-dash-row-meta">@(t?.Name) · until @endLocal.ToString("HH:mm")</span>
@@ -88,7 +91,7 @@
                             @foreach (var r in _upcoming.Take(5))
                             {
                                 var g = LookupGroup(r.DeviceGroupId);
-                                var startLocal = r.StartUtc.ToLocalTime();
+                                var startLocal = Time.ToLocal(r.StartUtc);
                                 <div class="rs-dash-row">
                                     <span class="rs-dash-row-name">
                                         <StatusDot Reservation="r.Status" Size="6" />@(g?.Name)
@@ -192,10 +195,10 @@
                                 <text x="8" y="@(y + 18)" font-size="11" fill="var(--rs-ink-2)">@g.Name</text>
                                 <line x1="@PadL" y1="@(y + RowH)" x2="@W" y2="@(y + RowH)" stroke="var(--rs-line)" />
                                 @foreach (var r in _reservations.Where(r => r.DeviceGroupId == g.DeviceGroupId
-                                                                          && r.StartUtc.ToLocalTime().Date == todayLocal))
+                                                                          && Time.ToLocal(r.StartUtc).Date == todayLocal))
                                 {
-                                    var sLocal = r.StartUtc.ToLocalTime();
-                                    var eLocal = r.EndUtc.ToLocalTime();
+                                    var sLocal = Time.ToLocal(r.StartUtc);
+                                    var eLocal = Time.ToLocal(r.EndUtc);
                                     var sH = Math.Max(startH, sLocal.Hour + sLocal.Minute / 60.0);
                                     var eH = Math.Min(endH, eLocal.Hour + eLocal.Minute / 60.0);
                                     if (eH <= sH)
@@ -282,12 +285,29 @@
         _testGroupLookup = _testGroups.ToDictionary(t => t.TestGroupId);
         _buildingLookup = _buildings.ToDictionary(b => b.BuildingId);
 
-        _now = DateTime.Now;
-        var nowUtc = DateTime.UtcNow;
-
         _activeGroupCount = _groups.Count(g => g.Status == DeviceGroupStatus.Active);
         _deviceCount = _devices.Count;
         _testGroupCount = _testGroups.Count;
+
+        RecomputeTimeDerived();
+
+        _attention = _devices
+            .Where(d => d.Status == DeviceStatus.Maintenance || d.Status == DeviceStatus.Offline)
+            .ToList();
+
+        _loaded = true;
+        TzPref.Changed += OnZoneChanged;
+    }
+
+    /// <summary>
+    /// Recompute every field that depends on the current local time. Run
+    /// once after data load and again whenever the user switches zones
+    /// via the header dropdown.
+    /// </summary>
+    private void RecomputeTimeDerived()
+    {
+        _now = Time.GetLocalNow().LocalDateTime;
+        var nowUtc = Time.GetUtcNow().UtcDateTime;
 
         _activeNow = _reservations
             .Where(r => r.Status == ReservationStatus.Confirmed
@@ -302,13 +322,16 @@
             .OrderBy(r => r.StartUtc)
             .Take(5)
             .ToList();
-
-        _attention = _devices
-            .Where(d => d.Status == DeviceStatus.Maintenance || d.Status == DeviceStatus.Offline)
-            .ToList();
-
-        _loaded = true;
     }
+
+    private void OnZoneChanged()
+    {
+        if (!_loaded) return;
+        RecomputeTimeDerived();
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => TzPref.Changed -= OnZoneChanged;
 
     private DeviceGroupDto? LookupGroup(Guid id) =>
         _groupLookup.TryGetValue(id, out var g) ? g : null;

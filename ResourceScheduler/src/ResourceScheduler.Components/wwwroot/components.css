@@ -816,3 +816,63 @@ a:hover { text-decoration: underline; }
     display: flex; gap: 8px; justify-content: flex-end;
     padding: 14px 20px; border-top: 1px solid var(--rs-line);
 }
+
+/* ============================================================
+   Blazor unhandled-error banner. Hidden by default; the Blazor
+   runtime sets inline display:block when an exception fires.
+   The default template's app.css carried this rule; we deleted
+   that file in round 1 and re-add the equivalent here.
+   ============================================================ */
+#blazor-error-ui {
+    background: var(--rs-warn-soft);
+    border-top: 1px solid var(--rs-warn-line);
+    color: var(--rs-ink);
+    font-family: var(--rs-font-sans);
+    font-size: 13px;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    display: none;
+    padding: 12px 24px;
+    position: fixed;
+    z-index: 1000;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.08);
+}
+#blazor-error-ui .reload {
+    color: var(--rs-accent);
+    margin-left: 8px;
+}
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 16px;
+    top: 10px;
+    color: var(--rs-ink-3);
+    font-size: 16px;
+    line-height: 1;
+}
+#blazor-error-ui .dismiss:hover { color: var(--rs-ink); }
+
+/* Timezone switcher in the header (developer/testing aid). */
+.rs-tz-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 1px solid var(--rs-line);
+    border-radius: 2px;
+    color: var(--rs-ink-2);
+    font-family: var(--rs-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 2px 18px 2px 6px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--rs-ink-3) 50%),
+                      linear-gradient(135deg, var(--rs-ink-3) 50%, transparent 50%);
+    background-position: calc(100% - 8px) 50%, calc(100% - 4px) 50%;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+    max-width: 220px;
+    cursor: pointer;
+}
+.rs-tz-select:hover { border-color: var(--rs-line-2); color: var(--rs-ink); }
+.rs-tz-select:focus { outline: none; border-color: var(--rs-accent); }
