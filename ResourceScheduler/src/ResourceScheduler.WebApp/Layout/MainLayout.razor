@@ -1,0 +1,54 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+
+<div class="rs-app">
+    <Header ActiveScreen="@CurrentScreen" ScreenChanged="OnScreenChanged" />
+    <div class="rs-main">
+        @Body
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// Mirrors the screen ids the <c>Header</c> emits. The host maps each
+    /// id to a route so the back/forward buttons keep working. Pages
+    /// hosted under a different route can override the highlighted item
+    /// by setting <see cref="HighlightedScreen"/> via cascading parameter
+    /// later if needed.
+    /// </summary>
+    private string CurrentScreen
+    {
+        get
+        {
+            var path = "/" + Nav.ToBaseRelativePath(Nav.Uri).TrimEnd('/');
+            return path switch
+            {
+                "/buildings"   => "buildings",
+                "/devices"     => "devices",
+                "/groups"      => "groups",
+                "/designer"    => "designer",
+                "/tests"       => "tests",
+                "/schedule"    => "schedule",
+                "/reservation" => "reservation",
+                _              => "dashboard",
+            };
+        }
+    }
+
+    private void OnScreenChanged(string id)
+    {
+        var route = id switch
+        {
+            "dashboard"   => "/",
+            "buildings"   => "/buildings",
+            "devices"     => "/devices",
+            "groups"      => "/groups",
+            "designer"    => "/designer",
+            "tests"       => "/tests",
+            "schedule"    => "/schedule",
+            "reservation" => "/reservation",
+            _             => "/",
+        };
+        Nav.NavigateTo(route);
+    }
+}

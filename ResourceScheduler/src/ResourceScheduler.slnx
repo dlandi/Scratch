@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ResourceScheduler.Components/ResourceScheduler.Components.csproj" />
+  <Project Path="ResourceScheduler.UI.Tests/ResourceScheduler.UI.Tests.csproj" />
+  <Project Path="ResourceScheduler.WebApp/ResourceScheduler.WebApp.csproj" />
+  <Project Path="ResourceScheduler.Tests/ResourceScheduler.Tests.csproj" />
+</Solution>

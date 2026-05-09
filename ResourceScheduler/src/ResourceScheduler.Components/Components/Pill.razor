@@ -1,0 +1,29 @@
+@* Status pill with a status-colored dot and a label.
+   Pass exactly one of Device, Group, or Reservation. *@
+
+<span class="rs-pill rs-pill--@CssClass">
+    <span class="dot"></span>
+    @Label
+</span>
+
+@code {
+    [Parameter] public DeviceStatus? Device { get; set; }
+    [Parameter] public DeviceGroupStatus? Group { get; set; }
+    [Parameter] public ReservationStatus? Reservation { get; set; }
+
+    /// <summary>Optional override; defaults to the enum name.</summary>
+    [Parameter] public string? Text { get; set; }
+
+    private string CssClass =>
+        Device   is { } d ? StatusClassMap.ForDevice(d) :
+        Group    is { } g ? StatusClassMap.ForGroup(g)  :
+        Reservation is { } r ? StatusClassMap.ForReservation(r) :
+        "off";
+
+    private string Label =>
+        Text ??
+        (Device is { } d ? d.ToString() :
+         Group  is { } g ? g.ToString() :
+         Reservation is { } r ? r.ToString() :
+         string.Empty);
+}

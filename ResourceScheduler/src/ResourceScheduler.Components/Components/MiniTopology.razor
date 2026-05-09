@@ -1,0 +1,93 @@
+@* SVG thumbnail of a Device-Group: edges first, then status-colored node rectangles.
+   Positions for each device are taken from Group.Layout when present; any
+   device id not represented in Layout falls back to the auto-layout
+   (circular for n > 2, with special cases for n = 1 and n = 2). *@
+
+<svg viewBox="0 0 @W @H" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+    @{
+        var positions = ComputePositions();
+    }
+    @foreach (var c in Group.Connections)
+    {
+        if (!positions.TryGetValue(c.FromDeviceId, out var a)) continue;
+        if (!positions.TryGetValue(c.ToDeviceId, out var b)) continue;
+        // Also require both endpoints to resolve in the Devices dictionary,
+        // otherwise we would draw an edge to a node that the renderer below
+        // intentionally skipped.
+        if (!Devices.ContainsKey(c.FromDeviceId)) continue;
+        if (!Devices.ContainsKey(c.ToDeviceId)) continue;
+        var ax = Pad + a.x * (W - 2 * Pad);
+        var ay = Pad + a.y * (H - 2 * Pad);
+        var bx = Pad + b.x * (W - 2 * Pad);
+        var by = Pad + b.y * (H - 2 * Pad);
+        <line x1="@F(ax)" y1="@F(ay)" x2="@F(bx)" y2="@F(by)"
+              stroke="var(--rs-ink-3)" stroke-width="1.25" />
+    }
+    @foreach (var id in Group.DeviceIds)
+    {
+        if (!Devices.TryGetValue(id, out var d)) continue;
+        if (!positions.TryGetValue(id, out var p)) continue;
+        var x = Pad + p.x * (W - 2 * Pad);
+        var y = Pad + p.y * (H - 2 * Pad);
+        var cls = StatusClassMap.ForDevice(d.Status);
+        var fill = $"var(--rs-{cls}-soft)";
+        var stroke = $"var(--rs-{cls})";
+        <rect x="@F(x - 14)" y="@F(y - 8)" width="28" height="16" rx="2"
+              fill="@fill" stroke="@stroke" stroke-width="1" />
+    }
+</svg>
+
+@code {
+    private const int W = 280;
+    private const int H = 110;
+    private const int Pad = 18;
+
+    [Parameter, EditorRequired] public DeviceGroupDto Group { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyDictionary<Guid, DeviceDto> Devices { get; set; } = default!;
+
+    private Dictionary<Guid, (double x, double y)> ComputePositions()
+    {
+        var map = new Dictionary<Guid, (double x, double y)>();
+        var ids = Group.DeviceIds;
+        var n = ids.Count;
+        if (n == 0) return map;
+
+        // Prefer explicit Layout entries from the DTO. Any device id without
+        // an entry falls back to the auto-layout below.
+        foreach (var entry in Group.Layout)
+        {
+            map[entry.DeviceId] = (entry.X, entry.Y);
+        }
+
+        var missing = new List<Guid>();
+        foreach (var id in ids)
+        {
+            if (!map.ContainsKey(id)) missing.Add(id);
+        }
+        if (missing.Count == 0) return map;
+
+        if (missing.Count == 1)
+        {
+            map[missing[0]] = (0.5, 0.5);
+            return map;
+        }
+        if (missing.Count == 2)
+        {
+            map[missing[0]] = (0.3, 0.5);
+            map[missing[1]] = (0.7, 0.5);
+            return map;
+        }
+        const double radius = 0.35;
+        for (var i = 0; i < missing.Count; i++)
+        {
+            var angle = 2 * Math.PI * i / missing.Count;
+            var x = 0.5 + radius * Math.Cos(angle);
+            var y = 0.5 + radius * Math.Sin(angle);
+            map[missing[i]] = (x, y);
+        }
+        return map;
+    }
+
+    private static string F(double v) =>
+        v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+}

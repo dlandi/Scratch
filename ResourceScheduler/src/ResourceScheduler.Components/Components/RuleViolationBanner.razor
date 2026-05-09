@@ -1,0 +1,37 @@
+@* Renders a ValidationException-style message uniformly. The rule id
+   (e.g. "R10") is shown as a small chip on the right so the user can
+   trace the message back to Docs/SPECIFICATION.md section 10. *@
+
+<div class="rs-banner @LevelClass">
+    <div style="flex:1">
+        @if (!string.IsNullOrEmpty(Title))
+        {
+            <span class="rs-banner-title">@Title</span>
+        }
+        @ChildContent
+    </div>
+    @if (!string.IsNullOrEmpty(RuleId))
+    {
+        <span class="rs-banner-rule">@RuleId</span>
+    }
+</div>
+
+@code {
+    public enum BannerLevel { Bad, Warn, Info }
+
+    /// <summary>Spec rule id, shown as the trailing chip. Optional.</summary>
+    [Parameter] public string? RuleId { get; set; }
+
+    [Parameter] public string? Title { get; set; }
+
+    [Parameter] public BannerLevel Level { get; set; } = BannerLevel.Bad;
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string LevelClass => Level switch
+    {
+        BannerLevel.Warn => "rs-banner--warn",
+        BannerLevel.Info => "rs-banner--info",
+        _ => string.Empty,
+    };
+}

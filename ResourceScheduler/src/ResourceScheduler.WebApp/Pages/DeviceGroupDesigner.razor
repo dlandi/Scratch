@@ -1,0 +1,824 @@
+@page "/designer"
+@inject IClientService Client
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+@using System.Globalization
+
+<PageTitle>Device-Group Designer · Resource.Scheduler</PageTitle>
+
+@if (!_loaded || _working is null)
+{
+    <div class="rs-screen">
+        <div class="rs-screen-head">
+            <div>
+                <div class="rs-screen-eyebrow">05 · Device-Group Designer</div>
+                <h1 class="rs-screen-title">loading…</h1>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    var memberCount = _working.DeviceIds.Count;
+    var connCount = _working.Connections.Count;
+    var shortId = _working.DeviceGroupId.ToString().Substring(0, 8);
+
+    <div class="rs-screen">
+        <div class="rs-screen-head">
+            <div>
+                <div class="rs-screen-eyebrow">05 · Device-Group Designer</div>
+                <h1 class="rs-screen-title">@_working.Name</h1>
+                <p class="rs-screen-sub rs-mono-sm">
+                    @memberCount devices · @connCount connections · id
+                    <span style="color:var(--rs-ink-2)">@shortId</span>
+                </p>
+            </div>
+            <div class="rs-screen-actions">
+                <select class="rs-select" style="width:240px"
+                        @onchange="OnSelectGroup">
+                    @foreach (var g in _groups)
+                    {
+                        <option value="@g.DeviceGroupId" selected="@(g.DeviceGroupId == _working.DeviceGroupId)">
+                            @g.Name · @g.Status
+                        </option>
+                    }
+                </select>
+                <button class="rs-btn rs-btn--ghost" @onclick="Discard">Discard</button>
+                <button class="rs-btn rs-btn--primary" @onclick="Save">Save</button>
+            </div>
+        </div>
+
+        <div class="rs-designer">
+            @* ============= LEFT: device picker ============= *@
+            <div class="rs-pane">
+                <div class="rs-pane-head">
+                    <div class="rs-pane-title">
+                        <span>Device Picker</span>
+                        <span class="rs-mono-sm">@FilteredDevices().Count()</span>
+                    </div>
+                    <div class="rs-search" style="margin-bottom:8px">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5" />
+                            <path d="m20 20-4-4" stroke="currentColor" stroke-width="1.5" />
+                        </svg>
+                        <input class="rs-input" placeholder="Search devices…"
+                               value="@_pickerFilter"
+                               @oninput="OnPickerFilterInput" />
+                    </div>
+                    <div class="rs-filter-group">
+                        @foreach (var s in _statusFilters)
+                        {
+                            var label = s;
+                            <button class="@(_pickerStatus == s ? "is-active" : "")"
+                                    @onclick="() => SetPickerStatus(label)">
+                                @s.ToUpperInvariant()
+                            </button>
+                        }
+                    </div>
+                </div>
+                <div class="rs-pane-body rs-pane-body--tight">
+                    <div class="rs-mono-sm" style="padding:0 4px 6px">
+                        Click a chip to add or remove from the group. Locked chips are already in another active group.
+                    </div>
+                    <div class="rs-chips">
+                        @foreach (var d in FilteredDevices())
+                        {
+                            var inGroup = _working.DeviceIds.Contains(d.DeviceId);
+                            var lockedBy = MemberOfActiveOther(d.DeviceId);
+                            var locked = lockedBy is not null && !inGroup;
+                            var did = d.DeviceId;
+                            <DeviceChip Device="d"
+                                        InGroup="inGroup"
+                                        Locked="locked"
+                                        LockedBy="lockedBy?.Name"
+                                        OnClick="() => ToggleMember(did)" />
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* ============= CENTER: canvas ============= *@
+            <div class="rs-canvas-wrap">
+                <div class="rs-canvas-toolbar">
+                    <button class="rs-btn rs-btn--ghost rs-btn--sm" disabled>+</button>
+                    <button class="rs-btn rs-btn--ghost rs-btn--sm" disabled>-</button>
+                    <button class="rs-btn rs-btn--ghost rs-btn--sm" disabled>fit</button>
+                    <span style="width:1px;background:var(--rs-line);margin:0 2px"></span>
+                    <button class="rs-btn rs-btn--ghost rs-btn--sm"
+                            disabled="@(_pendingFromId is null && _selectedDeviceId is null)"
+                            @onclick="ToggleAddCable">
+                        @(_pendingFromId is not null ? "cancel cable" : "add cable")
+                    </button>
+                </div>
+
+                <div class="rs-canvas">
+                    <svg @ref="_svgRef" viewBox="0 0 900 560" width="100%" height="100%"
+                         preserveAspectRatio="xMidYMid meet"
+                         @onclick="ClearSelection"
+                         @onmousemove="OnSvgMouseMove"
+                         @onmouseup="OnSvgMouseUp">
+                        @* edges *@
+                        @foreach (var c in _working.Connections)
+                        {
+                            if (!_layout.TryGetValue(c.FromDeviceId, out var a)) continue;
+                            if (!_layout.TryGetValue(c.ToDeviceId, out var b)) continue;
+                            var ax = Sx(a.X); var ay = Sy(a.Y);
+                            var bx = Sx(b.X); var by = Sy(b.Y);
+                            <line x1="@F(ax)" y1="@F(ay)" x2="@F(bx)" y2="@F(by)"
+                                  stroke="var(--rs-ink-3)" stroke-width="1.5" stroke-linecap="round" />
+                            if (!string.IsNullOrEmpty(c.Label) && c.Label != "-")
+                            {
+                                var mx = (ax + bx) / 2.0; var my = (ay + by) / 2.0;
+                                <g transform="translate(@F(mx), @F(my))">
+                                    <rect x="-22" y="-9" width="44" height="14" rx="2"
+                                          fill="var(--rs-surface-2)" stroke="var(--rs-line)" stroke-width="0.75" />
+                                    <text x="0" y="0" dominant-baseline="middle" text-anchor="middle"
+                                          font-family="IBM Plex Mono, ui-monospace, monospace"
+                                          font-size="9" fill="var(--rs-ink-3)" letter-spacing="0.04em">
+                                        @c.Label
+                                    </text>
+                                </g>
+                            }
+                        }
+
+                        @* nodes *@
+                        @foreach (var id in _working.DeviceIds)
+                        {
+                            if (!_devicesById.TryGetValue(id, out var d)) continue;
+                            if (!_layout.TryGetValue(id, out var p)) continue;
+                            var cx = Sx(p.X); var cy = Sy(p.Y);
+                            var cls = StatusClassMap.ForDevice(d.Status);
+                            var isSelected = _selectedDeviceId == id;
+                            var isPendingSrc = _pendingFromId == id;
+                            var nid = id;
+                            <g style="cursor:pointer"
+                               @onclick:stopPropagation="true"
+                               @onclick="() => OnNodeClick(nid)"
+                               @onmousedown:stopPropagation="true"
+                               @onmousedown="@(e => OnNodeMouseDown(e, nid))">
+                                @if (isSelected || isPendingSrc)
+                                {
+                                    <rect x="@F(cx - 56)" y="@F(cy - 26)" width="112" height="52" rx="4"
+                                          fill="none" stroke="var(--rs-accent)"
+                                          stroke-width="@(isSelected ? "1.5" : "1")"
+                                          stroke-dasharray="@(isPendingSrc ? "3 3" : "")"
+                                          opacity="0.8" />
+                                }
+                                <rect x="@F(cx - 50)" y="@F(cy - 20)" width="100" height="40" rx="2"
+                                      fill="var(--rs-@(cls)-soft)"
+                                      stroke="var(--rs-@(cls))"
+                                      stroke-width="1.5" />
+                                <circle cx="@F(cx + 44)" cy="@F(cy - 14)" r="3" fill="var(--rs-@(cls))" />
+                                <circle cx="@F(cx - 50)" cy="@F(cy)" r="2" fill="var(--rs-ink-3)" />
+                                <circle cx="@F(cx + 50)" cy="@F(cy)" r="2" fill="var(--rs-ink-3)" />
+                                <text x="@F(cx)" y="@F(cy - 2)" text-anchor="middle"
+                                      font-family="IBM Plex Mono, ui-monospace, monospace"
+                                      font-size="11" font-weight="500" fill="var(--rs-ink)">
+                                    @d.Name
+                                </text>
+                                <text x="@F(cx)" y="@F(cy + 11)" text-anchor="middle"
+                                      font-family="IBM Plex Sans, ui-sans-serif, sans-serif"
+                                      font-size="9" fill="var(--rs-ink-3)">
+                                    @d.Status
+                                </text>
+                            </g>
+                        }
+                    </svg>
+                </div>
+
+                <div class="rs-canvas-legend">
+                    <span><span class="swatch" style="background:var(--rs-ok-soft);border:1.5px solid var(--rs-ok);border-radius:2px"></span>Available</span>
+                    <span><span class="swatch" style="background:var(--rs-warn-soft);border:1.5px solid var(--rs-warn);border-radius:2px"></span>Maintenance</span>
+                    <span><span class="swatch" style="background:var(--rs-off-soft);border:1.5px solid var(--rs-off);border-radius:2px"></span>Offline</span>
+                    <span style="border-left:1px solid var(--rs-line);padding-left:12px">
+                        <span class="swatch" style="background:transparent;border:1.5px solid var(--rs-ink);border-radius:2px"></span> in group
+                    </span>
+                    <span>
+                        <span class="swatch" style="background:transparent;border:1.5px dashed var(--rs-ink);border-radius:2px"></span> free to add
+                    </span>
+                </div>
+
+                <div class="rs-canvas-coords">
+                    @(HasDraggedLayout() ? "drag" : "auto-layout") · @_working.DeviceIds.Count nodes
+                </div>
+            </div>
+
+            @* ============= RIGHT: properties ============= *@
+            <div class="rs-pane">
+                <div class="rs-pane-head">
+                    <div class="rs-pane-title">
+                        <span>Properties</span>
+                    </div>
+                </div>
+                <div style="overflow:auto;flex:1">
+                    <div class="rs-prop-section">
+                        <div class="rs-field">
+                            <label class="rs-label">Group name</label>
+                            <input class="rs-input" value="@_working.Name"
+                                   @oninput="OnNameInput" />
+                        </div>
+                        <div class="rs-field">
+                            <label class="rs-label">Status</label>
+                            <div class="rs-toggle">
+                                <button class="@(_working.Status == DeviceGroupStatus.Active ? "is-active" : "")"
+                                        @onclick="() => SetStatus(DeviceGroupStatus.Active)">ACTIVE</button>
+                                <button class="rs-toggle--off @(_working.Status == DeviceGroupStatus.Inactive ? "is-active" : "")"
+                                        @onclick="() => SetStatus(DeviceGroupStatus.Inactive)">INACTIVE</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rs-prop-section">
+                        <div class="rs-pane-title" style="margin-bottom:10px">
+                            <span>Validation</span>
+                            <span class="rs-mono-sm">R3 · R5 · R6 · R7</span>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_saveError))
+                        {
+                            <div style="margin-bottom:8px">
+                                <RuleViolationBanner Level="RuleViolationBanner.BannerLevel.Bad" RuleId="@_saveErrorRuleId">
+                                    @_saveError
+                                </RuleViolationBanner>
+                            </div>
+                        }
+                        <div class="rs-stack-2">
+                            @foreach (var m in ComputeValidation())
+                            {
+                                <RuleViolationBanner Level="m.Level" RuleId="@m.Rule">@m.Text</RuleViolationBanner>
+                            }
+                        </div>
+                    </div>
+
+                    @if (_selectedDeviceId is Guid sel && _devicesById.TryGetValue(sel, out var selDev))
+                    {
+                        var bld = _buildingsById.TryGetValue(selDev.BuildingId, out var b) ? b : null;
+                        <div class="rs-prop-section">
+                            <div class="rs-pane-title" style="margin-bottom:10px">
+                                <span>Selected node</span>
+                                <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="ClearSelection">Deselect</button>
+                            </div>
+                            <div class="rs-stack-2">
+                                <div class="rs-prop-row"><span class="rs-kv">Device</span><b class="rs-mono">@selDev.Name</b></div>
+                                <div class="rs-prop-row"><span class="rs-kv">Status</span><Pill Device="selDev.Status" /></div>
+                                <div class="rs-prop-row"><span class="rs-kv">Building</span>
+                                    <span class="rs-mono">@(bld?.Name ?? "(unknown)")</span>
+                                </div>
+                                <div class="rs-row" style="margin-top:10px;gap:6px">
+                                    <button class="rs-btn rs-btn--sm"
+                                            disabled="@(_pendingFromId is not null)"
+                                            @onclick="StartAddCable">
+                                        @(_pendingFromId is not null ? "Click target node…" : "Add cable")
+                                    </button>
+                                    <button class="rs-btn rs-btn--sm rs-btn--danger"
+                                            @onclick="() => ToggleMember(sel)">
+                                        Remove from group
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="rs-prop-section">
+                        <div class="rs-pane-title" style="margin-bottom:10px">
+                            <span>Connections</span>
+                            <span class="rs-mono-sm">@_working.Connections.Count</span>
+                        </div>
+                        <div class="rs-stack-2">
+                            @if (_working.Connections.Count == 0)
+                            {
+                                <div class="rs-mono-sm">No connections yet. Select a node and click "Add cable".</div>
+                            }
+                            @foreach (var c in _working.Connections.ToList())
+                            {
+                                var aName = _devicesById.TryGetValue(c.FromDeviceId, out var aa) ? aa.Name : "?";
+                                var bName = _devicesById.TryGetValue(c.ToDeviceId, out var bb) ? bb.Name : "?";
+                                var cid = c.ConnectionId;
+                                <div class="rs-prop-row" style="align-items:center">
+                                    <div style="flex:1;font-size:12px">
+                                        <span class="rs-mono">@aName</span>
+                                        <span style="color:var(--rs-ink-4);margin:0 6px">to</span>
+                                        <span class="rs-mono">@bName</span>
+                                    </div>
+                                    <input class="rs-input" style="width:80px;height:24px;font-family:var(--rs-font-mono);font-size:11px"
+                                           value="@c.Label"
+                                           @oninput="(ChangeEventArgs e) => OnLabelInput(cid, e)" />
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => RemoveEdge(cid)">×</button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="rs-prop-section">
+                        <div class="rs-pane-title" style="margin-bottom:10px">
+                            <span>Upcoming on this group</span>
+                        </div>
+                        @{
+                            var upcoming = UpcomingForGroup();
+                        }
+                        @if (upcoming.Count == 0)
+                        {
+                            <div class="rs-mono-sm">No upcoming reservations.</div>
+                        }
+                        else
+                        {
+                            <div class="rs-stack-2">
+                                @foreach (var r in upcoming)
+                                {
+                                    var startLocal = r.StartUtc.ToLocalTime();
+                                    <div class="rs-prop-row" style="align-items:center">
+                                        <div style="flex:1">
+                                            <div class="rs-mono" style="font-size:11px;color:var(--rs-ink-3)">
+                                                @startLocal.ToString("ddd").ToUpperInvariant()
+                                                @startLocal.ToString("dd")
+                                                ·
+                                                @startLocal.ToString("HH:mm")-@r.EndUtc.ToLocalTime().ToString("HH:mm")
+                                            </div>
+                                        </div>
+                                        <Pill Reservation="r.Status" />
+                                    </div>
+                                }
+                                <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="OpenSchedule">Open schedule →</button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool _loaded;
+
+    private List<DeviceGroupDto> _groups = new();
+    private IReadOnlyList<DeviceDto> _devices = Array.Empty<DeviceDto>();
+    private IReadOnlyList<ReservationDto> _reservations = Array.Empty<ReservationDto>();
+    private IReadOnlyList<BuildingDto> _buildings = Array.Empty<BuildingDto>();
+
+    private Dictionary<Guid, DeviceDto> _devicesById = new();
+    private Dictionary<Guid, BuildingDto> _buildingsById = new();
+
+    // Working copy of the currently selected group (deep clone). All edits
+    // are local until Save.
+    private DeviceGroupDto? _working;
+    // Original status of the working copy at load time, used to decide
+    // whether to call Activate/Deactivate on Save.
+    private DeviceGroupStatus _originalStatus;
+
+    private string _pickerFilter = string.Empty;
+    private string _pickerStatus = "All";
+    private static readonly string[] _statusFilters =
+        new[] { "All", "Available", "Maintenance", "Offline", "Retired" };
+
+    private Guid? _selectedDeviceId;
+    private Guid? _pendingFromId;
+
+    private string? _saveError;
+    private string? _saveErrorRuleId;
+
+    // ---------- Drag layout state ----------
+    private Dictionary<Guid, (double X, double Y)> _layout = new();
+    private SvgInterop? _interop;
+    private ElementReference _svgRef;
+    private Guid? _dragNodeId;
+    private double _dragNx;
+    private double _dragNy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAll();
+        if (_groups.Count > 0)
+            LoadWorkingCopy(_groups[0].DeviceGroupId);
+        _loaded = true;
+    }
+
+    private async Task ReloadAll()
+    {
+        _groups = (await Client.ListDeviceGroupsAsync()).ToList();
+        _devices = await Client.ListDevicesAsync();
+        _reservations = await Client.ListReservationsAsync();
+        _buildings = await Client.ListBuildingsAsync();
+        _devicesById = _devices.ToDictionary(d => d.DeviceId);
+        _buildingsById = _buildings.ToDictionary(b => b.BuildingId);
+    }
+
+    private void LoadWorkingCopy(Guid groupId)
+    {
+        var g = _groups.FirstOrDefault(x => x.DeviceGroupId == groupId);
+        if (g is null) { _working = null; return; }
+        _working = CloneGroup(g);
+        _originalStatus = g.Status;
+        _selectedDeviceId = null;
+        _pendingFromId = null;
+        _saveError = null;
+        _saveErrorRuleId = null;
+        SeedLayout();
+    }
+
+    private void SeedLayout()
+    {
+        _layout.Clear();
+        if (_working is null) return;
+        // Persisted Layout entries take precedence over auto-layout.
+        foreach (var entry in _working.Layout)
+        {
+            _layout[entry.DeviceId] = (entry.X, entry.Y);
+        }
+        // Any member without a persisted position falls back to auto-layout.
+        var missing = _working.DeviceIds.Where(id => !_layout.ContainsKey(id)).ToList();
+        if (missing.Count > 0)
+        {
+            foreach (var (id, p) in ComputePositions(missing))
+            {
+                _layout[id] = p;
+            }
+        }
+    }
+
+    private static DeviceGroupDto CloneGroup(DeviceGroupDto g) => new()
+    {
+        DeviceGroupId = g.DeviceGroupId,
+        Name = g.Name,
+        Status = g.Status,
+        Version = g.Version,
+        DeviceIds = g.DeviceIds.ToList(),
+        Connections = g.Connections.Select(c => new DeviceConnectionDto
+        {
+            ConnectionId = c.ConnectionId,
+            FromDeviceId = c.FromDeviceId,
+            ToDeviceId = c.ToDeviceId,
+            Label = c.Label,
+        }).ToList(),
+        Layout = g.Layout.Select(e => new DeviceLayoutEntry(e.DeviceId, e.X, e.Y)).ToList(),
+    };
+
+    private void OnSelectGroup(ChangeEventArgs e)
+    {
+        if (Guid.TryParse(e.Value?.ToString(), out var gid))
+            LoadWorkingCopy(gid);
+    }
+
+    private void Discard()
+    {
+        if (_working is null) return;
+        LoadWorkingCopy(_working.DeviceGroupId);
+    }
+
+    private async Task Save()
+    {
+        if (_working is null) return;
+        _saveError = null;
+        _saveErrorRuleId = null;
+        try
+        {
+            var layout = _layout
+                .Select(kv => new DeviceLayoutEntry(kv.Key, kv.Value.X, kv.Value.Y))
+                .ToList();
+            var update = new DeviceGroupUpdate(
+                _working.Name,
+                _working.DeviceIds.ToList(),
+                _working.Connections.Select(c => new DeviceConnectionDto
+                {
+                    ConnectionId = c.ConnectionId,
+                    FromDeviceId = c.FromDeviceId,
+                    ToDeviceId = c.ToDeviceId,
+                    Label = c.Label,
+                }).ToList(),
+                layout);
+
+            var saved = await Client.UpdateDeviceGroupAsync(
+                _working.DeviceGroupId, update, _working.Version);
+
+            if (_originalStatus == DeviceGroupStatus.Inactive
+                && _working.Status == DeviceGroupStatus.Active)
+            {
+                saved = await Client.ActivateDeviceGroupAsync(saved.DeviceGroupId, saved.Version);
+            }
+            else if (_originalStatus == DeviceGroupStatus.Active
+                && _working.Status == DeviceGroupStatus.Inactive)
+            {
+                saved = await Client.DeactivateDeviceGroupAsync(saved.DeviceGroupId, saved.Version);
+            }
+
+            await ReloadAll();
+            LoadWorkingCopy(saved.DeviceGroupId);
+        }
+        catch (ValidationException ex)
+        {
+            _saveError = ex.Message;
+            _saveErrorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _saveError = ex.Message;
+            _saveErrorRuleId = null;
+        }
+    }
+
+    // ---------- Picker ----------
+    private IEnumerable<DeviceDto> FilteredDevices()
+    {
+        var q = _devices.AsEnumerable();
+        if (_pickerStatus != "All" &&
+            Enum.TryParse<DeviceStatus>(_pickerStatus, out var st))
+        {
+            q = q.Where(d => d.Status == st);
+        }
+        if (!string.IsNullOrWhiteSpace(_pickerFilter))
+        {
+            var f = _pickerFilter.Trim();
+            q = q.Where(d => d.Name.Contains(f, StringComparison.OrdinalIgnoreCase));
+        }
+        return q;
+    }
+
+    private void OnPickerFilterInput(ChangeEventArgs e) =>
+        _pickerFilter = e.Value?.ToString() ?? string.Empty;
+
+    private void SetPickerStatus(string s) => _pickerStatus = s;
+
+    private DeviceGroupDto? MemberOfActiveOther(Guid deviceId)
+    {
+        if (_working is null) return null;
+        return _groups.FirstOrDefault(g =>
+            g.Status == DeviceGroupStatus.Active
+            && g.DeviceGroupId != _working.DeviceGroupId
+            && g.DeviceIds.Contains(deviceId));
+    }
+
+    // ---------- Mutations ----------
+    private void ToggleMember(Guid deviceId)
+    {
+        if (_working is null) return;
+        if (_working.DeviceIds.Contains(deviceId))
+        {
+            _working.DeviceIds.Remove(deviceId);
+            _working.Connections = _working.Connections
+                .Where(c => c.FromDeviceId != deviceId && c.ToDeviceId != deviceId)
+                .ToList();
+            if (_selectedDeviceId == deviceId) _selectedDeviceId = null;
+            if (_pendingFromId == deviceId) _pendingFromId = null;
+            _layout.Remove(deviceId);
+        }
+        else
+        {
+            _working.DeviceIds.Add(deviceId);
+            // Place new member at the next auto-layout position derived from
+            // current member count.
+            var seed = ComputePositions(_working.DeviceIds);
+            if (seed.TryGetValue(deviceId, out var p))
+            {
+                _layout[deviceId] = p;
+            }
+        }
+    }
+
+    private void OnNameInput(ChangeEventArgs e)
+    {
+        if (_working is null) return;
+        _working.Name = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void SetStatus(DeviceGroupStatus s)
+    {
+        if (_working is null) return;
+        _working.Status = s;
+    }
+
+    private void OnNodeClick(Guid id)
+    {
+        if (_working is null) return;
+        if (_pendingFromId is Guid src && src != id)
+        {
+            AddEdge(src, id);
+            _pendingFromId = null;
+            _selectedDeviceId = id;
+            return;
+        }
+        _selectedDeviceId = id;
+    }
+
+    private void ClearSelection()
+    {
+        _selectedDeviceId = null;
+        _pendingFromId = null;
+    }
+
+    private void ToggleAddCable()
+    {
+        if (_pendingFromId is not null) { _pendingFromId = null; return; }
+        if (_selectedDeviceId is Guid s) _pendingFromId = s;
+    }
+
+    private void StartAddCable()
+    {
+        if (_selectedDeviceId is Guid s) _pendingFromId = s;
+    }
+
+    private void AddEdge(Guid from, Guid to)
+    {
+        if (_working is null || from == to) return;
+        if (_working.Connections.Any(c =>
+                (c.FromDeviceId == from && c.ToDeviceId == to)
+                || (c.FromDeviceId == to && c.ToDeviceId == from)))
+            return;
+        _working.Connections.Add(new DeviceConnectionDto
+        {
+            ConnectionId = Guid.NewGuid(),
+            FromDeviceId = from,
+            ToDeviceId = to,
+            Label = "-",
+        });
+    }
+
+    private void RemoveEdge(Guid cid)
+    {
+        if (_working is null) return;
+        _working.Connections = _working.Connections
+            .Where(c => c.ConnectionId != cid).ToList();
+    }
+
+    private void OnLabelInput(Guid cid, ChangeEventArgs e)
+    {
+        if (_working is null) return;
+        var c = _working.Connections.FirstOrDefault(x => x.ConnectionId == cid);
+        if (c is null) return;
+        c.Label = e.Value?.ToString() ?? string.Empty;
+    }
+
+    // ---------- Validation (advisory) ----------
+    private record VMsg(string Rule, RuleViolationBanner.BannerLevel Level, string Text);
+
+    private List<VMsg> ComputeValidation()
+    {
+        var msgs = new List<VMsg>();
+        if (_working is null) return msgs;
+
+        // R7
+        if (_working.DeviceIds.Count == 0)
+        {
+            msgs.Add(new VMsg("R7", RuleViolationBanner.BannerLevel.Warn,
+                "Group has zero members. Cannot be activated."));
+        }
+
+        // R3
+        var blocking = _working.DeviceIds
+            .Where(id => MemberOfActiveOther(id) is not null)
+            .ToList();
+        if (blocking.Count > 0)
+        {
+            var names = string.Join(", ", blocking.Select(id =>
+                _devicesById.TryGetValue(id, out var d) ? d.Name : id.ToString()));
+            msgs.Add(new VMsg("R3", RuleViolationBanner.BannerLevel.Bad,
+                $"{blocking.Count} device(s) already in another Active group: {names}."));
+        }
+
+        // R5
+        var bad = _working.DeviceIds
+            .Where(id => _devicesById.TryGetValue(id, out var d)
+                && (d.Status == DeviceStatus.Offline
+                    || d.Status == DeviceStatus.Maintenance
+                    || d.Status == DeviceStatus.Retired))
+            .ToList();
+        if (bad.Count > 0)
+        {
+            var names = string.Join(", ", bad.Select(id =>
+            {
+                var d = _devicesById[id];
+                return $"{d.Name} ({d.Status})";
+            }));
+            msgs.Add(new VMsg("R5", RuleViolationBanner.BannerLevel.Bad,
+                $"{bad.Count} device(s) cannot be in an Active group: {names}."));
+        }
+
+        // R6
+        var members = new HashSet<Guid>(_working.DeviceIds);
+        if (_working.Connections.Any(c =>
+                !members.Contains(c.FromDeviceId) || !members.Contains(c.ToDeviceId)))
+        {
+            msgs.Add(new VMsg("R6", RuleViolationBanner.BannerLevel.Bad,
+                "Connections reference non-members."));
+        }
+
+        if (msgs.Count == 0)
+        {
+            msgs.Add(new VMsg("OK", RuleViolationBanner.BannerLevel.Info,
+                "Topology valid. Ready to activate."));
+        }
+        return msgs;
+    }
+
+    // ---------- Upcoming reservations ----------
+    private List<ReservationDto> UpcomingForGroup()
+    {
+        if (_working is null) return new();
+        var now = DateTime.UtcNow;
+        return _reservations
+            .Where(r => r.DeviceGroupId == _working.DeviceGroupId
+                && r.EndUtc >= now
+                && r.Status != ReservationStatus.Cancelled
+                && r.Status != ReservationStatus.Completed)
+            .OrderBy(r => r.StartUtc)
+            .Take(4)
+            .ToList();
+    }
+
+    private void OpenSchedule() => Nav.NavigateTo("/schedule");
+
+    // ---------- Auto-layout (matches MiniTopology). ----------
+    // Used to seed _layout when a working copy is loaded and to place
+    // newly-added members at the next default position.
+    private Dictionary<Guid, (double X, double Y)> ComputePositions(IList<Guid> ids)
+    {
+        var map = new Dictionary<Guid, (double X, double Y)>();
+        var n = ids.Count;
+        if (n == 0) return map;
+        if (n == 1) { map[ids[0]] = (0.5, 0.5); return map; }
+        if (n == 2)
+        {
+            map[ids[0]] = (0.3, 0.5);
+            map[ids[1]] = (0.7, 0.5);
+            return map;
+        }
+        const double radius = 0.35;
+        for (var i = 0; i < n; i++)
+        {
+            var angle = 2 * Math.PI * i / n;
+            map[ids[i]] = (0.5 + radius * Math.Cos(angle),
+                           0.5 + radius * Math.Sin(angle));
+        }
+        return map;
+    }
+
+    // ---------- Drag handlers ----------
+    private void OnNodeMouseDown(MouseEventArgs e, Guid deviceId)
+    {
+        if (_working is null) return;
+        // Run existing select logic.
+        OnNodeClick(deviceId);
+        if (!_layout.TryGetValue(deviceId, out var p)) return;
+        _dragNodeId = deviceId;
+        _dragNx = p.X;
+        _dragNy = p.Y;
+    }
+
+    private async Task OnSvgMouseMove(MouseEventArgs e)
+    {
+        if (_dragNodeId is null || _interop is null) return;
+        var pt = await _interop.PointToSvgAsync(_svgRef, e.ClientX, e.ClientY);
+        var nx = (pt.X - PADX) / (W - 2 * PADX);
+        var ny = (pt.Y - PADY) / (H - 2 * PADY);
+        nx = Math.Clamp(nx, 0.04, 0.96);
+        ny = Math.Clamp(ny, 0.06, 0.92);
+        _dragNx = nx;
+        _dragNy = ny;
+        _layout[_dragNodeId.Value] = (nx, ny);
+        StateHasChanged();
+    }
+
+    private void OnSvgMouseUp(MouseEventArgs e)
+    {
+        _dragNodeId = null;
+    }
+
+    private bool HasDraggedLayout()
+    {
+        if (_working is null) return false;
+        var seed = ComputePositions(_working.DeviceIds);
+        foreach (var kv in _layout)
+        {
+            if (!seed.TryGetValue(kv.Key, out var s)) return true;
+            if (Math.Abs(kv.Value.X - s.X) > 0.01) return true;
+            if (Math.Abs(kv.Value.Y - s.Y) > 0.01) return true;
+        }
+        return false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interop = new SvgInterop(JS);
+        }
+        await Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_interop is not null)
+        {
+            await _interop.DisposeAsync();
+            _interop = null;
+        }
+    }
+
+    private const double PADX = 40;
+    private const double PADY = 30;
+    private const double W = 900;
+    private const double H = 560;
+    private static double Sx(double nx) => PADX + nx * (W - 2 * PADX);
+    private static double Sy(double ny) => PADY + ny * (H - 2 * PADY);
+    private static string F(double v) =>
+        v.ToString("0.###", CultureInfo.InvariantCulture);
+}

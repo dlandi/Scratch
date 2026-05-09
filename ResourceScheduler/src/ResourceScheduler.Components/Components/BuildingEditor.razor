@@ -1,0 +1,110 @@
+@* Building create/edit modal. Wraps the generic Modal component and binds
+   to a working copy that is re-initialized when the modal opens. *@
+
+@inject IClientService Client
+
+<Modal IsOpen="IsOpen" Title="@TitleText" OnClose="OnClose">
+    <ChildContent>
+        @if (_error is not null)
+        {
+            <div style="margin-bottom: 16px">
+                <RuleViolationBanner RuleId="@_errorRuleId" Title="Cannot save">
+                    @_error
+                </RuleViolationBanner>
+            </div>
+        }
+        <div class="rs-form">
+            <div class="rs-field rs-field--full">
+                <label class="rs-label">Name</label>
+                <input class="rs-input" @bind="_name" @bind:event="oninput" placeholder="Building name" />
+            </div>
+            <div class="rs-field rs-field--full">
+                <label class="rs-label">Address</label>
+                <textarea class="rs-textarea" rows="4" @bind="_address" @bind:event="oninput" placeholder="Optional"></textarea>
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <button type="button" class="rs-btn rs-btn--ghost" @onclick="OnClose" disabled="@_saving">Cancel</button>
+        <button type="button" class="rs-btn rs-btn--primary" @onclick="Save" disabled="@(_saving || string.IsNullOrWhiteSpace(_name))">
+            @(_saving ? "Saving…" : "Save")
+        </button>
+    </FooterContent>
+</Modal>
+
+@code {
+    [Parameter] public BuildingDto? Building { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<BuildingDto> OnSaved { get; set; }
+
+    private bool _wasOpen;
+    private bool _saving;
+    private string _name = string.Empty;
+    private string _address = string.Empty;
+    private string? _error;
+    private string? _errorRuleId;
+
+    private string TitleText => Building is null ? "New building" : "Edit building";
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            // Modal just opened: clone current values into working fields.
+            _name = Building?.Name ?? string.Empty;
+            _address = Building?.Address ?? string.Empty;
+            _error = null;
+            _errorRuleId = null;
+            _saving = false;
+        }
+        _wasOpen = IsOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        _errorRuleId = null;
+        try
+        {
+            BuildingDto saved;
+            if (Building is null)
+            {
+                saved = await Client.CreateBuildingAsync(new BuildingCreate(_name.Trim(), _address ?? string.Empty));
+            }
+            else
+            {
+                saved = await Client.UpdateBuildingAsync(
+                    Building.BuildingId,
+                    new BuildingUpdate(_name.Trim(), _address ?? string.Empty),
+                    Building.Version);
+            }
+
+            await OnSaved.InvokeAsync(saved);
+        }
+        catch (ValidationException ex)
+        {
+            _error = ex.Message;
+            _errorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

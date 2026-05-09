@@ -1,0 +1,142 @@
+@page "/people"
+@inject IClientService Client
+
+<PageTitle>People · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">06 · People</div>
+            <h1 class="rs-screen-title">People</h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_people.Count} on file")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--primary" @onclick="OnNewPerson">+ New person</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        <div class="rs-list-wrap">
+            @if (_deleteError is not null)
+            {
+                <RuleViolationBanner RuleId="@_deleteErrorRuleId" Title="Cannot delete">
+                    @_deleteError
+                </RuleViolationBanner>
+            }
+            <div class="rs-table-wrap">
+                <table class="rs-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th style="width:200px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var index = 0;
+                        }
+                        @foreach (var p in _people)
+                        {
+                            index++;
+                            var current = p;
+                            <tr>
+                                <td class="num">@index.ToString("00")</td>
+                                <td><span style="font-weight:500">@p.Name</span></td>
+                                <td><span class="rs-mono-sm">@(p.Email ?? string.Empty)</span></td>
+                                <td>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnEdit(current)">Edit</button>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnDelete(current)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                        @if (_people.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="rs-empty">No people on file.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<PersonEditor Person="_editTarget" IsOpen="_editorOpen" OnClose="OnEditorClose" OnSaved="OnSaved" />
+
+@code {
+    private bool _loaded;
+    private IReadOnlyList<PersonDto> _people = Array.Empty<PersonDto>();
+
+    private bool _editorOpen;
+    private PersonDto? _editTarget;
+
+    private string? _deleteError;
+    private string? _deleteErrorRuleId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loaded = true;
+    }
+
+    private async Task Reload()
+    {
+        _people = await Client.ListPeopleAsync();
+    }
+
+    private void OnNewPerson()
+    {
+        _editTarget = null;
+        _editorOpen = true;
+    }
+
+    private void OnEdit(PersonDto p)
+    {
+        _editTarget = p;
+        _editorOpen = true;
+    }
+
+    private void OnEditorClose()
+    {
+        _editorOpen = false;
+    }
+
+    private async Task OnSaved(PersonDto _)
+    {
+        _editorOpen = false;
+        await Reload();
+    }
+
+    private async Task OnDelete(PersonDto p)
+    {
+        _deleteError = null;
+        _deleteErrorRuleId = null;
+        try
+        {
+            await Client.DeletePersonAsync(p.PersonId);
+            await Reload();
+        }
+        catch (ValidationException ex)
+        {
+            _deleteError = ex.Message;
+            _deleteErrorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _deleteError = ex.Message;
+        }
+    }
+}

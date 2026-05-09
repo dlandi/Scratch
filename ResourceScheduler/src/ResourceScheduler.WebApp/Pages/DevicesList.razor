@@ -1,0 +1,231 @@
+@page "/devices"
+@inject IClientService Client
+
+<PageTitle>Devices · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">03 · Devices</div>
+            <h1 class="rs-screen-title">Devices</h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_devices.Count} total · {_devices.Count(d => d.Status == DeviceStatus.Available)} available · {_devices.Count(d => d.Status == DeviceStatus.Maintenance || d.Status == DeviceStatus.Offline)} need attention")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--primary" @onclick="OnNewDevice">+ New device</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        var filtered = ApplyFilters().ToList();
+
+        <div class="rs-filterbar">
+            <div class="rs-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5" />
+                    <path d="m20 20-4-4" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+                <input class="rs-input" value="@_query" @oninput="OnQueryInput" placeholder="Search by name…" />
+            </div>
+            <div class="rs-filter-group">
+                @foreach (var f in _statusFilters)
+                {
+                    var label = f;
+                    <button class="@(_status == f ? "is-active" : "")" @onclick="() => SetStatus(label)">@f.ToUpperInvariant()</button>
+                }
+            </div>
+            <select class="rs-select" style="width:200px" value="@_buildingFilter" @onchange="OnBuildingChanged">
+                <option value="All">All buildings</option>
+                @foreach (var b in _buildings)
+                {
+                    <option value="@b.BuildingId">@b.Name</option>
+                }
+            </select>
+            <div style="flex:1"></div>
+            <span class="rs-mono-sm">@filtered.Count shown</span>
+        </div>
+
+        <div class="rs-list-wrap">
+            @if (_deleteError is not null)
+            {
+                <RuleViolationBanner RuleId="@_deleteErrorRuleId" Title="Cannot delete">
+                    @_deleteError
+                </RuleViolationBanner>
+            }
+            <div class="rs-table-wrap">
+                <table class="rs-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Building</th>
+                            <th>Device-Group</th>
+                            <th style="width:200px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var index = 0;
+                        }
+                        @foreach (var d in filtered)
+                        {
+                            index++;
+                            var building = _buildings.FirstOrDefault(x => x.BuildingId == d.BuildingId);
+                            var group = d.AssignedDeviceGroupId.HasValue
+                                ? _groups.FirstOrDefault(x => x.DeviceGroupId == d.AssignedDeviceGroupId.Value)
+                                : null;
+                            var current = d;
+                            <tr>
+                                <td class="num">@index.ToString("00")</td>
+                                <td><span class="rs-mono">@d.Name</span></td>
+                                <td><Pill Device="d.Status" /></td>
+                                <td>@(building?.Name)</td>
+                                <td>
+                                    @if (group is not null)
+                                    {
+                                        <span>@group.Name <Pill Group="group.Status" /></span>
+                                    }
+                                    else
+                                    {
+                                        <span class="rs-muted">Unassigned</span>
+                                    }
+                                </td>
+                                <td>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnEdit(current)">Edit</button>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnDelete(current)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                        @if (filtered.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" style="padding:32px;text-align:center;color:var(--rs-ink-3)">No devices match the current filter.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<DeviceEditor Device="_editTarget" Buildings="_buildings" IsOpen="_editorOpen" OnClose="OnEditorClose" OnSaved="OnSaved" />
+
+@code {
+    private bool _loaded;
+    private IReadOnlyList<DeviceDto> _devices = Array.Empty<DeviceDto>();
+    private IReadOnlyList<BuildingDto> _buildings = Array.Empty<BuildingDto>();
+    private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
+
+    private string _query = string.Empty;
+    private string _status = "All";
+    private string _buildingFilter = "All";
+
+    private bool _editorOpen;
+    private DeviceDto? _editTarget;
+
+    private string? _deleteError;
+    private string? _deleteErrorRuleId;
+
+    private static readonly string[] _statusFilters =
+        new[] { "All", "Available", "Maintenance", "Offline", "Retired" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loaded = true;
+    }
+
+    private async Task Reload()
+    {
+        _devices = await Client.ListDevicesAsync();
+        _buildings = await Client.ListBuildingsAsync();
+        _groups = await Client.ListDeviceGroupsAsync();
+    }
+
+    private IEnumerable<DeviceDto> ApplyFilters()
+    {
+        IEnumerable<DeviceDto> q = _devices;
+        if (_status != "All")
+        {
+            if (Enum.TryParse<DeviceStatus>(_status, out var s))
+            {
+                q = q.Where(d => d.Status == s);
+            }
+        }
+        if (_buildingFilter != "All" && Guid.TryParse(_buildingFilter, out var bid))
+        {
+            q = q.Where(d => d.BuildingId == bid);
+        }
+        if (!string.IsNullOrWhiteSpace(_query))
+        {
+            q = q.Where(d => d.Name.Contains(_query, StringComparison.OrdinalIgnoreCase));
+        }
+        return q;
+    }
+
+    private void OnQueryInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+    }
+
+    private void SetStatus(string s) => _status = s;
+
+    private void OnBuildingChanged(ChangeEventArgs e)
+    {
+        _buildingFilter = e.Value?.ToString() ?? "All";
+    }
+
+    private void OnNewDevice()
+    {
+        _editTarget = null;
+        _editorOpen = true;
+    }
+
+    private void OnEdit(DeviceDto d)
+    {
+        _editTarget = d;
+        _editorOpen = true;
+    }
+
+    private void OnEditorClose()
+    {
+        _editorOpen = false;
+    }
+
+    private async Task OnSaved(DeviceDto _)
+    {
+        _editorOpen = false;
+        await Reload();
+    }
+
+    private async Task OnDelete(DeviceDto d)
+    {
+        _deleteError = null;
+        _deleteErrorRuleId = null;
+        try
+        {
+            await Client.DeleteDeviceAsync(d.DeviceId, d.Version);
+            await Reload();
+        }
+        catch (ValidationException ex)
+        {
+            _deleteError = ex.Message;
+            _deleteErrorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _deleteError = ex.Message;
+        }
+    }
+}

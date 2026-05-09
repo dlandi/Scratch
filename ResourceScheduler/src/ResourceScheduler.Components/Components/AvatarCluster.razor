@@ -1,0 +1,24 @@
+@* Renders up to Max avatars followed by a "+N" overflow chip. *@
+
+<span class="rs-avatar-cluster">
+    @{
+        var list = People as IList<PersonDto> ?? People.ToList();
+        var shownCount = Math.Min(Max, list.Count);
+        var rest = list.Count - shownCount;
+    }
+    @for (var i = 0; i < shownCount; i++)
+    {
+        var person = list[i];
+        var idx = i;
+        <Avatar Name="@person.Name" Idx="@idx" />
+    }
+    @if (rest > 0)
+    {
+        <span class="rs-mono" style="margin-left: 8px; color: var(--rs-ink-3)">+@rest</span>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public IEnumerable<PersonDto> People { get; set; } = Array.Empty<PersonDto>();
+    [Parameter] public int Max { get; set; } = 4;
+}

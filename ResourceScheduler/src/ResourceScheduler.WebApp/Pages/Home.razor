@@ -1,0 +1,325 @@
+@page "/"
+@inject IClientService Client
+@inject NavigationManager Nav
+
+<PageTitle>Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">01 · Dashboard</div>
+            <h1 class="rs-screen-title">
+                @if (_loaded)
+                {
+                    @($"Today, {_now:dddd MMMM d} · {_now:HH:mm}")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_activeGroupCount} active groups · {_deviceCount} devices · {_testGroupCount} test-groups")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn" @onclick="OpenSchedule">Open schedule</button>
+            <button class="rs-btn rs-btn--primary" @onclick="NewReservation">+ New reservation</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        <div class="rs-dash">
+            <div class="rs-dash-grid">
+                @* ---- Active groups today ---- *@
+                <div class="rs-dash-card">
+                    <div class="rs-dash-card-head">
+                        <div>
+                            <div class="rs-dash-card-eyebrow">Active groups today</div>
+                            <div class="rs-dash-card-num">@_activeNow.Count</div>
+                        </div>
+                        <Pill Group="DeviceGroupStatus.Active" Text="RUNNING" />
+                    </div>
+                    <div class="rs-dash-card-foot">
+                        @if (_activeNow.Count == 0)
+                        {
+                            <div class="rs-mono-sm">No groups active right now.</div>
+                        }
+                        else
+                        {
+                            @foreach (var r in _activeNow.Take(5))
+                            {
+                                var g = LookupGroup(r.DeviceGroupId);
+                                var t = LookupTestGroup(r.TestGroupId);
+                                var endLocal = r.EndUtc.ToLocalTime();
+                                <div class="rs-dash-row">
+                                    <span class="rs-dash-row-name">@(g?.Name)</span>
+                                    <span class="rs-dash-row-meta">@(t?.Name) · until @endLocal.ToString("HH:mm")</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                @* ---- Upcoming reservations ---- *@
+                <div class="rs-dash-card">
+                    <div class="rs-dash-card-head">
+                        <div>
+                            <div class="rs-dash-card-eyebrow">Upcoming reservations</div>
+                            <div class="rs-dash-card-num">@_upcoming.Count</div>
+                        </div>
+                        <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="OpenSchedule">view →</button>
+                    </div>
+                    <div class="rs-dash-card-foot">
+                        @if (_upcoming.Count == 0)
+                        {
+                            <div class="rs-mono-sm">No upcoming reservations.</div>
+                        }
+                        else
+                        {
+                            @foreach (var r in _upcoming.Take(5))
+                            {
+                                var g = LookupGroup(r.DeviceGroupId);
+                                var startLocal = r.StartUtc.ToLocalTime();
+                                <div class="rs-dash-row">
+                                    <span class="rs-dash-row-name">
+                                        <StatusDot Reservation="r.Status" Size="6" />@(g?.Name)
+                                    </span>
+                                    <span class="rs-dash-row-meta">
+                                        @startLocal.ToString("ddd").ToUpperInvariant() @startLocal.ToString("HH:mm")
+                                    </span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
+                @* ---- Devices needing attention ---- *@
+                <div class="rs-dash-card">
+                    <div class="rs-dash-card-head">
+                        <div>
+                            <div class="rs-dash-card-eyebrow">Devices needing attention</div>
+                            <div class="rs-dash-card-num">@_attention.Count</div>
+                        </div>
+                        <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="OpenDevices">view →</button>
+                    </div>
+                    <div class="rs-dash-card-foot">
+                        @if (_attention.Count == 0)
+                        {
+                            <div class="rs-mono-sm">All devices nominal.</div>
+                        }
+                        else
+                        {
+                            @foreach (var d in _attention)
+                            {
+                                var b = LookupBuilding(d.BuildingId);
+                                <div class="rs-dash-row">
+                                    <span class="rs-dash-row-name">
+                                        <StatusDot Device="d.Status" /><span class="rs-mono">@d.Name</span>
+                                    </span>
+                                    <span class="rs-dash-row-meta">@d.Status · @(b?.Name)</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* ---- Mini timeline ---- *@
+            <div class="rs-card">
+                <div class="rs-card-head">
+                    <span class="rs-card-title">@($"Today's groups · {_workdayStart:00}:00 → {_workdayEnd:00}:00")</span>
+                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="OpenSchedule">open timeline →</button>
+                </div>
+                <div style="padding:8px 16px 16px">
+                    @{
+                        var activeGroups = _groups.Where(g => g.Status == DeviceGroupStatus.Active).ToList();
+                        const int W = 1100;
+                        const int RowH = 28;
+                        const int PadL = 160;
+                        var startH = _workdayStart;
+                        var endH = _workdayEnd;
+                        var hours = endH - startH;
+                        var innerW = W - PadL;
+                        var totalH = 24 + activeGroups.Count * RowH;
+                        double XH(double h) => PadL + ((h - startH) / (double)hours) * innerW;
+                        var nowHour = _now.Hour + _now.Minute / 60.0;
+                        var todayLocal = _now.Date;
+                    }
+                    <svg viewBox="@($"0 0 {W} {totalH}")" width="100%" height="@totalH" style="display:block">
+                        @* hour ticks *@
+                        @for (var i = 0; i <= hours; i++)
+                        {
+                            var h = startH + i;
+                            var x = XH(h);
+                            var dash = (i % 4 == 0) ? "" : "2 4";
+                            <g>
+                                <line x1="@x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" y1="20"
+                                      x2="@x.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" y2="@totalH"
+                                      stroke="var(--rs-line)" stroke-dasharray="@dash" />
+                                @if (i % 4 == 0)
+                                {
+                                    <g>
+                                        <text x="@((x + 3).ToString("F2", System.Globalization.CultureInfo.InvariantCulture))" y="14"
+                                              font-family="IBM Plex Mono, ui-monospace, monospace"
+                                              font-size="9" fill="var(--rs-ink-4)">@h.ToString("00"):00</text>
+                                    </g>
+                                }
+                            </g>
+                        }
+                        @* now line *@
+                        @if (nowHour >= startH && nowHour <= endH)
+                        {
+                            var nx = XH(nowHour);
+                            <line x1="@nx.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" y1="20"
+                                  x2="@nx.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)" y2="@totalH"
+                                  stroke="var(--rs-bad)" stroke-width="1" stroke-dasharray="3 3" />
+                        }
+                        @* rows *@
+                        @for (var i = 0; i < activeGroups.Count; i++)
+                        {
+                            var g = activeGroups[i];
+                            var y = 24 + i * RowH;
+                            <g>
+                                <text x="8" y="@(y + 18)" font-size="11" fill="var(--rs-ink-2)">@g.Name</text>
+                                <line x1="@PadL" y1="@(y + RowH)" x2="@W" y2="@(y + RowH)" stroke="var(--rs-line)" />
+                                @foreach (var r in _reservations.Where(r => r.DeviceGroupId == g.DeviceGroupId
+                                                                          && r.StartUtc.ToLocalTime().Date == todayLocal))
+                                {
+                                    var sLocal = r.StartUtc.ToLocalTime();
+                                    var eLocal = r.EndUtc.ToLocalTime();
+                                    var sH = Math.Max(startH, sLocal.Hour + sLocal.Minute / 60.0);
+                                    var eH = Math.Min(endH, eLocal.Hour + eLocal.Minute / 60.0);
+                                    if (eH <= sH)
+                                    {
+                                        continue;
+                                    }
+                                    var x1 = XH(sH);
+                                    var x2 = XH(eH);
+                                    var w = Math.Max(2, x2 - x1);
+                                    var fill = r.Status switch
+                                    {
+                                        ReservationStatus.Confirmed => "var(--rs-ok)",
+                                        ReservationStatus.Pending => "transparent",
+                                        ReservationStatus.Cancelled => "var(--rs-bad-soft)",
+                                        ReservationStatus.Completed => "var(--rs-off-soft)",
+                                        _ => "transparent",
+                                    };
+                                    var stroke = r.Status switch
+                                    {
+                                        ReservationStatus.Confirmed => "var(--rs-ok)",
+                                        ReservationStatus.Pending => "var(--rs-ok)",
+                                        ReservationStatus.Cancelled => "var(--rs-bad-line)",
+                                        ReservationStatus.Completed => "var(--rs-off-line)",
+                                        _ => "var(--rs-line)",
+                                    };
+                                    var dashArray = r.Status == ReservationStatus.Pending ? "4 3" : "";
+                                    var opacity = r.Status == ReservationStatus.Completed ? "0.6" : "1";
+                                    <rect x="@x1.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                                          y="@(y + 4)"
+                                          width="@w.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                                          height="@(RowH - 10)"
+                                          rx="2"
+                                          fill="@fill"
+                                          stroke="@stroke"
+                                          stroke-width="1"
+                                          stroke-dasharray="@dashArray"
+                                          opacity="@opacity" />
+                                }
+                            </g>
+                        }
+                    </svg>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loaded;
+    private DateTime _now;
+
+    private const int _workdayStart = 6;
+    private const int _workdayEnd = 22;
+
+    private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
+    private IReadOnlyList<DeviceDto> _devices = Array.Empty<DeviceDto>();
+    private IReadOnlyList<ReservationDto> _reservations = Array.Empty<ReservationDto>();
+    private IReadOnlyList<TestGroupDto> _testGroups = Array.Empty<TestGroupDto>();
+    private IReadOnlyList<PersonDto> _people = Array.Empty<PersonDto>();
+    private IReadOnlyList<BuildingDto> _buildings = Array.Empty<BuildingDto>();
+
+    private Dictionary<Guid, DeviceGroupDto> _groupLookup = new();
+    private Dictionary<Guid, TestGroupDto> _testGroupLookup = new();
+    private Dictionary<Guid, BuildingDto> _buildingLookup = new();
+
+    private List<ReservationDto> _activeNow = new();
+    private List<ReservationDto> _upcoming = new();
+    private List<DeviceDto> _attention = new();
+
+    private int _activeGroupCount;
+    private int _deviceCount;
+    private int _testGroupCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _groups = await Client.ListDeviceGroupsAsync();
+        _devices = await Client.ListDevicesAsync();
+        _reservations = await Client.ListReservationsAsync();
+        _testGroups = await Client.ListTestGroupsAsync();
+        _people = await Client.ListPeopleAsync();
+        _buildings = await Client.ListBuildingsAsync();
+
+        _groupLookup = _groups.ToDictionary(g => g.DeviceGroupId);
+        _testGroupLookup = _testGroups.ToDictionary(t => t.TestGroupId);
+        _buildingLookup = _buildings.ToDictionary(b => b.BuildingId);
+
+        _now = DateTime.Now;
+        var nowUtc = DateTime.UtcNow;
+
+        _activeGroupCount = _groups.Count(g => g.Status == DeviceGroupStatus.Active);
+        _deviceCount = _devices.Count;
+        _testGroupCount = _testGroups.Count;
+
+        _activeNow = _reservations
+            .Where(r => r.Status == ReservationStatus.Confirmed
+                && r.StartUtc <= nowUtc
+                && r.EndUtc > nowUtc)
+            .OrderBy(r => r.StartUtc)
+            .ToList();
+
+        _upcoming = _reservations
+            .Where(r => (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)
+                && r.EndUtc > nowUtc)
+            .OrderBy(r => r.StartUtc)
+            .Take(5)
+            .ToList();
+
+        _attention = _devices
+            .Where(d => d.Status == DeviceStatus.Maintenance || d.Status == DeviceStatus.Offline)
+            .ToList();
+
+        _loaded = true;
+    }
+
+    private DeviceGroupDto? LookupGroup(Guid id) =>
+        _groupLookup.TryGetValue(id, out var g) ? g : null;
+
+    private TestGroupDto? LookupTestGroup(Guid id) =>
+        _testGroupLookup.TryGetValue(id, out var t) ? t : null;
+
+    private BuildingDto? LookupBuilding(Guid id) =>
+        _buildingLookup.TryGetValue(id, out var b) ? b : null;
+
+    private void OpenSchedule() => Nav.NavigateTo("/schedule");
+    private void NewReservation() => Nav.NavigateTo("/reservation");
+    private void OpenDevices() => Nav.NavigateTo("/devices");
+}

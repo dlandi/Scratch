@@ -1,0 +1,62 @@
+@* Top-of-app header. Includes the SVG brand mark, primary navigation,
+   and a small environment chip on the right. The actual screen routing
+   is handled by the host app; this component just raises ScreenChanged. *@
+
+<header class="rs-header">
+    <div class="rs-brand">
+        <svg class="rs-brand-mark" viewBox="0 0 22 22">
+            <rect x="1.5" y="1.5" width="19" height="19" rx="2" fill="none"
+                  stroke="var(--rs-ink)" stroke-width="1.25" />
+            <circle cx="6"  cy="6"  r="2" fill="var(--rs-ok)" />
+            <circle cx="16" cy="6"  r="2" fill="var(--rs-ink)" />
+            <circle cx="6"  cy="16" r="2" fill="var(--rs-ink)" />
+            <circle cx="16" cy="16" r="2" fill="var(--rs-warn)" />
+            <line x1="6"  y1="6"  x2="16" y2="6"  stroke="var(--rs-ink)" stroke-width="1" />
+            <line x1="6"  y1="6"  x2="6"  y2="16" stroke="var(--rs-ink)" stroke-width="1" />
+            <line x1="16" y1="6"  x2="16" y2="16" stroke="var(--rs-ink)" stroke-width="1" />
+            <line x1="6"  y1="16" x2="16" y2="16" stroke="var(--rs-ink)" stroke-width="1" />
+        </svg>
+        <span class="rs-brand-name"><b>Resource</b><span>.</span><b>Scheduler</b></span>
+    </div>
+    <nav class="rs-nav">
+        @foreach (var item in NavItems)
+        {
+            <button class="rs-nav-btn @(item.Id == ActiveScreen ? "is-active" : "")"
+                    @onclick="@(() => OnNav(item.Id))">
+                <span class="num">@item.Num</span>
+                <span>@item.Label</span>
+            </button>
+        }
+    </nav>
+    <div class="rs-header-right">
+        <span><span class="dot"></span>@StoreLabel</span>
+        <span>·</span>
+        <span>@Version</span>
+    </div>
+</header>
+
+@code {
+    private record NavItem(string Id, string Label, string Num);
+
+    private static readonly NavItem[] NavItems =
+    {
+        new("dashboard",   "Dashboard",      "01"),
+        new("buildings",   "Buildings",      "02"),
+        new("devices",     "Devices",        "03"),
+        new("groups",      "Device-Groups",  "04"),
+        new("designer",    "Designer",       "05"),
+        new("tests",       "Test-Groups",    "06"),
+        new("schedule",    "Schedule",       "07"),
+        new("reservation", "New Reservation","08"),
+    };
+
+    [Parameter] public string ActiveScreen { get; set; } = "dashboard";
+    [Parameter] public EventCallback<string> ScreenChanged { get; set; }
+
+    /// <summary>Right-hand environment label, e.g. "in-memory store" or "rust api".</summary>
+    [Parameter] public string StoreLabel { get; set; } = "in-memory store";
+
+    [Parameter] public string Version { get; set; } = "v0.1";
+
+    private Task OnNav(string id) => ScreenChanged.InvokeAsync(id);
+}

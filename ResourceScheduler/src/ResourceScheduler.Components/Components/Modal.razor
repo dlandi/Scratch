@@ -1,0 +1,45 @@
+@* Generic centered modal dialog. Renders nothing when IsOpen is false.
+   Backdrop and close button both raise OnClose; clicks inside the dialog
+   are stopped so they don't bubble up and close the modal. *@
+
+@if (IsOpen)
+{
+    <div class="rs-modal-backdrop" @onclick="HandleBackdropClick">
+        <div class="rs-modal" @onclick:stopPropagation="true">
+            <div class="rs-modal-head">
+                <span class="rs-modal-title">@Title</span>
+                <button type="button" class="rs-modal-close" @onclick="HandleClose" aria-label="Close">×</button>
+            </div>
+            <div class="rs-modal-body">
+                @ChildContent
+            </div>
+            @if (FooterContent is not null)
+            {
+                <div class="rs-modal-foot">
+                    @FooterContent
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public RenderFragment? FooterContent { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private async Task HandleClose()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private async Task HandleBackdropClick()
+    {
+        await HandleClose();
+    }
+}

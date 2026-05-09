@@ -1,0 +1,156 @@
+@page "/tests"
+@inject IClientService Client
+
+<PageTitle>Test-Groups · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">06 · Test-Groups</div>
+            <h1 class="rs-screen-title">Test-Groups</h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_teams.Count} teams · {_people.Count} people")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--primary" @onclick="OnNewTeam">+ New test-group</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        <div class="rs-detail" style="grid-template-columns:320px 1fr">
+            <div class="rs-detail-side" style="padding:0">
+                <div class="rs-pane-head" style="padding:16px 20px">
+                    <div class="rs-pane-title">
+                        <span>Teams</span>
+                        <span class="rs-mono-sm">@_teams.Count</span>
+                    </div>
+                </div>
+                <div class="rs-stack-2" style="padding:8px">
+                    @foreach (var t in _teams)
+                    {
+                        var team = t;
+                        var isOpen = _selectedId == team.TestGroupId;
+                        var border = isOpen ? "var(--rs-ink)" : "var(--rs-line)";
+                        var bg = isOpen ? "var(--rs-bg)" : "var(--rs-surface-2)";
+                        <div @onclick="() => Select(team.TestGroupId)"
+                             style="@($"padding:12px;cursor:pointer;border:1px solid {border};background:{bg};border-radius:2px")">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                                <span style="font-weight:500">@team.Name</span>
+                                <span class="rs-mono-sm">@team.MemberIds.Count people</span>
+                            </div>
+                            <AvatarCluster People="@MembersOf(team)" Max="5" />
+                        </div>
+                    }
+                    @if (_teams.Count == 0)
+                    {
+                        <div class="rs-empty">No teams yet.</div>
+                    }
+                </div>
+            </div>
+
+            <div class="rs-detail-main">
+                @if (_selected is not null)
+                {
+                    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px">
+                        <div>
+                            <div class="rs-label">Editing</div>
+                            <h2 style="margin:0;font-size:20px;font-weight:500">@_selected.Name</h2>
+                        </div>
+                        <div class="rs-row">
+                            <button class="rs-btn rs-btn--ghost" @onclick="OnRename">Rename</button>
+                            <button class="rs-btn" @onclick="OnDelete">Delete team</button>
+                        </div>
+                    </div>
+
+                    <div class="rs-card" style="margin-bottom:16px">
+                        <div class="rs-card-head">
+                            <span class="rs-card-title">Members (@_selected.MemberIds.Count)</span>
+                        </div>
+                        <div class="rs-card-body">
+                            @if (_selected.MemberIds.Count == 0)
+                            {
+                                <div class="rs-empty">No members yet.</div>
+                            }
+                            else
+                            {
+                                <div style="display:flex;flex-direction:column;gap:8px">
+                                    @{ var idx = 0; }
+                                    @foreach (var pid in _selected.MemberIds)
+                                    {
+                                        var p = _peopleById.TryGetValue(pid, out var found) ? found : null;
+                                        if (p is null) { continue; }
+                                        var i = idx++;
+                                        <div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--rs-line);border-radius:2px;background:var(--rs-surface-2)">
+                                            <Avatar Name="@p.Name" Idx="@i" Size="28" />
+                                            <div style="flex:1">
+                                                <div style="font-weight:500">@p.Name</div>
+                                                <div class="rs-mono-sm">@(p.Email ?? string.Empty)</div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="rs-empty">Select a team on the left.</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loaded;
+    private IReadOnlyList<TestGroupDto> _teams = Array.Empty<TestGroupDto>();
+    private IReadOnlyList<PersonDto> _people = Array.Empty<PersonDto>();
+    private Dictionary<Guid, PersonDto> _peopleById = new();
+
+    private Guid? _selectedId;
+    private TestGroupDto? _selected => _selectedId.HasValue
+        ? _teams.FirstOrDefault(t => t.TestGroupId == _selectedId.Value)
+        : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _teams = await Client.ListTestGroupsAsync();
+        _people = await Client.ListPeopleAsync();
+        _peopleById = _people.ToDictionary(p => p.PersonId);
+        _selectedId = _teams.FirstOrDefault()?.TestGroupId;
+        _loaded = true;
+    }
+
+    private IEnumerable<PersonDto> MembersOf(TestGroupDto team) =>
+        team.MemberIds
+            .Select(id => _peopleById.TryGetValue(id, out var p) ? p : null)
+            .Where(p => p is not null)!
+            .Cast<PersonDto>();
+
+    private void Select(Guid id) => _selectedId = id;
+
+    private void OnNewTeam()
+    {
+        // Placeholder: write operations are out of scope for this screen.
+    }
+
+    private void OnRename()
+    {
+        // Placeholder: rename flow is not yet implemented.
+    }
+
+    private void OnDelete()
+    {
+        // Placeholder: delete flow is not yet implemented.
+    }
+}

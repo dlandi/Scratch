@@ -1,0 +1,326 @@
+@page "/reservation"
+@inject IClientService Client
+@inject NavigationManager Nav
+
+<PageTitle>New reservation · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">08 · Reservation Editor</div>
+            <h1 class="rs-screen-title">New reservation</h1>
+            <p class="rs-screen-sub rs-mono-sm">Pick a Device-Group, a Test-Group, and a time window. Conflicts are flagged inline.</p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--ghost" @onclick="OnCancel">Cancel</button>
+            <button class="rs-btn" @onclick="OnSavePending" disabled="@(!_loaded || _saving)">Save as Pending</button>
+            <button class="rs-btn rs-btn--primary"
+                    disabled="@(!_loaded || _saving || _conflicts.Count > 0 || !ValidRange || !GroupActive)"
+                    @onclick="OnConfirm">
+                Confirm
+            </button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        <div class="rs-resv-editor">
+            <div class="rs-resv-form-wrap">
+                @if (_saveError is not null)
+                {
+                    <RuleViolationBanner RuleId="@_saveError.RuleId" Title="Save failed.">@_saveError.Message</RuleViolationBanner>
+                }
+                @foreach (var c in _conflicts)
+                {
+                    var og = _groups.FirstOrDefault(g => g.DeviceGroupId == c.R.DeviceGroupId);
+                    var ot = _testGroups.FirstOrDefault(t => t.TestGroupId == c.R.TestGroupId);
+                    var range = $"{c.R.StartUtc.ToLocalTime():HH:mm}-{c.R.EndUtc.ToLocalTime():HH:mm}";
+                    <RuleViolationBanner RuleId="@c.RuleId" Title="Conflict detected.">
+                        <span class="rs-mono-sm">@(og?.Name) · @(ot?.Name) · @range</span>
+                    </RuleViolationBanner>
+                }
+                @if (!ValidRange)
+                {
+                    <RuleViolationBanner RuleId="R13" Title="Invalid range.">End time must be after start.</RuleViolationBanner>
+                }
+                @if (!GroupActive)
+                {
+                    <RuleViolationBanner RuleId="R9" Title="Group not active.">Activate it before confirming a reservation.</RuleViolationBanner>
+                }
+
+                <div class="rs-form">
+                    <div class="rs-field rs-field--full">
+                        <label class="rs-label">Device-Group</label>
+                        <select class="rs-select" @bind="_groupId" @bind:after="RecomputeConflicts">
+                            @foreach (var g in _groups)
+                            {
+                                <option value="@g.DeviceGroupId">@g.Name · @g.Status</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="rs-field rs-field--full">
+                        <label class="rs-label">Test-Group</label>
+                        <select class="rs-select" @bind="_testGroupId" @bind:after="RecomputeConflicts">
+                            @foreach (var t in _testGroups)
+                            {
+                                <option value="@t.TestGroupId">@t.Name · @t.MemberIds.Count people</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="rs-field">
+                        <label class="rs-label">Date</label>
+                        <input type="date" class="rs-input" value="@_date" @onchange="OnDateChanged" />
+                    </div>
+                    <div class="rs-field"></div>
+                    <div class="rs-field">
+                        <label class="rs-label">Start (24h)</label>
+                        <input type="time" class="rs-input" value="@_start" @onchange="OnStartChanged" />
+                    </div>
+                    <div class="rs-field">
+                        <label class="rs-label">End (24h)</label>
+                        <input type="time" class="rs-input" value="@_end" @onchange="OnEndChanged" />
+                    </div>
+                    <div class="rs-field rs-field--full">
+                        <label class="rs-label">Notes (optional)</label>
+                        <textarea class="rs-textarea" rows="3" @bind="_notes" placeholder="What is this reservation for?"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rs-resv-side">
+                <div class="rs-pane-title" style="margin-bottom:12px">
+                    <span>Preview</span>
+                    <span class="rs-mono-sm">@ParseDate().ToString("ddd, MMM d")</span>
+                </div>
+                <div class="rs-resv-preview" style="margin-bottom:16px">
+                    @{
+                        const int W = 320, H = 90, padL = 8, startH = 6, endH = 22;
+                        const int hours = endH - startH;
+                        var (sUtc, eUtc) = ComputeWindowUtc();
+                        var dateLocal = ParseDate();
+                        var sLocal = sUtc.ToLocalTime();
+                        var eLocal = eUtc.ToLocalTime();
+                        var sHd = sLocal.Hour + sLocal.Minute / 60.0;
+                        var eHd = eLocal.Hour + eLocal.Minute / 60.0;
+                        var hasConflict = _conflicts.Count > 0;
+                        var newFill = hasConflict ? "var(--rs-bad-soft)" : "var(--rs-warn-soft)";
+                        var newStroke = hasConflict ? "var(--rs-bad)" : "var(--rs-warn)";
+                        var existing = _reservations
+                            .Where(r => r.Status == ReservationStatus.Confirmed
+                                && r.StartUtc.ToLocalTime().Date == dateLocal.Date
+                                && (r.DeviceGroupId == _groupId || r.TestGroupId == _testGroupId))
+                            .ToList();
+                        double XH(double h) => padL + ((h - startH) / (double)hours) * (W - 16);
+                        var nx1 = XH(sHd);
+                        var nx2 = XH(eHd);
+                    }
+                    <svg viewBox="0 0 @W @H" width="100%" height="@H" style="display:block">
+                        @for (var i = 0; i <= hours; i++)
+                        {
+                            var h = startH + i;
+                            var x = XH(h);
+                            <g>
+                                <line x1="@F(x)" y1="20" x2="@F(x)" y2="@(H - 8)"
+                                      stroke="var(--rs-line)" stroke-dasharray="@(i % 4 == 0 ? "" : "2 4")" />
+                                @if (i % 4 == 0)
+                                {
+                                    <g>
+                                        <text x="@F(x + 2)" y="14"
+                                              font-family="IBM Plex Mono, ui-monospace, monospace"
+                                              font-size="9" fill="var(--rs-ink-4)">@h.ToString("00")</text>
+                                    </g>
+                                }
+                            </g>
+                        }
+                        <text x="6" y="42" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="9" fill="var(--rs-ink-4)">EXISTING</text>
+                        <text x="6" y="72" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="9" fill="var(--rs-ink-4)">NEW</text>
+                        @foreach (var r in existing)
+                        {
+                            var rs = r.StartUtc.ToLocalTime();
+                            var re = r.EndUtc.ToLocalTime();
+                            var x1 = XH(rs.Hour + rs.Minute / 60.0);
+                            var x2 = XH(re.Hour + re.Minute / 60.0);
+                            <rect x="@F(x1)" y="32" width="@F(Math.Max(2, x2 - x1))" height="14" rx="2"
+                                  fill="var(--rs-ok)" stroke="var(--rs-ok)" />
+                        }
+                        <rect x="@F(nx1)" y="62" width="@F(Math.Max(2, nx2 - nx1))" height="14" rx="2"
+                              fill="@newFill" stroke="@newStroke" stroke-width="1.25" stroke-dasharray="4 3" />
+                    </svg>
+                </div>
+
+                <div class="rs-pane-title" style="margin-bottom:12px"><span>Group</span></div>
+                @if (CurrentGroup is { } cg)
+                {
+                    <div class="rs-resv-preview" style="margin-bottom:16px">
+                        <div style="font-weight:500;margin-bottom:4px">@cg.Name</div>
+                        <div class="rs-mono-sm" style="margin-bottom:10px">@cg.DeviceIds.Count devices · @cg.Connections.Count connections</div>
+                        <div style="height:100px"><MiniTopology Group="cg" Devices="_deviceLookup" /></div>
+                        <div style="margin-top:8px"><Pill Group="cg.Status" /></div>
+                    </div>
+                }
+
+                <div class="rs-pane-title" style="margin-bottom:12px"><span>Team</span></div>
+                @if (CurrentTeam is { } ct)
+                {
+                    var ppl = ct.MemberIds.Select(id => _peopleLookup.TryGetValue(id, out var p) ? p : null)
+                                          .Where(p => p is not null).Cast<PersonDto>().ToList();
+                    <div class="rs-resv-preview">
+                        <div style="font-weight:500;margin-bottom:8px">@ct.Name</div>
+                        <AvatarCluster People="ppl" Max="6" />
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loaded;
+    private bool _saving;
+    private SaveError? _saveError;
+
+    private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
+    private IReadOnlyList<TestGroupDto> _testGroups = Array.Empty<TestGroupDto>();
+    private IReadOnlyList<ReservationDto> _reservations = Array.Empty<ReservationDto>();
+    private IReadOnlyDictionary<Guid, DeviceDto> _deviceLookup = new Dictionary<Guid, DeviceDto>();
+    private IReadOnlyDictionary<Guid, PersonDto> _peopleLookup = new Dictionary<Guid, PersonDto>();
+
+    private Guid _groupId;
+    private Guid _testGroupId;
+    private string _date = DateTime.Today.ToString("yyyy-MM-dd");
+    private string _start = "10:00";
+    private string _end = "13:00";
+    private string _notes = string.Empty;
+
+    private List<Conflict> _conflicts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _groups = await Client.ListDeviceGroupsAsync();
+        _testGroups = await Client.ListTestGroupsAsync();
+        _reservations = await Client.ListReservationsAsync();
+        var devices = await Client.ListDevicesAsync();
+        var people = await Client.ListPeopleAsync();
+        _deviceLookup = devices.ToDictionary(d => d.DeviceId);
+        _peopleLookup = people.ToDictionary(p => p.PersonId);
+
+        var firstActive = _groups.FirstOrDefault(g => g.Status == DeviceGroupStatus.Active) ?? _groups.FirstOrDefault();
+        _groupId = firstActive?.DeviceGroupId ?? Guid.Empty;
+        _testGroupId = _testGroups.FirstOrDefault()?.TestGroupId ?? Guid.Empty;
+
+        _loaded = true;
+        RecomputeConflicts();
+    }
+
+    private DeviceGroupDto? CurrentGroup => _groups.FirstOrDefault(g => g.DeviceGroupId == _groupId);
+    private TestGroupDto? CurrentTeam => _testGroups.FirstOrDefault(t => t.TestGroupId == _testGroupId);
+    private bool GroupActive => CurrentGroup?.Status == DeviceGroupStatus.Active;
+
+    private DateTime ParseDate() =>
+        DateTime.TryParseExact(_date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None, out var d) ? d.Date : DateTime.Today;
+
+    private (DateTime startUtc, DateTime endUtc) ComputeWindowUtc()
+    {
+        var dt = ParseDate();
+        var (sh, sm) = ParseHm(_start);
+        var (eh, em) = ParseHm(_end);
+        var localStart = DateTime.SpecifyKind(new DateTime(dt.Year, dt.Month, dt.Day, sh, sm, 0), DateTimeKind.Local);
+        var localEnd = DateTime.SpecifyKind(new DateTime(dt.Year, dt.Month, dt.Day, eh, em, 0), DateTimeKind.Local);
+        return (localStart.ToUniversalTime(), localEnd.ToUniversalTime());
+    }
+
+    private static (int h, int m) ParseHm(string s)
+    {
+        var parts = s.Split(':');
+        if (parts.Length < 2) return (0, 0);
+        _ = int.TryParse(parts[0], out var h);
+        _ = int.TryParse(parts[1], out var m);
+        return (h, m);
+    }
+
+    // Bind the native date/time inputs through explicit value/onchange to keep
+    // the underlying fields as strings (Blazor's @bind on these input types
+    // would force a DateTime/TimeOnly conversion overload).
+    private void OnDateChanged(ChangeEventArgs e)
+    {
+        _date = e.Value?.ToString() ?? _date;
+        RecomputeConflicts();
+    }
+
+    private void OnStartChanged(ChangeEventArgs e)
+    {
+        _start = e.Value?.ToString() ?? _start;
+        RecomputeConflicts();
+    }
+
+    private void OnEndChanged(ChangeEventArgs e)
+    {
+        _end = e.Value?.ToString() ?? _end;
+        RecomputeConflicts();
+    }
+
+    private bool ValidRange
+    {
+        get
+        {
+            var (s, e) = ComputeWindowUtc();
+            return e > s;
+        }
+    }
+
+    private void RecomputeConflicts()
+    {
+        _conflicts.Clear();
+        if (!_loaded) return;
+        var (sUtc, eUtc) = ComputeWindowUtc();
+        if (eUtc <= sUtc) return;
+
+        foreach (var r in _reservations)
+        {
+            if (r.Status != ReservationStatus.Confirmed) continue;
+            var overlap = sUtc < r.EndUtc && eUtc > r.StartUtc;
+            if (!overlap) continue;
+            if (r.DeviceGroupId == _groupId)
+                _conflicts.Add(new Conflict("R10", "Group already booked", r));
+            if (r.TestGroupId == _testGroupId)
+                _conflicts.Add(new Conflict("R11", "Test-group already booked", r));
+        }
+    }
+
+    private Task OnSavePending() => SaveAsync(confirm: false);
+    private Task OnConfirm() => SaveAsync(confirm: true);
+    private void OnCancel() => Nav.NavigateTo("/schedule");
+
+    private async Task SaveAsync(bool confirm)
+    {
+        _saveError = null;
+        _saving = true;
+        try
+        {
+            var (sUtc, eUtc) = ComputeWindowUtc();
+            var input = new ReservationCreate(_groupId, _testGroupId, sUtc, eUtc,
+                string.IsNullOrWhiteSpace(_notes) ? null : _notes);
+            var created = await Client.CreateReservationAsync(input);
+            if (confirm)
+            {
+                await Client.ConfirmReservationAsync(created.ReservationId, created.Version);
+            }
+            Nav.NavigateTo("/schedule");
+        }
+        catch (ValidationException ex)
+        {
+            _saveError = new SaveError(ex.RuleId, ex.Message);
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private static string F(double v) =>
+        v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    private sealed record Conflict(string RuleId, string Text, ReservationDto R);
+    private sealed record SaveError(string RuleId, string Message);
+}

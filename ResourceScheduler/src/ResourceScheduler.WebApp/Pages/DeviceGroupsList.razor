@@ -1,0 +1,127 @@
+@page "/groups"
+@inject IClientService Client
+
+<PageTitle>Device-Groups · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">04 · Device-Groups</div>
+            <h1 class="rs-screen-title">Device-Groups</h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_groups.Count(g => g.Status == DeviceGroupStatus.Active)} active · {_groups.Count(g => g.Status != DeviceGroupStatus.Active)} draft")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--primary" @onclick="OnNewGroup">+ New group</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        var filtered = ApplyFilter().ToList();
+
+        <div class="rs-filterbar">
+            <div class="rs-filter-group">
+                @foreach (var f in _filters)
+                {
+                    var label = f;
+                    <button class="@(_filter == f ? "is-active" : "")" @onclick="() => SetFilter(label)">@f.ToUpperInvariant()</button>
+                }
+            </div>
+            <div style="flex:1"></div>
+            <span class="rs-mono-sm">@filtered.Count shown</span>
+        </div>
+
+        <div class="rs-list-wrap">
+            <div class="rs-grid">
+                @foreach (var g in filtered)
+                {
+                    var next = NextReservationFor(g.DeviceGroupId);
+                    <div class="rs-group-card">
+                        <div class="rs-group-card-head">
+                            <h3 class="rs-group-card-name">@g.Name</h3>
+                            <Pill Group="g.Status" />
+                        </div>
+                        <div class="rs-group-card-thumb">
+                            <MiniTopology Group="@g" Devices="@_deviceLookup" />
+                        </div>
+                        <div class="rs-group-card-foot">
+                            <span>@g.DeviceIds.Count devices · @g.Connections.Count cables</span>
+                            <span>
+                                @if (next is not null)
+                                {
+                                    @($"next: {next.StartUtc.ToLocalTime():ddd HH:mm}")
+                                }
+                                else
+                                {
+                                    <span class="rs-muted">no upcoming</span>
+                                }
+                            </span>
+                        </div>
+                    </div>
+                }
+                @if (filtered.Count == 0)
+                {
+                    <div class="rs-empty">No device-groups match the current filter.</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _loaded;
+    private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
+    private IReadOnlyList<ReservationDto> _reservations = Array.Empty<ReservationDto>();
+    private IReadOnlyDictionary<Guid, DeviceDto> _deviceLookup =
+        new Dictionary<Guid, DeviceDto>();
+
+    private string _filter = "All";
+    private static readonly string[] _filters = new[] { "All", "Active", "Inactive" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _groups = await Client.ListDeviceGroupsAsync();
+        _reservations = await Client.ListReservationsAsync();
+        var devices = await Client.ListDevicesAsync();
+        _deviceLookup = devices.ToDictionary(d => d.DeviceId);
+        _loaded = true;
+    }
+
+    private IEnumerable<DeviceGroupDto> ApplyFilter()
+    {
+        if (_filter == "All") return _groups;
+        if (Enum.TryParse<DeviceGroupStatus>(_filter, out var s))
+        {
+            return _groups.Where(g => g.Status == s);
+        }
+        return _groups;
+    }
+
+    private ReservationDto? NextReservationFor(Guid groupId)
+    {
+        var now = DateTime.UtcNow;
+        return _reservations
+            .Where(r => r.DeviceGroupId == groupId
+                && r.EndUtc >= now
+                && r.Status != ReservationStatus.Cancelled
+                && r.Status != ReservationStatus.Completed)
+            .OrderBy(r => r.StartUtc)
+            .FirstOrDefault();
+    }
+
+    private void SetFilter(string s) => _filter = s;
+
+    private void OnNewGroup()
+    {
+        // Placeholder: write operations are out of scope for this screen.
+    }
+}

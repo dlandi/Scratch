@@ -1,0 +1,117 @@
+@* Person create/edit modal. Email is optional; if non-empty it must
+   contain '@@' as a minimal client-side sanity check. *@
+
+@inject IClientService Client
+
+<Modal IsOpen="IsOpen" Title="@TitleText" OnClose="OnClose">
+    <ChildContent>
+        @if (_error is not null)
+        {
+            <div style="margin-bottom: 16px">
+                <RuleViolationBanner RuleId="@_errorRuleId" Title="Cannot save">
+                    @_error
+                </RuleViolationBanner>
+            </div>
+        }
+        <div class="rs-form">
+            <div class="rs-field rs-field--full">
+                <label class="rs-label">Name</label>
+                <input class="rs-input" @bind="_name" @bind:event="oninput" placeholder="Full name" />
+            </div>
+            <div class="rs-field rs-field--full">
+                <label class="rs-label">Email</label>
+                <input class="rs-input" @bind="_email" @bind:event="oninput" placeholder="optional" />
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <button type="button" class="rs-btn rs-btn--ghost" @onclick="OnClose" disabled="@_saving">Cancel</button>
+        <button type="button" class="rs-btn rs-btn--primary" @onclick="Save" disabled="@(_saving || string.IsNullOrWhiteSpace(_name))">
+            @(_saving ? "Saving…" : "Save")
+        </button>
+    </FooterContent>
+</Modal>
+
+@code {
+    [Parameter] public PersonDto? Person { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<PersonDto> OnSaved { get; set; }
+
+    private bool _wasOpen;
+    private bool _saving;
+    private string _name = string.Empty;
+    private string _email = string.Empty;
+    private string? _error;
+    private string? _errorRuleId;
+
+    private string TitleText => Person is null ? "New person" : "Edit person";
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _name = Person?.Name ?? string.Empty;
+            _email = Person?.Email ?? string.Empty;
+            _error = null;
+            _errorRuleId = null;
+            _saving = false;
+        }
+        _wasOpen = IsOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_name))
+        {
+            return;
+        }
+
+        var trimmedEmail = (_email ?? string.Empty).Trim();
+        if (!string.IsNullOrEmpty(trimmedEmail) && !trimmedEmail.Contains('@'))
+        {
+            _error = "Email must contain an '@' character.";
+            _errorRuleId = null;
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+        _errorRuleId = null;
+        try
+        {
+            var emailToSend = string.IsNullOrEmpty(trimmedEmail) ? null : trimmedEmail;
+
+            PersonDto saved;
+            if (Person is null)
+            {
+                saved = await Client.CreatePersonAsync(new PersonCreate(_name.Trim(), emailToSend));
+            }
+            else
+            {
+                saved = await Client.UpdatePersonAsync(
+                    Person.PersonId,
+                    new PersonUpdate(_name.Trim(), emailToSend));
+            }
+            await OnSaved.InvokeAsync(saved);
+        }
+        catch (ValidationException ex)
+        {
+            _error = ex.Message;
+            _errorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}

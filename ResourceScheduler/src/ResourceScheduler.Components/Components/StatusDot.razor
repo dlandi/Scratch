@@ -1,0 +1,21 @@
+@* A small colored dot that encodes a Device, Group, or Reservation status. *@
+
+<span class="rs-dot rs-dot--@CssClass" style="width:@(Size)px;height:@(Size)px"></span>
+
+@code {
+    /// <summary>
+    /// Pass exactly one of <see cref="Device"/>, <see cref="Group"/>, or
+    /// <see cref="Reservation"/>. The component picks the corresponding
+    /// CSS class suffix.
+    /// </summary>
+    [Parameter] public DeviceStatus? Device { get; set; }
+    [Parameter] public DeviceGroupStatus? Group { get; set; }
+    [Parameter] public ReservationStatus? Reservation { get; set; }
+    [Parameter] public int Size { get; set; } = 8;
+
+    private string CssClass =>
+        Device   is { } d ? StatusClassMap.ForDevice(d) :
+        Group    is { } g ? StatusClassMap.ForGroup(g)  :
+        Reservation is { } r ? StatusClassMap.ForReservation(r) :
+        "off";
+}

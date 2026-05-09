@@ -1,0 +1,654 @@
+@page "/schedule"
+@inject IClientService Client
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Schedule Timeline · Resource.Scheduler</PageTitle>
+
+<div class="rs-timeline-screen">
+    <div class="rs-timeline-head">
+        <div class="rs-row">
+            <div>
+                <div class="rs-screen-eyebrow">07 · Schedule Timeline</div>
+                <div class="rs-screen-title" style="font-size:18px">@HeaderDate</div>
+            </div>
+        </div>
+        <div class="rs-timeline-controls">
+            <div class="rs-timeline-legend">
+                <span><span class="swatch" style="background:transparent;border:1.5px solid var(--rs-ok)"></span>Pending</span>
+                <span><span class="swatch" style="background:var(--rs-ok)"></span>Confirmed</span>
+                <span><span class="swatch" style="background:var(--rs-bad-soft);text-decoration:line-through"></span>Cancelled</span>
+                <span><span class="swatch" style="background:var(--rs-off-soft);border:1px solid var(--rs-off-line)"></span>Completed</span>
+                <span style="padding-left:12px;border-left:1px solid var(--rs-line)">
+                    <span class="swatch" style="background:var(--rs-bad)"></span>Conflict
+                </span>
+            </div>
+            <div class="rs-toggle">
+                <button class="@(View == "day" ? "is-active" : "")" @onclick='() => SetView("day")'>DAY</button>
+                <button class="@(View == "week" ? "is-active" : "")" @onclick='() => SetView("week")'>WEEK</button>
+            </div>
+            <button class="rs-btn rs-btn--sm" @onclick="StepBack">‹</button>
+            <button class="rs-btn rs-btn--sm" @onclick="GoToday">Today</button>
+            <button class="rs-btn rs-btn--sm" @onclick="StepForward">›</button>
+            <button class="rs-btn rs-btn--primary rs-btn--sm" @onclick='() => Nav.NavigateTo("/reservation")'>+ Reservation</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        var orderedGroups = OrderedGroups();
+        var fromOffset = FromOffset;
+        var toOffset = fromOffset + DAYS_VISIBLE - 1;
+        var hourW = HourW;
+        var totalW = hourW * HOURS_PER_DAY * DAYS_VISIBLE;
+        var totalH = ROW_H * orderedGroups.Count;
+        var today = DateTime.Now.Date;
+
+        var visible = _reservations.Where(r =>
+        {
+            var off = (r.StartUtc.ToLocalTime().Date - today).Days;
+            return off >= fromOffset && off <= toOffset;
+        }).ToList();
+
+        @if (!string.IsNullOrEmpty(_dragError))
+        {
+            <div style="margin:8px 24px">
+                <RuleViolationBanner RuleId="@_dragErrorRuleId" Title="Cannot create reservation">
+                    @_dragError
+                </RuleViolationBanner>
+            </div>
+        }
+
+        <div class="rs-timeline-wrap">
+            <div class="rs-timeline-rail">
+                <div class="rs-timeline-rail-header">Device-Group</div>
+                @foreach (var g in orderedGroups)
+                {
+                    <div class="rs-timeline-rail-row" style="height:@(ROW_H)px">
+                        <span class="name">
+                            <StatusDot Group="g.Status" Size="6" />
+                            <span style="margin-left:6px">@g.Name</span>
+                        </span>
+                        <span class="badge">@(g.DeviceIds.Count)d</span>
+                    </div>
+                }
+            </div>
+
+            <div class="rs-timeline-canvas">
+                <svg @ref="_svgRef" width="@totalW" height="@(40 + totalH)" style="display:block"
+                     @onmousemove="OnSvgMouseMove" @onmouseup="OnSvgMouseUp">
+                    <rect x="0" y="0" width="@totalW" height="40" fill="var(--rs-surface)" />
+                    <line x1="0" y1="40" x2="@totalW" y2="40" stroke="var(--rs-line)" />
+
+                    @if (View == "week")
+                    {
+                        @for (int i = 0; i < DAYS_VISIBLE; i++)
+                        {
+                            var x = i * HOURS_PER_DAY * hourW;
+                            var d = today.AddDays(fromOffset + i);
+                            var isToday = (fromOffset + i) == 0;
+                            <g>
+                                <line x1="@x" y1="0" x2="@x" y2="@(40 + totalH)"
+                                      stroke="var(--rs-line-2)" stroke-width="@(i == 0 ? 0 : 1)" />
+                                @if (isToday)
+                                {
+                                    <rect x="@x" y="40" width="@(HOURS_PER_DAY * hourW)" height="@totalH"
+                                          fill="var(--rs-accent-soft)" opacity="0.18" />
+                                }
+                                <text x="@(x + 8)" y="16"
+                                      font-family="IBM Plex Mono, ui-monospace, monospace"
+                                      font-size="10" fill="var(--rs-ink-3)" letter-spacing="0.06em">
+                                    @($"{d.ToString("ddd").ToUpperInvariant()} {d.Day:D2}")
+                                </text>
+                            </g>
+                        }
+                    }
+
+                    @{
+                        var majorEvery = View == "day" ? 1 : 4;
+                    }
+                    @for (int i = 0; i <= HOURS_PER_DAY * DAYS_VISIBLE; i++)
+                    {
+                        var x = i * hourW;
+                        var hourOfDay = (i % HOURS_PER_DAY) + START_H;
+                        var major = (hourOfDay % majorEvery) == 0;
+                        <g>
+                            <line x1="@x" y1="40" x2="@x" y2="@(40 + totalH)"
+                                  stroke="@(major ? "var(--rs-line-2)" : "var(--rs-line)")"
+                                  stroke-width="@(major ? "1" : "0.5")"
+                                  stroke-dasharray="@(major ? "" : "2 4")" />
+                            @if ((View == "day" || major) && i < HOURS_PER_DAY * DAYS_VISIBLE)
+                            {
+                                <g>
+                                    <text x="@(x + 4)" y="@(View == "week" ? 32 : 28)"
+                                          font-family="IBM Plex Mono, ui-monospace, monospace"
+                                          font-size="10" fill="var(--rs-ink-4)">
+                                        @($"{hourOfDay:D2}:00")
+                                    </text>
+                                </g>
+                            }
+                        </g>
+                    }
+
+                    @for (int ri = 0; ri < orderedGroups.Count; ri++)
+                    {
+                        var y = 40 + ri * ROW_H;
+                        var isAlt = ri % 2 != 0;
+                        var rowGroup = orderedGroups[ri];
+                        var rowCursor = rowGroup.Status == DeviceGroupStatus.Active ? "crosshair" : "default";
+                        <g>
+                            <rect x="0" y="@y" width="@totalW" height="@ROW_H"
+                                  fill="@(isAlt ? "var(--rs-surface)" : "transparent")" opacity="0.5" />
+                            <line x1="0" y1="@(y + ROW_H)" x2="@totalW" y2="@(y + ROW_H)" stroke="var(--rs-line)" />
+                            <rect x="0" y="@y" width="@totalW" height="@ROW_H"
+                                  fill="transparent" style="cursor:@rowCursor"
+                                  @onmousedown="@(e => OnRowMouseDown(e, rowGroup))" />
+                        </g>
+                    }
+
+                    @if (fromOffset <= 0 && toOffset >= 0)
+                    {
+                        var now = DateTime.Now;
+                        var nowH = now.Hour + now.Minute / 60.0;
+                        if (nowH >= START_H && nowH <= END_H)
+                        {
+                            var todayIdx = -fromOffset;
+                            var nx = todayIdx * HOURS_PER_DAY * hourW + (nowH - START_H) * hourW;
+                            <g>
+                                <line x1="@nx" y1="40" x2="@nx" y2="@(40 + totalH)"
+                                      stroke="var(--rs-bad)" stroke-width="1" stroke-dasharray="3 3" />
+                                <rect x="@(nx - 30)" y="40" width="60" height="14" fill="var(--rs-bad)" rx="2" />
+                                <text x="@nx" y="51" text-anchor="middle"
+                                      font-family="IBM Plex Mono, ui-monospace, monospace"
+                                      font-size="9" fill="white" letter-spacing="0.06em">
+                                    @($"NOW · {now:HH:mm}")
+                                </text>
+                            </g>
+                        }
+                    }
+
+                    @foreach (var r in visible)
+                    {
+                        var ri = orderedGroups.FindIndex(g => g.DeviceGroupId == r.DeviceGroupId);
+                        if (ri < 0) { continue; }
+                        var localStart = r.StartUtc.ToLocalTime();
+                        var localEnd = r.EndUtc.ToLocalTime();
+                        var rOff = (localStart.Date - today).Days;
+                        var dayIdx = rOff - fromOffset;
+                        var startHour = localStart.Hour + localStart.Minute / 60.0;
+                        var endHour = localEnd.Hour + localEnd.Minute / 60.0;
+                        if (localEnd.Date > localStart.Date) { endHour = END_H; }
+                        var rx = dayIdx * HOURS_PER_DAY * hourW + (startHour - START_H) * hourW;
+                        var ry = 40 + ri * ROW_H + 6;
+                        var rw = (endHour - startHour) * hourW;
+                        var rh = ROW_H - 12;
+                        var tg = _testGroups.FirstOrDefault(t => t.TestGroupId == r.TestGroupId);
+                        var isSel = SelectedReservationId == r.ReservationId;
+
+                        var isPending = r.Status == ReservationStatus.Pending;
+                        var isCancelled = r.Status == ReservationStatus.Cancelled;
+                        var isCompleted = r.Status == ReservationStatus.Completed;
+                        var isConfirmed = r.Status == ReservationStatus.Confirmed;
+
+                        var fill = isConfirmed ? "var(--rs-ok)"
+                                  : isPending ? "transparent"
+                                  : isCancelled ? "var(--rs-bad-soft)"
+                                  : "var(--rs-off-soft)";
+                        var stroke = isConfirmed ? "var(--rs-ok)"
+                                    : isPending ? "var(--rs-ok)"
+                                    : isCancelled ? "var(--rs-bad-line)"
+                                    : "var(--rs-off-line)";
+                        var textCol = isConfirmed ? "white"
+                                     : isPending ? "var(--rs-ok)"
+                                     : isCancelled ? "var(--rs-bad)"
+                                     : "var(--rs-off)";
+                        var rid = r.ReservationId;
+
+                        <g style="cursor:pointer" @onclick="() => SelectReservation(rid)">
+                            <rect x="@(rx + 1)" y="@ry"
+                                  width="@(Math.Max(2, rw - 2))" height="@rh" rx="3"
+                                  fill="@fill" stroke="@stroke"
+                                  stroke-width="@(isPending ? "1.5" : "1")"
+                                  stroke-dasharray="@(isPending ? "5 3" : "")"
+                                  opacity="@(isCompleted ? "0.65" : "1")" />
+                            @if (isSel)
+                            {
+                                <rect x="@(rx - 1)" y="@(ry - 2)"
+                                      width="@(rw + 2)" height="@(rh + 4)" rx="4"
+                                      fill="none" stroke="var(--rs-accent)" stroke-width="1.5" />
+                            }
+                            @if (rw > 50)
+                            {
+                                <g>
+                                    <text x="@(rx + 8)" y="@(ry + 16)"
+                                          font-family="IBM Plex Sans, system-ui, sans-serif"
+                                          font-size="11" font-weight="500" fill="@textCol"
+                                          text-decoration="@(isCancelled ? "line-through" : "none")"
+                                          style="pointer-events:none">
+                                        @tg?.Name
+                                    </text>
+                                </g>
+                                @if (rh > 26 && rw > 80)
+                                {
+                                    <g>
+                                        <text x="@(rx + 8)" y="@(ry + 30)"
+                                              font-family="IBM Plex Mono, ui-monospace, monospace"
+                                              font-size="10"
+                                              fill="@(isConfirmed ? "rgba(255,255,255,0.85)" : "var(--rs-ink-3)")"
+                                              style="pointer-events:none">
+                                            @($"{FmtHour(startHour)}-{FmtHour(endHour)}")
+                                        </text>
+                                    </g>
+                                }
+                            }
+                            @if (isCancelled && rw > 8)
+                            {
+                                <line x1="@(rx + 4)" y1="@(ry + rh / 2.0)"
+                                      x2="@(rx + rw - 4)" y2="@(ry + rh / 2.0)"
+                                      stroke="var(--rs-bad)" stroke-width="1" />
+                            }
+                        </g>
+                    }
+
+                    @if (_drag is { } dr)
+                    {
+                        var dragRowIdx = orderedGroups.FindIndex(g => g.DeviceGroupId == dr.GroupId);
+                        if (dragRowIdx >= 0)
+                        {
+                            var dStartX = Math.Min(dr.StartX, dr.CurrentX);
+                            var dEndX = Math.Max(dr.StartX, dr.CurrentX);
+                            var startTime = XToTime(dStartX, fromOffset);
+                            var endTime = XToTime(dEndX, fromOffset);
+                            var sd = startTime.DayOffset;
+                            var sh = SnapHour(startTime.Hour);
+                            var ed = endTime.DayOffset;
+                            var eh = SnapHour(endTime.Hour);
+                            var dragRowY = 40 + dragRowIdx * ROW_H + 6;
+                            var dragRowH = ROW_H - 12;
+                            var firstTg = _testGroups.Count > 0 ? (Guid?)_testGroups[0].TestGroupId : null;
+                            var conflict = HasDragConflict(dr.GroupId, firstTg, sd, sh, ed, eh);
+                            var fillCol = conflict ? "var(--rs-bad-soft)" : "var(--rs-accent-soft)";
+                            var strokeCol = conflict ? "var(--rs-bad)" : "var(--rs-accent)";
+                            <g style="pointer-events:none">
+                                <rect x="@dStartX" y="@dragRowY"
+                                      width="@(Math.Max(2, dEndX - dStartX))"
+                                      height="@dragRowH" rx="3"
+                                      fill="@fillCol" stroke="@strokeCol"
+                                      stroke-width="1.5" stroke-dasharray="4 3" opacity="0.85" />
+                                @if ((dEndX - dStartX) > 60)
+                                {
+                                    <g>
+                                        <text x="@(dStartX + 6)" y="@(dragRowY + 14)"
+                                              font-family="IBM Plex Mono, ui-monospace, monospace"
+                                              font-size="10" fill="var(--rs-ink)">
+                                            @($"{FmtHour(sh)}-{FmtHour(eh)}")
+                                        </text>
+                                    </g>
+                                    @if (conflict)
+                                    {
+                                        <g>
+                                            <text x="@(dStartX + 6)" y="@(dragRowY + 28)"
+                                                  font-family="IBM Plex Mono, ui-monospace, monospace"
+                                                  font-size="9" fill="var(--rs-bad)">
+                                                @("R10 conflict")
+                                            </text>
+                                        </g>
+                                    }
+                                }
+                            </g>
+                        }
+                    }
+                </svg>
+            </div>
+        </div>
+
+        @if (Selected is { } sel)
+        {
+            var grp = _groups.FirstOrDefault(g => g.DeviceGroupId == sel.DeviceGroupId);
+            var stg = _testGroups.FirstOrDefault(t => t.TestGroupId == sel.TestGroupId);
+            var localStart = sel.StartUtc.ToLocalTime();
+            var localEnd = sel.EndUtc.ToLocalTime();
+            var shortId = sel.ReservationId.ToString("N").Substring(0, 6);
+            <div style="position:absolute;right:24px;bottom:24px;width:360px;
+                        background:var(--rs-surface-2);border:1px solid var(--rs-line);
+                        border-radius:3px;padding:16px;color:var(--rs-ink);
+                        box-shadow:0 8px 24px rgba(0,0,0,0.35);z-index:5">
+                <div class="rs-row" style="justify-content:space-between;margin-bottom:8px">
+                    <span class="rs-mono-sm">RESERVATION · @shortId</span>
+                    <button class="rs-btn rs-btn--sm" @onclick="() => SelectedReservationId = null">×</button>
+                </div>
+                <div style="font-weight:500;margin-bottom:4px">@grp?.Name</div>
+                <div class="rs-mono-sm">
+                    @($"{localStart:ddd, MMM d} · {FmtHour(localStart.Hour + localStart.Minute / 60.0)}-{FmtHour(localEnd.Hour + localEnd.Minute / 60.0)}")
+                </div>
+                <div style="margin-top:8px;margin-bottom:10px">
+                    <Pill Reservation="sel.Status" />
+                    <span style="margin-left:8px" class="rs-mono-sm">@stg?.Name</span>
+                </div>
+                @if (!string.IsNullOrEmpty(sel.Notes))
+                {
+                    <div style="font-size:12px;color:var(--rs-ink-3)">@sel.Notes</div>
+                }
+                @if (!string.IsNullOrEmpty(_actionError))
+                {
+                    <div style="margin-top:10px">
+                        <RuleViolationBanner RuleId="@_actionRuleId" Title="Cannot confirm">
+                            @_actionError
+                        </RuleViolationBanner>
+                    </div>
+                }
+                <div class="rs-row" style="margin-top:12px;gap:6px">
+                    @if (sel.Status == ReservationStatus.Pending)
+                    {
+                        <button class="rs-btn rs-btn--primary rs-btn--sm" @onclick="ConfirmSelected">Confirm</button>
+                    }
+                    <button class="rs-btn rs-btn--sm" @onclick="CancelSelected">Cancel</button>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="rs-list-wrap"><span class="rs-mono-sm">loading…</span></div>
+    }
+</div>
+
+@code {
+    private const int ROW_H = 48;
+    private const int START_H = 6;
+    private const int END_H = 22;
+    private const int HOURS_PER_DAY = END_H - START_H;
+
+    private bool _loaded;
+    private IReadOnlyList<DeviceGroupDto> _groups = Array.Empty<DeviceGroupDto>();
+    private IReadOnlyList<ReservationDto> _reservations = Array.Empty<ReservationDto>();
+    private IReadOnlyList<TestGroupDto> _testGroups = Array.Empty<TestGroupDto>();
+
+    private string View { get; set; } = "day";
+    private int DayOffset { get; set; }
+    private Guid? SelectedReservationId { get; set; }
+
+    private string? _actionError;
+    private string? _actionRuleId;
+
+    // ---------- Drag-to-create state ----------
+    private SvgInterop? _interop;
+    private ElementReference _svgRef;
+    private (Guid GroupId, double StartX, double CurrentX)? _drag;
+    private string? _dragError;
+    private string? _dragErrorRuleId;
+
+    private int HourW => View == "day" ? 70 : 28;
+    private int DAYS_VISIBLE => View == "day" ? 1 : 7;
+
+    private int FromOffset
+    {
+        get
+        {
+            if (View == "day") { return DayOffset; }
+            var d = DateTime.Now.Date.AddDays(DayOffset);
+            // ISO Monday alignment: shift back to Monday.
+            var dow = ((int)d.DayOfWeek + 6) % 7; // Mon=0..Sun=6
+            return DayOffset - dow;
+        }
+    }
+
+    private string HeaderDate
+    {
+        get
+        {
+            var today = DateTime.Now.Date;
+            if (View == "day")
+            {
+                var d = today.AddDays(DayOffset);
+                return d.ToString("dddd, MMMM d, yyyy");
+            }
+            var from = today.AddDays(FromOffset);
+            var to = from.AddDays(DAYS_VISIBLE - 1);
+            return $"{from.ToString("MMM d")} to {to.ToString("MMM d, yyyy")}";
+        }
+    }
+
+    private ReservationDto? Selected =>
+        SelectedReservationId is { } id
+            ? _reservations.FirstOrDefault(r => r.ReservationId == id)
+            : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+        _loaded = true;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _groups = await Client.ListDeviceGroupsAsync();
+        _reservations = await Client.ListReservationsAsync();
+        _testGroups = await Client.ListTestGroupsAsync();
+    }
+
+    private List<DeviceGroupDto> OrderedGroups()
+    {
+        var visible = _groups
+            .Where(g => g.Status == DeviceGroupStatus.Active
+                || _reservations.Any(r => r.DeviceGroupId == g.DeviceGroupId))
+            .ToList();
+        return visible
+            .OrderByDescending(g => g.Status == DeviceGroupStatus.Active)
+            .ThenBy(g => g.Name)
+            .ToList();
+    }
+
+    private void SetView(string v)
+    {
+        View = v;
+    }
+
+    private void StepBack()
+    {
+        DayOffset -= View == "day" ? 1 : 7;
+    }
+
+    private void StepForward()
+    {
+        DayOffset += View == "day" ? 1 : 7;
+    }
+
+    private void GoToday()
+    {
+        DayOffset = 0;
+    }
+
+    private void SelectReservation(Guid id)
+    {
+        SelectedReservationId = id;
+        _actionError = null;
+        _actionRuleId = null;
+    }
+
+    private async Task ConfirmSelected()
+    {
+        if (Selected is not { } sel) { return; }
+        try
+        {
+            await Client.ConfirmReservationAsync(sel.ReservationId, sel.Version);
+            _actionError = null;
+            _actionRuleId = null;
+            await ReloadAsync();
+        }
+        catch (ValidationException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = ex.RuleId;
+        }
+    }
+
+    private async Task CancelSelected()
+    {
+        if (Selected is not { } sel) { return; }
+        try
+        {
+            await Client.CancelReservationAsync(sel.ReservationId, sel.Version);
+            _actionError = null;
+            _actionRuleId = null;
+            await ReloadAsync();
+        }
+        catch (ValidationException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = ex.RuleId;
+        }
+    }
+
+    private static string FmtHour(double h)
+    {
+        var hh = (int)Math.Floor(h);
+        var mm = (int)Math.Round((h - hh) * 60);
+        if (mm == 60) { hh += 1; mm = 0; }
+        return $"{hh:D2}:{mm:D2}";
+    }
+
+    // ---------- Drag-to-create plumbing ----------
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _interop = new SvgInterop(JS);
+        }
+        await Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_interop is not null)
+        {
+            await _interop.DisposeAsync();
+            _interop = null;
+        }
+    }
+
+    private async Task OnRowMouseDown(MouseEventArgs e, DeviceGroupDto group)
+    {
+        if (group.Status != DeviceGroupStatus.Active) { return; }
+        if (_interop is null) { return; }
+        var pt = await _interop.PointToSvgAsync(_svgRef, e.ClientX, e.ClientY);
+        _drag = (group.DeviceGroupId, pt.X, pt.X);
+        _dragError = null;
+        _dragErrorRuleId = null;
+        StateHasChanged();
+    }
+
+    private async Task OnSvgMouseMove(MouseEventArgs e)
+    {
+        if (_drag is not { } d || _interop is null) { return; }
+        var pt = await _interop.PointToSvgAsync(_svgRef, e.ClientX, e.ClientY);
+        _drag = (d.GroupId, d.StartX, pt.X);
+        StateHasChanged();
+    }
+
+    private async Task OnSvgMouseUp(MouseEventArgs e)
+    {
+        if (_drag is not { } d) { return; }
+        var startX = Math.Min(d.StartX, d.CurrentX);
+        var endX = Math.Max(d.StartX, d.CurrentX);
+        if (endX - startX < 8)
+        {
+            _drag = null;
+            StateHasChanged();
+            return;
+        }
+
+        var fromOffset = FromOffset;
+        var (sd, sh) = XToTime(startX, fromOffset);
+        var (ed, eh) = XToTime(endX, fromOffset);
+        sh = SnapHour(sh);
+        eh = SnapHour(eh);
+        if (eh <= sh && sd == ed)
+        {
+            _drag = null;
+            StateHasChanged();
+            return;
+        }
+
+        var today = DateTime.Now.Date;
+        var localStart = today.AddDays(sd).AddHours(sh);
+        var localEnd = today.AddDays(ed).AddHours(eh);
+        var startUtc = localStart.ToUniversalTime();
+        var endUtc = localEnd.ToUniversalTime();
+
+        var groupId = d.GroupId;
+        if (_testGroups.Count == 0)
+        {
+            _dragError = "No test groups available to assign.";
+            _dragErrorRuleId = null;
+            _drag = null;
+            StateHasChanged();
+            return;
+        }
+        var testGroupId = _testGroups[0].TestGroupId;
+
+        try
+        {
+            var created = await Client.CreateReservationAsync(
+                new ReservationCreate(groupId, testGroupId, startUtc, endUtc, null));
+            _dragError = null;
+            _dragErrorRuleId = null;
+            _drag = null;
+            await ReloadAsync();
+            SelectedReservationId = created.ReservationId;
+        }
+        catch (ValidationException ex)
+        {
+            _dragError = ex.Message;
+            _dragErrorRuleId = ex.RuleId;
+            _drag = null;
+        }
+        catch (DomainException ex)
+        {
+            _dragError = ex.Message;
+            _dragErrorRuleId = null;
+            _drag = null;
+        }
+        StateHasChanged();
+    }
+
+    // Convert an SVG x coordinate to a (dayOffset, hourOfDay) pair anchored
+    // to today + fromOffset. Hours are clamped to [START_H, END_H].
+    private (int DayOffset, double Hour) XToTime(double x, int fromOffset)
+    {
+        var hourW = (double)HourW;
+        var totalHours = x / hourW;
+        var dayIdx = (int)Math.Floor(totalHours / HOURS_PER_DAY);
+        if (dayIdx < 0) dayIdx = 0;
+        if (dayIdx > DAYS_VISIBLE - 1) dayIdx = DAYS_VISIBLE - 1;
+        var hourInDay = totalHours - dayIdx * HOURS_PER_DAY + START_H;
+        if (hourInDay < START_H) hourInDay = START_H;
+        if (hourInDay > END_H) hourInDay = END_H;
+        return (fromOffset + dayIdx, hourInDay);
+    }
+
+    private static double SnapHour(double h)
+    {
+        var snapped = Math.Round(h * 4.0) / 4.0;
+        return snapped;
+    }
+
+    // Advisory conflict check during drag. Service is the source of truth.
+    private bool HasDragConflict(Guid groupId, Guid? testGroupId,
+                                  int sd, double sh, int ed, double eh)
+    {
+        var today = DateTime.Now.Date;
+        var candStart = today.AddDays(sd).AddHours(sh).ToUniversalTime();
+        var candEnd = today.AddDays(ed).AddHours(eh).ToUniversalTime();
+        if (candEnd <= candStart) return false;
+        foreach (var r in _reservations)
+        {
+            if (r.Status != ReservationStatus.Confirmed) continue;
+            if (!(candStart < r.EndUtc && candEnd > r.StartUtc)) continue;
+            if (r.DeviceGroupId == groupId) return true; // R10
+            if (testGroupId is { } tg && r.TestGroupId == tg) return true; // R11
+        }
+        return false;
+    }
+}

@@ -1,0 +1,148 @@
+@page "/buildings"
+@inject IClientService Client
+
+<PageTitle>Buildings · Resource.Scheduler</PageTitle>
+
+<div class="rs-screen">
+    <div class="rs-screen-head">
+        <div>
+            <div class="rs-screen-eyebrow">02 · Buildings</div>
+            <h1 class="rs-screen-title">Buildings</h1>
+            <p class="rs-screen-sub rs-mono-sm">
+                @if (_loaded)
+                {
+                    @($"{_buildings.Count} sites · {_devices.Count} devices")
+                }
+                else
+                {
+                    @("loading…")
+                }
+            </p>
+        </div>
+        <div class="rs-screen-actions">
+            <button class="rs-btn rs-btn--primary" @onclick="OnNewBuilding">+ New building</button>
+        </div>
+    </div>
+
+    @if (_loaded)
+    {
+        <div class="rs-list-wrap">
+            @if (_deleteError is not null)
+            {
+                <RuleViolationBanner RuleId="@_deleteErrorRuleId" Title="Cannot delete">
+                    @_deleteError
+                </RuleViolationBanner>
+            }
+            <div class="rs-table-wrap">
+                <table class="rs-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px">#</th>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th>Devices</th>
+                            <th style="width:200px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var index = 0;
+                        }
+                        @foreach (var b in _buildings)
+                        {
+                            index++;
+                            var firstLine = b.Address.Split('\n')[0];
+                            var deviceCount = _devices.Count(d => d.BuildingId == b.BuildingId);
+                            var current = b;
+                            <tr>
+                                <td class="num">@index.ToString("00")</td>
+                                <td><span style="font-weight:500">@b.Name</span></td>
+                                <td><span class="rs-mono-sm" style="color:var(--rs-ink-2)">@firstLine</span></td>
+                                <td class="num">@deviceCount</td>
+                                <td>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnOpen(current)">Open →</button>
+                                    <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="() => OnDelete(current)">Delete</button>
+                                </td>
+                            </tr>
+                        }
+                        @if (_buildings.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="rs-empty">No buildings on file.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<BuildingEditor Building="_editTarget" IsOpen="_editorOpen" OnClose="OnEditorClose" OnSaved="OnSaved" />
+
+@code {
+    private bool _loaded;
+    private IReadOnlyList<BuildingDto> _buildings = Array.Empty<BuildingDto>();
+    private IReadOnlyList<DeviceDto> _devices = Array.Empty<DeviceDto>();
+
+    private bool _editorOpen;
+    private BuildingDto? _editTarget;
+
+    private string? _deleteError;
+    private string? _deleteErrorRuleId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _loaded = true;
+    }
+
+    private async Task Reload()
+    {
+        _buildings = await Client.ListBuildingsAsync();
+        _devices = await Client.ListDevicesAsync();
+    }
+
+    private void OnNewBuilding()
+    {
+        _editTarget = null;
+        _editorOpen = true;
+    }
+
+    private void OnOpen(BuildingDto b)
+    {
+        _editTarget = b;
+        _editorOpen = true;
+    }
+
+    private void OnEditorClose()
+    {
+        _editorOpen = false;
+    }
+
+    private async Task OnSaved(BuildingDto _)
+    {
+        _editorOpen = false;
+        await Reload();
+    }
+
+    private async Task OnDelete(BuildingDto b)
+    {
+        _deleteError = null;
+        _deleteErrorRuleId = null;
+        try
+        {
+            await Client.DeleteBuildingAsync(b.BuildingId, b.Version);
+            await Reload();
+        }
+        catch (ValidationException ex)
+        {
+            _deleteError = ex.Message;
+            _deleteErrorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _deleteError = ex.Message;
+        }
+    }
+}

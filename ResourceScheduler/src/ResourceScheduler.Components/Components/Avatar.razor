@@ -1,0 +1,43 @@
+@* Inline-SVG initial-circle avatar with OKLCH hue rotation by index. *@
+
+<svg width="@Size" height="@Size" viewBox="0 0 24 24" style="display:inline-block">
+    <circle cx="12" cy="12" r="11"
+            fill="@Fill" stroke="@Stroke" stroke-width="1" />
+    <text x="12" y="13" text-anchor="middle" dominant-baseline="middle"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="9" font-weight="500" fill="@TextColor">@Initials</text>
+</svg>
+
+@code {
+    private static readonly int[] Hues = { 210, 30, 160, 280, 90, 340, 50 };
+
+    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter] public int Idx { get; set; } = 0;
+    [Parameter] public int Size { get; set; } = 24;
+
+    private int Hue => Hues[((Idx % Hues.Length) + Hues.Length) % Hues.Length];
+    private string Fill => $"oklch(0.92 0.04 {Hue})";
+    private string Stroke => $"oklch(0.55 0.04 {Hue})";
+    private string TextColor => $"oklch(0.30 0.04 {Hue})";
+
+    private string Initials
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Name)) return string.Empty;
+            var parts = Name.Split(
+                new[] { ' ', '\t', '\r', '\n' },
+                StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return string.Empty;
+            if (parts.Length == 1)
+            {
+                var single = parts[0];
+                var take = single.Length >= 2 ? single[..2] : single;
+                return take.ToUpperInvariant();
+            }
+            var first = parts[0][0];
+            var last = parts[^1][0];
+            return new string(new[] { first, last }).ToUpperInvariant();
+        }
+    }
+}

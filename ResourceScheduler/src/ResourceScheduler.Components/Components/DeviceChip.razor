@@ -1,0 +1,49 @@
+@* Compact chip used in the Device-Group Designer left-rail picker.
+   Shows the device name with a status-tinted swatch. Locked chips
+   are devices already in another currently-Active group. *@
+
+<div class="rs-chip" data-locked="@Locked" data-in-group="@InGroup"
+     title="@Title"
+     style="@(Locked ? "cursor:not-allowed;opacity:0.6" : "cursor:pointer")"
+     @onclick="HandleClick">
+    <svg width="16" height="16" viewBox="0 0 16 16">
+        <rect x="2" y="3" width="12" height="10" rx="1.5"
+              fill="var(--rs-@(Cls)-soft)"
+              stroke="var(--rs-@(Cls))"
+              stroke-width="1"
+              stroke-dasharray="@(InGroup || Locked ? "" : "2 2")" />
+        <circle cx="13" cy="3" r="1.5" fill="var(--rs-@(Cls))" />
+    </svg>
+    <span class="rs-chip-name rs-mono">@Device.Name</span>
+    @if (Locked)
+    {
+        <svg width="11" height="11" viewBox="0 0 16 16" style="color:var(--rs-ink-4)">
+            <rect x="3" y="7" width="10" height="7" rx="1" fill="none"
+                  stroke="currentColor" stroke-width="1.2" />
+            <path d="M5 7V5a3 3 0 016 0v2" fill="none"
+                  stroke="currentColor" stroke-width="1.2" />
+        </svg>
+    }
+    <span class="rs-chip-meta">@(InGroup ? "·in" : (Locked ? "·lock" : "·free"))</span>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public DeviceDto Device { get; set; } = default!;
+    [Parameter] public bool InGroup { get; set; }
+    [Parameter] public bool Locked { get; set; }
+    [Parameter] public string? LockedBy { get; set; }
+    [Parameter] public EventCallback OnClick { get; set; }
+
+    private string Cls => StatusClassMap.ForDevice(Device.Status);
+
+    private string Title =>
+        Locked && !string.IsNullOrEmpty(LockedBy)
+            ? $"Locked: in active group \"{LockedBy}\""
+            : string.Empty;
+
+    private Task HandleClick()
+    {
+        if (Locked) return Task.CompletedTask;
+        return OnClick.InvokeAsync();
+    }
+}
