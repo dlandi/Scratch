@@ -1,6 +1,7 @@
 @page "/groups"
 @inject IClientService Client
 @inject TimeProvider Time
+@inject NavigationManager Nav
 
 <PageTitle>Device-Groups · Resource.Scheduler</PageTitle>
 
@@ -29,6 +30,13 @@
     {
         var filtered = ApplyFilter().ToList();
 
+        @if (_actionError is not null)
+        {
+            <RuleViolationBanner RuleId="@_actionRuleId" Title="Cannot create group">
+                @_actionError
+            </RuleViolationBanner>
+        }
+
         <div class="rs-filterbar">
             <div class="rs-filter-group">
                 @foreach (var f in _filters)
@@ -46,7 +54,12 @@
                 @foreach (var g in filtered)
                 {
                     var next = NextReservationFor(g.DeviceGroupId);
-                    <div class="rs-group-card">
+                    var groupId = g.DeviceGroupId;
+                    <div class="rs-group-card" role="button" tabindex="0"
+                         style="cursor:pointer"
+                         title="Open in Designer"
+                         @onclick="() => OpenDesigner(groupId)"
+                         @onkeydown="@(e => OnCardKey(e, groupId))">
                         <div class="rs-group-card-head">
                             <h3 class="rs-group-card-name">@g.Name</h3>
                             <Pill Group="g.Status" />
@@ -88,6 +101,9 @@
     private string _filter = "All";
     private static readonly string[] _filters = new[] { "All", "Active", "Inactive" };
 
+    private string? _actionError;
+    private string? _actionRuleId;
+
     protected override async Task OnInitializedAsync()
     {
         _groups = await Client.ListDeviceGroupsAsync();
@@ -121,8 +137,45 @@
 
     private void SetFilter(string s) => _filter = s;
 
-    private void OnNewGroup()
+    /// <summary>
+    /// Open the Designer scoped to a particular group. The Designer's
+    /// <c>?group={id}</c> query parameter selects the group on load and
+    /// the Active / Inactive toggle there is the only path to change a
+    /// group's status (calls Activate/Deactivate on Save).
+    /// </summary>
+    private void OpenDesigner(Guid groupId) =>
+        Nav.NavigateTo($"/designer?group={groupId}");
+
+    private void OnCardKey(KeyboardEventArgs e, Guid groupId)
     {
-        // Placeholder: write operations are out of scope for this screen.
+        if (e.Key == "Enter" || e.Key == " ")
+        {
+            OpenDesigner(groupId);
+        }
+    }
+
+    private async Task OnNewGroup()
+    {
+        _actionError = null;
+        _actionRuleId = null;
+        try
+        {
+            var created = await Client.CreateDeviceGroupAsync(new DeviceGroupCreate(
+                "New Device-Group",
+                Array.Empty<Guid>(),
+                Array.Empty<DeviceConnectionDto>(),
+                Array.Empty<DeviceLayoutEntry>()));
+            Nav.NavigateTo($"/designer?group={created.DeviceGroupId}");
+        }
+        catch (ValidationException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = null;
+        }
     }
 }

@@ -17,7 +17,14 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 // UserTimeProvider lets the header dropdown override LocalTimeZone for
 // developer/testing previews. Both registrations point to the same
 // instance so existing TimeProvider injections keep working unchanged.
-builder.Services.AddSingleton<UserTimeProvider>();
+//
+// The factory is explicit because UserTimeProvider has two constructors:
+// the parameterless default and one that takes an inner TimeProvider for
+// tests. Without the factory, the DI container picks the longer
+// constructor and tries to resolve TimeProvider, which resolves back to
+// UserTimeProvider, looping forever and locking the WASM startup on
+// the loading splash.
+builder.Services.AddSingleton<UserTimeProvider>(_ => new UserTimeProvider(TimeProvider.System));
 builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<UserTimeProvider>());
 
 // Phase 1: in-memory backend simulation. Singleton so the seed survives

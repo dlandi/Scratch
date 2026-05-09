@@ -4,17 +4,18 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ResourceScheduler.Components.Models;
-using ResourceScheduler.Components.Services;
 
-namespace ResourceScheduler.WebApp.Services;
+namespace ResourceScheduler.Components.Services;
 
 /// <summary>
 /// Phase 2 implementation of <see cref="IClientService"/> against the
 /// Rust HTTP API. Not yet wired into DI; see Program.cs. The contract
 /// surface mirrors the in-memory implementation; only transport differs.
+/// Lives in the Razor class library so the xUnit project can reach it
+/// without pulling in the BlazorWebAssembly SDK.
 /// </summary>
 // TODO Phase 2: register this in Program.cs in place of InMemoryClientService once the Rust API ships. Configure the HttpClient base address from configuration (appsettings.json or build-time env).
-internal sealed class RemoteClientService : IClientService
+public sealed class RemoteClientService : IClientService
 {
     private readonly HttpClient _httpClient;
 

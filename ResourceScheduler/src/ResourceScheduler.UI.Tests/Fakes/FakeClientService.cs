@@ -17,10 +17,13 @@ public sealed class FakeClientService : IClientService
     public Func<Guid, DeviceUpdate, int, Task<DeviceDto>>? OnUpdateDevice;
     public Func<PersonCreate, Task<PersonDto>>? OnCreatePerson;
     public Func<Guid, PersonUpdate, Task<PersonDto>>? OnUpdatePerson;
+    public Func<TestGroupCreate, Task<TestGroupDto>>? OnCreateTestGroup;
+    public Func<Guid, TestGroupUpdate, int, Task<TestGroupDto>>? OnUpdateTestGroup;
 
     public List<BuildingCreate> RecordedBuildingCreates { get; } = new();
     public List<DeviceCreate> RecordedDeviceCreates { get; } = new();
     public List<PersonCreate> RecordedPersonCreates { get; } = new();
+    public List<TestGroupCreate> RecordedTestGroupCreates { get; } = new();
 
     /// <summary>
     /// Returns a fake whose Create methods echo a default DTO with a
@@ -71,6 +74,20 @@ public sealed class FakeClientService : IClientService
             PersonId = id,
             Name = input.Name,
             Email = input.Email,
+        });
+        fake.OnCreateTestGroup = input => Task.FromResult(new TestGroupDto
+        {
+            TestGroupId = Guid.NewGuid(),
+            Name = input.Name,
+            MemberIds = input.MemberIds.ToList(),
+            Version = 1,
+        });
+        fake.OnUpdateTestGroup = (id, input, version) => Task.FromResult(new TestGroupDto
+        {
+            TestGroupId = id,
+            Name = input.Name,
+            MemberIds = input.MemberIds.ToList(),
+            Version = version + 1,
         });
         return fake;
     }
@@ -191,10 +208,23 @@ public sealed class FakeClientService : IClientService
         => throw new NotImplementedException();
 
     public Task<TestGroupDto> CreateTestGroupAsync(TestGroupCreate input, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    {
+        RecordedTestGroupCreates.Add(input);
+        if (OnCreateTestGroup is null)
+        {
+            throw new NotImplementedException();
+        }
+        return OnCreateTestGroup(input);
+    }
 
     public Task<TestGroupDto> UpdateTestGroupAsync(Guid id, TestGroupUpdate input, int version, CancellationToken ct = default)
-        => throw new NotImplementedException();
+    {
+        if (OnUpdateTestGroup is null)
+        {
+            throw new NotImplementedException();
+        }
+        return OnUpdateTestGroup(id, input, version);
+    }
 
     public Task DeleteTestGroupAsync(Guid id, int version, CancellationToken ct = default)
         => throw new NotImplementedException();

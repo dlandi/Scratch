@@ -3,15 +3,34 @@ namespace ResourceScheduler.Components.Services;
 /// <summary>
 /// A <see cref="TimeProvider"/> that lets the user override
 /// <see cref="LocalTimeZone"/> at runtime via the header dropdown.
-/// Backing time still comes from <see cref="TimeProvider.System"/>; only
-/// the local-zone projection is configurable. This is intended as a
-/// developer/testing aid for visualising how schedules render in other
-/// zones, controlled by the <c>Features:TimeZoneSwitcher:Enabled</c>
-/// flag in <c>appsettings.json</c>.
+/// Backing time still comes from an inner <see cref="TimeProvider"/>
+/// (defaults to <see cref="TimeProvider.System"/>); only the local-zone
+/// projection is configurable. This is intended as a developer/testing
+/// aid for visualising how schedules render in other zones, controlled
+/// by the <c>Features:TimeZoneSwitcher:Enabled</c> flag in
+/// <c>appsettings.json</c>.
 /// </summary>
 public sealed class UserTimeProvider : TimeProvider
 {
-    private TimeZoneInfo _zone = TimeZoneInfo.Local;
+    private readonly TimeProvider _inner;
+    private TimeZoneInfo _zone;
+
+    /// <summary>
+    /// Default constructor: backs time with <see cref="TimeProvider.System"/>.
+    /// </summary>
+    public UserTimeProvider() : this(TimeProvider.System) { }
+
+    /// <summary>
+    /// Construct with a specific inner clock. Tests can pass a
+    /// <c>FakeTimeProvider</c> here to make <see cref="GetUtcNow"/>
+    /// deterministic.
+    /// </summary>
+    public UserTimeProvider(TimeProvider inner)
+    {
+        _inner = inner;
+        _zone = TimeZoneInfo.Local;
+        HostTimeZone = TimeZoneInfo.Local;
+    }
 
     /// <summary>
     /// Fired when <see cref="SetTimeZone"/> changes the effective zone.
@@ -24,10 +43,10 @@ public sealed class UserTimeProvider : TimeProvider
     public override TimeZoneInfo LocalTimeZone => _zone;
 
     /// <inheritdoc />
-    public override DateTimeOffset GetUtcNow() => System.GetUtcNow();
+    public override DateTimeOffset GetUtcNow() => _inner.GetUtcNow();
 
     /// <summary>The default (host) timezone, captured at construction.</summary>
-    public TimeZoneInfo HostTimeZone { get; } = TimeZoneInfo.Local;
+    public TimeZoneInfo HostTimeZone { get; }
 
     /// <summary>Replace the effective zone. No-op if the id matches.</summary>
     public void SetTimeZone(TimeZoneInfo tz)

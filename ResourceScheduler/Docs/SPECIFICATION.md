@@ -56,11 +56,11 @@ ResourceScheduler.sln
       Models/                       DTOs and enums
       Services/
         IClientService.cs           Contract used by the app
+        InMemoryClientService.cs    Phase 1 implementation
+        RemoteClientService.cs      Phase 2 HTTP implementation
       _Imports.razor
     ResourceScheduler.WebApp/       Blazor WASM project  (TFM: net10.0)
       Pages/                        Page-level routing
-      Services/
-        InMemoryClientService.cs    Phase 1 implementation
       Program.cs
       wwwroot/
         index.html                  Loads components.css
@@ -73,6 +73,9 @@ Rules:
 - The Razor library does not depend on the WASM host project.
 - The WASM project depends on the Razor library and supplies the
   `IClientService` implementation through DI.
+- Both `InMemoryClientService` and `RemoteClientService` live in the
+  Razor library so the xUnit test project can reference them without
+  pulling in the `Microsoft.NET.Sdk.BlazorWebAssembly` SDK.
 - All shared CSS lives in `ResourceScheduler.Components/wwwroot/components.css`
   and is referenced once from the host's `index.html`. Blazor's per-component
   `.razor.css` isolation is not used unless a specific component requires
@@ -109,7 +112,33 @@ A named, connected collection of Devices that is reserved as one unit.
 | Status          | DeviceGroupStatus          | See 7.2                            |
 | DeviceIds       | List&lt;Guid&gt;           | Ordered list of member devices     |
 | Connections     | List&lt;DeviceConnection&gt; | Topology among member devices    |
+| Layout          | List&lt;DeviceLayoutEntry&gt; | Per-device normalized [0..1] positions on the Designer canvas. Empty falls back to auto-layout. |
 | Version         | int                        | Optimistic concurrency             |
+
+`DeviceLayoutEntry` records the saved coordinates for a single member
+device. Coordinates are normalized to [0..1] so the Designer can
+re-render at any canvas size without re-projecting:
+
+```csharp
+public sealed record DeviceLayoutEntry(Guid DeviceId, double X, double Y);
+```
+
+The matching `DeviceGroupCreate` and `DeviceGroupUpdate` records carry
+the same payload so positions round-trip through the service:
+
+```csharp
+public sealed record DeviceGroupCreate(
+    string Name,
+    IReadOnlyList<Guid> DeviceIds,
+    IReadOnlyList<DeviceConnection> Connections,
+    IReadOnlyList<DeviceLayoutEntry> Layout);
+
+public sealed record DeviceGroupUpdate(
+    string Name,
+    IReadOnlyList<Guid> DeviceIds,
+    IReadOnlyList<DeviceConnection> Connections,
+    IReadOnlyList<DeviceLayoutEntry> Layout);
+```
 
 ### 4.3 DeviceConnection
 
@@ -163,6 +192,11 @@ A booking of a Device-Group by a Test-Group over a time window.
 | Status          | ReservationStatus | See 7.3                          |
 | Notes           | string?           | Optional free text               |
 | Version         | int               | Optimistic concurrency           |
+
+The Reservation Editor supports multi-day windows: the start and end
+may fall on different dates, and the conflict tests in R10 and R11
+operate on the full UTC range, so multi-day windows are handled
+correctly without any code changes.
 
 ### 4.7 Building
 
@@ -290,6 +324,22 @@ The `IClientService` contract is shaped to map cleanly to REST:
 - Optional filters are passed as plain parameters or a small filter
   record, not LINQ expressions.
 
+### 6.4 Time abstraction
+
+- Pages and `InMemoryClientService.Seed` inject `TimeProvider` rather
+  than calling `DateTime.Now`, `DateTime.UtcNow`, or `DateTime.Today`
+  directly. This makes time-dependent code substitutable in tests via
+  `Microsoft.Extensions.TimeProvider.Testing.FakeTimeProvider`.
+- `UserTimeProvider : TimeProvider` lives in `Components/Services/`. It
+  overrides `LocalTimeZone` so the header dropdown can switch zones at
+  runtime, raising a `Changed` event that pages subscribe to. Both the
+  `UserTimeProvider` concrete class and the `TimeProvider` abstraction
+  resolve to the same singleton in DI, so consumers see the same
+  instance whether they ask for the base type or the concrete one.
+- `TimeProviderExtensions.ToLocal(utc)` is the helper pages use instead
+  of `DateTime.ToLocalTime()`, so the chosen zone is honored everywhere
+  the UI shows wall-clock times.
+
 ## 7. State Machines
 
 ### 7.1 DeviceStatus
@@ -404,6 +454,17 @@ Targets:
 - **ScheduleTimeline:** an SVG horizontal timeline showing
   Reservations across a selected day or week, with one row per
   Device-Group. Overlap attempts during drag are drawn as red bands.
+
+The Schedule Timeline canvas is UTC-anchored. Reservation rectangle
+positions and the NOW line are pure UTC offsets from the canvas
+anchor; only the hour-tick labels and the per-block time captions are
+computed from the chosen `Time.LocalTimeZone`. The day view canvas
+spans 24 hours (00:00 to 24:00 UTC) at `HourW = 90 px`, and auto-scroll
+positions the NOW line about 25% from the visible left edge so recent
+and upcoming activity are both in view. Switching the timezone
+dropdown re-labels the hour ticks and block captions but does not move
+reservations, which keeps relative positions stable when previewing
+other zones.
 - **DevicePicker:** SVG chips with a status dot and a small lock icon
   when the device is deployed in another Active group.
 - **TestGroupAvatar:** SVG cluster of initials for the Test-Group.
@@ -448,6 +509,18 @@ mutations; none of them call `IClientService` directly. Page-level
 components in the WASM project orchestrate service calls and pass DTOs
 into library components.
 
+### 9.4 Timezone switcher (developer aid)
+
+- The header chip is rendered as a `<select>` when
+  `Features:TimeZoneSwitcher:Enabled` is `true` in `appsettings.json`,
+  and as a static label otherwise. It exists so developers can preview
+  the schedule in non-host zones without changing the OS clock.
+- The dropdown lists one entry per integer-hour UTC offset from -11 to
+  +14, each backed by a friendly real IANA zone (Antarctica and
+  `Etc/*` zones are filtered out). The host's own zone is added on top
+  if it has a fractional offset, so India, Newfoundland, and similar
+  zones remain selectable for the user running the app.
+
 ## 10. Validation Summary (one-page reference)
 
 | ID  | Where enforced              | Rule                                                                              |
@@ -472,7 +545,6 @@ into library components.
 
 These are explicitly deferred and tracked here so they are not lost:
 
-- Time-zone presentation in UI (storage is UTC; display strategy TBD).
 - Whether all members of a Device-Group must reside in the same
   Building. Physically realistic, but not enforced in Phase 1 pending
   product confirmation.
@@ -482,3 +554,11 @@ These are explicitly deferred and tracked here so they are not lost:
 - Recurring reservations.
 - Phase 2: Rust backend contract document and migration plan.
 - Phase 2: real authentication and per-Test-Group permissions.
+
+### Closed
+
+- Time-zone presentation in UI: DONE. Implemented via `TimeProvider`,
+  `UserTimeProvider`, and the header dropdown described in 6.4 and 9.4.
+- Designer layout positions not persisted: DONE. Captured by the
+  `Layout` field on `DeviceGroupDto` and round-tripped through
+  `DeviceGroupCreate` and `DeviceGroupUpdate` (see 4.2).

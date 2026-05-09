@@ -386,11 +386,20 @@ else
     private double _dragNx;
     private double _dragNy;
 
+    [SupplyParameterFromQuery(Name = "group")]
+    public Guid? InitialGroupIdParam { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await ReloadAll();
         if (_groups.Count > 0)
-            LoadWorkingCopy(_groups[0].DeviceGroupId);
+        {
+            var initialId = InitialGroupIdParam is Guid q
+                && _groups.Any(g => g.DeviceGroupId == q)
+                ? q
+                : _groups[0].DeviceGroupId;
+            LoadWorkingCopy(initialId);
+        }
         _loaded = true;
     }
 
