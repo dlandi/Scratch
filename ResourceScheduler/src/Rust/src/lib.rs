@@ -10,6 +10,7 @@ pub mod error;
 pub mod extractors;
 pub mod http;
 pub mod models;
+pub mod seed;
 pub mod state;
 pub mod store;
 

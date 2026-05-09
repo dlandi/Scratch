@@ -15,4 +15,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.7" />
   </ItemGroup>
 
+  <!-- Single-source-of-truth fixture for both InMemoryClientService and
+       the Rust seeder. Embedded so InMemoryClientService.Seed can read
+       it via the assembly manifest at runtime; the Rust crate reads the
+       same file at compile time via include_str! See seed-data.json. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\seed-data.json" LogicalName="seed-data.json" />
+  </ItemGroup>
+
 </Project>

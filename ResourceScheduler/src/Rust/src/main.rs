@@ -16,6 +16,18 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState::connect(&database_url).await?;
     state.run_migrations().await?;
 
+    // Optional one-time seeding of demo fixture data. Off by default in
+    // production; flip on with SEED_DEMO_DATA=1 (or any non-empty value)
+    // when running the binary as a developer aid. The seeder is a no-op
+    // when the database already has rows, so leaving it on across
+    // restarts is harmless.
+    let seed_enabled = std::env::var("SEED_DEMO_DATA")
+        .map(|v| !v.is_empty() && v != "0" && !v.eq_ignore_ascii_case("false"))
+        .unwrap_or(false);
+    if seed_enabled {
+        resource_scheduler_api::seed::seed_if_empty(&state.pool).await?;
+    }
+
     let app = build_app(state);
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
     tracing::info!(%bind_addr, %database_url, "resource-scheduler-api listening");

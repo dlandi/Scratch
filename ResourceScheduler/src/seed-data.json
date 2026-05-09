@@ -1,0 +1,173 @@
+{
+  "_doc": "Single-source-of-truth fixture data loaded by both InMemoryClientService.Seed() (.NET) and the Rust seeder. UUIDs are stable so the same logical entity has the same id across both backends, simplifying cross-backend debugging. Reservation timestamps are expressed as (dayOffset, startHour, endHour); each loader resolves them to UTC at seed time using local-midnight as the anchor. Counts: 2 buildings, 24 devices (covering all DeviceStatus values), 6 device-groups (4 Active, 2 Inactive drafts), 4 people, 2 test-groups, 11 reservations across yesterday/today/tomorrow.",
+
+  "buildings": [
+    { "buildingId": "aaaaaaaa-0000-0000-0000-000000000001", "name": "Lab North", "address": "1400 Industrial Pkwy\nBuilding A, Floor 3\nCambridge, MA 02139" },
+    { "buildingId": "aaaaaaaa-0000-0000-0000-000000000002", "name": "Lab South", "address": "210 Foundry Rd\nWest Wing, Bay 2\nCambridge, MA 02141" }
+  ],
+
+  "devices": [
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000001", "name": "SCOPE-01",    "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000002", "name": "SCOPE-02",    "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000003", "name": "SCOPE-03",    "status": "Maintenance", "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000004", "name": "SCOPE-04",    "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000005", "name": "AWG-01",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000006", "name": "AWG-02",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000007", "name": "AWG-03",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000008", "name": "DMM-01",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000009", "name": "DMM-02",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000010", "name": "DMM-03",      "status": "Offline",     "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000011", "name": "DMM-04",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000012", "name": "PSU-01",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000013", "name": "PSU-02",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000014", "name": "PSU-03",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000015", "name": "LOAD-01",     "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000016", "name": "LOAD-02",     "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000017", "name": "RFGEN-01",    "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000018", "name": "RFGEN-02",    "status": "Maintenance", "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000019", "name": "SPEC-01",     "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000020", "name": "VNA-01",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000021", "name": "REF-CLK",     "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000001" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000022", "name": "TEMP-CHM-01", "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000023", "name": "DAQ-01",      "status": "Available",   "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" },
+    { "deviceId": "bbbbbbbb-0000-0000-0000-000000000024", "name": "PROBE-99",    "status": "Retired",     "buildingId": "aaaaaaaa-0000-0000-0000-000000000002" }
+  ],
+
+  "deviceGroups": [
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000001",
+      "name": "Bench A, Power Characterization",
+      "status": "Active",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000012",
+        "bbbbbbbb-0000-0000-0000-000000000005",
+        "bbbbbbbb-0000-0000-0000-000000000008",
+        "bbbbbbbb-0000-0000-0000-000000000001"
+      ],
+      "connections": [
+        { "connectionId": "cccccccc-1000-0000-0000-000000000001", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000012", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000005", "label": "DC-OUT" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000002", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000005", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000001", "label": "CH-1" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000003", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000005", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000008", "label": "TRIG" }
+      ],
+      "layout": []
+    },
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000002",
+      "name": "Bench B, Load Sweep",
+      "status": "Active",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000013",
+        "bbbbbbbb-0000-0000-0000-000000000015",
+        "bbbbbbbb-0000-0000-0000-000000000009",
+        "bbbbbbbb-0000-0000-0000-000000000002"
+      ],
+      "connections": [
+        { "connectionId": "cccccccc-1000-0000-0000-000000000004", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000013", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000015", "label": "DUT" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000005", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000015", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000009", "label": "SENSE" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000006", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000015", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000002", "label": "MONITOR" }
+      ],
+      "layout": []
+    },
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000003",
+      "name": "RF Suite, 24 GHz",
+      "status": "Active",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000017",
+        "bbbbbbbb-0000-0000-0000-000000000019",
+        "bbbbbbbb-0000-0000-0000-000000000020",
+        "bbbbbbbb-0000-0000-0000-000000000021"
+      ],
+      "connections": [
+        { "connectionId": "cccccccc-1000-0000-0000-000000000007", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000021", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000017", "label": "10MHz" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000008", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000021", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000019", "label": "10MHz" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000009", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000021", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000020", "label": "10MHz" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000010", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000017", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000020", "label": "RF-OUT" }
+      ],
+      "layout": []
+    },
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000004",
+      "name": "Rack 4, DAQ Cluster",
+      "status": "Active",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000014",
+        "bbbbbbbb-0000-0000-0000-000000000023",
+        "bbbbbbbb-0000-0000-0000-000000000011",
+        "bbbbbbbb-0000-0000-0000-000000000004"
+      ],
+      "connections": [
+        { "connectionId": "cccccccc-1000-0000-0000-000000000011", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000014", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000023", "label": "12V" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000012", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000023", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000011", "label": "AI-1" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000013", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000023", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000004", "label": "AI-2" }
+      ],
+      "layout": []
+    },
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000005",
+      "name": "Draft, Audio Lab",
+      "status": "Inactive",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000006"
+      ],
+      "connections": [],
+      "layout": []
+    },
+    {
+      "deviceGroupId": "cccccccc-0000-0000-0000-000000000006",
+      "name": "Draft, Thermal Sweep",
+      "status": "Inactive",
+      "deviceIds": [
+        "bbbbbbbb-0000-0000-0000-000000000022",
+        "bbbbbbbb-0000-0000-0000-000000000007",
+        "bbbbbbbb-0000-0000-0000-000000000016"
+      ],
+      "connections": [
+        { "connectionId": "cccccccc-1000-0000-0000-000000000014", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000007", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000022", "label": "CTRL" },
+        { "connectionId": "cccccccc-1000-0000-0000-000000000015", "fromDeviceId": "bbbbbbbb-0000-0000-0000-000000000016", "toDeviceId": "bbbbbbbb-0000-0000-0000-000000000022", "label": "DUT" }
+      ],
+      "layout": []
+    }
+  ],
+
+  "people": [
+    { "personId": "dddddddd-0000-0000-0000-000000000001", "name": "Aoife O'Brien", "email": "aoife@lab.example" },
+    { "personId": "dddddddd-0000-0000-0000-000000000002", "name": "Dawit Bekele",  "email": "dawit@lab.example" },
+    { "personId": "dddddddd-0000-0000-0000-000000000003", "name": "Mei Tanaka",    "email": "mei@lab.example" },
+    { "personId": "dddddddd-0000-0000-0000-000000000004", "name": "Ravi Patel",    "email": "ravi@lab.example" }
+  ],
+
+  "testGroups": [
+    {
+      "testGroupId": "eeeeeeee-0000-0000-0000-000000000001",
+      "name": "Power Team",
+      "memberIds": [
+        "dddddddd-0000-0000-0000-000000000001",
+        "dddddddd-0000-0000-0000-000000000002"
+      ]
+    },
+    {
+      "testGroupId": "eeeeeeee-0000-0000-0000-000000000002",
+      "name": "RF Team",
+      "memberIds": [
+        "dddddddd-0000-0000-0000-000000000003",
+        "dddddddd-0000-0000-0000-000000000004",
+        "dddddddd-0000-0000-0000-000000000001"
+      ]
+    }
+  ],
+
+  "reservations": [
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000001", "testGroupId": "eeeeeeee-0000-0000-0000-000000000001", "dayOffset": -1, "startHour":  9, "endHour": 12, "status": "Completed", "notes": "Morning calibration run." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000002", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset": -1, "startHour": 13, "endHour": 16, "status": "Cancelled", "notes": "Cancelled, instrument fault." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000003", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset": -1, "startHour": 10, "endHour": 15, "status": "Completed", "notes": "S-parameter sweep at 24 GHz." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000001", "testGroupId": "eeeeeeee-0000-0000-0000-000000000001", "dayOffset":  0, "startHour": 12, "endHour": 15, "status": "Confirmed", "notes": "Production sweep, 1.2V to 3.3V rails." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000002", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset":  0, "startHour": 16, "endHour": 18, "status": "Pending",   "notes": "Awaiting RF team lead approval." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000003", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset":  0, "startHour":  9, "endHour": 13, "status": "Confirmed", "notes": "RF compliance pre-scan." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000004", "testGroupId": "eeeeeeee-0000-0000-0000-000000000001", "dayOffset":  0, "startHour": 10, "endHour": 14, "status": "Confirmed", "notes": "DAQ regression run." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000001", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset":  1, "startHour":  9, "endHour": 11, "status": "Confirmed", "notes": "Cross-team handover." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000002", "testGroupId": "eeeeeeee-0000-0000-0000-000000000001", "dayOffset":  1, "startHour": 13, "endHour": 17, "status": "Pending",   "notes": "Tentative load sweep." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000004", "testGroupId": "eeeeeeee-0000-0000-0000-000000000001", "dayOffset":  1, "startHour":  8, "endHour": 12, "status": "Pending",   "notes": "Continuation of today's DAQ run." },
+    { "deviceGroupId": "cccccccc-0000-0000-0000-000000000003", "testGroupId": "eeeeeeee-0000-0000-0000-000000000002", "dayOffset":  1, "startHour": 14, "endHour": 18, "status": "Confirmed", "notes": "Antenna characterization." }
+  ]
+}
