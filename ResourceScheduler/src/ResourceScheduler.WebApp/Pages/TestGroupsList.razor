@@ -52,7 +52,7 @@
                     }
                     @if (_teams.Count == 0)
                     {
-                        <div class="rs-empty">No teams yet.</div>
+                        <div class="rs-empty">No teams yet. Click "+ New test-group" to create one.</div>
                     }
                 </div>
             </div>
@@ -60,41 +60,100 @@
             <div class="rs-detail-main">
                 @if (_selected is not null)
                 {
+                    var sel = _selected;
                     <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px">
                         <div>
                             <div class="rs-label">Editing</div>
-                            <h2 style="margin:0;font-size:20px;font-weight:500">@_selected.Name</h2>
+                            <h2 style="margin:0;font-size:20px;font-weight:500">@sel.Name</h2>
                         </div>
                         <div class="rs-row">
                             <button class="rs-btn rs-btn--ghost" @onclick="OnRename">Rename</button>
-                            <button class="rs-btn" @onclick="OnDelete">Delete team</button>
+                            <button class="rs-btn rs-btn--danger" @onclick="OnDelete">Delete team</button>
                         </div>
                     </div>
 
+                    @if (_actionError is not null)
+                    {
+                        <div style="margin-bottom:12px">
+                            <RuleViolationBanner RuleId="@_actionRuleId" Title="Cannot complete action">
+                                @_actionError
+                            </RuleViolationBanner>
+                        </div>
+                    }
+
                     <div class="rs-card" style="margin-bottom:16px">
                         <div class="rs-card-head">
-                            <span class="rs-card-title">Members (@_selected.MemberIds.Count)</span>
+                            <span class="rs-card-title">Members (@sel.MemberIds.Count)</span>
+                            <span class="rs-mono-sm">remove with the X button</span>
                         </div>
                         <div class="rs-card-body">
-                            @if (_selected.MemberIds.Count == 0)
+                            @if (sel.MemberIds.Count == 0)
                             {
-                                <div class="rs-empty">No members yet.</div>
+                                <div class="rs-empty">No members yet. Add people from the directory below.</div>
                             }
                             else
                             {
                                 <div style="display:flex;flex-direction:column;gap:8px">
                                     @{ var idx = 0; }
-                                    @foreach (var pid in _selected.MemberIds)
+                                    @foreach (var pid in sel.MemberIds)
                                     {
                                         var p = _peopleById.TryGetValue(pid, out var found) ? found : null;
                                         if (p is null) { continue; }
                                         var i = idx++;
+                                        var personId = p.PersonId;
                                         <div style="display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--rs-line);border-radius:2px;background:var(--rs-surface-2)">
                                             <Avatar Name="@p.Name" Idx="@i" Size="28" />
                                             <div style="flex:1">
                                                 <div style="font-weight:500">@p.Name</div>
                                                 <div class="rs-mono-sm">@(p.Email ?? string.Empty)</div>
                                             </div>
+                                            <button class="rs-btn rs-btn--ghost rs-btn--sm"
+                                                    title="Remove from team"
+                                                    disabled="@_saving"
+                                                    @onclick="() => RemoveMember(personId)">×</button>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="rs-card">
+                        <div class="rs-card-head">
+                            <span class="rs-card-title">People directory</span>
+                            <span class="rs-row" style="gap:12px">
+                                <span class="rs-mono-sm">click to add</span>
+                                <button class="rs-btn rs-btn--ghost rs-btn--sm" @onclick="OnNewPerson">+ New person</button>
+                            </span>
+                        </div>
+                        <div class="rs-card-body">
+                            @{
+                                var available = _people
+                                    .Where(p => !sel.MemberIds.Contains(p.PersonId))
+                                    .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+                                    .ToList();
+                            }
+                            @if (available.Count == 0)
+                            {
+                                <div class="rs-empty">Everyone is already in this team.</div>
+                            }
+                            else
+                            {
+                                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:8px">
+                                    @{ var aIdx = 0; }
+                                    @foreach (var pp in available)
+                                    {
+                                        var p = pp;
+                                        var i = aIdx++;
+                                        var personId = p.PersonId;
+                                        <div @onclick="() => AddMember(personId)"
+                                             style="display:flex;align-items:center;gap:10px;padding:8px;border:1px dashed var(--rs-line-2);border-radius:2px;cursor:pointer;background:var(--rs-surface-2)">
+                                            <Avatar Name="@p.Name" Idx="@(i + 5)" Size="24" />
+                                            <div style="flex:1">
+                                                <div style="font-size:13px">@p.Name</div>
+                                                <div class="rs-mono-sm">@(p.Email ?? string.Empty)</div>
+                                            </div>
+                                            <span class="rs-mono-sm">+ add</span>
                                         </div>
                                     }
                                 </div>
@@ -104,15 +163,29 @@
                 }
                 else
                 {
-                    <div class="rs-empty">Select a team on the left.</div>
+                    <div class="rs-empty">Select a team on the left, or click "+ New test-group" to create one.</div>
                 }
             </div>
         </div>
     }
 </div>
 
+<TestGroupEditor TestGroup="_editTarget"
+                 IsOpen="_editorOpen"
+                 OnClose="OnEditorClose"
+                 OnSaved="OnEditorSaved" />
+
+@* Person create modal. Reuses the existing PersonEditor; on save we
+   refresh the people list so the new person shows up in the directory
+   on this page without a navigation round-trip. *@
+<PersonEditor Person="null"
+              IsOpen="_personEditorOpen"
+              OnClose="OnPersonEditorClose"
+              OnSaved="OnPersonSaved" />
+
 @code {
     private bool _loaded;
+    private bool _saving;
     private IReadOnlyList<TestGroupDto> _teams = Array.Empty<TestGroupDto>();
     private IReadOnlyList<PersonDto> _people = Array.Empty<PersonDto>();
     private Dictionary<Guid, PersonDto> _peopleById = new();
@@ -122,13 +195,26 @@
         ? _teams.FirstOrDefault(t => t.TestGroupId == _selectedId.Value)
         : null;
 
+    private bool _editorOpen;
+    private TestGroupDto? _editTarget;
+
+    private bool _personEditorOpen;
+
+    private string? _actionError;
+    private string? _actionRuleId;
+
     protected override async Task OnInitializedAsync()
+    {
+        await Reload();
+        _selectedId = _teams.FirstOrDefault()?.TestGroupId;
+        _loaded = true;
+    }
+
+    private async Task Reload()
     {
         _teams = await Client.ListTestGroupsAsync();
         _people = await Client.ListPeopleAsync();
         _peopleById = _people.ToDictionary(p => p.PersonId);
-        _selectedId = _teams.FirstOrDefault()?.TestGroupId;
-        _loaded = true;
     }
 
     private IEnumerable<PersonDto> MembersOf(TestGroupDto team) =>
@@ -137,20 +223,132 @@
             .Where(p => p is not null)!
             .Cast<PersonDto>();
 
-    private void Select(Guid id) => _selectedId = id;
+    private void Select(Guid id)
+    {
+        _selectedId = id;
+        _actionError = null;
+        _actionRuleId = null;
+    }
+
+    // ---------- Editor flow ----------
 
     private void OnNewTeam()
     {
-        // Placeholder: write operations are out of scope for this screen.
+        _editTarget = null;
+        _editorOpen = true;
     }
 
     private void OnRename()
     {
-        // Placeholder: rename flow is not yet implemented.
+        if (_selected is null) return;
+        _editTarget = _selected;
+        _editorOpen = true;
     }
 
-    private void OnDelete()
+    private void OnEditorClose() => _editorOpen = false;
+
+    private async Task OnEditorSaved(TestGroupDto saved)
     {
-        // Placeholder: delete flow is not yet implemented.
+        _editorOpen = false;
+        await Reload();
+        _selectedId = saved.TestGroupId;
+    }
+
+    // ---------- Add a new person without leaving this page ----------
+
+    private void OnNewPerson() => _personEditorOpen = true;
+
+    private void OnPersonEditorClose() => _personEditorOpen = false;
+
+    private async Task OnPersonSaved(PersonDto _)
+    {
+        _personEditorOpen = false;
+        // Refresh just the people list so the directory picks up the
+        // new entry. The team list is unchanged.
+        _people = await Client.ListPeopleAsync();
+        _peopleById = _people.ToDictionary(p => p.PersonId);
+    }
+
+    // ---------- Delete ----------
+
+    private async Task OnDelete()
+    {
+        if (_selected is null) return;
+        _actionError = null;
+        _actionRuleId = null;
+        _saving = true;
+        try
+        {
+            await Client.DeleteTestGroupAsync(_selected.TestGroupId, _selected.Version);
+            await Reload();
+            _selectedId = _teams.FirstOrDefault()?.TestGroupId;
+        }
+        catch (ValidationException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _actionError = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // ---------- Member add / remove ----------
+
+    private Task AddMember(Guid personId)
+    {
+        if (_selected is null) return Task.CompletedTask;
+        if (_selected.MemberIds.Contains(personId)) return Task.CompletedTask;
+        var newIds = _selected.MemberIds.Append(personId).ToList();
+        return SaveMembership(newIds);
+    }
+
+    private Task RemoveMember(Guid personId)
+    {
+        if (_selected is null) return Task.CompletedTask;
+        if (!_selected.MemberIds.Contains(personId)) return Task.CompletedTask;
+        var newIds = _selected.MemberIds.Where(id => id != personId).ToList();
+        return SaveMembership(newIds);
+    }
+
+    private async Task SaveMembership(IReadOnlyList<Guid> newMemberIds)
+    {
+        if (_selected is null) return;
+        _actionError = null;
+        _actionRuleId = null;
+        _saving = true;
+        try
+        {
+            var saved = await Client.UpdateTestGroupAsync(
+                _selected.TestGroupId,
+                new TestGroupUpdate(_selected.Name, newMemberIds),
+                _selected.Version);
+            await Reload();
+            _selectedId = saved.TestGroupId;
+        }
+        catch (ValidationException ex)
+        {
+            _actionError = ex.Message;
+            _actionRuleId = ex.RuleId;
+        }
+        catch (ConflictException ex)
+        {
+            // Stale version: refresh and let the user retry.
+            _actionError = $"{ex.Message} The team was changed elsewhere; the latest version has been loaded.";
+            await Reload();
+        }
+        catch (DomainException ex)
+        {
+            _actionError = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
     }
 }

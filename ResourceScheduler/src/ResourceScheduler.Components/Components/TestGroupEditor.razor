@@ -1,0 +1,108 @@
+@* Test-Group create/rename modal. Members are managed inline on the
+   parent page (TestGroupsList) rather than here, since member changes
+   tend to be the bulk of editing time and a sidebar drawer reads better
+   than a modal for that workflow. *@
+
+@inject IClientService Client
+
+<Modal IsOpen="IsOpen" Title="@TitleText" OnClose="OnClose">
+    <ChildContent>
+        @if (_error is not null)
+        {
+            <div style="margin-bottom: 16px">
+                <RuleViolationBanner RuleId="@_errorRuleId" Title="Cannot save">
+                    @_error
+                </RuleViolationBanner>
+            </div>
+        }
+        <div class="rs-form">
+            <div class="rs-field rs-field--full">
+                <label class="rs-label">Name</label>
+                <input class="rs-input" @bind="_name" @bind:event="oninput" placeholder="Test-group name" />
+            </div>
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <button type="button" class="rs-btn rs-btn--ghost" @onclick="OnClose" disabled="@_saving">Cancel</button>
+        <button type="button" class="rs-btn rs-btn--primary" @onclick="Save"
+                disabled="@(_saving || string.IsNullOrWhiteSpace(_name))">
+            @(_saving ? "Saving…" : "Save")
+        </button>
+    </FooterContent>
+</Modal>
+
+@code {
+    /// <summary>Existing test-group when renaming; null when creating.</summary>
+    [Parameter] public TestGroupDto? TestGroup { get; set; }
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<TestGroupDto> OnSaved { get; set; }
+
+    private bool _wasOpen;
+    private bool _saving;
+    private string _name = string.Empty;
+    private string? _error;
+    private string? _errorRuleId;
+
+    private string TitleText => TestGroup is null ? "New test-group" : "Rename test-group";
+
+    protected override Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            // Modal just opened: clone current values into working fields.
+            _name = TestGroup?.Name ?? string.Empty;
+            _error = null;
+            _errorRuleId = null;
+            _saving = false;
+        }
+        _wasOpen = IsOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+
+        _saving = true;
+        _error = null;
+        _errorRuleId = null;
+        try
+        {
+            TestGroupDto saved;
+            if (TestGroup is null)
+            {
+                saved = await Client.CreateTestGroupAsync(
+                    new TestGroupCreate(_name.Trim(), Array.Empty<Guid>()));
+            }
+            else
+            {
+                // Preserve current member list when renaming. Members are
+                // managed inline on the parent page; this modal only edits
+                // the name.
+                saved = await Client.UpdateTestGroupAsync(
+                    TestGroup.TestGroupId,
+                    new TestGroupUpdate(_name.Trim(), TestGroup.MemberIds),
+                    TestGroup.Version);
+            }
+            await OnSaved.InvokeAsync(saved);
+        }
+        catch (ValidationException ex)
+        {
+            _error = ex.Message;
+            _errorRuleId = ex.RuleId;
+        }
+        catch (DomainException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+}
