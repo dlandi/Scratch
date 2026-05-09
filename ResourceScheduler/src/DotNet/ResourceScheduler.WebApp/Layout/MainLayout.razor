@@ -2,12 +2,20 @@
 @inject NavigationManager Nav
 @inject TimeProvider Time
 @inject UserTimeProvider TzPref
+@inject ResourceScheduler.Components.Services.BackendSwitcher Backend
+@inject Microsoft.JSInterop.IJSRuntime JS
 @inject Microsoft.Extensions.Configuration.IConfiguration Config
 @implements IDisposable
 
 <div class="rs-app">
     <Header ActiveScreen="@CurrentScreen"
             ScreenChanged="OnScreenChanged"
+            StoreLabel="@StoreLabelFor(Backend.Mode)"
+            CanSwitchBackend="@BackendSwitcherEnabled"
+            BackendOptions="@BackendOptions"
+            CurrentBackendId="@Backend.Mode.ToString()"
+            BackendTitle="@BackendTitleFor(Backend.Mode)"
+            BackendChanged="OnBackendChanged"
             TimeZoneLabel="@TzLabel"
             TimeZoneTitle="@TzTitle"
             CanSwitchTimeZone="@TzSwitcherEnabled"
@@ -117,18 +125,99 @@
             .ToList();
     }
 
+    /// <summary>Whether the header backend chip is rendered as an
+    /// interactive dropdown. Driven by
+    /// <c>Features:BackendSwitcher:Enabled</c>.</summary>
+    private bool BackendSwitcherEnabled =>
+        Config.GetValue<bool>("Features:BackendSwitcher:Enabled");
+
+    /// <summary>Static option list for the header backend dropdown.</summary>
+    private static readonly IReadOnlyList<ResourceScheduler.Components.Services.BackendOption> BackendOptions =
+        new[]
+        {
+            new ResourceScheduler.Components.Services.BackendOption(
+                ResourceScheduler.Components.Services.BackendMode.InMemory.ToString(),
+                "in-memory store"),
+            new ResourceScheduler.Components.Services.BackendOption(
+                ResourceScheduler.Components.Services.BackendMode.Rust.ToString(),
+                "rust api"),
+        };
+
+    private const string BackendStorageKey = "rs:backend";
+
+    private static string StoreLabelFor(ResourceScheduler.Components.Services.BackendMode mode) =>
+        mode switch
+        {
+            ResourceScheduler.Components.Services.BackendMode.Rust => "rust api",
+            _ => "in-memory store",
+        };
+
+    private static string BackendTitleFor(ResourceScheduler.Components.Services.BackendMode mode) =>
+        mode switch
+        {
+            ResourceScheduler.Components.Services.BackendMode.Rust =>
+                "Backend: Rust HTTP API. Switching does not migrate data.",
+            _ => "Backend: in-process simulator with seeded fixture data. Switching does not migrate data.",
+        };
+
     protected override void OnInitialized()
     {
         TzPref.Changed += OnZoneChanged;
+        Backend.Changed += OnBackendStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (!BackendSwitcherEnabled) return;
+
+        // Read the persisted choice once after first render. JS interop
+        // requires the WASM runtime to be up, so this can only run on
+        // OnAfterRenderAsync, not OnInitialized.
+        string? stored = null;
+        try
+        {
+            stored = await JS.InvokeAsync<string?>("localStorage.getItem", BackendStorageKey);
+        }
+        catch
+        {
+            // localStorage unavailable (private mode, host quirks, etc.) -- keep default.
+        }
+
+        if (Enum.TryParse<ResourceScheduler.Components.Services.BackendMode>(stored, out var mode)
+            && mode != Backend.Mode)
+        {
+            Backend.SetMode(mode);
+        }
     }
 
     private void OnZoneChanged() => InvokeAsync(StateHasChanged);
 
+    private void OnBackendStateChanged() => InvokeAsync(StateHasChanged);
+
     private void OnTimeZoneChanged(string id) => TzPref.SetTimeZoneById(id);
+
+    private async Task OnBackendChanged(string id)
+    {
+        if (!Enum.TryParse<ResourceScheduler.Components.Services.BackendMode>(id, out var mode))
+        {
+            return;
+        }
+        Backend.SetMode(mode);
+        try
+        {
+            await JS.InvokeVoidAsync("localStorage.setItem", BackendStorageKey, mode.ToString());
+        }
+        catch
+        {
+            // Persistence is best-effort; the in-session switch still applies.
+        }
+    }
 
     public void Dispose()
     {
         TzPref.Changed -= OnZoneChanged;
+        Backend.Changed -= OnBackendStateChanged;
     }
 
     private void OnScreenChanged(string id)

@@ -3,4 +3,5 @@
   <Project Path="ResourceScheduler.UI.Tests/ResourceScheduler.UI.Tests.csproj" />
   <Project Path="ResourceScheduler.WebApp/ResourceScheduler.WebApp.csproj" />
   <Project Path="ResourceScheduler.Tests/ResourceScheduler.Tests.csproj" />
+  <Project Path="ResourceScheduler.IntegrationTests/ResourceScheduler.IntegrationTests.csproj" />
 </Solution>

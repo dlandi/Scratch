@@ -29,7 +29,23 @@
         }
     </nav>
     <div class="rs-header-right">
-        <span><span class="dot"></span>@StoreLabel</span>
+        <span class="rs-store-chip">
+            <span class="dot"></span>
+            @if (CanSwitchBackend && BackendOptions.Count > 0)
+            {
+                <select class="rs-backend-select" title="@BackendTitle"
+                        value="@CurrentBackendId" @onchange="OnBackendSelectChanged">
+                    @foreach (var b in BackendOptions)
+                    {
+                        <option value="@b.Id">@b.Label</option>
+                    }
+                </select>
+            }
+            else
+            {
+                <span>@StoreLabel</span>
+            }
+        </span>
         <span>·</span>
         @if (CanSwitchTimeZone && TimeZoneOptions.Count > 0)
         {
@@ -68,8 +84,27 @@
     [Parameter] public string ActiveScreen { get; set; } = "dashboard";
     [Parameter] public EventCallback<string> ScreenChanged { get; set; }
 
-    /// <summary>Right-hand environment label, e.g. "in-memory store" or "rust api".</summary>
+    /// <summary>Right-hand environment label, e.g. "in-memory store" or "rust api".
+    /// Used as the static fallback when <see cref="CanSwitchBackend"/> is false.</summary>
     [Parameter] public string StoreLabel { get; set; } = "in-memory store";
+
+    /// <summary>When true, the store label becomes a dropdown that raises
+    /// <see cref="BackendChanged"/> on selection. Driven by the
+    /// <c>Features:BackendSwitcher:Enabled</c> appsettings flag.</summary>
+    [Parameter] public bool CanSwitchBackend { get; set; }
+
+    /// <summary>Available backends for the dropdown. Empty when the switcher is off.</summary>
+    [Parameter] public IReadOnlyList<Services.BackendOption> BackendOptions { get; set; } =
+        Array.Empty<Services.BackendOption>();
+
+    /// <summary>The id of the currently selected backend (used as the select's value).</summary>
+    [Parameter] public string CurrentBackendId { get; set; } = string.Empty;
+
+    /// <summary>Hover-tooltip with a longer description of the active backend.</summary>
+    [Parameter] public string BackendTitle { get; set; } = string.Empty;
+
+    /// <summary>Raised with the chosen backend id when the user changes the dropdown.</summary>
+    [Parameter] public EventCallback<string> BackendChanged { get; set; }
 
     [Parameter] public string Version { get; set; } = "v0.1";
 
@@ -103,6 +138,15 @@
         if (!string.IsNullOrEmpty(id))
         {
             await TimeZoneChanged.InvokeAsync(id);
+        }
+    }
+
+    private async Task OnBackendSelectChanged(ChangeEventArgs e)
+    {
+        var id = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(id))
+        {
+            await BackendChanged.InvokeAsync(id);
         }
     }
 

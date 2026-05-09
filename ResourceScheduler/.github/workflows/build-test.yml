@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  CARGO_TERM_COLOR: always
+
 jobs:
   ci:
     name: Build and test
@@ -17,22 +22,84 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      # ---- Rust ----
+      #
+      # The Rust toolchain comes first because the .NET integration test
+      # project (ResourceScheduler.IntegrationTests) spawns the Rust
+      # binary at test time and expects target/release/ to already exist.
+      # Building it here, ahead of dotnet test, turns the fixture's own
+      # `cargo build --release` into a fast no-op.
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry, git, and target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ResourceScheduler/src/Rust/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('ResourceScheduler/src/Rust/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: cargo fmt --check
+        working-directory: ResourceScheduler/src/Rust
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        working-directory: ResourceScheduler/src/Rust
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: ResourceScheduler/src/Rust
+        run: cargo test --all-targets
+
+      - name: cargo build --release
+        working-directory: ResourceScheduler/src/Rust
+        run: cargo build --release
+
+      # ---- .NET ----
+
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: src/global.json
+          global-json-file: ResourceScheduler/src/DotNet/global.json
 
       - name: Restore
-        working-directory: src
-        run: dotnet restore
+        working-directory: ResourceScheduler/src/DotNet
+        run: dotnet restore ResourceScheduler.slnx
 
       - name: Build
-        working-directory: src
-        run: dotnet build --configuration Release --no-restore
+        working-directory: ResourceScheduler/src/DotNet
+        run: dotnet build ResourceScheduler.slnx --configuration Release --no-restore
 
-      - name: Test
-        working-directory: src
-        run: dotnet test --configuration Release --no-build --logger "trx;LogFilePrefix=test-results" --results-directory ../TestResults
+      - name: Unit tests (rule + concurrency + RemoteClientService contract)
+        working-directory: ResourceScheduler/src/DotNet
+        run: >
+          dotnet test ResourceScheduler.Tests/ResourceScheduler.Tests.csproj
+          --configuration Release --no-build
+          --logger "trx;LogFilePrefix=unit"
+          --results-directory ${{ github.workspace }}/TestResults
+
+      - name: UI (bUnit) tests
+        working-directory: ResourceScheduler/src/DotNet
+        run: >
+          dotnet test ResourceScheduler.UI.Tests/ResourceScheduler.UI.Tests.csproj
+          --configuration Release --no-build
+          --logger "trx;LogFilePrefix=ui"
+          --results-directory ${{ github.workspace }}/TestResults
+
+      - name: Integration tests (spawns the Rust binary)
+        working-directory: ResourceScheduler/src/DotNet
+        run: >
+          dotnet test ResourceScheduler.IntegrationTests/ResourceScheduler.IntegrationTests.csproj
+          --configuration Release --no-build
+          --logger "trx;LogFilePrefix=integration"
+          --results-directory ${{ github.workspace }}/TestResults
 
       - name: Upload test results
         if: always()

@@ -876,3 +876,29 @@ a:hover { text-decoration: underline; }
 }
 .rs-tz-select:hover { border-color: var(--rs-line-2); color: var(--rs-ink); }
 .rs-tz-select:focus { outline: none; border-color: var(--rs-accent); }
+
+/* Backend switcher chip in the header (developer/testing aid). Shares
+   the timezone-select visual treatment so the two dropdowns sit
+   together without competing styles. */
+.rs-store-chip { display: inline-flex; align-items: center; }
+.rs-backend-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    border: 1px solid var(--rs-line);
+    border-radius: 2px;
+    color: var(--rs-ink-2);
+    font-family: var(--rs-font-mono);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    padding: 2px 18px 2px 6px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--rs-ink-3) 50%),
+                      linear-gradient(135deg, var(--rs-ink-3) 50%, transparent 50%);
+    background-position: calc(100% - 8px) 50%, calc(100% - 4px) 50%;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+    max-width: 160px;
+    cursor: pointer;
+}
+.rs-backend-select:hover { border-color: var(--rs-line-2); color: var(--rs-ink); }
+.rs-backend-select:focus { outline: none; border-color: var(--rs-accent); }
