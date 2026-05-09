@@ -27,9 +27,20 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddSingleton<UserTimeProvider>(_ => new UserTimeProvider(TimeProvider.System));
 builder.Services.AddSingleton<TimeProvider>(sp => sp.GetRequiredService<UserTimeProvider>());
 
-// Phase 1: in-memory backend simulation. Singleton so the seed survives
-// the lifetime of the tab. Phase 2 will replace this registration with
-// an HTTP-backed implementation against the Rust API.
-builder.Services.AddSingleton<IClientService, InMemoryClientService>();
+// Both backends are registered as concrete singletons so BackendSwitcher
+// can choose between them at runtime. IClientService resolves to the
+// switcher; the active backend is controlled by the header dropdown
+// when Features:BackendSwitcher:Enabled is true. The HttpClient used
+// by the Rust client takes its base URL from Api:BaseUrl in
+// appsettings.json (default 127.0.0.1:7070, where the Rust binary
+// listens out of the box).
+builder.Services.AddSingleton<InMemoryClientService>();
+builder.Services.AddSingleton(_ =>
+{
+    var baseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://127.0.0.1:7070";
+    return new RemoteClientService(new HttpClient { BaseAddress = new Uri(baseUrl) });
+});
+builder.Services.AddSingleton<BackendSwitcher>();
+builder.Services.AddSingleton<IClientService>(sp => sp.GetRequiredService<BackendSwitcher>());
 
 await builder.Build().RunAsync();
