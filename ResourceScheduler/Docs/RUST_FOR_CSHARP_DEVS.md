@@ -289,7 +289,7 @@ if (row is not { } r) return null;
 
 except `row` itself is rebound on the success path, so subsequent code uses the unwrapped value.
 
-**Surprise:** `match` arms must cover every possibility. Add a fifth `ReservationStatus` variant and every `match` over `ReservationStatus` in the codebase becomes a compile error pointing at the missing arm. C# 12 switch expressions warn at most; Rust hard-fails. We want this. It is the reason rule-violation messages stay in sync when an enum gains a value.
+**Surprise:** `match` arms must cover every possibility. Add a fifth `ReservationStatus` variant and every `match` over `ReservationStatus` in the codebase becomes a compile error pointing at the missing arm. C# 12 switch expressions warn at most; Rust hard-fails. That is what keeps rule-violation messages in sync when an enum gains a value.
 
 Reference: [Rust Book Ch. 6 (enums)](https://doc.rust-lang.org/book/ch06-00-enums.html), [Ch. 18 (patterns)](https://doc.rust-lang.org/book/ch18-00-patterns.html).
 
@@ -462,7 +462,7 @@ pub async fn update(pool: &SqlitePool, id: Uuid, input: BuildingUpdate, expected
 
 The transaction case at [`store/device_groups.rs:138-265`](../src/Rust/src/store/device_groups.rs:138) is worth reading once. It does five things in one transaction: read current row + version, count members (R7), check device statuses (R5), check membership clashes against other Active groups (R3), then update. It opens with `pool.begin_with("BEGIN IMMEDIATE")` instead of the default `pool.begin()`; see Section 14 for why.
 
-Migrations live in [src/Rust/migrations/](../src/Rust/migrations/) and are picked up by `sqlx::migrate!()` at [`state.rs:42-48`](../src/Rust/src/state.rs:42). They are filename-ordered (`0001_init.sql`, `0002_devices.sql`, ...) and **content-hashed**. The hash invalidates if you edit the file, which we hit; see Section 14.
+Migrations live in [src/Rust/migrations/](../src/Rust/migrations/) and are picked up by `sqlx::migrate!()` at [`state.rs:42-48`](../src/Rust/src/state.rs:42). They are filename-ordered (`0001_init.sql`, `0002_devices.sql`, ...) and **content-hashed**. Editing an applied migration invalidates the hash and aborts startup; see Section 14.
 
 **Surprise:** No change tracking means returning the updated DTO requires you to construct it manually after the UPDATE, often by re-using fields from the row you read at the top. See the `..current` syntax at [`store/reservations.rs:266-270`](../src/Rust/src/store/reservations.rs:266) for the spread-operator-like shorthand:
 
@@ -535,13 +535,13 @@ The `From<sqlx::Error> for ServiceError` impl at [`error.rs:56-65`](../src/Rust/
 | `anyhow` | "wrap anything, attach context, return up" errors at the binary boundary, or in tests. |
 | handwritten `From` impls | bridge between a third-party error type and your typed error |
 
-**Surprise:** A library crate that exposes `anyhow::Error` to its callers is considered bad form, because callers cannot match on the cause. We follow the rule: `lib.rs` returns `ServiceResult<T>`, `main.rs` returns `anyhow::Result<T>`. If you find yourself reaching for `anyhow` inside `lib.rs`, either add a typed variant to `ServiceError` or wrap it with `.context(...)` and let `Internal` carry it.
+**Surprise:** A library crate that exposes `anyhow::Error` to its callers is considered bad form, because callers cannot match on the cause. The convention here: `lib.rs` returns `ServiceResult<T>`, `main.rs` returns `anyhow::Result<T>`. If you find yourself reaching for `anyhow` inside `lib.rs`, either add a typed variant to `ServiceError` or wrap it with `.context(...)` and let `Internal` carry it.
 
 Reference: [thiserror docs](https://docs.rs/thiserror), [anyhow docs](https://docs.rs/anyhow).
 
 ## 12. Tests
 
-`#[tokio::test]` is `[Fact]` for async. Our tests live in [src/Rust/tests/](../src/Rust/tests/), one file per aggregate (like an xUnit project per area). Rust also lets you put unit tests inline at the bottom of a source file inside a `#[cfg(test)] mod tests { ... }` block when you need access to private items, but we have not had to reach for that yet; everything is testable from outside via the HTTP surface.
+`#[tokio::test]` is `[Fact]` for async. Our tests live in [src/Rust/tests/](../src/Rust/tests/), one file per aggregate (like an xUnit project per area). Rust also lets you put unit tests inline at the bottom of a source file inside a `#[cfg(test)] mod tests { ... }` block when you need access to private items.
 
 [`tests/buildings.rs:38-52`](../src/Rust/tests/buildings.rs:38):
 
@@ -605,21 +605,19 @@ Day-to-day commands, run from [src/Rust/](../src/Rust/):
 key: cargo-${{ runner.os }}-${{ hashFiles('ResourceScheduler/src/Rust/Cargo.lock', 'ResourceScheduler/src/Rust/Cargo.toml', 'ResourceScheduler/src/Rust/rust-toolchain.toml') }}
 ```
 
-is keyed on every input that changes the build graph. There is no `restore-keys`, on purpose: a cache miss must be a clean rebuild rather than reuse a `target/` snapshot built against a different lockfile. The comment block above that key is worth reading; it captures the lesson from a CI flake we hit early.
+is keyed on every input that changes the build graph. There is no `restore-keys`, on purpose: a cache miss must be a clean rebuild rather than reuse a `target/` snapshot built against a different lockfile or toolchain.
 
 **Surprise:** `cargo test` runs every `#[cfg(test)] mod tests { ... }` block across the crate, plus every file in `tests/`. Adding a unit test to a `store/*.rs` file does not require touching a project file; the compiler picks it up on next build.
 
 Reference: [Cargo Book](https://doc.rust-lang.org/cargo/).
 
-## 14. Gotchas already hit on this codebase
-
-Each one references the commit that introduced or fixed the issue.
+## 14. Gotchas
 
 ### 14.1 sqlx migrations are content-hashed; do not edit applied migrations
 
-`sqlx::migrate!()` at [`state.rs:43`](../src/Rust/src/state.rs:43) records a SHA of every migration file the **first** time it runs against a database. On subsequent runs, mismatched hashes abort startup. **Even a comment edit invalidates the hash.** This came up during the Phase 2 review when reformatting an already-applied migration would have broken every developer's local database.
+`sqlx::migrate!()` at [`state.rs:43`](../src/Rust/src/state.rs:43) records a SHA of every migration file the **first** time it runs against a database. On subsequent runs, mismatched hashes abort startup. **Even a comment edit invalidates the hash.**
 
-The rule: once a migration has shipped, treat the file as immutable. If you need to change applied SQL, write a new `0007_*.sql` migration that does the change. Edit applied files only on a fresh database (`rm resource-scheduler.db`).
+The rule: once a migration has shipped, treat the file as immutable. To change applied SQL, write a new `0007_*.sql` migration. Edit applied files only against a fresh database (`rm resource-scheduler.db`).
 
 ### 14.2 SQLite TEXT date storage and lex-vs-temporal ordering
 
@@ -641,7 +639,7 @@ The fix is `pool.begin_with("BEGIN IMMEDIATE")` at [`store/device_groups.rs:149`
 
 ### 14.4 Optimistic concurrency without an ORM
 
-Every versioned aggregate explicitly does **read, compare, conditional-UPDATE** by hand. There is no `[Timestamp]` magic. The pattern is uniform across [`store/buildings.rs`](../src/Rust/src/store/buildings.rs), [`store/devices.rs`](../src/Rust/src/store/devices.rs), [`store/device_groups.rs`](../src/Rust/src/store/device_groups.rs), [`store/test_groups.rs`](../src/Rust/src/store/test_groups.rs), and [`store/reservations.rs`](../src/Rust/src/store/reservations.rs); the post-Phase-2 cleanup ([`287d9f4`](../)) aligned the four that drifted. When you add a new versioned aggregate, mirror the [`store/buildings.rs:44-78`](../src/Rust/src/store/buildings.rs:44) shape exactly:
+Every versioned aggregate explicitly does **read, compare, conditional-UPDATE** by hand. There is no `[Timestamp]` magic. The pattern is uniform across [`store/buildings.rs`](../src/Rust/src/store/buildings.rs), [`store/devices.rs`](../src/Rust/src/store/devices.rs), [`store/device_groups.rs`](../src/Rust/src/store/device_groups.rs), [`store/test_groups.rs`](../src/Rust/src/store/test_groups.rs), and [`store/reservations.rs`](../src/Rust/src/store/reservations.rs). When you add a new versioned aggregate, mirror the [`store/buildings.rs:44-78`](../src/Rust/src/store/buildings.rs:44) shape exactly:
 
 ```rust
 let current = get(pool, id).await?.ok_or(ServiceError::NotFound)?;
@@ -653,7 +651,3 @@ sqlx::query("UPDATE ... SET ... version = ? WHERE id = ? AND version = ?")
 ```
 
 The `AND version = ?` clause is belt-and-suspenders; the version compare-then-update pattern catches the race even when the row is read against the pool rather than inside a transaction. Inside a transaction (Section 14.3), it is the only line that matters.
-
----
-
-If the team finds gaps in this primer, edit it in place. The point is to be the document a new C# dev opens before touching the Rust crate.
