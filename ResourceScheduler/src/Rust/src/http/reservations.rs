@@ -100,5 +100,5 @@ fn parse_utc(value: &str) -> Result<DateTime<Utc>, chrono::ParseError> {
 }
 
 fn bad_query(field: &str) -> ServiceError {
-    ServiceError::Internal(anyhow::anyhow!("invalid query parameter: {field}"))
+    ServiceError::BadRequest(format!("invalid query parameter: {field}"))
 }

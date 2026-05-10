@@ -10,12 +10,14 @@ pub struct PersonDto {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PersonCreate {
     pub name: String,
     pub email: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PersonUpdate {
     pub name: String,
     pub email: Option<String>,

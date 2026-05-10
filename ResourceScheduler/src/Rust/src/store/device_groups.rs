@@ -239,10 +239,23 @@ pub async fn activate(
     .execute(&mut *tx)
     .await?;
 
+    // Read children inside the same transaction so the response body
+    // reflects exactly the state we just committed. Re-reading via the
+    // pool after commit would let a concurrent writer's state leak in
+    // under our new version number.
+    let (device_ids, connections, layout) = load_children(&mut tx, id).await?;
+
     tx.commit().await?;
 
-    let group = get(pool, id).await?.ok_or(ServiceError::NotFound)?;
-    Ok(group)
+    Ok(DeviceGroupDto {
+        device_group_id: id,
+        name: group_name,
+        status: DeviceGroupStatus::Active,
+        device_ids,
+        connections,
+        layout,
+        version: new_version,
+    })
 }
 
 pub async fn deactivate(
@@ -252,7 +265,7 @@ pub async fn deactivate(
 ) -> ServiceResult<DeviceGroupDto> {
     let mut tx = pool.begin().await?;
 
-    let current = sqlx::query("SELECT version FROM device_groups WHERE device_group_id = ?")
+    let current = sqlx::query("SELECT name, version FROM device_groups WHERE device_group_id = ?")
         .bind(id)
         .fetch_optional(&mut *tx)
         .await?
@@ -261,6 +274,7 @@ pub async fn deactivate(
     if current_version != expected_version {
         return Err(ServiceError::Conflict);
     }
+    let group_name: String = current.get("name");
 
     let new_version = current_version + 1;
     sqlx::query(
@@ -274,10 +288,19 @@ pub async fn deactivate(
     .execute(&mut *tx)
     .await?;
 
+    let (device_ids, connections, layout) = load_children(&mut tx, id).await?;
+
     tx.commit().await?;
 
-    let group = get(pool, id).await?.ok_or(ServiceError::NotFound)?;
-    Ok(group)
+    Ok(DeviceGroupDto {
+        device_group_id: id,
+        name: group_name,
+        status: DeviceGroupStatus::Inactive,
+        device_ids,
+        connections,
+        layout,
+        version: new_version,
+    })
 }
 
 pub async fn delete(pool: &SqlitePool, id: Uuid, expected_version: i32) -> ServiceResult<()> {
@@ -413,6 +436,56 @@ async fn insert_children(
     }
 
     Ok(())
+}
+
+/// Read members, connections, and layout for a group inside an open
+/// transaction. Mirrors what `assemble` does against the pool, but
+/// participates in the caller's transaction so the values reflect the
+/// uncommitted state and can be returned without a stale post-commit
+/// re-read.
+async fn load_children(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    group_id: Uuid,
+) -> ServiceResult<(Vec<Uuid>, Vec<DeviceConnectionDto>, Vec<DeviceLayoutEntry>)> {
+    let device_ids: Vec<Uuid> = sqlx::query_scalar(
+        "SELECT device_id FROM device_group_members WHERE device_group_id = ? ORDER BY ordinal",
+    )
+    .bind(group_id)
+    .fetch_all(&mut **tx)
+    .await?;
+
+    let conn_rows = sqlx::query(
+        "SELECT connection_id, from_device_id, to_device_id, label \
+         FROM device_group_connections WHERE device_group_id = ?",
+    )
+    .bind(group_id)
+    .fetch_all(&mut **tx)
+    .await?;
+    let connections = conn_rows
+        .into_iter()
+        .map(|r| DeviceConnectionDto {
+            connection_id: r.get("connection_id"),
+            from_device_id: r.get("from_device_id"),
+            to_device_id: r.get("to_device_id"),
+            label: r.get("label"),
+        })
+        .collect();
+
+    let layout_rows =
+        sqlx::query("SELECT device_id, x, y FROM device_group_layout WHERE device_group_id = ?")
+            .bind(group_id)
+            .fetch_all(&mut **tx)
+            .await?;
+    let layout = layout_rows
+        .into_iter()
+        .map(|r| DeviceLayoutEntry {
+            device_id: r.get("device_id"),
+            x: r.get("x"),
+            y: r.get("y"),
+        })
+        .collect();
+
+    Ok((device_ids, connections, layout))
 }
 
 async fn delete_children(

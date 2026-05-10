@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 use crate::error::ServiceResult;
 use crate::models::enums::{DeviceGroupStatus, DeviceStatus, ReservationStatus};
+use crate::store::reservations::fmt_utc;
 
 const SEED_JSON: &str = include_str!("../../seed-data.json");
 
@@ -209,8 +210,8 @@ async fn apply(pool: &SqlitePool, data: &SeedData) -> ServiceResult<()> {
         .bind(id)
         .bind(r.device_group_id)
         .bind(r.test_group_id)
-        .bind(start)
-        .bind(end)
+        .bind(fmt_utc(start))
+        .bind(fmt_utc(end))
         .bind(r.status)
         .bind(&r.notes)
         .execute(&mut *tx)

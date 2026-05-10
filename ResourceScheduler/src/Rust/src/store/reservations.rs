@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -9,11 +9,25 @@ use crate::models::reservations::{ReservationCreate, ReservationDto, Reservation
 const SELECT_COLS: &str =
     "reservation_id, device_group_id, test_group_id, start_utc, end_utc, status, notes, version";
 
+/// Canonical text form for `DateTime<Utc>` columns. Always nine
+/// fractional digits and a trailing `Z` so every row has identical
+/// width, which lets SQLite `<` / `>` / `ORDER BY` on the raw TEXT
+/// column agree with chronological order. Without this, sqlx-sqlite's
+/// default RFC 3339 encoder picks variable precision (no fractional
+/// for whole seconds, otherwise milli/micro/nano) and lex order
+/// disagrees with time order at the `.` vs `Z` byte position.
+pub(crate) fn fmt_utc(dt: DateTime<Utc>) -> String {
+    dt.format("%Y-%m-%dT%H:%M:%S%.9fZ").to_string()
+}
+
 pub async fn list(
     pool: &SqlitePool,
     filter: &ReservationFilter,
 ) -> ServiceResult<Vec<ReservationDto>> {
     // Build the query dynamically based on which filter fields are set.
+    // Comparisons run on the raw TEXT column rather than via SQLite's
+    // datetime() function so sub-second precision is preserved; see
+    // fmt_utc for why every value uses a fixed nine-digit form.
     let mut sql = format!("SELECT {SELECT_COLS} FROM reservations WHERE 1 = 1");
     if filter.device_group_id.is_some() {
         sql.push_str(" AND device_group_id = ?");
@@ -22,10 +36,10 @@ pub async fn list(
         sql.push_str(" AND test_group_id = ?");
     }
     if filter.from_utc.is_some() {
-        sql.push_str(" AND datetime(end_utc) > datetime(?)");
+        sql.push_str(" AND end_utc > ?");
     }
     if filter.to_utc.is_some() {
-        sql.push_str(" AND datetime(start_utc) < datetime(?)");
+        sql.push_str(" AND start_utc < ?");
     }
     if !filter.status_in.is_empty() {
         sql.push_str(" AND status IN (");
@@ -37,7 +51,7 @@ pub async fn list(
         }
         sql.push(')');
     }
-    sql.push_str(" ORDER BY datetime(start_utc)");
+    sql.push_str(" ORDER BY start_utc");
 
     let mut q = sqlx::query_as::<_, ReservationDto>(&sql);
     if let Some(id) = filter.device_group_id {
@@ -47,10 +61,10 @@ pub async fn list(
         q = q.bind(id);
     }
     if let Some(t) = filter.from_utc {
-        q = q.bind(t);
+        q = q.bind(fmt_utc(t));
     }
     if let Some(t) = filter.to_utc {
-        q = q.bind(t);
+        q = q.bind(fmt_utc(t));
     }
     for s in &filter.status_in {
         q = q.bind(*s);
@@ -105,8 +119,8 @@ pub async fn create(pool: &SqlitePool, input: ReservationCreate) -> ServiceResul
     .bind(id)
     .bind(input.device_group_id)
     .bind(input.test_group_id)
-    .bind(start_utc)
-    .bind(end_utc)
+    .bind(fmt_utc(start_utc))
+    .bind(fmt_utc(end_utc))
     .bind(status)
     .bind(&input.notes)
     .bind(version)
@@ -172,14 +186,14 @@ pub async fn confirm(
              WHERE reservation_id != ? \
                AND device_group_id = ? \
                AND status = 'Confirmed' \
-               AND datetime(?) < datetime(end_utc) \
-               AND datetime(?) > datetime(start_utc) \
+               AND ? < end_utc \
+               AND ? > start_utc \
              LIMIT 1",
         )
         .bind(id)
         .bind(current.device_group_id)
-        .bind(current.start_utc)
-        .bind(current.end_utc)
+        .bind(fmt_utc(current.start_utc))
+        .bind(fmt_utc(current.end_utc))
         .fetch_optional(pool)
         .await?;
     if let Some((existing_start, existing_end)) = r10_clash {
@@ -206,14 +220,14 @@ pub async fn confirm(
              WHERE reservation_id != ? \
                AND test_group_id = ? \
                AND status = 'Confirmed' \
-               AND datetime(?) < datetime(end_utc) \
-               AND datetime(?) > datetime(start_utc) \
+               AND ? < end_utc \
+               AND ? > start_utc \
              LIMIT 1",
         )
         .bind(id)
         .bind(current.test_group_id)
-        .bind(current.start_utc)
-        .bind(current.end_utc)
+        .bind(fmt_utc(current.start_utc))
+        .bind(fmt_utc(current.end_utc))
         .fetch_optional(pool)
         .await?;
     if let Some((existing_start, existing_end)) = r11_clash {

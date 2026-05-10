@@ -11,12 +11,14 @@ pub struct BuildingDto {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BuildingCreate {
     pub name: String,
     pub address: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BuildingUpdate {
     pub name: String,
     pub address: String,

@@ -32,6 +32,14 @@ pub enum ServiceError {
     #[error("missing or malformed If-Match header")]
     MissingIfMatch,
 
+    /// Malformed request input that is not a domain rule violation, e.g.
+    /// an unparseable query parameter. Surfaces as `400 Bad Request` with
+    /// the same `{ruleId, message}` body shape so the C# client can route
+    /// it through `ValidationException`; the synthetic id `BadRequest`
+    /// distinguishes it from real spec rule ids.
+    #[error("bad request: {0}")]
+    BadRequest(String),
+
     #[error(transparent)]
     Internal(#[from] anyhow::Error),
 }
@@ -67,6 +75,14 @@ impl IntoResponse for ServiceError {
             )
                 .into_response(),
             ServiceError::MissingIfMatch => StatusCode::BAD_REQUEST.into_response(),
+            ServiceError::BadRequest(message) => (
+                StatusCode::BAD_REQUEST,
+                Json(ApiErrorBody {
+                    rule_id: "BadRequest".to_string(),
+                    message,
+                }),
+            )
+                .into_response(),
             ServiceError::Internal(err) => {
                 tracing::error!(?err, "internal error");
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
