@@ -8,8 +8,9 @@ namespace ResourceScheduler.Components.Services;
 /// <summary>
 /// Phase 1 in-memory implementation of <see cref="IClientService"/>.
 /// Storage is per-process; the Blazor WASM host runs single-threaded so
-/// <see cref="ConcurrentDictionary{TKey,TValue}"/> is overkill but matches
-/// the shape we want when Phase 2 swaps in an HTTP client.
+/// <see cref="ConcurrentDictionary{TKey,TValue}"/> is technically
+/// overkill, but the thread-safe primitive avoided a custom locking
+/// surface during early development and is harmless to keep.
 ///
 /// This type lives in the Razor class library rather than the WASM host
 /// project so xUnit tests can reference it without picking up the Blazor

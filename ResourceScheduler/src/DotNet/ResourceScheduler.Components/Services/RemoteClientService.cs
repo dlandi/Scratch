@@ -9,12 +9,13 @@ namespace ResourceScheduler.Components.Services;
 
 /// <summary>
 /// Phase 2 implementation of <see cref="IClientService"/> against the
-/// Rust HTTP API. Not yet wired into DI; see Program.cs. The contract
-/// surface mirrors the in-memory implementation; only transport differs.
-/// Lives in the Razor class library so the xUnit project can reach it
-/// without pulling in the BlazorWebAssembly SDK.
+/// Rust HTTP API. Wired into DI alongside <see cref="InMemoryClientService"/>
+/// in Program.cs; <see cref="BackendSwitcher"/> chooses between them at
+/// runtime. The contract surface mirrors the in-memory implementation;
+/// only transport differs. Lives in the Razor class library so the
+/// xUnit project can reach it without pulling in the BlazorWebAssembly
+/// SDK.
 /// </summary>
-// TODO Phase 2: register this in Program.cs in place of InMemoryClientService once the Rust API ships. Configure the HttpClient base address from configuration (appsettings.json or build-time env).
 public sealed class RemoteClientService : IClientService
 {
     private readonly HttpClient _httpClient;
@@ -233,19 +234,12 @@ public sealed class RemoteClientService : IClientService
 
     private async Task<T> GetJsonAsync<T>(string url, CancellationToken ct)
     {
-        try
-        {
-            var result = await _httpClient.GetFromJsonAsync<T>(url, _json, ct).ConfigureAwait(false);
-            if (result is null)
-            {
-                throw new NotFoundException($"Empty response from {url}.");
-            }
-            return result;
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
-        {
-            throw new NotFoundException($"Resource not found at {url}.");
-        }
+        // Only used by List endpoints, which the Rust server returns as
+        // 200 with an array (possibly empty) and never as 404. A non-2xx
+        // response is left to GetFromJsonAsync's standard
+        // HttpRequestException pipeline.
+        var result = await _httpClient.GetFromJsonAsync<T>(url, _json, ct).ConfigureAwait(false);
+        return result ?? throw new NotFoundException($"Empty response from {url}.");
     }
 
     private async Task<T?> GetJsonOrNullAsync<T>(string url, CancellationToken ct) where T : class

@@ -28,17 +28,6 @@ pub enum ReservationStatus {
     Completed,
 }
 
-impl ReservationStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Pending => "Pending",
-            Self::Confirmed => "Confirmed",
-            Self::Cancelled => "Cancelled",
-            Self::Completed => "Completed",
-        }
-    }
-}
-
 impl std::str::FromStr for ReservationStatus {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

@@ -170,10 +170,6 @@ public sealed class RustServerFixture : IAsyncLifetime
         {
             var candidate = Path.Combine(dir, "src", "Rust", "Cargo.toml");
             if (File.Exists(candidate)) return Path.GetFullPath(candidate);
-
-            var sibling = Path.Combine(dir, "..", "Rust", "Cargo.toml");
-            if (File.Exists(sibling)) return Path.GetFullPath(sibling);
-
             dir = Directory.GetParent(dir)?.FullName;
         }
         throw new FileNotFoundException(
