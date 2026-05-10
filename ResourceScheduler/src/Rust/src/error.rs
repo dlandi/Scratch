@@ -74,7 +74,16 @@ impl IntoResponse for ServiceError {
                 Json(ApiErrorBody { rule_id, message }),
             )
                 .into_response(),
-            ServiceError::MissingIfMatch => StatusCode::BAD_REQUEST.into_response(),
+            ServiceError::MissingIfMatch => (
+                StatusCode::BAD_REQUEST,
+                Json(ApiErrorBody {
+                    rule_id: "MissingIfMatch".to_string(),
+                    message:
+                        "If-Match header is required and must be an integer version on this endpoint."
+                            .to_string(),
+                }),
+            )
+                .into_response(),
             ServiceError::BadRequest(message) => (
                 StatusCode::BAD_REQUEST,
                 Json(ApiErrorBody {

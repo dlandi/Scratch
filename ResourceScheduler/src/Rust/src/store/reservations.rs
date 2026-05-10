@@ -20,6 +20,14 @@ pub(crate) fn fmt_utc(dt: DateTime<Utc>) -> String {
     dt.format("%Y-%m-%dT%H:%M:%S%.9fZ").to_string()
 }
 
+/// Render a UTC timestamp the way C# `DateTime.ToString("u")` does
+/// (`yyyy-MM-dd HH:mm:ssZ`, fixed seconds resolution). Used inside R10
+/// and R11 message text so the in-memory and Rust backends produce
+/// byte-identical violation strings.
+fn fmt_msg_utc(dt: DateTime<Utc>) -> String {
+    dt.format("%Y-%m-%d %H:%M:%SZ").to_string()
+}
+
 pub async fn list(
     pool: &SqlitePool,
     filter: &ReservationFilter,
@@ -200,7 +208,9 @@ pub async fn confirm(
         return Err(ServiceError::validation(
             "R10",
             format!(
-                "Reservation cannot be confirmed: overlaps a confirmed booking on Device-Group '{dg_name}' from {existing_start} to {existing_end}.",
+                "Reservation cannot be confirmed: overlaps a confirmed booking on Device-Group '{dg_name}' from {} to {}.",
+                fmt_msg_utc(existing_start),
+                fmt_msg_utc(existing_end),
             ),
         ));
     }
@@ -234,7 +244,9 @@ pub async fn confirm(
         return Err(ServiceError::validation(
             "R11",
             format!(
-                "Reservation cannot be confirmed: Test-Group '{tg_name}' already has a confirmed booking from {existing_start} to {existing_end}.",
+                "Reservation cannot be confirmed: Test-Group '{tg_name}' already has a confirmed booking from {} to {}.",
+                fmt_msg_utc(existing_start),
+                fmt_msg_utc(existing_end),
             ),
         ));
     }

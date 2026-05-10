@@ -162,7 +162,7 @@ A human participant in the lab.
 |------------|--------|------------------------|
 | PersonId   | Guid   | Identity               |
 | Name       | string | Display name           |
-| Email      | string | Optional, unique if set|
+| Email      | string | Optional               |
 
 ### 4.5 TestGroup
 
@@ -205,7 +205,7 @@ A real-world physical building that houses Devices.
 | Field        | Type   | Notes                                          |
 |--------------|--------|------------------------------------------------|
 | BuildingId   | Guid   | Identity                                       |
-| Name         | string | Unique, human-readable (e.g. "Lab North")      |
+| Name         | string | Human-readable (e.g. "Lab North")              |
 | Address      | string | Free-form mailing address; multi-line allowed  |
 | Version      | int    | Optimistic concurrency                         |
 
