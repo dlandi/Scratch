@@ -42,9 +42,13 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             ResourceScheduler/src/Rust/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('ResourceScheduler/src/Rust/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
+          # Key on every input that changes the build graph: lockfile,
+          # manifest, and (when present) the toolchain pin. No
+          # restore-keys: a cache miss must be a clean rebuild rather
+          # than a fallback that pulls in a target/ snapshot built
+          # against a different lockfile or toolchain, which has
+          # historically caused intermittent incremental-build oddities.
+          key: cargo-${{ runner.os }}-${{ hashFiles('ResourceScheduler/src/Rust/Cargo.lock', 'ResourceScheduler/src/Rust/Cargo.toml', 'ResourceScheduler/src/Rust/rust-toolchain.toml') }}
 
       - name: cargo fmt --check
         working-directory: ResourceScheduler/src/Rust

@@ -4,19 +4,31 @@ use uuid::Uuid;
 use crate::error::{ServiceError, ServiceResult};
 use crate::models::devices::{DeviceCreate, DeviceDto, DeviceUpdate};
 
-const SELECT_COLS: &str = "device_id, name, status, building_id, assigned_device_group_id, version";
+// `assigned_device_group_id` on the row is a denormalized pointer that
+// only the activate path keeps fresh; remove/update/deactivate/delete
+// don't touch it, so reading it directly produces stale or missing
+// values. Compute it on read instead from the canonical membership +
+// status join. R1 guarantees at most one active group per device, so
+// LIMIT 1 is exact.
+const SELECT_COLS: &str = "d.device_id, d.name, d.status, d.building_id, \
+                           (SELECT m.device_group_id FROM device_group_members m \
+                            JOIN device_groups g ON g.device_group_id = m.device_group_id \
+                            WHERE m.device_id = d.device_id AND g.status = 'Active' \
+                            LIMIT 1) AS assigned_device_group_id, \
+                           d.version";
 
 pub async fn list(pool: &SqlitePool) -> ServiceResult<Vec<DeviceDto>> {
-    let rows =
-        sqlx::query_as::<_, DeviceDto>(&format!("SELECT {SELECT_COLS} FROM devices ORDER BY name"))
-            .fetch_all(pool)
-            .await?;
+    let rows = sqlx::query_as::<_, DeviceDto>(&format!(
+        "SELECT {SELECT_COLS} FROM devices d ORDER BY d.name"
+    ))
+    .fetch_all(pool)
+    .await?;
     Ok(rows)
 }
 
 pub async fn get(pool: &SqlitePool, id: Uuid) -> ServiceResult<Option<DeviceDto>> {
     let row = sqlx::query_as::<_, DeviceDto>(&format!(
-        "SELECT {SELECT_COLS} FROM devices WHERE device_id = ?"
+        "SELECT {SELECT_COLS} FROM devices d WHERE d.device_id = ?"
     ))
     .bind(id)
     .fetch_optional(pool)

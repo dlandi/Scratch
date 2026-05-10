@@ -95,10 +95,30 @@ public sealed class InMemoryClientService : IClientService
     // ============================================================
 
     public Task<IReadOnlyList<DeviceDto>> ListDevicesAsync(CancellationToken ct = default)
-        => Task.FromResult<IReadOnlyList<DeviceDto>>(_devices.Values.OrderBy(d => d.Name).Select(Clone).ToList());
+        => Task.FromResult<IReadOnlyList<DeviceDto>>(
+            _devices.Values.OrderBy(d => d.Name).Select(CloneWithDerivedAssignment).ToList());
 
     public Task<DeviceDto?> GetDeviceAsync(Guid id, CancellationToken ct = default)
-        => Task.FromResult(_devices.TryGetValue(id, out var d) ? Clone(d) : null);
+        => Task.FromResult(_devices.TryGetValue(id, out var d) ? CloneWithDerivedAssignment(d) : null);
+
+    /// <summary>
+    /// Returns a copy of the device with <see cref="DeviceDto.AssignedDeviceGroupId"/>
+    /// derived from current Active group memberships. The stored field on
+    /// the underlying record is only refreshed on Activate, so reading it
+    /// directly produces stale values after Deactivate, Update, or Delete
+    /// of the owning group; deriving on read closes that gap without
+    /// adding write-side maintenance to four call sites. R1 guarantees
+    /// at most one Active group per device, so FirstOrDefault is exact.
+    /// </summary>
+    private DeviceDto CloneWithDerivedAssignment(DeviceDto d)
+    {
+        var c = Clone(d);
+        c.AssignedDeviceGroupId = _deviceGroups.Values
+            .Where(g => g.Status == DeviceGroupStatus.Active && g.DeviceIds.Contains(d.DeviceId))
+            .Select(g => (Guid?)g.DeviceGroupId)
+            .FirstOrDefault();
+        return c;
+    }
 
     public Task<DeviceDto> CreateDeviceAsync(DeviceCreate input, CancellationToken ct = default)
     {

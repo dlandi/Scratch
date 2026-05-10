@@ -140,7 +140,13 @@ pub async fn activate(
     id: Uuid,
     expected_version: i32,
 ) -> ServiceResult<DeviceGroupDto> {
-    let mut tx = pool.begin().await?;
+    // BEGIN IMMEDIATE acquires SQLite's reserved write lock up front so
+    // the R3 read below sees a snapshot that no other writer can mutate
+    // before our own UPDATE commits. Without this, two concurrent
+    // activations of two different groups that share a device could
+    // both pass their R3 read against each other's still-Inactive
+    // state and both commit, leaving R1 violated.
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
 
     let current =
         sqlx::query("SELECT name, status, version FROM device_groups WHERE device_group_id = ?")

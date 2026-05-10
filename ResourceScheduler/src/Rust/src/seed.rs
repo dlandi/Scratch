@@ -13,7 +13,7 @@
 //! not duplicate data. Seeding is gated by the `SEED_DEMO_DATA` env
 //! var in `main.rs`; production deployments should leave it unset.
 
-use chrono::{DateTime, Local, TimeZone, Utc};
+use chrono::{DateTime, Local, Timelike as _, Utc};
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -185,16 +185,19 @@ async fn apply(pool: &SqlitePool, data: &SeedData) -> ServiceResult<()> {
     // lands on local N:00 today after the UI's ToLocal round-trip,
     // independent of the host's UTC offset. Same pattern as the .NET
     // seeder so reservations look identical across backends.
+    //
+    // Subtract elapsed seconds from "now" rather than re-resolving
+    // 00:00:00 in the local zone: in IANA zones whose DST transitions
+    // historically straddled midnight, .single() on midnight either
+    // panics (skipped) or returns a non-unique mapping (repeated). The
+    // subtraction approach uses "now"'s known offset and so is always
+    // unambiguous.
     let local_now = Local::now();
-    let local_midnight_naive = local_now
-        .date_naive()
-        .and_hms_opt(0, 0, 0)
-        .expect("00:00:00 is a valid time");
-    let today_local = Local
-        .from_local_datetime(&local_midnight_naive)
-        .single()
-        .expect("midnight is unambiguous in any IANA zone");
-    let today_utc: DateTime<Utc> = today_local.with_timezone(&Utc);
+    let secs_since_midnight = i64::from(local_now.time().num_seconds_from_midnight());
+    let nanos_since_midnight = i64::from(local_now.time().nanosecond());
+    let today_utc: DateTime<Utc> = local_now.with_timezone(&Utc)
+        - chrono::Duration::seconds(secs_since_midnight)
+        - chrono::Duration::nanoseconds(nanos_since_midnight);
 
     for r in &data.reservations {
         let day_base = today_utc + chrono::Duration::days(r.day_offset);

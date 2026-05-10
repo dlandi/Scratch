@@ -1,3 +1,4 @@
+use std::io::Write as _;
 use std::net::SocketAddr;
 
 use anyhow::Context as _;
@@ -30,7 +31,20 @@ async fn main() -> anyhow::Result<()> {
 
     let app = build_app(state);
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
-    tracing::info!(%bind_addr, %database_url, "resource-scheduler-api listening");
+    let actual_addr = listener.local_addr().context("reading bound local addr")?;
+    tracing::info!(%actual_addr, %database_url, "resource-scheduler-api listening");
+
+    // When BIND_ADDR resolves to port 0 the kernel chose the port for
+    // us; print the actual port to stdout so a parent process (the
+    // .NET integration test fixture in particular) can read it without
+    // racing against the bind. The leading marker keeps the line easy
+    // to grep out of normal log output. Always flush so the parent
+    // can rely on the line appearing before any further work.
+    if bind_addr.port() == 0 {
+        let mut stdout = std::io::stdout().lock();
+        writeln!(stdout, "RS_LISTENING_ADDR={actual_addr}")?;
+        stdout.flush()?;
+    }
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

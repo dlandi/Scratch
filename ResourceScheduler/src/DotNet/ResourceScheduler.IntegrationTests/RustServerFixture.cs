@@ -1,15 +1,13 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
 
 namespace ResourceScheduler.IntegrationTests;
 
 /// <summary>
-/// Boots the Rust resource-scheduler-api binary on a random port with a
-/// dedicated SQLite file, waits for /healthz to respond, and tears
-/// everything down on dispose. One instance per test class via
-/// IClassFixture; xUnit may run several classes in parallel, each with
-/// its own port, DB file, and process, so tests stay isolated.
+/// Boots the Rust resource-scheduler-api binary on a kernel-assigned
+/// port with a dedicated SQLite file, waits for /healthz to respond,
+/// and tears everything down on dispose. One instance per test class
+/// via IClassFixture; xUnit may run several classes in parallel, each
+/// with its own port, DB file, and process, so tests stay isolated.
 /// </summary>
 public sealed class RustServerFixture : IAsyncLifetime
 {
@@ -56,7 +54,6 @@ public sealed class RustServerFixture : IAsyncLifetime
                 $"Rust binary not found after build: {binaryPath}");
         }
 
-        var port = GetFreePort();
         _dbPath = Path.Combine(
             Path.GetTempPath(),
             $"rs-int-{Guid.NewGuid():N}.db");
@@ -69,7 +66,12 @@ public sealed class RustServerFixture : IAsyncLifetime
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
-        psi.Environment["BIND_ADDR"] = $"127.0.0.1:{port}";
+        // Port 0 means "let the kernel pick"; the binary prints the
+        // chosen address as `RS_LISTENING_ADDR=ip:port` on stdout once
+        // it has bound, eliminating the TOCTOU window of probing for a
+        // free port and handing it to a child that may not bind it
+        // first.
+        psi.Environment["BIND_ADDR"] = "127.0.0.1:0";
         psi.Environment["DATABASE_URL"] = $"sqlite://{_dbPath.Replace('\\', '/')}";
         // Tone down tracing so test output stays readable.
         psi.Environment["RUST_LOG"] = "warn";
@@ -77,7 +79,7 @@ public sealed class RustServerFixture : IAsyncLifetime
         _process = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start resource-scheduler-api");
 
-        BaseUrl = $"http://127.0.0.1:{port}";
+        BaseUrl = await ReadListeningAddrAsync(_process, TimeSpan.FromSeconds(20));
         await WaitForHealthzAsync(BaseUrl, TimeSpan.FromSeconds(20));
     }
 
@@ -102,13 +104,36 @@ public sealed class RustServerFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    private static int GetFreePort()
+    /// <summary>
+    /// Reads stdout lines until the binary prints its
+    /// <c>RS_LISTENING_ADDR=...</c> handshake or the process exits.
+    /// Returns the matching <c>http://ip:port</c> base URL.
+    /// </summary>
+    private static async Task<string> ReadListeningAddrAsync(Process process, TimeSpan timeout)
     {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        const string Prefix = "RS_LISTENING_ADDR=";
+        using var cts = new CancellationTokenSource(timeout);
+        try
+        {
+            while (true)
+            {
+                var line = await process.StandardOutput.ReadLineAsync(cts.Token);
+                if (line is null)
+                {
+                    throw new InvalidOperationException(
+                        "resource-scheduler-api exited before printing RS_LISTENING_ADDR.");
+                }
+                if (line.StartsWith(Prefix, StringComparison.Ordinal))
+                {
+                    return $"http://{line.AsSpan(Prefix.Length)}";
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw new TimeoutException(
+                $"resource-scheduler-api did not print RS_LISTENING_ADDR within {timeout}.");
+        }
     }
 
     private static async Task WaitForHealthzAsync(string baseUrl, TimeSpan timeout)

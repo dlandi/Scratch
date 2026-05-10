@@ -203,7 +203,10 @@
         {
             return;
         }
-        Backend.SetMode(mode);
+        if (mode == Backend.Mode)
+        {
+            return;
+        }
         try
         {
             await JS.InvokeVoidAsync("localStorage.setItem", BackendStorageKey, mode.ToString());
@@ -212,6 +215,15 @@
         {
             // Persistence is best-effort; the in-session switch still applies.
         }
+        Backend.SetMode(mode);
+        // The two backends hold independent stores; pages currently on
+        // screen still show the old backend's data and will not re-fetch
+        // until next navigation. Sending the user to "/" gives them a
+        // clean entry point under the new backend. Done only here, not
+        // in OnBackendStateChanged, so the startup restore path
+        // (OnAfterRenderAsync below) can switch the mode silently
+        // without yanking the user off whatever route they opened.
+        Nav.NavigateTo("/");
     }
 
     public void Dispose()
