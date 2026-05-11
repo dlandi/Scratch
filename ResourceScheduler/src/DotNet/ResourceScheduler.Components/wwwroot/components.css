@@ -55,6 +55,9 @@
   /* Type */
   --rs-font-sans: "IBM Plex Sans", system-ui, sans-serif;
   --rs-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Layout */
+  --rs-header-h: 88px;
 }
 
 /* Dark variant (scoped, used on timeline screen) */
@@ -123,11 +126,16 @@ a:hover { text-decoration: underline; }
 
 .rs-header {
   display: flex;
-  align-items: stretch;
-  height: 56px;
+  flex-direction: column;
   border-bottom: 1px solid var(--rs-line);
   background: var(--rs-surface);
   position: sticky; top: 0; z-index: 20;
+}
+.rs-header-top {
+  display: flex;
+  align-items: stretch;
+  height: 56px;
+  border-bottom: 1px solid var(--rs-line);
 }
 .rs-brand {
   display: flex; align-items: center; gap: 10px;
@@ -175,15 +183,14 @@ a:hover { text-decoration: underline; }
   color: var(--rs-ink-4);
 }
 
-.rs-header-right {
+.rs-header-sub {
   display: flex; align-items: center; gap: var(--rs-s-3);
-  padding: 0 var(--rs-s-5);
-  border-left: 1px solid var(--rs-line);
+  padding: 6px var(--rs-s-5);
   font-family: var(--rs-font-mono);
   font-size: 11px;
   color: var(--rs-ink-3);
 }
-.rs-header-right .dot {
+.rs-header-sub .rs-store-chip .dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--rs-ok);
   display: inline-block; margin-right: 6px;
 }
@@ -191,7 +198,7 @@ a:hover { text-decoration: underline; }
 .rs-main { flex: 1; min-height: 0; }
 
 /* Screen frame (consistent) */
-.rs-screen { display: flex; flex-direction: column; min-height: calc(100vh - 56px); }
+.rs-screen { display: flex; flex-direction: column; min-height: calc(100vh - var(--rs-header-h)); }
 .rs-screen-head {
   display: flex; align-items: flex-end; justify-content: space-between;
   padding: var(--rs-s-6) var(--rs-s-7) var(--rs-s-5);
@@ -563,7 +570,7 @@ a:hover { text-decoration: underline; }
 .rs-timeline-screen {
   background: var(--rs-bg);
   display: flex; flex-direction: column;
-  min-height: calc(100vh - 56px);
+  min-height: calc(100vh - var(--rs-header-h));
 }
 .rs-timeline-head {
   display: flex; align-items: center; justify-content: space-between;
