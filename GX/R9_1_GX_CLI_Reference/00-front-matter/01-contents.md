@@ -1,0 +1,468 @@
+---
+source: R9_1_GX_CLI_Command_Reference_Guide_001P4.md
+part: 00-front-matter
+section: 'Contents'
+source_lines: 37-498
+---
+
+## Contents
+
+- [List of Figures](#list-of-figures) — p. 15
+- [List of Tables](#list-of-tables) — p. 16
+- [About this document](#about-this-document) — p. 36
+  - [Audience](#audience) — p. 36
+  - [Structure of this document](#structure-of-this-document) — p. 36
+  - [Symbols and conventions](#symbols-and-conventions) — p. 36
+  - [History of changes](#history-of-changes) — p. 38
+  - [Documentation Feedback](#documentation-feedback) — p. 42
+- [1. Introduction](#1-introduction) — p. 43
+  - [1.1. Command Line Interface (CLI) Overview](#11-command-line-interface-cli-overview) — p. 43
+  - [1.2. Yang Data Model](#12-yang-data-model) — p. 43
+  - [1.3. 1830 GX Management Entity AIDs](#13-1830-gx-management-entity-aids) — p. 43
+    - [1.3.1. YANG Model Hierarchy and Object Representation](#131-yang-model-hierarchy-and-object-representation) — p. 43
+    - [1.3.2. 1830 GX G31 Managed Objects and Addressable Entities](#132-1830-gx-g31-managed-objects-and-addressable-entities) — p. 46
+    - [1.3.3. 1830 GX G32 Managed Objects and Addressable Entities](#133-1830-gx-g32-managed-objects-and-addressable-entities) — p. 48
+    - [1.3.4. 1830 GX G34c Managed Objects and Addressable Entities](#134-1830-gx-g34c-managed-objects-and-addressable-entities) — p. 50
+    - [1.3.5. 1830 GX G42 Managed Objects and Addressable Entities](#135-1830-gx-g42-managed-objects-and-addressable-entities) — p. 51
+    - [1.3.6. Managed Objects (MO) Relationship](#136-managed-objects-mo-relationship) — p. 54
+  - [1.4. Value Representation](#14-value-representation) — p. 57
+  - [1.5. CLI Command Modes](#15-cli-command-modes) — p. 58
+    - [1.5.1. Operational Mode](#151-operational-mode) — p. 58
+    - [1.5.2. Candidate Configuration Mode](#152-candidate-configuration-mode) — p. 58
+      - [1.5.2.1. Associating Custom Message with Commit Command](#1521-associating-custom-message-with-commit-command) — p. 60
+  - [1.6. Declarative Configuration through the CLI](#16-declarative-configuration-through-the-cli) — p. 60
+    - [1.6.1. Managing CLI Scripts for Declarative Configuration](#161-managing-cli-scripts-for-declarative-configuration) — p. 61
+- [2. Using the Command Line Interface (CLI)](#2-using-the-command-line-interface-cli) — p. 63
+  - [2.1. Prerequisites](#21-prerequisites) — p. 63
+  - [2.2. Launching a CLI Session](#22-launching-a-cli-session) — p. 63
+    - [2.2.1. Opening a CLI Session using SSH](#221-opening-a-cli-session-using-ssh) — p. 63
+    - [2.2.2. Opening a CLI Session using PuTTY](#222-opening-a-cli-session-using-putty) — p. 64
+    - [2.2.3. Closing a CLI Session](#223-closing-a-cli-session) — p. 66
+    - [2.2.4. CLI Prompt](#224-cli-prompt) — p. 67
+    - [2.2.5. CLI Configuration Attributes](#225-cli-configuration-attributes) — p. 67
+    - [2.2.6. CLI Command Line Editor](#226-cli-command-line-editor) — p. 67
+      - [2.2.6.1. CLI Command Line Cursor Movement](#2261-cli-command-line-cursor-movement) — p. 68
+      - [2.2.6.2. Standard Keyboard Operations](#2262-standard-keyboard-operations) — p. 68
+      - [2.2.6.3. CLI Input Command Format and Usage](#2263-cli-input-command-format-and-usage) — p. 70
+      - [2.2.6.4. CLI Syntax Conventions and Notations](#2264-cli-syntax-conventions-and-notations) — p. 71
+      - [2.2.6.5. CLI Command Line Shortcuts](#2265-cli-command-line-shortcuts) — p. 72
+      - [2.2.6.6. CLI Command History Buffer](#2266-cli-command-history-buffer) — p. 72
+      - [2.2.6.7. CLI Command Output](#2267-cli-command-output) — p. 72
+      - [2.2.6.8. CLI String Support](#2268-cli-string-support) — p. 73
+        - [2.2.6.8.1. Input of String Values](#22681-input-of-string-values) — p. 73
+          - [2.2.6.8.1.1. Special Case: Password Input](#226811-special-case-password-input) — p. 75
+          - [2.2.6.8.1.2. Special Case: String in Keys](#226812-special-case-string-in-keys) — p. 75
+        - [2.2.6.8.2. Visualization of String Values](#22682-visualization-of-string-values) — p. 76
+    - [2.2.7. CLI Help](#227-cli-help) — p. 77
+      - [2.2.7.1. Auto-complete](#2271-auto-complete) — p. 78
+      - [2.2.7.2. Contextual Help](#2272-contextual-help) — p. 80
+        - [2.2.7.2.1. CLI Commands](#22721-cli-commands) — p. 80
+        - [2.2.7.2.2. CLI Command Flag Options](#22722-cli-command-flag-options) — p. 81
+        - [2.2.7.2.3. MO Keywords](#22723-mo-keywords) — p. 81
+        - [2.2.7.2.4. Attribute Keywords](#22724-attribute-keywords) — p. 82
+        - [2.2.7.2.5. Values](#22725-values) — p. 82
+      - [2.2.7.3. Help Command](#2273-help-command) — p. 83
+      - [2.2.7.4. Searching the CLI Help](#2274-searching-the-cli-help) — p. 83
+    - [2.2.8. CLI Wildcard support](#228-cli-wildcard-support) — p. 84
+      - [2.2.8.1. Object Filtering](#2281-object-filtering) — p. 85
+    - [2.2.9. CLI Commands Overview](#229-cli-commands-overview) — p. 85
+    - [2.2.10. User groups and access privilege](#2210-user-groups-and-access-privilege) — p. 89
+- [3. Auxiliary and Help Commands](#3-auxiliary-and-help-commands) — p. 95
+- [4. Navigation and Display Commands](#4-navigation-and-display-commands) — p. 97
+  - [4.1. alias](#41-alias) — p. 97
+  - [4.2. edit](#42-edit) — p. 99
+  - [4.3. history](#43-history) — p. 101
+  - [4.4. top](#44-top) — p. 102
+  - [4.5. tree](#45-tree) — p. 104
+  - [4.6. unalias](#46-unalias) — p. 108
+  - [4.7. up](#47-up) — p. 110
+- [5. Piped Commands](#5-piped-commands) — p. 112
+  - [5.1. begin](#51-begin) — p. 112
+  - [5.2. display](#52-display) — p. 113
+  - [5.3. exclude](#53-exclude) — p. 115
+  - [5.4. grep](#54-grep) — p. 117
+  - [5.5. highlight](#55-highlight) — p. 119
+  - [5.6. include](#56-include) — p. 120
+  - [5.7. linenum](#57-linenum) — p. 121
+  - [5.8. more](#58-more) — p. 123
+  - [5.9. sort](#59-sort) — p. 124
+  - [5.10. until](#510-until) — p. 125
+- [6. Operation Commands](#6-operation-commands) — p. 127
+  - [6.1. aaa-server](#61-aaa-server) — p. 127
+  - [6.2. aaa-statistics](#62-aaa-statistics) — p. 130
+  - [6.3. access-control-list](#63-access-control-list) — p. 133
+  - [6.4. access-rule](#64-access-rule) — p. 134
+  - [6.5. access-rule-list](#65-access-rule-list) — p. 139
+  - [6.6. ace](#66-ace) — p. 141
+  - [6.7. acl](#67-acl) — p. 144
+  - [6.8. activate](#68-activate) — p. 146
+  - [6.9. activate-snapshot](#69-activate-snapshot) — p. 161
+  - [6.10. add](#610-add) — p. 163
+  - [6.11. additional-key-exchange](#611-additional-key-exchange) — p. 170
+  - [6.12. adg](#612-adg) — p. 173
+  - [6.13. advanced-parameter](#613-advanced-parameter) — p. 175
+  - [6.14. alarm](#614-alarm) — p. 178
+  - [6.15. alarm-control](#615-alarm-control) — p. 182
+  - [6.16. alarm-inventory](#616-alarm-inventory) — p. 184
+  - [6.17. alarm-severity-entry](#617-alarm-severity-entry) — p. 186
+  - [6.18. alarm-severity-profile](#618-alarm-severity-profile) — p. 189
+  - [6.19. amplifier](#619-amplifier) — p. 191
+  - [6.20. amplifier-raman](#620-amplifier-raman) — p. 205
+  - [6.21. app](#621-app) — p. 213
+  - [6.22. appctl](#622-appctl) — p. 214
+  - [6.23. apply-template](#623-apply-template) — p. 216
+  - [6.24. ase-idler-service](#624-ase-idler-service) — p. 218
+  - [6.25. ase-idler-source](#625-ase-idler-source) — p. 222
+  - [6.26. auth-key](#626-auth-key) — p. 226
+  - [6.27. authorization](#627-authorization) — p. 228
+  - [6.28. bert](#628-bert) — p. 232
+  - [6.29. bgp-instance](#629-bgp-instance) — p. 236
+  - [6.30. bgp-neighbor](#630-bgp-neighbor) — p. 238
+  - [6.31. bgp-network](#631-bgp-network) — p. 242
+  - [6.32. bootstrap](#632-bootstrap) — p. 244
+  - [6.33. cable-id](#633-cable-id) — p. 246
+  - [6.34. cable-id-path](#634-cable-id-path) — p. 247
+  - [6.35. cable-id-status](#635-cable-id-status) — p. 257
+  - [6.36. calibrate](#636-calibrate) — p. 259
+  - [6.37. call-home](#637-call-home) — p. 261
+  - [6.38. cancel-upgrade](#638-cancel-upgrade) — p. 263
+  - [6.39. capabilities](#639-capabilities) — p. 264
+  - [6.40. card](#640-card) — p. 265
+  - [6.41. carrier-neighbor](#641-carrier-neighbor) — p. 277
+  - [6.42. cdp](#642-cdp) — p. 279
+  - [6.43. cert-gen](#643-cert-gen) — p. 282
+  - [6.44. cert-to-name](#644-cert-to-name) — p. 284
+  - [6.45. certificate](#645-certificate) — p. 287
+  - [6.46. change-ztp-mode](#646-change-ztp-mode) — p. 289
+  - [6.47. chassis](#647-chassis) — p. 291
+  - [6.48. cid-ptp](#648-cid-ptp) — p. 302
+  - [6.49. clear](#649-clear) — p. 307
+  - [6.50. cli](#650-cli) — p. 310
+  - [6.51. cli-session-config](#651-cli-session-config) — p. 313
+  - [6.52. clock](#652-clock) — p. 315
+  - [6.53. comm-channel](#653-comm-channel) — p. 320
+  - [6.54. comm-eth](#654-comm-eth) — p. 327
+  - [6.55. commit](#655-commit) — p. 332
+  - [6.56. config](#656-config) — p. 334
+  - [6.57. configure](#657-configure) — p. 335
+  - [6.58. connect](#658-connect) — p. 337
+  - [6.59. connection-ports](#659-connection-ports) — p. 339
+  - [6.60. console](#660-console) — p. 341
+  - [6.61. controller-card](#661-controller-card) — p. 344
+  - [6.62. convert](#662-convert) — p. 346
+  - [6.63. crl](#663-crl) — p. 349
+  - [6.64. csr-gen](#664-csr-gen) — p. 352
+  - [6.65. current-advanced-parameter](#665-current-advanced-parameter) — p. 359
+  - [6.66. current-alarms](#666-current-alarms) — p. 361
+  - [6.67. current-fw](#667-current-fw) — p. 362
+  - [6.68. current-subscription](#668-current-subscription) — p. 364
+  - [6.69. custom-tlv](#669-custom-tlv) — p. 366
+  - [6.70. data-model](#670-data-model) — p. 367
+  - [6.71. data-path-encryption](#671-data-path-encryption) — p. 368
+  - [6.72. database](#672-database) — p. 369
+  - [6.73. db-migrate](#673-db-migrate) — p. 374
+  - [6.74. db-protection-scheme](#674-db-protection-scheme) — p. 376
+  - [6.75. default](#675-default) — p. 378
+  - [6.76. degree](#676-degree) — p. 380
+  - [6.77. delete](#677-delete) — p. 383
+  - [6.78. dhcp-relay](#678-dhcp-relay) — p. 391
+  - [6.79. dial-out-server](#679-dial-out-server) — p. 393
+  - [6.80. diff](#680-diff) — p. 397
+  - [6.81. direction](#681-direction) — p. 399
+  - [6.82. discard-changes](#682-discard-changes) — p. 402
+  - [6.83. display-cert](#683-display-cert) — p. 403
+  - [6.84. dns](#684-dns) — p. 407
+  - [6.85. dns-server](#685-dns-server) — p. 409
+  - [6.86. download](#686-download) — p. 411
+  - [6.87. downloaded-image](#687-downloaded-image) — p. 425
+  - [6.88. downloads](#688-downloads) — p. 426
+  - [6.89. dsc](#689-dsc) — p. 427
+  - [6.90. dsc-group](#690-dsc-group) — p. 431
+  - [6.91. encryption-algorithm](#691-encryption-algorithm) — p. 437
+  - [6.92. equipment](#692-equipment) — p. 439
+  - [6.93. equipment-policies](#693-equipment-policies) — p. 441
+  - [6.94. equipment-templates](#694-equipment-templates) — p. 444
+  - [6.95. est](#695-est) — p. 446
+  - [6.96. est-ca](#696-est-ca) — p. 450
+  - [6.97. est-server](#697-est-server) — p. 452
+  - [6.98. eth-zr](#698-eth-zr) — p. 454
+  - [6.99. ethernet](#699-ethernet) — p. 461
+  - [6.100. exit](#6100-exit) — p. 471
+  - [6.101. expect](#6101-expect) — p. 472
+  - [6.102. export](#6102-export) — p. 474
+  - [6.103. extended-config](#6103-extended-config) — p. 476
+  - [6.104. external-fiber-connection](#6104-external-fiber-connection) — p. 477
+  - [6.105. facilities](#6105-facilities) — p. 480
+  - [6.106. fc](#6106-fc) — p. 482
+  - [6.107. fiber-connection](#6107-fiber-connection) — p. 489
+  - [6.108. file](#6108-file) — p. 491
+  - [6.109. file-operation](#6109-file-operation) — p. 495
+  - [6.110. file-server](#6110-file-server) — p. 496
+  - [6.111. file-type](#6111-file-type) — p. 500
+  - [6.112. flexo](#6112-flexo) — p. 501
+  - [6.113. flexo-group](#6113-flexo-group) — p. 505
+  - [6.114. fru-info](#6114-fru-info) — p. 509
+  - [6.115. gadt](#6115-gadt) — p. 510
+  - [6.116. gapt](#6116-gapt) — p. 512
+  - [6.117. gcmt](#6117-gcmt) — p. 514
+  - [6.118. get-conditions](#6118-get-conditions) — p. 516
+  - [6.119. golden-advanced-parameter](#6119-golden-advanced-parameter) — p. 518
+  - [6.120. golden-carrier-mode](#6120-golden-carrier-mode) — p. 521
+  - [6.121. grpc](#6121-grpc) — p. 523
+  - [6.122. gshell](#6122-gshell) — p. 525
+  - [6.123. high-speed-monitoring](#6123-high-speed-monitoring) — p. 527
+  - [6.124. http-file-server](#6124-http-file-server) — p. 528
+  - [6.125. icdp](#6125-icdp) — p. 530
+  - [6.126. if-dhcp-relay](#6126-if-dhcp-relay) — p. 531
+  - [6.127. ike-sa-proposal](#6127-ike-sa-proposal) — p. 533
+  - [6.128. ikev2](#6128-ikev2) — p. 535
+  - [6.129. ikev2-local-instance](#6129-ikev2-local-instance) — p. 536
+  - [6.130. ikev2-peer](#6130-ikev2-peer) — p. 538
+  - [6.131. import-certificate](#6131-import-certificate) — p. 546
+  - [6.132. inci](#6132-inci) — p. 549
+  - [6.133. inci-neighbor](#6133-inci-neighbor) — p. 551
+  - [6.134. interface](#6134-interface) — p. 554
+  - [6.135. interface-neighbor](#6135-interface-neighbor) — p. 559
+  - [6.136. interlaken](#6136-interlaken) — p. 562
+  - [6.137. inventory](#6137-inventory) — p. 567
+  - [6.138. ip-monitoring](#6138-ip-monitoring) — p. 570
+  - [6.139. ipsec-sa-proposal](#6139-ipsec-sa-proposal) — p. 572
+  - [6.140. ipsec-sa-re-key](#6140-ipsec-sa-re-key) — p. 574
+  - [6.141. ipsec-spd-entry](#6141-ipsec-spd-entry) — p. 576
+  - [6.142. ipsec-traffic-selector](#6142-ipsec-traffic-selector) — p. 579
+  - [6.143. ipv4-address](#6143-ipv4-address) — p. 581
+  - [6.144. ipv4-static-route](#6144-ipv4-static-route) — p. 583
+  - [6.145. ipv6-address](#6145-ipv6-address) — p. 586
+  - [6.146. ipv6-static-route](#6146-ipv6-static-route) — p. 588
+  - [6.147. ISK](#6147-isk) — p. 591
+  - [6.148. key-replacement-package](#6148-key-replacement-package) — p. 594
+  - [6.149. kill-session](#6149-kill-session) — p. 596
+  - [6.150. KRK](#6150-krk) — p. 597
+  - [6.151. l0-capabilities](#6151-l0-capabilities) — p. 599
+  - [6.152. led](#6152-led) — p. 600
+  - [6.153. line-ptp](#6153-line-ptp) — p. 604
+  - [6.154. links](#6154-links) — p. 611
+  - [6.155. lldp](#6155-lldp) — p. 612
+  - [6.156. lldp-local-info](#6156-lldp-local-info) — p. 613
+  - [6.157. lldp-neighbor](#6157-lldp-neighbor) — p. 616
+  - [6.158. lldp-port-statistics](#6158-lldp-port-statistics) — p. 620
+  - [6.159. local-certificate](#6159-local-certificate) — p. 622
+  - [6.160. local-ports](#6160-local-ports) — p. 627
+  - [6.161. local-subnet](#6161-local-subnet) — p. 629
+  - [6.162. lock](#6162-lock) — p. 631
+  - [6.163. log](#6163-log) — p. 633
+  - [6.164. log-console](#6164-log-console) — p. 637
+  - [6.165. log-console-facility-filter](#6165-log-console-facility-filter) — p. 639
+  - [6.166. log-file](#6166-log-file) — p. 642
+  - [6.167. log-file-facility-filter](#6167-log-file-facility-filter) — p. 646
+  - [6.168. log-server](#6168-log-server) — p. 649
+  - [6.169. log-server-facility-filter](#6169-log-server-facility-filter) — p. 653
+  - [6.170. L2-bridge](#6170-l2-bridge) — p. 656
+  - [6.171. macsec-entity](#6171-macsec-entity) — p. 657
+  - [6.172. macsec-mka](#6172-macsec-mka) — p. 659
+  - [6.173. mka-policy](#6173-mka-policy) — p. 661
+  - [6.174. management-address](#6174-management-address) — p. 663
+  - [6.175. management-address-local](#6175-management-address-local) — p. 665
+  - [6.176. manifest](#6176-manifest) — p. 667
+  - [6.177. manual-switchover](#6177-manual-switchover) — p. 669
+  - [6.178. mc](#6178-mc) — p. 671
+  - [6.179. mc-f](#6179-mc-f) — p. 676
+  - [6.180. message](#6180-message) — p. 678
+  - [6.181. modules-adg](#6181-modules-adg) — p. 680
+  - [6.182. modules-degree](#6182-modules-degree) — p. 682
+  - [6.183. monitored-channel](#6183-monitored-channel) — p. 684
+  - [6.184. named-value-set](#6184-named-value-set) — p. 686
+  - [6.185. nct-connection](#6185-nct-connection) — p. 687
+  - [6.186. ne](#6186-ne) — p. 690
+  - [6.187. ne-function](#6187-ne-function) — p. 697
+  - [6.188. netconf](#6188-netconf) — p. 699
+  - [6.189. network-xconnect](#6189-network-xconnect) — p. 701
+  - [6.190. networking](#6190-networking) — p. 702
+  - [6.191. networking-services](#6191-networking-services) — p. 703
+  - [6.192. next-hop](#6192-next-hop) — p. 704
+  - [6.193. nmc](#6193-nmc) — p. 706
+  - [6.194. nmc-f](#6194-nmc-f) — p. 719
+  - [6.195. ntp](#6195-ntp) — p. 723
+  - [6.196. ntp-key](#6196-ntp-key) — p. 725
+  - [6.197. ntp-server](#6197-ntp-server) — p. 727
+  - [6.198. ntp-server-status](#6198-ntp-server-status) — p. 730
+  - [6.199. nw-xconnect](#6199-nw-xconnect) — p. 732
+  - [6.200. oadm-capabilities](#6200-oadm-capabilities) — p. 736
+  - [6.201. oc](#6201-oc) — p. 738
+  - [6.202. ochm](#6202-ochm) — p. 743
+  - [6.203. ocm-channel](#6203-ocm-channel) — p. 748
+  - [6.204. ocm-mp](#6204-ocm-mp) — p. 750
+  - [6.205. ocm-ptp](#6205-ocm-ptp) — p. 754
+  - [6.206. ocsp-server](#6206-ocsp-server) — p. 758
+  - [6.207. odu](#6207-odu) — p. 761
+  - [6.208. odu-diagnostics](#6208-odu-diagnostics) — p. 771
+  - [6.209. oms](#6209-oms) — p. 777
+  - [6.210. ops](#6210-ops) — p. 790
+  - [6.211. optical-carrier](#6211-optical-carrier) — p. 796
+  - [6.212. optical-channel](#6212-optical-channel) — p. 807
+  - [6.213. optical-ptp](#6213-optical-ptp) — p. 810
+  - [6.214. optical-switch](#6214-optical-switch) — p. 820
+  - [6.215. osc](#6215-osc) — p. 829
+  - [6.216. ospf](#6216-ospf) — p. 837
+  - [6.217. ospf-area](#6217-ospf-area) — p. 839
+  - [6.218. ospf-area-range](#6218-ospf-area-range) — p. 841
+  - [6.219. ospf-instance](#6219-ospf-instance) — p. 844
+  - [6.220. ospf-interface](#6220-ospf-interface) — p. 846
+  - [6.221. ospf-neighbor](#6221-ospf-neighbor) — p. 849
+  - [6.222. ospfv3-ipsec-security-association](#6222-ospfv3-ipsec-security-association) — p. 852
+  - [6.223. otdr](#6223-otdr) — p. 854
+  - [6.224. otdr-ptp](#6224-otdr-ptp) — p. 860
+  - [6.225. ots](#6225-ots) — p. 868
+  - [6.226. ots-diagnostics](#6226-ots-diagnostics) — p. 883
+  - [6.227. ots-r](#6227-ots-r) — p. 887
+  - [6.228. ots-r-auto-otdr](#6228-ots-r-auto-otdr) — p. 892
+  - [6.229. otu](#6229-otu) — p. 896
+  - [6.230. otu-diagnostics](#6230-otu-diagnostics) — p. 904
+  - [6.231. oxcon](#6231-oxcon) — p. 912
+  - [6.232. packaged-fw](#6232-packaged-fw) — p. 922
+  - [6.233. password](#6233-password) — p. 924
+  - [6.234. peer-certificate](#6234-peer-certificate) — p. 927
+  - [6.235. ping](#6235-ping) — p. 932
+  - [6.236. pm](#6236-pm) — p. 934
+  - [6.237. pm-catalog](#6237-pm-catalog) — p. 942
+  - [6.238. pm-control](#6238-pm-control) — p. 943
+  - [6.239. pm-control-entry](#6239-pm-control-entry) — p. 944
+  - [6.240. pm-parameter](#6240-pm-parameter) — p. 946
+  - [6.241. pm-profile](#6241-pm-profile) — p. 949
+  - [6.242. pm-profile-entry](#6242-pm-profile-entry) — p. 951
+  - [6.243. pm-resource](#6243-pm-resource) — p. 953
+  - [6.244. pm-threshold](#6244-pm-threshold) — p. 955
+  - [6.245. pm-threshold-profile](#6245-pm-threshold-profile) — p. 957
+  - [6.246. port](#6246-port) — p. 960
+  - [6.247. prepare-upgrade](#6247-prepare-upgrade) — p. 966
+  - [6.248. profile-control](#6248-profile-control) — p. 970
+  - [6.249. property](#6249-property) — p. 974
+  - [6.250. protection](#6250-protection) — p. 976
+  - [6.251. protection-group](#6251-protection-group) — p. 977
+  - [6.252. protection-switch](#6252-protection-switch) — p. 984
+  - [6.253. protection-unit](#6253-protection-unit) — p. 985
+  - [6.254. protocols](#6254-protocols) — p. 987
+  - [6.255. pump](#6255-pump) — p. 992
+  - [6.256. pump-power](#6256-pump-power) — p. 994
+  - [6.257. raman-calibration](#6257-raman-calibration) — p. 997
+  - [6.258. re-auth](#6258-re-auth) — p. 1001
+  - [6.259. re-key](#6259-re-key) — p. 1002
+  - [6.260. recover-mode](#6260-recover-mode) — p. 1004
+  - [6.261. recovery](#6261-recovery) — p. 1005
+  - [6.262. remote-ports](#6262-remote-ports) — p. 1009
+  - [6.263. remote-subnet](#6263-remote-subnet) — p. 1011
+  - [6.264. resources](#6264-resources) — p. 1013
+  - [6.265. restart](#6265-restart) — p. 1016
+  - [6.266. restconf](#6266-restconf) — p. 1020
+  - [6.267. rib](#6267-rib) — p. 1022
+  - [6.268. rollback](#6268-rollback) — p. 1023
+  - [6.269. route](#6269-route) — p. 1024
+  - [6.270. routing](#6270-routing) — p. 1026
+  - [6.271. rsc](#6271-rsc) — p. 1027
+  - [6.272. run](#6272-run) — p. 1030
+  - [6.273. sc-rx](#6273-sc-rx) — p. 1032
+  - [6.274. sc-tx](#6274-sc-tx) — p. 1034
+  - [6.275. scheduled-task](#6275-scheduled-task) — p. 1036
+  - [6.276. secure-application](#6276-secure-application) — p. 1039
+  - [6.277. secure-entity](#6277-secure-entity) — p. 1042
+  - [6.278. secure-entity-sa-proposal](#6278-secure-entity-sa-proposal) — p. 1045
+  - [6.279. security](#6279-security) — p. 1047
+  - [6.280. security-policies](#6280-security-policies) — p. 1048
+  - [6.281. security-policy-database](#6281-security-policy-database) — p. 1060
+  - [6.282. serdes](#6282-serdes) — p. 1062
+  - [6.283. serdes-template](#6283-serdes-template) — p. 1064
+  - [6.284. serdes-template-entry](#6284-serdes-template-entry) — p. 1066
+  - [6.285. serial-console](#6285-serial-console) — p. 1068
+  - [6.286. session](#6286-session) — p. 1069
+  - [6.287. set](#6287-set) — p. 1072
+  - [6.288. set-alarm-state](#6288-set-alarm-state) — p. 1085
+  - [6.289. set-time](#6289-set-time) — p. 1087
+  - [6.290. shell](#6290-shell) — p. 1089
+  - [6.291. show](#6291-show) — p. 1092
+  - [6.292. show commit](#6292-show-commit) — p. 1125
+  - [6.293. simulate](#6293-simulate) — p. 1127
+  - [6.294. sleep](#6294-sleep) — p. 1130
+  - [6.295. slot](#6295-slot) — p. 1132
+  - [6.296. sndp](#6296-sndp) — p. 1135
+  - [6.297. snmp](#6297-snmp) — p. 1136
+  - [6.298. snmp-community](#6298-snmp-community) — p. 1138
+  - [6.299. snmp-target](#6299-snmp-target) — p. 1140
+  - [6.300. snmpv3-user](#6300-snmpv3-user) — p. 1143
+  - [6.301. software-load](#6301-software-load) — p. 1145
+  - [6.302. software-location](#6302-software-location) — p. 1148
+  - [6.303. spectrum](#6303-spectrum) — p. 1149
+  - [6.304. spectrum-control](#6304-spectrum-control) — p. 1153
+  - [6.305. spectrum-monitoring](#6305-spectrum-monitoring) — p. 1156
+  - [6.306. ssh](#6306-ssh) — p. 1159
+  - [6.307. ssh-authorized-key](#6307-ssh-authorized-key) — p. 1161
+  - [6.308. ssh-host-key](#6308-ssh-host-key) — p. 1163
+  - [6.309. ssh-keygen](#6309-ssh-keygen) — p. 1165
+  - [6.310. ssh-known-host](#6310-ssh-known-host) — p. 1168
+  - [6.311. statistics](#6311-statistics) — p. 1171
+  - [6.312. status](#6312-status) — p. 1173
+  - [6.313. stm](#6313-stm) — p. 1185
+  - [6.314. sub-component](#6314-sub-component) — p. 1188
+  - [6.315. submarine-link](#6315-submarine-link) — p. 1190
+  - [6.316. subscription-path](#6316-subscription-path) — p. 1196
+  - [6.317. subscriptions](#6317-subscriptions) — p. 1199
+  - [6.318. subtype-constraint](#6318-subtype-constraint) — p. 1200
+  - [6.319. super-channel](#6319-super-channel) — p. 1202
+  - [6.320. super-channel-group](#6320-super-channel-group) — p. 1206
+  - [6.321. supported-card](#6321-supported-card) — p. 1210
+  - [6.322. supported-carrier-mode](#6322-supported-carrier-mode) — p. 1215
+  - [6.323. supported-chassis](#6323-supported-chassis) — p. 1217
+  - [6.324. supported-gain-range](#6324-supported-gain-range) — p. 1220
+  - [6.325. supported-port](#6325-supported-port) — p. 1221
+  - [6.326. supported-power-profile](#6326-supported-power-profile) — p. 1225
+  - [6.327. supported-slot](#6327-supported-slot) — p. 1226
+  - [6.328. supported-tom](#6328-supported-tom) — p. 1231
+  - [6.329. supported-tom-power](#6329-supported-tom-power) — p. 1233
+  - [6.330. supporting-fiber-connection](#6330-supporting-fiber-connection) — p. 1235
+  - [6.331. supporting-interface](#6331-supporting-interface) — p. 1236
+  - [6.332. sw-component](#6332-sw-component) — p. 1237
+  - [6.333. sw-container](#6333-sw-container) — p. 1239
+  - [6.334. sw-control-rule](#6334-sw-control-rule) — p. 1241
+  - [6.335. sw-management](#6335-sw-management) — p. 1243
+  - [6.336. sw-service](#6336-sw-service) — p. 1246
+  - [6.337. sw-subcomponent](#6337-sw-subcomponent) — p. 1248
+  - [6.338. swversion](#6338-swversion) — p. 1250
+  - [6.339. syslog](#6339-syslog) — p. 1252
+    - [6.339.1. Syslog Severity and Facilities](#63391-syslog-severity-and-facilities) — p. 1254
+  - [6.340. system](#6340-system) — p. 1256
+  - [6.341. system-policies](#6341-system-policies) — p. 1260
+  - [6.342. take-snapshot](#6342-take-snapshot) — p. 1262
+  - [6.343. task](#6343-task) — p. 1265
+  - [6.344. telemetry](#6344-telemetry) — p. 1268
+  - [6.345. template](#6345-template) — p. 1269
+  - [6.346. template-group](#6346-template-group) — p. 1271
+  - [6.347. templates](#6347-templates) — p. 1273
+  - [6.348. terminate](#6348-terminate) — p. 1274
+  - [6.349. third-party-app](#6349-third-party-app) — p. 1278
+  - [6.350. third-party-fw](#6350-third-party-fw) — p. 1280
+  - [6.351. time](#6351-time) — p. 1282
+  - [6.352. tom](#6352-tom) — p. 1283
+  - [6.353. tom-type](#6353-tom-type) — p. 1290
+  - [6.354. topology](#6354-topology) — p. 1292
+  - [6.355. traceroute](#6355-traceroute) — p. 1295
+  - [6.356. transfer](#6356-transfer) — p. 1297
+  - [6.357. transfer-status](#6357-transfer-status) — p. 1299
+  - [6.358. trib-ptp](#6358-trib-ptp) — p. 1303
+  - [6.359. trusted-certificate](#6359-trusted-certificate) — p. 1310
+  - [6.360. unlock](#6360-unlock) — p. 1314
+  - [6.361. unprovisioned-inventory](#6361-unprovisioned-inventory) — p. 1315
+  - [6.362. update](#6362-update) — p. 1317
+  - [6.363. upgrade-status](#6363-upgrade-status) — p. 1319
+  - [6.364. upload](#6364-upload) — p. 1323
+  - [6.365. uptime](#6365-uptime) — p. 1332
+  - [6.366. usb](#6366-usb) — p. 1333
+  - [6.367. user](#6367-user) — p. 1336
+  - [6.368. user-data](#6368-user-data) — p. 1340
+  - [6.369. user-group](#6369-user-group) — p. 1341
+  - [6.370. validate](#6370-validate) — p. 1343
+  - [6.371. verify](#6371-verify) — p. 1345
+  - [6.372. vrf](#6372-vrf) — p. 1348
+  - [6.373. xcon](#6373-xcon) — p. 1350
+  - [6.374. ztp](#6374-ztp) — p. 1356
+- [Acronyms](#acronyms) — p. 1358
+
+<!-- page 15 -->
