@@ -1,13 +1,28 @@
 # 1830 GX Release 9.1 CLI Reference Guide - split by chapter
 
 Generated from `../R9_1_GX_CLI_Command_Reference_Guide_001P4.md` (1900-003486 Revision 001, July 2026),
-28635 lines. Each file below is a byte-exact slice of the source with a
+28634 lines. Each file below is a byte-exact slice of the source with a
 YAML frontmatter header prepended; concatenating every slice in the order
 listed reproduces the original document exactly.
+
+**This whole directory is generated. Do not edit these files by hand:**
+the next build overwrites them. The toolchain that produces them lives in
+`../tools/` - see [tools/README.md](../tools/README.md). Rebuild with
+`python ../tools/build_all.py`.
 
 Internal anchor links (`](#...)`) are left exactly as they appear in the
 source and therefore do not resolve across files. Image references point at
 `images/figure-p*.png`, which does not exist alongside the source either.
+
+## Start here
+
+| File | Use it for |
+| --- | --- |
+| [INDEX.md](INDEX.md) | Master command index: 395 commands in 16 functional domains, with summaries and file paths |
+| [index/README.md](index/README.md) | Retrieval guide: which index file answers which kind of question |
+| [NAVIGATION.md](NAVIGATION.md) | The document's own table of contents, with links rewritten to the split files |
+
+## Parts
 
 | Part | File | Section | Source lines |
 | --- | --- | --- | --- |
