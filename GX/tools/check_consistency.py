@@ -77,6 +77,23 @@ check(bad_tab == 0, "table numbers match the section body", f"{bad_tab} bad")
 check(bad_ex == 0, "has_examples matches the body", f"{bad_ex} bad")
 check(bad_page == 0, "page_refs match the body", f"{bad_page} bad")
 
+print("== 3b. summaries come from the Command Description block ==")
+bad_sum = []
+for r in rs:
+    if r["category"] != "operation" or not r["summary"]:
+        continue
+    m = re.search(r"^#### Command Description\s*\n(.*?)(?=^#### |\Z)",
+                  R(r["file"]), re.S | re.M)
+    # normalize both sides the way summarize() does: collapse whitespace, drop
+    # the backslash escapes the conversion put in front of < > and *
+    norm = lambda s: re.sub(r"\s+", " ", s.replace("\\", ""))
+    blk = norm(m.group(1)) if m else ""
+    probe = norm(r["summary"].rstrip("."))[:60]
+    if probe and probe not in blk:
+        bad_sum.append(r["name"])
+check(not bad_sum, "every summary is text from its own description block",
+      f"{len(bad_sum)} wrong: {bad_sum[:6]}")
+
 print("== 4. parameters ==")
 short = over = 0
 for r in rs:

@@ -289,14 +289,16 @@ for c in cmds:
             name = re.split(r"\s+i?\s*Note:", name)[0].strip()
             if len(name) > 64:
                 name = name[:64].rstrip() + "..."
-            desc = col(r, "description") or (vals[1] if len(vals) > 1 else "")
+            # NB: do not name this `desc`; that shadows the command description
+            # used for the summary further down.
+            pdesc = col(r, "description") or (vals[1] if len(vals) > 1 else "")
             used = [v.strip() for v in re.split(r"[,/]", col(r, "used in")) if v.strip()]
-            key = (name.lower(), desc[:60])
+            key = (name.lower(), pdesc[:60])
             if key in seen_param:              # continued tables repeat rows
                 continue
             seen_param.add(key)
             params.append({"name": name,
-                           "description": re.sub(r"\s+", " ", desc)[:400],
+                           "description": re.sub(r"\s+", " ", pdesc)[:400],
                            "values": re.sub(r"\s+", " ", col(r, "values", "value"))[:300],
                            "default": col(r, "default"),
                            "used_in": used})
