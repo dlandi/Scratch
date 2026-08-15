@@ -217,6 +217,27 @@ listed here; a tenth candidate was rejected, see below.
   1830 GX G30 R5.1" and directs the reader to `terminate` instead. A stale
   cross-release reference inside an R9.1 guide, not a conversion fault.
 
+Found by run 03. Runs 02 and 03 independently rediscovered most of the entries
+above, which is the main reason to trust them; only these four were new.
+
+- `001-aaa-server.md` contradicts itself on `shared-secret`: the note says the
+  maximum length is 64 characters and anything longer is denied, while the
+  parameter table gives `String (length 0...128)`.
+- `370-validate.md` documents the syntax as
+  `validate candidate <candidate> command <string>`, with no brackets, so both
+  keywords are mandatory, but its only example omits both:
+  `validate 'set ne altitude 600'`. Contrast the rejected `protection-switch`
+  case below, where the brackets made the labels optional and the example was
+  therefore correct. The bracket check is what separates the two.
+- `370-validate.md` also states its description sentence twice, verbatim.
+- `065-current-advanced-parameter.md` carries **unconverted DITA markup** in an
+  example block: `\<codeblock id="codeblock\_azq\_wkh\_43c" class="+ topic/pre
+  pr-d/codeblock "\>` wrapping the output, with the closing tag at the end. This
+  is a fourth class, distinct from the three above: conversion residue rather
+  than a content error. `grep -c codeblock` over the command files finds one
+  other, `086-download.md`, so the class has two known members and that grep is
+  the way to enumerate it.
+
 **Rejected, do not re-report:** `252-protection-switch.md` was flagged for a
 worked example that passes the group name positionally rather than as
 `protection-group=`. It is correct. The syntax reads
