@@ -7,6 +7,10 @@ The source document is a 28,634-line PDF-to-Markdown conversion of the Nokia
 toolchain splits it into per-command files and builds a set of indexes designed
 for an LLM to search rather than for a human to browse.
 
+This file documents the build pipeline only. For how it fits together with the
+split corpus, the index and the test suite, see
+[`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
 ## Rebuild everything
 
 ```bash
@@ -283,5 +287,5 @@ to its command; domain counts match their tables; and every number written into
 prose in `INDEX.md`, `index/README.md`, `index/parameters.md` and
 `index/access-control.md` matches the data. If you change a generator, run it.
 
-Current state: 30 of 30 assertions pass, 2,221 links resolve, and the split
+Current state: 30 of 30 assertions pass, 2,245 links resolve, and the split
 reassembles byte-identically to the source.

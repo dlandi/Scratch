@@ -6,6 +6,9 @@ whether the generated index in `../../R9_1_GX_CLI_Reference/` actually gets an
 agent to the right page, and whether an answer carries the facts the document
 states.
 
+For where this sits in the whole system, see
+[`../../ARCHITECTURE.md`](../../ARCHITECTURE.md).
+
 ```bash
 python run_tests.py              # validate the tests, then score retrieval
 python run_tests.py -v           # show every test, not just failures
