@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, seven runs | 435/441, 434/441, 454/457, 451/457, 456/457, 454/457, 450/457. Spread 98.4 to 99.8%; nothing fails above 43%. `compare_runs.py` reports the rate in run order |
+| Carry the required facts, Claude Opus 5, eight runs | 435/441, 434/441, 454/457, 451/457, 456/457, 454/457, 450/457, 447/457. Spread 97.8 to 99.8%; nothing fails above 50%. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -1212,16 +1212,67 @@ as with every previous pass. Runs after triage: 435, 434, 454, 451, 456, 454,
 450, spread 98.4 to 99.8%. Teeth unchanged: worst set 4 of 377, mean 1.09,
 nothing passed by an empty, generic or command-name-only answer.
 
+## Run 08: fourteen repairs hold, and the three left alone rise to the top
+
+447/457. Eight runs: 98.6, 98.4, 99.3, 98.7, 99.8, 99.3, 98.5, 97.8%, spread
+97.8 to 99.8%. No shard failed.
+
+**All fourteen repairs from the last two passes pass**, including the widened
+matcher and the re-pointed `multi-l1-encryption-prerequisites`.
+
+Read that evidence precisely. For the re-pointed test, runs 03, 04 and 07 now
+pass as well, but **that is rescoring arithmetic, not new evidence**: those
+answers are being scored against different facts than before. Run 08 is the one
+independent data point per repair. It is a pass in every case, which is what a
+weakened test would not have produced, but it is one bit each.
+
+### The three left alone are now the worst in the suite
+
+That is the finding. Every test deliberately kept in the last triage has failed
+again, and they now sit at the top:
+
+| Test | Rate | Why it was left |
+| --- | --- | --- |
+| `delete-best-effort-flag` | 4 of 8 | its off-question fact is the only thing inside the discrimination gate |
+| `multi-resource-type-defaults` | 4 of 8 | `pm-threshold-profile` is on-question and correctly encoded |
+| `multi-route-sources` | 4 of 8 | `dynamic` is a brittle one-word encoding, not a corpus gap |
+
+Two of the three are **instrument limits rather than test defects**, and they
+are now the most consistent failures being measured. That is worth stating
+plainly: the suite's top failures are no longer telling us about the corpus,
+they are telling us about the fact matcher. `delete-best-effort-flag` needs a
+fact set that both discriminates and stays on-question, and `multi-route-sources`
+needs an encoding of "not typed in by hand" that survives paraphrase. Neither is
+a documentation problem.
+
+`multi-resource-type-defaults` is the exception and remains the one place where
+the test looks right and the answers look reasonable.
+
+### Other observations
+
+Five tests that passed run 07 fail here, on `permit`/`deny`/`fail-action`,
+`dynamic`, `extended-config`, `non-configuration data` and `flashing-green`,
+spread across unrelated domains. Ordinary churn.
+
+Mean answer length is 785 characters, the lowest of the eight, against a range
+of 785 to 830. The last three runs read 817, 804, 785. That may be nothing, and
+three points is not a trend, but it is the first monotonic movement in a figure
+that had been stable, so it is worth watching.
+
+The corpus digest is unchanged across runs 06, 07 and 08, so all three are known
+to have read the same index rather than assumed to have.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. An eighth run.** Four tests were repaired against the seven stored runs and
-the matcher was widened; none of that can be falsified by the runs it was
-derived from. Two of the repairs turn a 3-of-7 failure into a pass, which is
-exactly the shape a new run should check.
+**1. The two instrument limits now topping the failure list.**
+`delete-best-effort-flag` needs a fact set that discriminates without an
+off-question fact; `multi-route-sources` needs an encoding of "not typed in by
+hand" that survives paraphrase. Both are matcher problems wearing a test's
+clothes, and both are now at 4 of 8.
 
 **2. `multi-resource-type-defaults`**, the one remaining failure where the test
 looks right and the answers look reasonable. See the triage section above.

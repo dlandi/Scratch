@@ -1,0 +1,25 @@
+{"id": "call-home-forces-attempt", "question": "Can I make the node dial out to the management system immediately instead of waiting for the retry timer?"}
+{"id": "current-subscription-encoding", "question": "What encodings and transfer modes can a telemetry subscription use?"}
+{"id": "data-model-enable", "question": "Are all the YANG models loaded by default, and how do I turn one on?"}
+{"id": "dial-out-server-retry-policy", "question": "What retry behaviour does a call-home server use, and on what port?"}
+{"id": "grpc-port-and-granularity", "question": "Is gNMI enabled by default and on which port?"}
+{"id": "netconf-hello-timeout", "question": "What port does NETCONF use here and how long does it wait for a hello?"}
+{"id": "restconf-http-disabled", "question": "Is plain HTTP available for RESTCONF, and how long do sessions last?"}
+{"id": "snmp-port-and-engine", "question": "How do I check the SNMP engine identity of a node?"}
+{"id": "snmp-community-read-only", "question": "Can I create a read-write SNMP community?"}
+{"id": "snmp-target-version-and-port", "question": "How do I add a trap receiver, and what version and community does it use by default?"}
+{"id": "snmpv3-user-security-level", "question": "What security level does a new SNMPv3 user get, and which privacy algorithms are available?"}
+{"id": "subscription-path-sampling", "question": "How do I control whether telemetry is sent on change or at a fixed interval?"}
+{"id": "subscriptions-list", "question": "Which command lists the telemetry subscriptions on the node?"}
+{"id": "telemetry-persistent-dynamic", "question": "Where is telemetry configured, and what is the difference between persistent and dynamic?"}
+{"id": "third-party-app-state", "question": "How do I tell whether a third-party application is running, and is it enabled by default?"}
+{"id": "add-mandatory-attributes", "question": "How do I find out which entities I can create and what each one needs?"}
+{"id": "clear-requires-confirmation", "question": "Does clearing something always prompt me first?"}
+{"id": "cli-port-and-alarm-columns", "question": "Can I change which columns the alarm display shows by default?"}
+{"id": "cli-session-config-size", "question": "How do I change how many rows my terminal output uses?"}
+{"id": "connect-ssh-from-cli", "question": "Can I hop to another node without leaving the CLI?"}
+{"id": "convert-to-netconf-python", "question": "Is there a way to turn a CLI command into the equivalent NETCONF or RESTCONF request?"}
+{"id": "default-not-everything-resets", "question": "If I reset an object to defaults, does everything go back?"}
+{"id": "delete-best-effort-flag", "question": "How do I delete an object in a script without failing if it is already gone?"}
+{"id": "exit-ctrl-d", "question": "What does exit actually do, and is there a shortcut?"}
+{"id": "expect-silent-on-match", "question": "How can a script check that an attribute has the value it should?"}

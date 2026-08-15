@@ -1,0 +1,15 @@
+{
+  "label": "run-08",
+  "date": "2026-08-15",
+  "model": "claude-opus-5",
+  "answers": 457,
+  "mean_answer_chars": 785,
+  "method": "Identical to runs 01 to 07. One agent per shard of 25 questions, 19 shards, dispatched from runs/prompt.md verbatim with only the shard path and output path substituted. Each agent was given the question ids and text only, plus the path to R9_1_GX_CLI_Reference/, and was forbidden to read anything under tools/. Sixteen dispatched first and the last three as slots freed.",
+  "corpus_note": "Same index digest as runs 06 and 07, a17e9318fabc, reported as unchanged. The corpus has not moved since run 06.",
+  "score_at_run": {"overall": "447/457"},
+  "purpose": "Falsification of the seventh sweep's ten test edits and the 3-of-7 triage's four repairs, none of which the runs they were derived from can check. Two of the triage repairs turned a failing test into a passing one, and multi-l1-encryption-prerequisites was re-pointed to a different primary file with a rewritten reference answer, which is the largest single change made to a test in this project.",
+  "result_note": "All fourteen pass. Read the evidence precisely: for the re-pointed test, runs 03, 04 and 07 now pass too, but that is rescoring arithmetic rather than new evidence, since the facts they are scored against changed. Run 08 is the one independent data point per repair, and it is a pass in every case. The widened matcher also holds: database-clear-scope, app-clear-third-party and system-factory-reset pass here without the clear [-f] form tripping them.",
+  "score_note": "447/457 is the second-lowest of the eight and the spread widens to 97.8-99.8%. Five tests that passed run 07 fail here, on permit/deny/fail-action, dynamic, extended-config, non-configuration data and flashing-green, spread across unrelated domains. Mean answer length is 785 characters, the lowest of the eight against a range of 785 to 830; worth watching rather than concluding from.",
+  "dispatch_note": "No shard failed. Shards 01 and 02, the all-multi pair, completed at 93 and 91 tool calls over seven and eight minutes. All 19 answer files were verified present with matching ids before collecting. Shard 01 again reported using the entities.md Containment table unprompted, the fourth independent report.",
+  "defects_note": "One new candidate, not yet verified: 05-piped-commands.md spells the command 'hightlight' in the third highlight example at section 5.5. Everything else reported was already on the known list: aaa-server shared-secret, supported-gain-range's carried-over row, failk, rsc-power values, can-be-cleared-by-user."
+}

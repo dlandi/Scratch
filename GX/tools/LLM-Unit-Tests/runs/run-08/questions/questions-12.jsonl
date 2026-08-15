@@ -1,0 +1,25 @@
+{"id": "tom-create-and-side-effects", "question": "When I provision a pluggable, does anything else get created with it?"}
+{"id": "tom-type-third-party", "question": "How do I tell whether a pluggable form factor accepts third-party modules?"}
+{"id": "unprovisioned-inventory-multi-chassis", "question": "We racked a new shelf and it is not showing in the inventory. Where does it appear first?"}
+{"id": "usb-space-and-path", "question": "How do I find where a USB stick is mounted and how much room is left on it?"}
+{"id": "activate-snapshot-passphrase", "question": "How do I bring a saved database snapshot back into service?"}
+{"id": "advanced-parameter-prerequisite", "question": "I set an advanced parameter but nothing happened, and showing it gives an error. What is going on?"}
+{"id": "apply-template-scope", "question": "How do I push the SerDes templates onto pluggables that are already installed?"}
+{"id": "commit-confirmed-timeout", "question": "Is there a way to commit a change that undoes itself if I lose access to the node?"}
+{"id": "config-as-restore-script", "question": "How do I capture the node's configuration in a form I could replay onto it later?"}
+{"id": "configure-exclusive-vs-shared", "question": "When I enter configuration mode, can someone else edit at the same time?"}
+{"id": "current-advanced-parameter-running", "question": "How do I see the advanced parameter values actually running on the system rather than what I configured?"}
+{"id": "database-clear-scope", "question": "Does clearing the database wipe everything on the node?"}
+{"id": "db-migrate-encryption-modes", "question": "How do I move the database to a scheme that also protects integrity?"}
+{"id": "db-protection-scheme-integrity", "question": "How do I check that the database integrity check passed at boot?"}
+{"id": "diff-output-forms", "question": "Before I commit, how do I see exactly what I changed, and can I get it as commands?"}
+{"id": "discard-changes-effect", "question": "How do I throw away everything I have staged and get back to normal mode?"}
+{"id": "extended-config-global-effect", "question": "What is an extended config and how careful should I be with one?"}
+{"id": "golden-advanced-parameter-impact", "question": "How do I tell whether changing an advanced parameter will disturb traffic?"}
+{"id": "lock-exclusive-write", "question": "How do I stop anyone else changing configuration while I work, and what releases it?"}
+{"id": "named-value-set-structure", "question": "How is a named-value-set addressed and what does it hold?"}
+{"id": "recovery-from-chassis-storage", "question": "Will a replacement controller pick up the old configuration by itself?"}
+{"id": "rollback-commit-conditions", "question": "Can I roll back to a previous commit while I have changes staged?"}
+{"id": "show-commit-availability", "question": "Why does the commit history come back empty on our node?"}
+{"id": "system-policies-commit-tracking", "question": "How do I turn on commit history, and is the running datastore writable?"}
+{"id": "take-snapshot-passphrase-required", "question": "My attempt to take a database backup was refused. What is missing?"}

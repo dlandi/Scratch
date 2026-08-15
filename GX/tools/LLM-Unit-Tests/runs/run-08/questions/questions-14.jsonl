@@ -1,0 +1,25 @@
+{"id": "sc-rx-secure-channel", "question": "How do I check which MACsec receive channel is currently in use?"}
+{"id": "sc-tx-transmit-channel", "question": "What does sc-tx report and can I configure it?"}
+{"id": "secure-application-certificate", "question": "How does the node decide which certificate an application presents, and can it require one from clients?"}
+{"id": "secure-entity-rekey-policy", "question": "If a re-key fails on an encrypted wavelength, does the node drop the traffic?"}
+{"id": "secure-entity-sa-proposal-fixed", "question": "Can I choose the algorithms used for layer 1 wavelength encryption?"}
+{"id": "security-policy-database-link", "question": "How is an IKE peer tied to the encrypted entity it protects?"}
+{"id": "cdp-auto-refresh", "question": "Can the node fetch a revocation list by itself on a schedule?"}
+{"id": "cert-gen-self-signed", "question": "How do I create a self-signed certificate for testing, and how long is it valid?"}
+{"id": "cert-to-name-mapping", "question": "How does the node work out which user a client certificate belongs to?"}
+{"id": "certificate-delete-and-list", "question": "How do I remove a certificate that was imported by mistake, and how do I list what is installed?"}
+{"id": "crl-purge-targets", "question": "How do I clear out stale revocation lists without removing the good ones?"}
+{"id": "csr-gen-pending-import", "question": "What state is the node left in after I generate a signing request?"}
+{"id": "display-cert-hierarchy", "question": "How do I see a certificate's trust chain rather than just its own details?"}
+{"id": "est-enroll-targets", "question": "How do I get a certificate issued automatically instead of doing a CSR by hand?"}
+{"id": "est-ca-auto-reenrollment", "question": "Can certificates issued through EST renew themselves, and how is the CA pinned?"}
+{"id": "est-server-port-default", "question": "What port does the node use to reach an EST server, and can I define more than one?"}
+{"id": "import-certificate-pem", "question": "How do I paste a certificate straight into the node rather than downloading it?"}
+{"id": "isk-in-use-flags", "question": "How do I tell whether an image signing key is actually being used before I remove it?"}
+{"id": "krk-root-keys", "question": "How do I list the image root keys on a node?"}
+{"id": "key-replacement-package-view", "question": "Which command shows the key replacement package on the node?"}
+{"id": "local-certificate-revocation-mode", "question": "Can I force the node to treat one of its own certificates as revoked?"}
+{"id": "ocsp-server-priority", "question": "How do I add an OCSP responder and control which one is tried first?"}
+{"id": "peer-certificate-whitelist", "question": "What is a peer certificate here, and what does the white-listed flag mean?"}
+{"id": "ssh-port-and-enabled", "question": "What port does SSH listen on, and is it on by default?"}
+{"id": "ssh-authorized-key-per-user", "question": "How do I let a user log in with a public key instead of a password?"}
