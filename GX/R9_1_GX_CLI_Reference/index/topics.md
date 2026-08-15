@@ -75,7 +75,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## CLI navigation, output filtering and help
 
-*Search terms:* `navigat`, `prompt`, `help`, `pipe`, `filter`, `tree`, `terminal`, `rows`, `columns`, `cli session`, `logged into`, `broadcast`, `alarm columns`, `create entity`, `managed entity`, `confirmation`, `hop to`, `long-running`, `stop`, `which entities`, `creatable`
+*Search terms:* `navigat`, `prompt`, `help`, `pipe`, `filter`, `tree`, `terminal`, `rows`, `columns`, `cli session`, `logged into`, `broadcast`, `alarm columns`, `create entity`, `managed entity`, `confirmation`, `hop to`, `long-running`, `which entities`, `creatable`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -168,7 +168,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Certificates and PKI
 
-*Search terms:* `certificate`, `x509`, `csr`, `crl`, `ocsp`, `est`, `ca`
+*Search terms:* `certificate`, `x509`, `csr`, `crl`, `ocsp`, `est`, `ca`, `revocation`, `signing request`, `distribution point`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -382,7 +382,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Inventory and capabilities
 
-*Search terms:* `inventory`, `capabilit`, `supported`, `supports`, `part number`, `card type`, `chassis type`, `form factor`, `breakout`, `phy mode`, `blank`, `compatib`, `redundancy supported`, `capable of`, `what can`
+*Search terms:* `inventory`, `capabilit`, `supported`, `supports`, `part number`, `card type`, `chassis type`, `form factor`, `breakout`, `phy mode`, `blank`, `compatib`, `redundancy supported`, `capable of`
 
 | Command | What it does | File |
 | --- | --- | --- |
