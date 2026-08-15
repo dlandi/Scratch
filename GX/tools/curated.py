@@ -409,7 +409,27 @@ TOPICS = [
      ["navigat", "prompt", "help", "pipe", "filter", "tree", "terminal",
       "rows", "columns", "cli session", "logged into", "broadcast",
       "alarm columns", "create entity", "managed entity", "confirmation",
-      "hop to", "long-running", "which entities", "creatable"],
+      "hop to", "long-running", "which entities", "creatable",
+      # Chapters 3 to 5. Operators reach these by what they want done, not by
+      # the command name: "time a command" rather than tic, "shortcut" rather
+      # than alias, "line numbers" rather than linenum. Kept narrow on purpose
+      # - a bare "script" here would drag all 29 CLI commands into every
+      # scheduled-task question, which is the mistake `stop` made.
+      # `timer` was tried and removed on precision.py's evidence: it fired on
+      # retry-timer and hold-off questions, dragging 44 irrelevant files in for
+      # no recall, which is the mistake `stop` made. `shortcut` stays although
+      # no test fires it, on the `fibre` principle: it is what an operator
+      # would actually type for an alias.
+      #
+      # `starting from` is load-bearing for begin/until, despite precision.py
+      # calling it unnecessary. It was paired with `ending at`, and the
+      # necessity measure holds every other term fixed, so two mutually
+      # redundant terms each read as unnecessary while being jointly the only
+      # route. Dropping both broke the test; dropping either alone would not
+      # have. Re-check a pair together before deleting on that column.
+      "elapsed", "keyword", "shortcut", "short name", "hierarchy",
+      "depth", "previous command", "reorder", "mark up", "line numbers",
+      "cli script", "starting from"],
      ["edit", "top", "up", "tree", "history", "alias", "unalias", "help", "?",
       "begin", "display", "exclude", "grep", "highlight", "include", "linenum",
       "more", "sort", "until", "tic", "toc", "cli", "cli-session-config",

@@ -75,7 +75,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## CLI navigation, output filtering and help
 
-*Search terms:* `navigat`, `prompt`, `help`, `pipe`, `filter`, `tree`, `terminal`, `rows`, `columns`, `cli session`, `logged into`, `broadcast`, `alarm columns`, `create entity`, `managed entity`, `confirmation`, `hop to`, `long-running`, `which entities`, `creatable`
+*Search terms:* `navigat`, `prompt`, `help`, `pipe`, `filter`, `tree`, `terminal`, `rows`, `columns`, `cli session`, `logged into`, `broadcast`, `alarm columns`, `create entity`, `managed entity`, `confirmation`, `hop to`, `long-running`, `which entities`, `creatable`, `elapsed`, `keyword`, `shortcut`, `short name`, `hierarchy`, `depth`, `previous command`, `reorder`, `mark up`, `line numbers`, `cli script`, `starting from`
 
 | Command | What it does | File |
 | --- | --- | --- |

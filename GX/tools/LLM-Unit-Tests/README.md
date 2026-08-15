@@ -29,19 +29,24 @@ pilots, 30 in batch 1 from the AID-ancestry and confusable-name bases, and 30 in
 batch 2 from the topic clusters and four cross-layer chains. The multi tests
 cite 187 distinct command files and reach all 16 domains.
 
+**Chapters 3 to 5 are covered too**, by batch 15: 16 tests over 20 of the 21
+auxiliary, navigation and piped commands. See "Chapters 3 to 5" below for why
+it is 16 tests and not 21, and why `?` is deliberately not among them.
+
 | Measure | Value |
 | --- | --- |
 | Chapter 6 coverage | 374 / 374 commands |
-| Single-command tests | 376 |
+| Chapters 3 to 5 coverage | 20 / 21 commands, `?` excluded by design |
+| Single-command tests | 392 |
 | Multi-command tests | 65 |
-| Validate against the document | 441 / 441 |
-| Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, two runs | 427 / 441 and 422 / 441; 10 tests fail in both |
-| Question does not name its command | 356 / 376 single, 55 / 65 multi |
+| Validate against the document | 457 / 457 |
+| Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
+| Carry the required facts, Claude Opus 5, two runs | 427 / 441 and 422 / 441; 10 tests fail in both. Batch 15 postdates both runs and is unanswered in each |
+| Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
-| Marked `weak` (thin source section) | 30 |
-| Average reference answer | 468 characters single, 775 multi |
-| Verbatim evidence quotes | 610 |
+| Marked `weak` (thin source section) | 31 |
+| Average reference answer | 467 characters single, 776 multi |
+| Verbatim evidence quotes | 634 |
 | Multi tests needing decomposition | 1 of 65 (2%) |
 
 Batches are one file each in `tests/`, named `single-NN-<domains>.jsonl` or
@@ -269,6 +274,10 @@ them.
   that explains `data-supervision` without ever saying `pm-control` leaves them
   with nothing to type. Naming the command is the minimum viable answer, so it
   is required of all 441 rather than of the ones that happened to have it.
+- **`command`**: which command the test is about. Required only when the cited
+  file holds more than one, which is true of chapters 3 to 5 and of nothing in
+  chapter 6. Layer 0 checks it against the file, so it cannot name a command
+  that is not there. Without it the check guessed the file's first command.
 - **`names_command`**: false means the question avoids the command's name, which
   is the harder and more realistic retrieval case. Roughly 60% of tests should
   be false; a suite of questions that name their own answer proves little.
@@ -455,20 +464,93 @@ Run 02's agents also found nine more source-document defects, verified and
 recorded in `../README.md`, plus one candidate that was checked and rejected.
 Three of them turned out to be classes with members already on that list.
 
+## Chapters 3 to 5
+
+Batch 15, `tests/single-15-cli-and-session.jsonl`. 16 tests over the auxiliary,
+navigation and piped commands. Three things about these chapters are worth
+knowing before adding to them.
+
+**They are one file per chapter, not one per command.** Chapter 6 gives layer 1
+a sharp question, "did the query reach this command out of 374". Here the same
+question is only "did it reach the piped-commands file", which any of the ten
+piped commands satisfies. Retrieval tests over these chapters therefore measure
+much less than they do over Chapter 6, and the value is almost entirely in
+layer 2. Splitting the chapters per command on their H2 boundaries would fix
+that and was considered; it was not done, because it changes the byte-exact
+split and the invariants in `gxpaths.py` for a gain confined to 21 commands.
+
+**Two harness bugs had to be fixed first, and neither was a relaxation.**
+
+- `CORPUS` was keyed by command name while holding whole file bodies, so a
+  chapter file was counted once per command in it. A fact unique to the piped
+  file scored 10 against a `MAX_MATCHING` of 4, and **no test for chapters 4 or
+  5 could pass layer 0 however well written**. The gate always meant files,
+  which is what `corpus_hits` documents. Keying by file gives 377 entries and
+  changed no verdict for the 441 tests that predate it.
+- The command-name check read the file's *first* command, so a test about
+  `sort` would have been required to name `begin`. A test in a multi-command
+  file now declares `command`, and layer 0 checks the declaration against the
+  file so it cannot name something that is not there.
+
+**`?` has no test, deliberately.** The command name is a required fact and is
+matched on word boundaries; `?` has none. The rule is right (an answer that
+never names the command leaves the operator with nothing to type) and `?` is a
+genuine exception rather than a reason to weaken it. `toc`, `top`, `include` and
+`until` also have no test of their own, but each is covered inside the test for
+the command it pairs with, which is how the guide itself presents them.
+
+**One fact-level trap.** The discrimination gate matches raw substrings, so
+`tic` occurs inside "static" and "diagnostic" in 187 files and `toc` in 72. A
+`tic`/`toc` test needs a third, rarer fact to anchor it. This is the same
+accidental-substring class already fixed in the layer 2 matcher and in layer 1
+topic terms, still live in `corpus_hits`; fixing it there needs the
+separator-flattening logic `carries()` has, and a naive word-boundary version
+drops 50 existing tests' facts to zero. Left alone on purpose.
+
+### What batch 15 found
+
+Twelve of the sixteen failed retrieval on the first run, and the CLI topic in
+`../curated.py` gained the vocabulary an operator would actually use for these:
+`elapsed`, `keyword`, `shortcut`, `short name`, `hierarchy`, `depth`,
+`previous command`, `reorder`, `mark up`, `line numbers`, `cli script` and
+`starting from`. Median files per question, mean precision and the over-25
+share are all unchanged, so the twelve cost nothing measurable.
+
+Two failures were the question's fault rather than the index's, the same call
+batch 2 made: "how long a command took" and "re-run something I typed earlier"
+were reworded to "elapsed time" and "repeat a previous command", which is what
+an operator types. A third, the `display commands` question, was reworded
+rather than given a bare `script` term, which would have dragged all 29 CLI
+commands into every scheduled-task question exactly as `stop` once did.
+
+**`precision.py`'s `necessary` column cannot see a jointly necessary pair.** It
+marked both `starting from` and `ending at` unnecessary, because necessity is
+computed per term with the others held fixed and either alone was redundant.
+Removing both broke `begin-until-retrieve-subset`; removing either would not
+have. Re-check a redundant pair together before deleting on that column.
+`timer` was tried and removed on the tool's evidence: it fired on retry-timer
+and hold-off questions for 44 irrelevant files and no recall.
+
 ## Remaining work
 
-Single-command coverage of Chapter 6 is complete. The planned multi-command set
-is complete: 65 against a target of about 60, across all five cluster bases.
-What is left, in the order agreed:
+Single-command coverage of Chapter 6 is complete, the multi-command set is
+complete at 65 across all five cluster bases, and chapters 3 to 5 are now
+covered by batch 15. What is left:
 
-**1. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
-no tests. They are indexed and routable, just not covered here. Note that
-`_authoring.py` builds multi-command tests only, so a single-command batch needs
-a different path or an extension to it.
+**1. A third run, or answers for batch 15.** Both stored runs predate batch 15,
+so its 16 tests are unanswered in each and `compare_runs.py` says so rather
+than scoring them as failures. Layer 2 has never been exercised on these
+chapters. A third run would both close that and tighten the 95.7-96.8% spread.
+
+**2. Triage the 10 persistent failures.** Eight are multi tests. Decide what
+each requires from **its question** before touching the corpus, since the
+run-01 audit found that pattern was usually the test's fault.
 
 Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question
-exercises. Layer 3 remains unimplemented by choice.
+exercises. Layer 3 remains unimplemented by choice. `_authoring.py` still builds
+multi-command tests only; batch 15 was written by hand against layer 0, which
+worked but does not scale to another batch this size.
 
 **What this suite is and is not.** Layer 1 is a deterministic lexical simulation
 of what an agent would do, and layers 0 and 1 being green says nothing about

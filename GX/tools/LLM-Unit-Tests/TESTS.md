@@ -1,6 +1,6 @@
 # GX CLI Reference - LLM unit tests
 
-376 single-command and 65 multi-command tests. Generated for reading; the machine-readable source is in `tests/`.
+392 single-command and 65 multi-command tests. Generated for reading; the machine-readable source is in `tests/`.
 
 ## Single-command tests
 
@@ -260,7 +260,7 @@ Source: `06-operation-commands/250-protection.md`
 
 **Q.** What are the default switching mode and wait-to-restore time on a protection group, and what range can the timer take?
 
-**A.** switching-mode is unidirectional or bidirectional and defaults to unidirectional. wtr-timer is the trigger clearance soaking time before reverting to the working unit, set in 1-second steps, range 60 to 720 seconds, default 300, and it only applies in revertive mode. reversion-mode itself is revertive or non-revertive and defaults to non-revertive, so by default there is no automatic reversion. Separately, hold-off-timer is the switching trigger soaking time before switching, in 1-millisecond steps, range 0 to 10000, default 0. protection-type is y-cable or snc-n, default y-cable.
+**A.** The timers are protection-group attributes. switching-mode is unidirectional or bidirectional and defaults to unidirectional. wtr-timer is the trigger clearance soaking time before reverting to the working unit, set in 1-second steps, range 60 to 720 seconds, default 300, and it only applies in revertive mode. reversion-mode itself is revertive or non-revertive and defaults to non-revertive, so by default there is no automatic reversion. Separately, hold-off-timer is the switching trigger soaking time before switching, in 1-millisecond steps, range 0 to 10000, default 0. protection-type is y-cable or snc-n, default y-cable.
 
 Source: `06-operation-commands/251-protection-group.md`
 
@@ -460,7 +460,7 @@ Source: `06-operation-commands/339-syslog.md`
 
 **Q.** How long can the shared secret for an authentication server be?
 
-**A.** The guide is inconsistent on this point and you should treat 64 as the working limit. A note on the command states the maximum length of shared-secret is 64 characters and that any value longer than 64 is denied with an error message, while the parameter table gives the type as String (length 0...128). Take the note as authoritative for what the node accepts. The value is displayed as asterisks rather than in clear. Related defaults on the same object: protocol-supported is RADIUS or TACACSPLUS, defaulting to RADIUS; timeout is 1 to 90 seconds, default 5; and retry is 0 to 5.
+**A.** The guide is inconsistent on this point and you should treat 64 as the working limit. A note on aaa-server states the maximum length of shared-secret is 64 characters and that any value longer than 64 is denied with an error message, while the parameter table gives the type as String (length 0...128). Take the note as authoritative for what the node accepts. The value is displayed as asterisks rather than in clear. Related defaults on the same object: protocol-supported is RADIUS or TACACSPLUS, defaulting to RADIUS; timeout is 1 to 90 seconds, default 5; and retry is 0 to 5.
 
 Source: `06-operation-commands/001-aaa-server.md`
 
@@ -630,7 +630,7 @@ Source: `06-operation-commands/019-amplifier.md`
 
 **Q.** What Raman gain can I ask for, and how do I know how many pumps the card has?
 
-**A.** target-raman-gain accepts 0 or the range 5 to 30 dB and defaults to 0dB, so there is a gap between zero and the minimum usable gain. number-of-pumps reports 4 or 2. raman-state reads disabled, disabled-from-remote or enabled, and amplifier-enable is disable-local-and-remote (the default), disable-local or enabled, so a Raman amplifier can be held off from either end. control-mode is auto, manual or auto-planned, defaulting to auto. connected-amplifier references the partner EDFA in the range 1 to 20 or not-specified, and connected-amp-edfa-optimum-gain takes 1 to 55dB. actual-raman-signal-gain and actual-raman-osc-gain report what is being delivered, and total-pump-power runs from -99 to 99 dBm.
+**A.** On amplifier-raman, target-raman-gain accepts 0 or the range 5 to 30 dB and defaults to 0dB, so there is a gap between zero and the minimum usable gain. number-of-pumps reports 4 or 2. raman-state reads disabled, disabled-from-remote or enabled, and amplifier-enable is disable-local-and-remote (the default), disable-local or enabled, so a Raman amplifier can be held off from either end. control-mode is auto, manual or auto-planned, defaulting to auto. connected-amplifier references the partner EDFA in the range 1 to 20 or not-specified, and connected-amp-edfa-optimum-gain takes 1 to 55dB. actual-raman-signal-gain and actual-raman-osc-gain report what is being delivered, and total-pump-power runs from -99 to 99 dBm.
 
 Source: `06-operation-commands/020-amplifier-raman.md`
 
@@ -760,7 +760,7 @@ Source: `06-operation-commands/151-l0-capabilities.md`
 
 **Q.** What do I have to supply to carve out a media channel?
 
-**A.** Three things are mandatory on add: parent-oms, lower-frequency and upper-frequency, so the channel is defined by its spectral edges rather than a centre and width. Optional attributes are label, admin-state (lock, unlock or maintenance, default unlock), alarm-report-control (default allowed) and auto-delete, which defaults to disabled. managed-by shows whether the system or the user created it. The same edges can be changed later with set.
+**A.** Three things are mandatory when you add an mc: parent-oms, lower-frequency and upper-frequency, so the channel is defined by its spectral edges rather than a centre and width. Optional attributes are label, admin-state (lock, unlock or maintenance, default unlock), alarm-report-control (default allowed) and auto-delete, which defaults to disabled. managed-by shows whether the system or the user created it. The same edges can be changed later with set.
 
 Source: `06-operation-commands/178-mc.md`
 
@@ -840,7 +840,7 @@ Source: `06-operation-commands/200-oadm-capabilities.md`
 
 **Q.** What loopbacks and test patterns can I put on an optical carrier?
 
-**A.** loopback accepts facility, terminal or none and defaults to none, with loopback-mode selecting facility or terminal. For test patterns, test-signal-type offers none, enumeration, PRBS31Q, PRBS13Q, scrambled-idles, PRBS9 and PRBS31, defaulting to none. test-signal-direction is ingress and test-signal-monitoring is true or false, defaulting to false. Trace identifiers are handled by tti-style (ITU-T-G709 by default, or proprietary), tx-tti and expected-tti, both tti-64, with tim-monitor defaulting to false.
+**A.** On an oc facility, loopback accepts facility, terminal or none and defaults to none, with loopback-mode selecting facility or terminal. For test patterns, test-signal-type offers none, enumeration, PRBS31Q, PRBS13Q, scrambled-idles, PRBS9 and PRBS31, defaulting to none. test-signal-direction is ingress and test-signal-monitoring is true or false, defaulting to false. Trace identifiers are handled by tti-style (ITU-T-G709 by default, or proprietary), tx-tti and expected-tti, both tti-64, with tim-monitor defaulting to false.
 
 Source: `06-operation-commands/201-oc.md`
 
@@ -890,7 +890,7 @@ Source: `06-operation-commands/205-ocm-ptp.md`
 
 **Q.** What spectral grid does a multiplex section use by default, and what does its monitoring mode change?
 
-**A.** grid-mode defaults to flexible, with fixed alternatives including fixed-50G-96ch, fixed-100G-48ch, fixed-75G-64ch, fixed-75G-64ch-oif and fixed-50G-7100. The default spectrum runs from lower-frequency 191300000 to upper-frequency 196150000. monitoring-mode selects how the section is monitored, with intrusive as the default on all node types except ILA and not-monitored otherwise; not-monitored means non-intrusive monitoring with no OCM required, which is why it also affects whether ochm data can be derived. target-output-power accepts 5.00 to 20.00 dBm and defaults to 5, attenuation-control-mode-rx and -tx both default to auto, and control-speed-factor defaults to 1.00.
+**A.** On oms, grid-mode defaults to flexible, with fixed alternatives including fixed-50G-96ch, fixed-100G-48ch, fixed-75G-64ch, fixed-75G-64ch-oif and fixed-50G-7100. The default spectrum runs from lower-frequency 191300000 to upper-frequency 196150000. monitoring-mode selects how the section is monitored, with intrusive as the default on all node types except ILA and not-monitored otherwise; not-monitored means non-intrusive monitoring with no OCM required, which is why it also affects whether ochm data can be derived. target-output-power accepts 5.00 to 20.00 dBm and defaults to 5, attenuation-control-mode-rx and -tx both default to auto, and control-speed-factor defaults to 1.00.
 
 Source: `06-operation-commands/209-oms.md`
 
@@ -900,7 +900,7 @@ Source: `06-operation-commands/209-oms.md`
 
 **Q.** What can I actually configure on an optical physical section?
 
-**A.** set accepts label, admin-state, alarm-report-control, input-psd-profile, role and port-expansion. role is the section's configured role and supported-roles shows which roles the port can take, so check the latter before setting the former. input-psd-profile selects the expected input power spectral density profile. Everything else, including supporting-card, supporting-port, the supporting and supported facility lists, oper-state and avail-state, is read only. admin-state defaults to unlock.
+**A.** set on ops accepts label, admin-state, alarm-report-control, input-psd-profile, role and port-expansion. role is the section's configured role and supported-roles shows which roles the port can take, so check the latter before setting the former. input-psd-profile selects the expected input power spectral density profile. Everything else, including supporting-card, supporting-port, the supporting and supported facility lists, oper-state and avail-state, is read only. admin-state defaults to unlock.
 
 Source: `06-operation-commands/210-ops.md`
 
@@ -910,7 +910,7 @@ Source: `06-operation-commands/210-ops.md`
 
 **Q.** What frequency range and transmit power can I set on a coherent carrier, and can I trim the frequency slightly?
 
-**A.** frequency covers roughly 191275000 to 196125000 MHz, and frequency-offset lets you trim it by -6000 to 6000 MHz with a default of 0. tx-power accepts -55.0 to 55.00 dBm, but the guide is explicit that the usable range depends on the module and pluggable, so check the per-module description rather than assuming the full range. grid-spacing offers 100, 75, 50, 33, 25, 12.5, 6.25 and 3.125, defaulting to 100. rx-frequency and actual-rx-frequency mirror the transmit side, and rx-attenuation covers 0.0 to 10.0 dBm.
+**A.** On optical-carrier, frequency covers roughly 191275000 to 196125000 MHz, and frequency-offset lets you trim it by -6000 to 6000 MHz with a default of 0. tx-power accepts -55.0 to 55.00 dBm, but the guide is explicit that the usable range depends on the module and pluggable, so check the per-module description rather than assuming the full range. grid-spacing offers 100, 75, 50, 33, 25, 12.5, 6.25 and 3.125, defaulting to 100. rx-frequency and actual-rx-frequency mirror the transmit side, and rx-attenuation covers 0.0 to 10.0 dBm.
 
 Source: `06-operation-commands/211-optical-carrier.md`
 
@@ -950,7 +950,7 @@ Source: `06-operation-commands/213-optical-ptp.md`
 
 **Q.** At what received power does an optical protection switch decide the path has failed, and can I change it?
 
-**A.** working-los-threshold and protection-los-threshold both default to -23dBm within a range of -55.0 to 0 dBm, and facility-los-threshold defaults to -30.0dBm over -55 to 15 dBm. Separately, working-switch-threshold and protection-switch-threshold default to -18dBm and are only used when switch-threshold-enable is set to enabled, which it is not by default. Hysteresis is configurable: los-threshold-hysteresis defaults to 3dB and switch-threshold-hysteresis to 2dB, both adjustable from 0.5 to 5.0 dB in 0.1 dB steps. The switch reverts according to reversion-mode, which defaults to non-revertive, with wtr-timer defaulting to 300 seconds and hold-off-timer to 0.
+**A.** On optical-switch, working-los-threshold and protection-los-threshold both default to -23dBm within a range of -55.0 to 0 dBm, and facility-los-threshold defaults to -30.0dBm over -55 to 15 dBm. Separately, working-switch-threshold and protection-switch-threshold default to -18dBm and are only used when switch-threshold-enable is set to enabled, which it is not by default. Hysteresis is configurable: los-threshold-hysteresis defaults to 3dB and switch-threshold-hysteresis to 2dB, both adjustable from 0.5 to 5.0 dB in 0.1 dB steps. The switch reverts according to reversion-mode, which defaults to non-revertive, with wtr-timer defaulting to 300 seconds and hold-off-timer to 0.
 
 Source: `06-operation-commands/214-optical-switch.md`
 
@@ -1120,7 +1120,7 @@ Source: `06-operation-commands/305-spectrum-monitoring.md`
 
 **Q.** When I create a super channel, how do I know whether it clashed with something already in the spectrum?
 
-**A.** contention-check-status reports it, with values pending, success, overridden and failk (spelled that way in the guide), defaulting to pending. Whether the check runs at all is governed by openwave-contention-check, which defaults to false, and line-system-mode, which defaults to openwave. carriers and carrier-mode are mandatory on add. The object also reports actual-carrier-mode, capacity, client-mode, baud-rate, application, sop-tracking-mode and spectral-bandwidth, and valid-signal-time defaults to 480 minutes within a range of 1 to 7200.
+**A.** contention-check-status on super-channel reports it, with values pending, success, overridden and failk (spelled that way in the guide), defaulting to pending. Whether the check runs at all is governed by openwave-contention-check, which defaults to false, and line-system-mode, which defaults to openwave. carriers and carrier-mode are mandatory on add. The object also reports actual-carrier-mode, capacity, client-mode, baud-rate, application, sop-tracking-mode and spectral-bandwidth, and valid-signal-time defaults to 480 minutes within a range of 1 to 7200.
 
 Source: `06-operation-commands/319-super-channel.md`
 
@@ -1180,7 +1180,7 @@ Source: `06-operation-commands/029-bgp-instance.md`
 
 **Q.** What are the default BGP timers, and can I authenticate a peering session?
 
-**A.** hold-time defaults to 90 seconds within 3 to 65535, keepalive-interval to 30 seconds within 1 to 21845, and connect-retry-interval to 120 seconds within 1 to 65535. negotiated-hold-time shows what was actually agreed with the peer. For authentication, secure-session is none or TCP-MD5, defaulting to none, with the password attribute carrying the key. peer-as is mandatory on add, enabled defaults to true, and afi-safi is IPv4-unicast or IPv6-unicast, defaulting to match the remote address family. session-state reports Idle, Connect, Active, OpenSent, OpenConfirm and the rest of the BGP state machine.
+**A.** On bgp-neighbor, hold-time defaults to 90 seconds within 3 to 65535, keepalive-interval to 30 seconds within 1 to 21845, and connect-retry-interval to 120 seconds within 1 to 65535. negotiated-hold-time shows what was actually agreed with the peer. For authentication, secure-session is none or TCP-MD5, defaulting to none, with the password attribute carrying the key. peer-as is mandatory on add, enabled defaults to true, and afi-safi is IPv4-unicast or IPv6-unicast, defaulting to match the remote address family. session-state reports Idle, Connect, Active, OpenSent, OpenConfirm and the rest of the BGP state machine.
 
 Source: `06-operation-commands/030-bgp-neighbor.md`
 
@@ -1200,7 +1200,7 @@ Source: `06-operation-commands/031-bgp-network.md`
 
 **Q.** What MTU can a communications channel take?
 
-**A.** It depends on the platform: the guide gives 1280 to 1500 octets for the G30 and 1280 to 9202 octets for the G40, with a default of 1500 and per-interface-type defaults on the G40 such as 1518 for DCN. So do not assume jumbo frames are available on a G30. Other attributes: type selects the channel technology from OFEC-CC, GCC0, GCC1, the OSCX1 to OSCX5 family, FCC1 and the 1GE-OSCX variants, mode is L1, L2 or L3 defaulting to L3, mru is 64 to 1500 defaulting to 1500, fcs-length is 16 or 32 bits defaulting to 16, restart-timer is 1 to 10 seconds defaulting to 3 and max-failure is 2 to 10 defaulting to 5. Note the add form works in merge mode only, so use -m.
+**A.** It depends on the platform: for a comm-channel the guide gives 1280 to 1500 octets for the G30 and 1280 to 9202 octets for the G40, with a default of 1500 and per-interface-type defaults on the G40 such as 1518 for DCN. So do not assume jumbo frames are available on a G30. Other attributes: type selects the channel technology from OFEC-CC, GCC0, GCC1, the OSCX1 to OSCX5 family, FCC1 and the 1GE-OSCX variants, mode is L1, L2 or L3 defaulting to L3, mru is 64 to 1500 defaulting to 1500, fcs-length is 16 or 32 bits defaulting to 16, restart-timer is 1 to 10 seconds defaulting to 3 and max-failure is 2 to 10 defaulting to 5. Note the add form works in merge mode only, so use -m.
 
 Source: `06-operation-commands/053-comm-channel.md`
 
@@ -1210,7 +1210,7 @@ Source: `06-operation-commands/053-comm-channel.md`
 
 **Q.** Is LLDP running on the management Ethernet ports by default, and what speed do they negotiate?
 
-**A.** LLDP is off: lldp-admin-status is tx-only, rx-only, tx-and-rx or disabled, and defaults to disabled, with lldp-transmit-interval defaulting to 30 seconds within 1 to 16383. Speed is negotiated: auto-negotiation defaults to enabled and rate defaults to maximum, with 1, 10, 100, 1000 and 10000 Mbit/s as explicit choices; operational-rate and operational-duplex-mode report what was actually agreed and read unknown until then. duplex-mode defaults to full, flow-control to disabled, mtu to 1500 within 1280 to 1500, and mode to L3. The object is system managed and cannot be manually deleted.
+**A.** On comm-eth, LLDP is off: lldp-admin-status is tx-only, rx-only, tx-and-rx or disabled, and defaults to disabled, with lldp-transmit-interval defaulting to 30 seconds within 1 to 16383. Speed is negotiated: auto-negotiation defaults to enabled and rate defaults to maximum, with 1, 10, 100, 1000 and 10000 Mbit/s as explicit choices; operational-rate and operational-duplex-mode report what was actually agreed and read unknown until then. duplex-mode defaults to full, flow-control to disabled, mtu to 1500 within 1280 to 1500, and mode to L3. The object is system managed and cannot be manually deleted.
 
 Source: `06-operation-commands/054-comm-eth.md`
 
@@ -1530,7 +1530,7 @@ Source: `06-operation-commands/008-activate.md`
 
 **Q.** Can I flash the locator LED on two cards at once, and how do I turn it off?
 
-**A.** No: the guide states only a single location LED test can be running at a time, and also that not all cards support the Location LED test activation. led-mode is flash or solid, defaulting to flash, and timeout accepts 0 to 120 seconds. Be careful with timeout: the guide notes it does not take effect in G30 R5.1, and to stop the LED location and lamp test functions you should disable them with the terminate command rather than relying on the timer.
+**A.** No. activate runs the test, and the guide states only a single location LED test can be running at a time, and also that not all cards support the Location LED test activation. led-mode is flash or solid, defaulting to flash, and timeout accepts 0 to 120 seconds. Be careful with timeout: the guide notes it does not take effect in G30 R5.1, and to stop the LED location and lamp test functions you should disable them with the terminate command rather than relying on the timer.
 
 Source: `06-operation-commands/008-activate.md`
 
@@ -2350,7 +2350,7 @@ Source: `06-operation-commands/341-system-policies.md`
 
 **Q.** My attempt to take a database backup was refused. What is missing?
 
-**A.** Almost certainly the passphrase. The guide states the system will only accept the command if the db-passphrase used for snapshot encryption is configured, either globally as part of security-policies or locally as a parameter of the command. The passphrase must be a minimum of 40 characters, must not contain dictionary words, and allows special characters. db-instance selects the slot from onehour, oneday, oneweek, temp, manual or rollback, defaulting to temp, and the guide warns that if the oneweek snapshot already exists the command overwrites it. Snapshots are then activated with activate database or exported with upload database.
+**A.** Almost certainly the passphrase. The guide states the system will only accept take-snapshot if the db-passphrase used for snapshot encryption is configured, either globally as part of security-policies or locally as a parameter of the command. The passphrase must be a minimum of 40 characters, must not contain dictionary words, and allows special characters. db-instance selects the slot from onehour, oneday, oneweek, temp, manual or rollback, defaulting to temp, and the guide warns that if the oneweek snapshot already exists the command overwrites it. Snapshots are then activated with activate database or exported with upload database.
 
 Source: `06-operation-commands/342-take-snapshot.md`
 
@@ -2470,7 +2470,7 @@ Source: `06-operation-commands/129-ikev2-local-instance.md`
 
 **Q.** What re-key and re-authentication intervals should I use on an IKE peer, and is there a rule about them?
 
-**A.** Yes, an explicit one. The guide states re-key-frequency and re-auth-frequency must not be multiples of each other, and must differ by a few minutes to ensure a significant interval between re-authentication and re-keying. re-key-frequency covers 3600 to 86400 seconds and defaults to 28800; re-auth-frequency covers 3600 to 604800 and defaults to 43200. re-key-fail-policy is kill traffic or continue traffic, defaulting to continue-traffic, with re-key-traffic-kill-offset and re-auth-traffic-kill-offset both defaulting to 0. Other defaults: dpd-delay 30, keying-tries infinite, port 500, authentication-scheme x.509-certificate, psk-lifetime 90 days with a 14 day expiry warning. The guide also notes sms-operation and sms-state are not supported in Release 9.1 even though they appear in the interface.
+**A.** Yes, an explicit one. On ikev2-peer the guide states re-key-frequency and re-auth-frequency must not be multiples of each other, and must differ by a few minutes to ensure a significant interval between re-authentication and re-keying. re-key-frequency covers 3600 to 86400 seconds and defaults to 28800; re-auth-frequency covers 3600 to 604800 and defaults to 43200. re-key-fail-policy is kill traffic or continue traffic, defaulting to continue-traffic, with re-key-traffic-kill-offset and re-auth-traffic-kill-offset both defaulting to 0. Other defaults: dpd-delay 30, keying-tries infinite, port 500, authentication-scheme x.509-certificate, psk-lifetime 90 days with a 14 day expiry warning. The guide also notes sms-operation and sms-state are not supported in Release 9.1 even though they appear in the interface.
 
 Source: `06-operation-commands/130-ikev2-peer.md`
 
@@ -2870,7 +2870,7 @@ Source: `06-operation-commands/308-ssh-host-key.md`
 
 **Q.** If I regenerate the SSH keys, what happens to the existing ones?
 
-**A.** They are replaced: the guide states the existing keys in the system will be replaced with the newly generated private and public key pair, so every client that had pinned the old host key will see a mismatch. The default type is RSA unless -t is given, with rsa, ecdsa and ed25519 available, and ED25519 support starts at R9.0. Key length is chosen with -b: 2048, 3072 or 4096 for RSA, 256, 384 or 521 for ECDSA, and 256 for ED25519; if not given the system picks a default for the type. The new public key is read back with show ssh-host-key.
+**A.** They are replaced: for ssh-keygen the guide states the existing keys in the system will be replaced with the newly generated private and public key pair, so every client that had pinned the old host key will see a mismatch. The default type is RSA unless -t is given, with rsa, ecdsa and ed25519 available, and ED25519 support starts at R9.0. Key length is chosen with -b: 2048, 3072 or 4096 for RSA, 256, 384 or 521 for ECDSA, and 256 for ED25519; if not given the system picks a default for the type. The new public key is read back with show ssh-host-key.
 
 Source: `06-operation-commands/309-ssh-keygen.md`
 
@@ -2910,7 +2910,7 @@ Source: `06-operation-commands/033-cable-id.md`
 
 **Q.** Which cards can source or terminate a CableID signal?
 
-**A.** Only CAD10A and RD20TM. The guide states the CableID signal can only be sourced or terminated by those two cards and is transparently passed in the OPSM, and card-type-a and card-type-z accordingly accept only RD20TM or CAD10A. A path runs from the end A port to the end Z port. Per direction it reports a path-status of enabled or disabled and a last-test-status of not-verified, pass or fail, along with current-state, last-test-qualifier of up-to-date or out-dated, last-test-timestamp and additional-info.
+**A.** Only CAD10A and RD20TM. For cable-id-path the guide states the CableID signal can only be sourced or terminated by those two cards and is transparently passed in the OPSM, and card-type-a and card-type-z accordingly accept only RD20TM or CAD10A. A path runs from the end A port to the end Z port. Per direction it reports a path-status of enabled or disabled and a last-test-status of not-verified, pass or fail, along with current-state, last-test-qualifier of up-to-date or out-dated, last-test-timestamp and additional-info.
 
 Source: `06-operation-commands/034-cable-id-path.md`
 
@@ -3000,7 +3000,7 @@ Source: `06-operation-commands/132-inci.md`
 
 **Q.** How do I tell whether the far end of an INCI link is the node I expected?
 
-**A.** Compare configured-node-name, which you set, against discovered-node-name, which the node learns, and check discovered-node-id. connection-status and oper-state say whether the link is up. neighbor-address and configured-node-name are mandatory on add, and neighbor-port is reported. alarm-report-control defaults to inhibited on this object. The guide also notes digital trigger fault packets are H-MAC authenticated, and that digital trigger registration details are viewed with show digital-trigger-registration for the SCH AID.
+**A.** On inci-neighbor, compare configured-node-name, which you set, against discovered-node-name, which the node learns, and check discovered-node-id. connection-status and oper-state say whether the link is up. neighbor-address and configured-node-name are mandatory on add, and neighbor-port is reported. alarm-report-control defaults to inhibited on this object. The guide also notes digital trigger fault packets are H-MAC authenticated, and that digital trigger registration details are viewed with show digital-trigger-registration for the SCH AID.
 
 Source: `06-operation-commands/133-inci-neighbor.md`
 
@@ -3010,7 +3010,7 @@ Source: `06-operation-commands/133-inci-neighbor.md`
 
 **Q.** How often does the node look for a neighbour on a management interface, and how long before it gives up?
 
-**A.** discovery-cycle-time covers 30 to 300 seconds and defaults to 30; discovery-timeout covers 300 to 1800 seconds and defaults to 300. discovery-enabled defaults to true, so discovery runs unless disabled. The result is neighbor-adjacency-state, which reads blackout, discovery, holding or unknown, together with the discovered neighbor-ne-id, neighbor-ne-name, neighbor-interface-name, neighbor-router-id and its IPv4 and IPv6 addresses, plus last-change-time and the associated-comm-channel.
+**A.** On interface-neighbor, discovery-cycle-time covers 30 to 300 seconds and defaults to 30; discovery-timeout covers 300 to 1800 seconds and defaults to 300. discovery-enabled defaults to true, so discovery runs unless disabled. The result is neighbor-adjacency-state, which reads blackout, discovery, holding or unknown, together with the discovered neighbor-ne-id, neighbor-ne-name, neighbor-interface-name, neighbor-router-id and its IPv4 and IPv6 addresses, plus last-change-time and the associated-comm-channel.
 
 Source: `06-operation-commands/135-interface-neighbor.md`
 
@@ -3060,7 +3060,7 @@ Source: `06-operation-commands/157-lldp-neighbor.md`
 
 **Q.** Do the LLDP frame counters reset when a neighbour ages out?
 
-**A.** No. The guide states all counter values in a particular entry are maintained on a continuing basis and are not deleted upon expiration of the TTL timing counters associated with the LLDP neighbour information. The counters are total-frames-in, total-frames-out, total-discarded-frames, error-frames, total-discarded-tlvs, total-unrecognized-tlvs and total-ageouts, all starting at 0, plus last-change-time, which defaults to when the LLDP neighbour is formed, and last-clear-time. As with lldp-neighbor, the egress direction is not supported.
+**A.** No. For lldp-port-statistics the guide states all counter values in a particular entry are maintained on a continuing basis and are not deleted upon expiration of the TTL timing counters associated with the LLDP neighbour information. The counters are total-frames-in, total-frames-out, total-discarded-frames, error-frames, total-discarded-tlvs, total-unrecognized-tlvs and total-ageouts, all starting at 0, plus last-change-time, which defaults to when the LLDP neighbour is formed, and last-clear-time. As with lldp-neighbor, the egress direction is not supported.
 
 Source: `06-operation-commands/158-lldp-port-statistics.md`
 
@@ -3090,7 +3090,7 @@ Source: `06-operation-commands/296-sndp.md`
 
 **Q.** What do I have to supply to describe a subsea link, and how long can it be?
 
-**A.** Five things are mandatory on add: src-node-id, src-port-name, dst-node-id, dst-port-name and degree-target-tx-power. fiber-length accepts 0 to 25000 km and defaults to 0. The object also models branching units through segment-list and bu-segment-index, and carries rx-fiber-type and tx-fiber-type, fiber-pair-id, link-name, gsnr, degree-expected-rx-power, commissioning-snr-margin and allocated-spectrum-list. launch-condition is flat-tx or pfib, defaulting to pfib, and fiber-connection-type defaults to two-way. Only add, delete, set and show exist.
+**A.** Five things are mandatory when you add a submarine-link: src-node-id, src-port-name, dst-node-id, dst-port-name and degree-target-tx-power. fiber-length accepts 0 to 25000 km and defaults to 0. The object also models branching units through segment-list and bu-segment-index, and carries rx-fiber-type and tx-fiber-type, fiber-pair-id, link-name, gsnr, degree-expected-rx-power, commissioning-snr-margin and allocated-spectrum-list. launch-condition is flat-tx or pfib, defaulting to pfib, and fiber-connection-type defaults to two-way. Only add, delete, set and show exist.
 
 Source: `06-operation-commands/315-submarine-link.md`
 
@@ -3150,7 +3150,7 @@ Source: `06-operation-commands/048-cid-ptp.md`
 
 **Q.** What FEC does a 400ZR interface use, and how are degrade thresholds set?
 
-**A.** fec-type defaults to ofec, with cfec, noFEC, G709 and the older EFEC and SDFEC variants also listed. Degrade detection is off by default and split in two: fdd-monitoring and fed-monitoring both default to disabled. When enabled, fdd-threshold defaults to 0.0195 average BER with a clear threshold of 0.01062, and fed-threshold defaults to 0.0206 with a clear threshold of 0.01125; all four accept 0.000000001 to 0.1. link-degrade-indication then reads none, local-degraded, remote-degraded or local-and-remote-degraded. The facility is auto-instantiated when the ZR TOM is provisioned, and rate is fixed at 400.000 Gbit/s.
+**A.** On eth-zr, fec-type defaults to ofec, with cfec, noFEC, G709 and the older EFEC and SDFEC variants also listed. Degrade detection is off by default and split in two: fdd-monitoring and fed-monitoring both default to disabled. When enabled, fdd-threshold defaults to 0.0195 average BER with a clear threshold of 0.01062, and fed-threshold defaults to 0.0206 with a clear threshold of 0.01125; all four accept 0.000000001 to 0.1. link-degrade-indication then reads none, local-degraded, remote-degraded or local-and-remote-degraded. The facility is auto-instantiated when the ZR TOM is provisioned, and rate is fixed at 400.000 Gbit/s.
 
 Source: `06-operation-commands/098-eth-zr.md`
 
@@ -3160,7 +3160,7 @@ Source: `06-operation-commands/098-eth-zr.md`
 
 **Q.** What is the largest frame an Ethernet client will accept?
 
-**A.** It depends on the platform: max-packet-length covers 1280 to 18000 octets on the G30 and 1518 to 18000 octets on the G40, defaulting to 1518. Elsewhere the guide notes max-packet-length is configurable on card level only and applies to all interfaces on that card, and that it is used only for determining the undersized and oversized packet counts in 100GbE PMs, so it is a counting boundary rather than a hard MTU. Related settings include fec-mode, which defaults to disabled, tx-mapping-mode and expected-mapping-mode defaulting to GMP, timing-mode of retimed or transparent defaulting to transparent, and the fec-degraded-ser monitoring group whose activate threshold defaults to 0.00001 over a 10 second period.
+**A.** It depends on the platform: on an ethernet facility, max-packet-length covers 1280 to 18000 octets on the G30 and 1518 to 18000 octets on the G40, defaulting to 1518. Elsewhere the guide notes max-packet-length is configurable on card level only and applies to all interfaces on that card, and that it is used only for determining the undersized and oversized packet counts in 100GbE PMs, so it is a counting boundary rather than a hard MTU. Related settings include fec-mode, which defaults to disabled, tx-mapping-mode and expected-mapping-mode defaulting to GMP, timing-mode of retimed or transparent defaulting to transparent, and the fec-degraded-ser monitoring group whose activate threshold defaults to 0.00001 over a 10 second period.
 
 Source: `06-operation-commands/099-ethernet.md`
 
@@ -3310,7 +3310,7 @@ Source: `06-operation-commands/313-stm.md`
 
 **Q.** What does the node do to a client port when the service behind it fails?
 
-**A.** tributary-disable-action decides, and it defaults to laser-shut-off. The alternatives include none, odu-ais, send-ais-1, send-gais, send-idles and send-lf. tributary-disable-holdoff-timer delays it by 0 to 10000 milliseconds, defaulting to 0, and the guide notes it applies only when the action is laser turn-off, recommending you hold the optical signal until the timer expires before turning the laser off. Related settings are near-end-tda and tda-degrade-mode, both defaulting to disabled, and forward-defect-trigger, defaulting to true. Note also the warning that operating the ZXS-QDZRZZZZ-00 above 40 degrees C is not supported, in which case it goes to low power mode and a CFG-MSMT alarm is raised.
+**A.** tributary-disable-action on trib-ptp decides, and it defaults to laser-shut-off. The alternatives include none, odu-ais, send-ais-1, send-gais, send-idles and send-lf. tributary-disable-holdoff-timer delays it by 0 to 10000 milliseconds, defaulting to 0, and the guide notes it applies only when the action is laser turn-off, recommending you hold the optical signal until the timer expires before turning the laser off. Related settings are near-end-tda and tda-degrade-mode, both defaulting to disabled, and forward-defect-trigger, defaulting to true. Note also the warning that operating the ZXS-QDZRZZZZ-00 above 40 degrees C is not supported, in which case it goes to low power mode and a CFG-MSMT alarm is raised.
 
 Source: `06-operation-commands/358-trib-ptp.md`
 
@@ -3330,7 +3330,7 @@ Source: `06-operation-commands/373-xcon.md`
 
 **Q.** What can I configure on an L2-bridge, and what identifies one?
 
-**A.** The bridge is identified by bridge-name, a string of up to 64 characters, and carries just two attributes: chassis-name, a reference to the chassis the bridge is associated with, and description, up to 255 characters describing the bridge and its intended purpose. Only set and show are documented, with no add or delete form, and it is available in operational and candidate configuration mode. The guide gives no further detail on what the bridge switches.
+**A.** An L2-bridge is identified by bridge-name, a string of up to 64 characters, and carries just two attributes: chassis-name, a reference to the chassis the bridge is associated with, and description, up to 255 characters describing the bridge and its intended purpose. Only set and show are documented, with no add or delete form, and it is available in operational and candidate configuration mode. The guide gives no further detail on what the bridge switches.
 
 Source: `06-operation-commands/170-l2-bridge.md`
 
@@ -3410,7 +3410,7 @@ Source: `06-operation-commands/121-grpc.md`
 
 **Q.** What port does NETCONF use here and how long does it wait for a hello?
 
-**A.** port defaults to 830 and hello-timeout defaults to just 2 seconds, within a range of 1 to 3600. enabled defaults to true. Two less obvious flags: annotate-cli-name, defaulting to false, adds the CLI name to the model output, and static-info-in-notifs controls whether static information is included in notifications. The object is set and shown only.
+**A.** On netconf, port defaults to 830 and hello-timeout defaults to just 2 seconds, within a range of 1 to 3600. enabled defaults to true. Two less obvious flags: annotate-cli-name, defaulting to false, adds the CLI name to the model output, and static-info-in-notifs controls whether static information is included in notifications. The object is set and shown only.
 
 Source: `06-operation-commands/188-netconf.md`
 
@@ -3763,6 +3763,166 @@ Source: `06-operation-commands/348-terminate.md`
 **A.** It performs specific system-defined operations rather than assigning arbitrary values. type selects the operation from span-loss-alarm-threshold, filter-insertion-date-now, set-under-commissioning and clear-under-commissioning, and entity-id names the targets, which can use a wildcard for multiple instances. For example `update span-loss-alarm-threshold ots-1-1-dwdm-line` recalculates that threshold rather than setting a number. It runs in operational mode.
 
 Source: `06-operation-commands/362-update.md`
+
+### tic-toc-time-a-command
+
+*cli-and-session / how-to*
+
+**Q.** How do I measure the elapsed time a command takes on the node, without timing it by hand?
+
+**A.** Yes. `tic` starts a timer for the typed command and `toc` displays the elapsed time since the timer was started and the command was executed by the system. They are auxiliary commands, so you wrap the work between them on one line: `tic;show log;toc`. The same form works for a list of commands, which the guide writes as `tic ;show log ;traceroute 10.128.1.1 ;toc`. Neither takes any parameters.
+
+Source: `03-auxiliary-and-help-commands/03-auxiliary-and-help-commands.md`
+
+### help-search-by-keyword
+
+*cli-and-session / which-command*
+
+**Q.** I know the subject I care about but not the command name. Can the CLI itself find the matching commands from a keyword?
+
+**A.** Yes. `help -s <keyword> [<keyword> ...]` searches the provided keyword(s) in all commands help text and displays the matches, in order of relevance, for example `help -s inventory`. Partial keywords can be provided using a wild card, as in `help -s data*`. Plain `help <command/container/attribute>` instead explains one named thing, for example `help show`.
+
+Source: `03-auxiliary-and-help-commands/03-auxiliary-and-help-commands.md`
+
+### alias-persistent-and-shared
+
+*cli-and-session / consequence*
+
+**Q.** If I set up a short name for a long command, does it survive me logging out, and will other operators see it too?
+
+**A.** It survives, and they will see it. Aliases are persistent and shared among all users and CLI sessions, so an `alias` you define is not private to your session. Define one with `alias <name>=<value>`, quoting multi word values as in `alias sa='show alarm'`. Running `alias` with no arguments prints the current list of aliases in the form 'name=value'. Aliases can reference other aliases, and are removed using the command unalias.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### unalias-remove-all-affects-everyone
+
+*cli-and-session / consequence*
+
+**Q.** How do I clear out every short name that has been defined, and who does that affect?
+
+**A.** `unalias -a` removes all alias definitions. Be aware of the blast radius: removing an alias will have impact on all sessions and users, so this is not a cleanup local to you. To remove specific ones instead, name them, as in `unalias foo` or `unalias bar baz qux`. The command is always successful unless a supplied name is not a defined alias.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### tree-limit-depth-or-ancestors
+
+*cli-and-session / parameter-values*
+
+**Q.** The hierarchy listing runs off the screen. How do I cap how deep it goes, or show only the path down to one entity?
+
+**A.** `tree` supports both. `tree -d=depth` sets the maximum display depth of the directory tree, where the depth is the number of levels to be displayed; if not specified all levels are displayed by default, so `tree -d=2` stops at two. The `-a` flag displays only the target entity, along with all its ancestors, as in `tree -a interface-DCN`. There is also `-o`, which displays a tree based on a YANG top node. Only managed entities are shown, with no attribute name or values.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### edit-vs-up-vs-top-navigation
+
+*cli-and-session / disambiguation*
+
+**Q.** Three different commands seem to move me around the managed entity hierarchy. Which one does what?
+
+**A.** `edit <entity-id>` navigates to any entity in the hierarchy, and the ids can be absolute from the root of the system or relative to the current entity in the path banner, as in `edit card-1-1` or `edit chassis-1 slot-2`. `up` navigates to the parent level. `top` navigates to the top of the hierarchy root, shown as [ne]. All three show their effect on the CLI banner, and the attempt to edit an nonexistent entity instance will fail.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### history-repeat-earlier-command
+
+*cli-and-session / how-to*
+
+**Q.** How do I repeat a previous command from this session without typing the whole thing again?
+
+**A.** `history` displays the current session's command history as a numbered list. Each command can be repeated using '!<n>', where n is the number in the history list, and the '!!' can also be used to repeat the previous command. To find one entry in a long list, filter it with a piped command, for example `history | include 'show'`.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### up-at-top-level-does-nothing
+
+*cli-and-session / consequence*
+
+**Q.** What happens if I move up a level when I am already at the root of the entity hierarchy?
+
+**A.** Nothing happens: at the hierarchy top level, the `up` command has no impact. Elsewhere `up` changes the currently selected managed entity to its parent level, so from [card-1-5] it moves to [equipment] and then to [ne], and the effect is visible on the CLI banner. This command does not support any parameters. Use `top` to jump straight to the hierarchy root instead.
+
+Source: `04-navigation-and-display-commands/04-navigation-and-display-commands.md`
+
+### grep-vs-include-identical-plus-options
+
+*cli-and-session / disambiguation*
+
+**Q.** Two of the output filters look like they do exactly the same job. Is there actually any difference between them?
+
+**A.** `grep` and `include` are the same command, which the guide states outright. The difference is that `grep` has several additional filtering options: `-a=<n>` is the number of lines of context to show after the actual match, `-b=<n>` the number before it, and `-n` displays line numbers in result. Both only display lines matching the filter, both do a case insensitive comparison, and both support regex. Use `exclude` for the inverse.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### display-config-as-replayable-commands
+
+*cli-and-session / how-to*
+
+**Q.** I want the current configuration back out as a CLI script I can replay later. Can the node emit that directly?
+
+**A.** Yes, with the `display` piped command. `show -r | display commands` displays the configurations as CLI 'set' and 'add' commands, which the guide notes is useful for creating CLI scripts from the current configuration. Other modes cover neighbouring needs: `csv` for pasting into a spreadsheet, `only-values` for script building, and `keys-table`, which splits the instance representation per individual keys. The default mode is `list`.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### begin-until-retrieve-subset
+
+*cli-and-session / how-to*
+
+**Q.** An output is enormous and I only want the part starting from one line and ending at another. Is that possible in one go?
+
+**A.** Yes, by pairing two piped commands. `begin <words>` displays the output of the previous command starting from a specified word, and the output begins with the line that matches the word, as in `show | begin ne-location`. `until <words>` ends the output at the line that matches, as in `show | until ne-location`. The guide states each can be used together with the other to retrieve a sub-set of an output. The words may contain spaces if in quotes.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### more-must-be-last-in-the-chain
+
+*cli-and-session / pre-condition*
+
+**Q.** Can I page through a filtered listing one screen at a time, and does it matter where in the chain the pager goes?
+
+**A.** You can, but the position is fixed: multiple piped commands can be used sequentially, but `more` needs to be the last one in the command line, as in `tree | include led | more`. The size of the page will match exactly the size of the CLI session window, except for the serial port case, where the terminal size is fixed. When the page limit is reached the display pauses; it is resumed by pressing any key, <enter> shows the next line, and [CTRL]+[C] terminates the display and returns to prompt.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### sort-ignores-unknown-attribute-and-inverts
+
+*cli-and-session / consequence*
+
+**Q.** If I reorder a listing by an attribute name I got slightly wrong, does it fail? And can I flip the order round?
+
+**A.** It does not fail: if an unrecognized attribute name is used, it will be ignored. `sort` with no parameters displays the output sorted by object instance, the same as the default display. A list of attributes can be provided as parameters, as in `show port | sort port-type`. The `-i` will invert the order in the output, and can be used on its own, or together with an attribute list, as in `show user | sort -i user-group last-login-date`.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### exclude-case-insensitive-and-regex
+
+*cli-and-session / parameter-values*
+
+**Q.** When I filter lines out of an output, does capitalisation matter, and can I give a pattern rather than a literal word?
+
+**A.** Capitalisation does not matter and patterns are allowed. `exclude <filter>` will exclude lines with the filter from the output, the filter does a case insensitive comparison, so `show | exclude abc` and `show | exclude ABC` are equivalent, and the filter supports regex (regular expressions). The filter may be multiple words separated by spaces, if enclosed by quotes, as in `show | exclude 'ne oper'`. Multiple piped commands can be used in a single command.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### highlight-phrase-vs-separate-words
+
+*cli-and-session / parameter-values*
+
+**Q.** Can I make several terms stand out in one listing, and how do I mark up a whole phrase rather than the individual words?
+
+**A.** `highlight <word> [<word>]` visually marks up a word or set of words in the output of a given command. More than one word can be provided, either within quotes (to search for a sentence) or without quotes (to search for words separately). So `show odu | highlight odu4 oduflex` marks the two words independently, while `show odu | highlight 'idle lower-layer-down' odu4` treats the quoted text as one sequence and odu4 as a separate word.
+
+Source: `05-piped-commands/05-piped-commands.md`
+
+### linenum-number-the-output
+
+*cli-and-session / minimal-command  (weak: the source section is thin)*
+
+**Q.** Is there a quick way to put line numbers on the output of a command?
+
+**A.** Yes. `linenum` is a piped command used to add line numbers to output of the previous command, written as `show | linenum`. It takes no arguments other than `-h` for help, and applies to any display command such as tree or show.
+
+Source: `05-piped-commands/05-piped-commands.md`
 
 ## Multi-command tests
 

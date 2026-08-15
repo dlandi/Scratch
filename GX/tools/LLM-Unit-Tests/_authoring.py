@@ -42,8 +42,11 @@ C = "06-operation-commands/"
 RECS = {json.loads(l)["name"]: json.loads(l) for l in
         open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"), encoding="utf-8")}
 BY_FILE = {r["file"]: r for r in RECS.values()}
-BODIES = {n: open(os.path.join(gxpaths.DOCS, r["file"].replace("/", os.sep)),
-                  encoding="utf-8").read().lower() for n, r in RECS.items()}
+# Keyed by file, matching run_tests.CORPUS: chapters 3 to 5 put several
+# commands in one file, and keying by name counted such a file once per command
+# it holds, inflating every frequency measured over it.
+BODIES = {r["file"]: open(os.path.join(gxpaths.DOCS, r["file"].replace("/", os.sep)),
+                          encoding="utf-8").read().lower() for r in RECS.values()}
 NFILES = len(BODIES)
 
 FACT_MAX = 0.25        # a fact in more than a quarter of the files proves nothing

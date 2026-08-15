@@ -63,13 +63,22 @@ KNOWN_FILES = {json.loads(l)["file"] for l in
                open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"),
                     encoding="utf-8")}
 
-# every command body, lowercased, for the discrimination checks below
+# Every command body, lowercased, for the discrimination checks below.
+#
+# Keyed by FILE, not by command name. Chapter 6 is one file per command so the
+# two are the same there, but chapters 3 to 5 hold 4, 7 and 10 commands in a
+# single file each. Keying by name counted those files once per command they
+# hold, so a fact unique to the piped-commands file scored 10 against a
+# MAX_MATCHING of 4 and no test for those chapters could ever pass layer 0.
+# The gate always meant files, which is what corpus_hits documents and what
+# the README states. Correcting it changes no verdict for the 441 tests that
+# predate it.
 CORPUS = {}
-COMMAND_OF = {}
+COMMANDS_IN = {}
 for _l in open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"), encoding="utf-8"):
     _r = json.loads(_l)
-    CORPUS[_r["name"]] = read(_r["file"]).lower()
-    COMMAND_OF.setdefault(_r["file"], _r["name"])
+    CORPUS[_r["file"]] = read(_r["file"]).lower()
+    COMMANDS_IN.setdefault(_r["file"], []).append(_r["name"])
 NFILES = len(CORPUS)
 
 MAX_MATCHING = 4        # files a whole fact set may match: 1% of the corpus
@@ -163,7 +172,24 @@ def validate(tests):
         # separated a right answer from one about a different object.
         key = t.get("primary") if t.get("type") == "multi" \
             else (t.get("expect", {}).get("files") or [None])[0]
-        name = COMMAND_OF.get(key)
+        here = COMMANDS_IN.get(key, [])
+        # A file holding several commands cannot say by itself which one the
+        # test is about, and guessing picked the first one in the file, so a
+        # test about `sort` would have been required to name `begin`. Such a
+        # test declares `command`, and the declaration is checked against the
+        # file so it cannot name something that is not there.
+        declared = t.get("command")
+        if declared and declared not in here:
+            problems.append((tid, f"declared command {declared!r} is not in {key}"))
+            name = None
+        elif declared:
+            name = declared
+        elif len(here) > 1:
+            problems.append((tid, f"{key} holds {len(here)} commands, so the test "
+                                  f"must declare which one with 'command'"))
+            name = None
+        else:
+            name = here[0] if here else None
         if name and not carries(name, t.get("approximate_answer", "")):
             problems.append((tid, f"reference answer never names the command it is "
                                   f"about: {name}"))
