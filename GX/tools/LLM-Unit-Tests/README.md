@@ -112,10 +112,16 @@ the very thing the question was about.
 
 **Layer 2, facts.** Supply candidate answers as JSONL of `{"id":…, "answer":…}`
 and pass `--answers`; each answer must contain every string in `expect.facts`.
-A fact of more than one token also matches with its separators flattened, so an
-answer writing "software load" satisfies `software-load` and one writing
-"time-to-live" satisfies `time to live`. Single tokens keep the strict test, or
-`-f` would match a stray "f". One run is stored in `runs/`, so the tests can be
+
+Matching is by word boundary, not raw substring, because a fact has to mean
+what it says: an operator is going to type it. A plain substring test is wrong
+in both directions. It fires when it should not, since `oc` occurs inside
+"block", `ILA` inside "available", `rib` inside "describe", `add` inside
+"address" and `na` inside "name"; a trailing plural `s` is the one allowance,
+so `reboot` still matches "reboots". And it fails when it should not, since the
+guide writes `software-load` and `next-hop` where an answer writes "software
+load" and "next hop", so a fact spanning more than one token also matches with
+its separators flattened. One run is stored in `runs/`, so the tests can be
 re-scored against it after an edit without paying for the model again.
 
 Layer 3, judging prose against `approximate_answer`, is intentionally not
@@ -198,10 +204,16 @@ them.
   Some id words name a thing the facts must contain, others name the shape of
   the question and constrain what the facts have to do. Only the first kind is
   checkable as a string, so layer 0 checks the strongest instance of it: **the
-  reference answer must name the command the test is about.** 27 answers did
-  not, describing a command's attributes without ever saying which command
-  carried them, so nothing separated a right answer from one about a different
-  object. The rest of the id is a reviewer's job.
+  command name is a required fact on every test, and the reference answer must
+  contain it.** 27 answers did not name their command at all, describing its
+  attributes without ever saying which command carried them. The rest of the id
+  is a reviewer's job.
+
+  This one is not a scoring nicety. The point of the corpus is that an operator
+  can ask a question in their own words and act on the answer, and an answer
+  that explains `data-supervision` without ever saying `pm-control` leaves them
+  with nothing to type. Naming the command is the minimum viable answer, so it
+  is required of all 441 rather than of the ones that happened to have it.
 - **`names_command`**: false means the question avoids the command's name, which
   is the harder and more realistic retrieval case. Roughly 60% of tests should
   be false; a suite of questions that name their own answer proves little.
@@ -257,6 +269,12 @@ reference answer. Answers averaged 809 characters. Stored in
 | Multi-command, every fact in the cluster | 28 / 65 (43%) |
 | Multi-command, facts in the primary file only | 52 / 65 (80%) |
 | Overall as scored | 371 / 441 (84%) |
+
+The command name was then made a required fact on all 441 tests and the matcher
+tightened to word boundaries. **Re-scoring the same answers gives exactly the
+same 371, with an identical failing set:** not one test changed verdict. The
+agent had already named the actionable command in all 248 cases where the test
+had not been asking for it, so the 84% was not resting on the omission.
 
 **The multi-command number is measuring the test, not the answer.** Of the 46
 facts a multi answer missed, 31 live only in a peripheral cluster member rather

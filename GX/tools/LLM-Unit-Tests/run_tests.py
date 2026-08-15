@@ -150,7 +150,7 @@ def validate(tests):
             # writes a range as `1..110` and the answer as "1 to 110", which
             # would have failed every candidate answer too.
             missing = [f for f in facts
-                       if f.lower() not in t.get("approximate_answer", "").lower()]
+                       if not carries(f, t.get("approximate_answer", ""))]
             if missing:
                 problems.append((tid, f"reference answer does not contain its own "
                                       f"facts: {missing}"))
@@ -317,17 +317,32 @@ def _flat(s):
 def carries(fact, answer):
     """Does this answer state this fact?
 
-    Plain substring, except that a fact spanning more than one token is also
-    matched with its separators flattened. The guide writes `software-load`,
-    `next-hop` and `time to live`; an answer that writes "software load",
-    "next hop" or "time-to-live" has stated the same fact and used to be scored
-    as a miss. The flattened form is only tried for multi-token facts, so a
-    single token keeps the strict test: `-f` must not match a stray "f", and
-    `830` must not match "8300".
+    A fact has to mean what it says, because an operator reading the answer is
+    going to type it. Two rules, and both exist because a plain substring test
+    gets this wrong in opposite directions.
+
+    It fires when it should not: `oc` is satisfied by "block", `ILA` by
+    "available", `rib` by "describe", `add` by "address", `na` by "name". So a
+    fact must start and end on a word boundary. The single exception is a
+    trailing plural `s`, which is why `reboot` still matches "reboots"; any
+    other trailing letter is a different word.
+
+    It fails when it should not: the guide writes `software-load` and
+    `next-hop`, an answer writes "software load" and "next hop", and the fact
+    is stated either way. So a fact spanning more than one token also matches
+    with its separators flattened.
     """
-    if fact.lower() in answer.lower():
+    if _boundary(fact, answer):
         return True
-    return bool(re.search(r"[^A-Za-z0-9]", fact.strip())) and _flat(fact) in _flat(answer)
+    return bool(re.search(r"[^A-Za-z0-9]", fact.strip())) and _boundary(fact, answer, flat=True)
+
+
+def _boundary(fact, answer, flat=False):
+    f, a = (_flat(fact), _flat(answer)) if flat else (fact.lower(), answer.lower())
+    if not f:
+        return False
+    tail = r"(?![0-9])" if f[-1].isdigit() else r"s?(?![A-Za-z0-9])"
+    return bool(re.search(r"(?<![A-Za-z0-9])" + re.escape(f) + tail, a))
 
 
 def facts(tests, answers, verbose):

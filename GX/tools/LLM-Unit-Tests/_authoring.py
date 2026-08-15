@@ -70,6 +70,7 @@ class Batch:
         if len(evidence) < 2:
             self.problems.append(f"{id}: fewer than 2 evidence quotes")
         bodies = " ".join(BODIES[BY_FILE[f]["name"]] for f in files)
+        pname = BY_FILE[p]["name"]
 
         for f in facts:
             if f.lower() not in bodies:
@@ -90,9 +91,14 @@ class Batch:
             if min(corpus_freq(f) for f in facts) > NFILES // 20:
                 self.problems.append(f"{id}: no fact is specific to this command")
             for f in facts:
-                if f.lower() not in answer.lower():
+                if not R.carries(f, answer):
                     self.problems.append(
                         f"{id}: reference answer does not contain its own fact {f!r}")
+            # The operator asking the question has to end up knowing what to
+            # type, so the command name is a required fact, not a nicety.
+            if not any(f.lower() == pname.lower() for f in facts):
+                self.problems.append(
+                    f"{id}: the command name {pname!r} is not among the facts")
         for ev_file, quote in evidence:
             body = open(os.path.join(gxpaths.DOCS, (C + ev_file).replace("/", os.sep)),
                         encoding="utf-8").read()
@@ -107,7 +113,6 @@ class Batch:
                 continue
             self.problems.append(f"{id}: identifier {tok!r} in the answer, not in a cited file")
 
-        pname = BY_FILE[p]["name"]
         self.tests.append({
             "id": id, "type": "multi",
             "cluster": BY_FILE[p]["domain"],                        # derived
