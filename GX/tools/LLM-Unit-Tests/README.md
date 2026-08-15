@@ -41,7 +41,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, two runs | 427 / 441 and 422 / 441; 10 tests fail in both. Batch 15 postdates both runs and is unanswered in each |
+| Carry the required facts, Claude Opus 5, three runs | 427 / 441, 422 / 441, 442 / 457. **7** tests fail in all three; 22 fail in some |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -531,20 +531,88 @@ have. Re-check a redundant pair together before deleting on that column.
 `timer` was tried and removed on the tool's evidence: it fired on retry-timer
 and hold-off questions for 44 irrelevant files and no recall.
 
+## What the third run found
+
+Run on 2026-08-15, same model, same prompt, 19 shards because batch 15 took the
+suite to 457 questions. Stored in `runs/run-03/`. **442/457.**
+
+**Two runs were not enough, and this is the finding to keep.** The set failing
+in every run drops from 10 to **7**. `multi-controller-card-vs-card`,
+`multi-ipsec-policy-nesting` and `multi-route-sources` all pass in run 03: two
+runs had agreed on them by chance and they were being reported as "the corpus
+or the test, not luck". Anyone who had started triaging that list would have
+spent a third of the effort on noise. The unstable count also went *up*, 13 to
+22, so a second run narrowed the error bar less than it appeared to.
+
+| | Value |
+| --- | --- |
+| Spread over three runs | 95.7% to 96.8% |
+| Failed by every run | 7 |
+| Failed by some runs | 22 |
+
+The seven that survive all three:
+
+| Test | Fact never stated |
+| --- | --- |
+| `multi-fiber-connection-who-writes-it` | `NCT` |
+| `multi-otdr-locate-fiber-damage` | `automatic-otdr` |
+| `multi-protection-which-member-is-live` | `y-cable` |
+| `multi-restart-card-consequences` | `auto-in-service` |
+| `multi-l1-encryption-prerequisites` | `X509v3`, `digital identity` |
+| `comm-eth-lldp-and-negotiation` | `operational-rate` |
+| `config-as-restore-script` | `non-default` |
+
+### Batch 15 repeated a known authoring defect
+
+Run 03 gave chapters 3 to 5 their first layer 2 exposure and 5 of the 16 failed,
+every one on a fact that was **guide prose rather than what an operator types**:
+`parent level`, `repeat the previous command`, `invert the order`,
+`within quotes`, `add line numbers`. The multi tests hit this once already, when
+six facts had to be re-encoded to identifiers (`location-led`, not "location led
+test"). Batch 15 hit it again.
+
+The repair followed the rule the run-01 audit established: **audit every test of
+the class, not the ones that failed.** 14 of the 16 carried prose-phrase facts,
+so the 9 that passed did so on phrasing luck. 12 were re-encoded, **7 of them
+passing at the time**, each judged from its own question and id:
+
+- to the flag or token an operator types: `invert the order` to `-i`,
+  `repeat the previous command` to `!!`, `lines of context` to `-n`,
+  `add line numbers` to `line numbers`, `within quotes` to `quotes`.
+- dropped as volunteered: `wild card` (partial-keyword search, which
+  `help-search-by-keyword` never promises), `CLI session window` (page sizing on
+  a test about pipe ordering), `csv` / `only-values` / `keys-table` (other modes
+  on a test about `display commands`), `numbered list`, `case insensitive` on
+  the grep-vs-include contrast.
+
+Runs 01 and 02 rescore unchanged at 427/441 and 422/441, and the persistent set
+stayed at 7, which together confirm the repair reached only batch 15. Teeth
+were re-checked after it: worst fact set matches 3 of 377 files, mean 1.12, and
+no test passes on an empty answer or on the command name alone.
+
+**One judgement call worth flagging.** `edit-vs-up-vs-top-navigation` needed an
+anchor fact under the 5% threshold, and the first attempt, `hierarchy root`,
+was itself guide prose picked because it was rare, which is the defect being
+fixed. It was replaced with `absolute`, which is on-question because what `edit`
+does, as against `up` and `top`, is take absolute or relative ids. That choice
+also happens to make the test pass, so it is recorded here rather than left
+silent.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. A third run, or answers for batch 15.** Both stored runs predate batch 15,
-so its 16 tests are unanswered in each and `compare_runs.py` says so rather
-than scoring them as failures. Layer 2 has never been exercised on these
-chapters. A third run would both close that and tighten the 95.7-96.8% spread.
+**1. Triage the 7 persistent failures.** Five are multi tests. Decide what each
+requires from **its question** before touching the corpus, since both prior
+audits found that pattern was usually the test's fault rather than the
+documentation's.
 
-**2. Triage the 10 persistent failures.** Eight are multi tests. Decide what
-each requires from **its question** before touching the corpus, since the
-run-01 audit found that pattern was usually the test's fault.
+**2. A fourth run, if the 7 matter enough.** Three runs moved the persistent set
+from 10 to 7 and are the reason we know two were not enough. A fourth would
+mostly test whether 7 is itself still soft; the returns are visibly
+diminishing, and triaging the 7 is worth more.
 
 Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question
@@ -556,11 +624,12 @@ worked but does not scale to another batch this size.
 of what an agent would do, and layers 0 and 1 being green says nothing about
 whether an answer is any good. What the tests have bought is a gap-finding
 instrument: around 70 real vocabulary gaps in the index, found and fixed, and
-now two scored model runs. Read the runs as diagnostic rather than as a grade.
+now three scored model runs. Read the runs as diagnostic rather than as a grade.
 A single run is a number about this fact list and this model on that day; the
-run-01 audit showed a third of its misses were the fact list's fault, and run 02
-showed that four of the tests it blamed on the corpus were noise. Quote the
-10-test persistent set and the 95.7-96.8% spread, not either headline figure.
+run-01 audit showed a third of its misses were the fact list's fault, run 02
+showed four of the tests it blamed on the corpus were noise, and run 03 showed
+three more that *two* runs had agreed on were noise as well. Quote the 7-test
+persistent set and the 95.7-96.8% spread, never a single headline figure.
 
 ## What batch 1 found
 
