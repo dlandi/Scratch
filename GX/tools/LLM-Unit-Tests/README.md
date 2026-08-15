@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, six runs | 435/441, 432/441, 451/457, 447/457, 450/457, 448/457. Nothing fails above 50%. `compare_runs.py` reports the rate in run order |
+| Carry the required facts, Claude Opus 5, six runs | 435/441, 433/441, 452/457, 450/457, 454/457, 452/457. Nothing fails above 50%. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -1002,19 +1002,116 @@ nobody typed in by hand", so `dynamic` is squarely on-question. It fails runs
 01, 02 and 06 and passes 03, 04, 05. Triage it from the corpus, not from the
 fact list.
 
+## The seventh sweep, and why one detector was not enough
+
+Sweeping the four off-question facts run 06 exposed turned up a limit in the
+instrument used for the previous six passes.
+
+**Position alone does not find this class.** Locating each fact inside its own
+reference answer and flagging the last 40% is what found the certificate
+defects, but run suite-wide it flags **157 of 457 tests**, which is not a
+shortlist, and it **misses `facilities-overview` entirely**, because
+`system facilities` sits in that answer's opening sentence. Position finds facts
+harvested from a volunteered tail. It cannot find prose lifted from a
+description sentence, and both are the same defect.
+
+**The second detector is shape, not position.** A fact that contains a space, no
+hyphen or underscore, no digit, and does not begin with a CLI verb is English
+prose rather than something an operator types. That is **92 facts**, a list
+short enough to read.
+
+It is worth recording what that list contained. The per-fact agreement analysis
+described at the end of this file was proposed and declined; it had named
+`system facilities`, `data model for system templates`, `sub-level objects`,
+`temperature sensors`, `status equipment` and `controller card` as the contested
+prose facts. **The shape detector finds every one of them**, without looking at
+run agreement, pass or fail.
+
+**Prose is a smell, not a verdict.** Of the 92, most are correct: they are the
+question's own words (`temperature sensors` is in the question that requires
+it), or the guide's own value phrasing (`Root and Intermediate`), or an
+expansion the question asks for (`Enrollment over Secure Transport`).
+
+### What was changed
+
+Ten tests. Four are the ones run 06 exposed:
+
+| Test | Dropped |
+| --- | --- |
+| `console-baud-rate-default` | `local-switch`, a per-console override of the system-wide serial switch, in a question about baud rate and auto-sensing |
+| `equipment-policies-auto-migration` | `cable-id-control`, a third policy beyond the subtype and degree ones asked about |
+| `multi-access-rule-ordering-limits` | `permit`, where the question asks which rule wins and how many groups attach; the reference answer itself says the outcome "lives on access-rule, not on the list" |
+| `facilities-overview` | `system facilities` |
+
+That last one turned out to head a family of five. **"Which command shows X"
+questions whose third fact is the noun phrase from the description sentence**:
+`facilities-overview`, `templates-overview` (`data model for system templates`),
+`security-container-view` (`top level security container`), `routing-overview`
+(`routing information`) and `downloads-list` (`list of downloads`). In every
+case the question asks which command, and `show <thing>` answers it completely.
+Four of those five were passing every run.
+
+`l2-bridge-attributes` had `intended purpose` re-encoded to `description`, the
+attribute that phrase is glossing.
+
+`multi-route-sources` had `static route` re-encoded to `ipv4-static-route`, the
+command the question's "where do the hand-typed ones get added" actually names.
+
+### Two corrections
+
+**`multi-route-sources` is not a corpus gap, and calling it one was wrong.**
+`269-route.md` says in its description that the command shows routes "from
+various sources, such as dynamic protocols and static route", and carries a
+`source-protocol` attribute whose values are "OSPF, BGP, static etc." The corpus
+states it plainly. The test requires the bare word `dynamic`, and three runs
+answered the question correctly without using that word. That is a brittle
+one-word encoding, not a documentation hole. It is left failing rather than
+quietly fixed, because `source-protocol` is absent from the reference answer and
+rewriting a reference answer to fit the instrument is not a repair.
+
+**`delete-best-effort-flag` was examined and left alone.** Its `sub-level
+objects` is off-question, but dropping it takes the fact set from 1 file to 5,
+past the discrimination gate, exactly as with
+`multi-certificate-role-disambiguation` in the certificate sweep. An
+off-question fact can be the only thing giving a test teeth, and that is a
+reason to leave it and say so.
+
+### Honest weaknesses
+
+Six of the ten edits were to tests that were failing, which is weaker than the
+certificate sweep, where five of eight were to tests nothing had flagged. The
+four passing-test edits all came from the one family above. The other 81 prose
+facts were read and deliberately kept.
+
+**Layer 2 cannot express a negation.** `lldp-neighbor-egress-unsupported`
+requires the string `egress direction is not supported`, and its question is a
+yes/no whose answer is no. Any shorter encoding either loses the denial
+(`ingress` alone is satisfied by an answer that never denies egress) or becomes
+vague (`not supported` matches a denial about anything). `database-clear-scope`
+has the same shape with `does not wipe logs`. Both were left as they are. This
+is a real limit of a string matcher, not a test defect, and the brittleness it
+causes is the price.
+
+Runs after the pass: 435, 433, 452, 450, 454, 452, spread 98.2 to 99.3%. Teeth:
+worst fact set 4 of 377, mean 1.09, nothing passed by an empty, generic or
+command-name-only answer, and the same 7 on the command name alone.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. The four off-question facts run 06 exposed**, listed above. Sweep the
-class rather than the four, as the certificate pass did: detect by position in
-the reference answer, audit tests that currently pass, and expect to change
-some of them.
+**1. A seventh run.** Ten tests were edited in the sweep above against the six
+stored runs, and none of those runs can falsify the edits. The same argument
+that justified run 06 applies again.
 
-**2. `multi-route-sources`**, the one 3-of-6 failure that is not a test defect.
-`dynamic` is what its question asks for, so this is a corpus question.
+**2. The tests at 2 of 6.** `app-clear-third-party`, `database-clear-scope`,
+`delete-best-effort-flag`, `multi-card-type-vs-installed-card`,
+`multi-l1-encryption-prerequisites`, `multi-resource-type-defaults`,
+`multi-restart-card-consequences`, `xcon-create-and-protection`. Two of those
+are on the negation limitation described above rather than the off-question
+class.
 
 **3. `corpus_hits` still matches raw substrings,** so `tic` registers in 187
 files. Needs the separator flattening `carries()` has; a naive word-boundary fix
