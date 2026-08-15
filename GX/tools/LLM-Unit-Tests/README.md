@@ -34,7 +34,7 @@ cite 187 distinct command files and reach all 16 domains.
 | Multi-command tests | 65 |
 | Validate against the document | 441 / 441 |
 | Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, 2026-08-14 | 371 / 441 |
+| Carry the required facts, Claude Opus 5, 2026-08-14 | 402 / 441 (374/376 single) |
 | Question does not name its command | 356 / 376 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 30 |
@@ -265,10 +265,11 @@ reference answer. Answers averaged 809 characters. Stored in
 
 | | Score |
 | --- | --- |
-| Single-command | 343 / 376 (91%) |
+| Single-command, as first scored | 343 / 376 (91%) |
+| Single-command, after the off-question facts were removed | 374 / 376 (99%) |
 | Multi-command, every fact in the cluster | 28 / 65 (43%) |
 | Multi-command, facts in the primary file only | 52 / 65 (80%) |
-| Overall as scored | 371 / 441 (84%) |
+| Overall, after that repair | 402 / 441 (91%) |
 
 The command name was then made a required fact on all 441 tests and the matcher
 tightened to word boundaries. **Re-scoring the same answers gives exactly the
@@ -293,12 +294,45 @@ kinds. `multi-client-failure-laser-action` asks what happens to the laser, and
 fails on `merge mode` and `CFG-MSMT`, two asides in the reference answer. In
 each case the answer addressed the question and the fact list did not.
 
-The single-command failures are different and mostly real: an attribute the
-guide states and the answer omitted, such as `secure-mode` on security-policies,
-`max-sessions` on user, `grid-spacing` on optical-carrier, `raman-state` on
-amplifier-raman. Those 33 are worth reading one by one, since each is either an
-answer that stopped early or a fact that is genuinely peripheral to its
-question.
+### Reading the 33 single-command failures
+
+They were read one by one against their question, and they were not what they
+looked like. **24 of the 33 failed on a fact the question never asked for.**
+`security-policies-password-rules` asks the minimum password length and
+required `secure-mode`, which governs whether non-secure protocols are allowed.
+`user-lockout-thresholds` asks how many failed logins lock an account and
+required `max-sessions`, which is concurrent sessions. `stm-types-supported`
+asks which SDH rates the platform terminates and required `tti-64`, a trace
+field width.
+
+The cause is one systematic authoring habit, not 33 mistakes. Every reference
+answer ends in a tail of volunteered detail: "Other settings include...", "The
+same object also holds...". Facts were harvested from the whole answer, tail
+included, so tests demanded material no operator asked about.
+
+**The fix had to be found without looking at the failures**, or it would have
+tuned the suite to one model run. Detecting facts that appear only in an
+afterthought sentence of the reference answer finds 35 tests, and 22 of them
+were passing: `ssh-port-and-enabled` asks what port SSH listens on and required
+`pre-login-message`; `cli-port-and-alarm-columns` asks about alarm columns and
+required `script-dir`. 60 off-question facts were removed across 50 tests,
+judged from each question rather than from what any answer happened to say.
+
+What survived is the real result. **Single-command went from 343/376 to
+374/376**, and the two remaining failures are genuine: `comm-eth` was asked what
+speed the ports negotiate and never mentioned `operational-rate`, and
+`config-as-restore-script` said "skipping any configuration left at its default
+value" rather than the guide's `non-default`. One apparent failure was a
+measurement bug, now fixed: the answer gave the LOS threshold as "-23 dBm" and
+the guide writes `-23dBm`.
+
+So on single-command questions the corpus does its job. The suite had been
+measuring the reference answers' habit of volunteering extra detail, and once
+that is removed almost nothing is left to blame the documentation for. The
+tests did not lose their teeth in the process: a whole fact set is still
+satisfied by at most 4 of the 395 files, no test is passed by an empty or
+generic answer, and only 7 are passed by naming the command alone, all of them
+sections too thin to support more.
 
 **Do not close this gap by relaxing the facts that this run failed.** That tunes
 the suite to one model's output and destroys the instrument. The defensible fix

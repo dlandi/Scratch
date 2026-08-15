@@ -334,7 +334,17 @@ def carries(fact, answer):
     """
     if _boundary(fact, answer):
         return True
-    return bool(re.search(r"[^A-Za-z0-9]", fact.strip())) and _boundary(fact, answer, flat=True)
+    if not re.search(r"[^A-Za-z0-9]", fact.strip()):
+        return False
+    if _boundary(fact, answer, flat=True):
+        return True
+    # ... and a value written against its unit closes up either way: the guide
+    # writes `-23dBm`, an answer writes "-23 dBm", and flattening leaves
+    # "23dbm" against "23 dbm". Comparing with the separators deleted rather
+    # than spaced catches it. Held to 5 characters so this cannot rescue a
+    # short token by gluing it to its neighbour.
+    squash = lambda s: re.sub(r"[^a-z0-9]+", "", s.lower())
+    return len(squash(fact)) >= 5 and squash(fact) in squash(answer)
 
 
 def _boundary(fact, answer, flat=False):

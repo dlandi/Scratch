@@ -150,6 +150,29 @@ section it ended rather than the one it opened.
 - Image references point at `images/figure-p*.png`, which does not exist beside
   the source either. The paths were already dangling.
 
+Seven more surfaced when agents read the corpus to answer the LLM unit tests,
+recorded here so nobody spends the afternoon deciding they are conversion bugs.
+They are in the source and they stay:
+
+- `095-est.md` lists `eccp251` among the key algorithms, where the sequence and
+  every other entry imply `eccp521`.
+- `319-super-channel.md` gives `contention-check-status` the value `failk`,
+  which is `failed` with the PDF's usual dropped characters.
+- `312-status.md` says "The following Five dashboards are available" and then
+  lists six, and its Command Syntax line omits `L0-spectrum` although the
+  parameter table documents it.
+- `014-alarm.md` demonstrates the filter `show alarm-inventory
+  can-be-cleared-by-user=true`, but `016-alarm-inventory.md` never lists
+  `can-be-cleared-by-user` among its parameters.
+- `324-supported-gain-range.md` describes its `name` key as "Flag to enable or
+  disable access control. | true, false | false", a row copied in from an
+  unrelated table.
+- `094-equipment-templates.md` gives `use-serdes-templates` the values
+  `enabled, disabled` in the parameter table and `true`/`false` in its example.
+- `148-key-replacement-package.md` has the descriptions of `key-length` and
+  `key-payload` swapped: `key-length` reads "Key Payload (hex format)" and
+  `key-payload` reads "Key length in bits".
+
 **Curated is not extracted.** Domain and topic assignments in `curated.py` were
 made by reading all 374 command descriptions. They are editorial judgement, and
 `index/topics.md` says so. Do not present them to a user as if the document
