@@ -36,7 +36,7 @@ cite 187 distinct command files and reach all 16 domains.
 | Multi-command tests | 65 |
 | Validate against the document | 441 / 441 |
 | Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, 2026-08-14 | 427 / 441 (374/376 single, 53/65 multi) |
+| Carry the required facts, Claude Opus 5, two runs | 427 / 441 and 422 / 441; 10 tests fail in both |
 | Question does not name its command | 356 / 376 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 30 |
@@ -398,6 +398,63 @@ the suite to one model's output and destroys the instrument. The defensible fix
 is the one layer 1 already made: decide what a multi test requires from the
 question rather than from everything the reference answer happens to mention.
 
+## What the second run found
+
+Run on 2026-08-15, same model, same prompt, same sharding, with only the shard
+and output paths changed. Stored in `runs/run-02/`. **422/441**, against run
+01's 427/441 rescored at the same commit.
+
+**The score went down, and the prediction that it would rise was wrong for a
+useful reason.** Run 02 read the post-precision-fix `topics.md`, so it was
+expected to gain. It did not, because layer 1 was already at 440/440: there was
+no retrieval headroom for better routing to convert into facts. Run-to-run
+variance is simply larger than that fix's effect on answers.
+
+| | Value |
+| --- | --- |
+| Spread over two runs | 95.7% to 96.8% |
+| Failed by every run | 10 |
+| Failed by some runs | 13 |
+
+**The 13 unstable tests are the error bar.** Any change worth less than about
+1.1 points cannot be distinguished from noise by this instrument, which is worth
+knowing before anyone tunes against a single number again.
+
+**The second run changed a decision the first run had already made.**
+`multi-cableid-confirm-patching` was queued as the first documentation gap to
+fix, on the strength of run 01 failing it and its answer never naming `verify`.
+It passes in run 02, so it is noise. `multi-node-identity-and-restart`,
+`multi-cli-and-config-scope` and `multi-resource-type-defaults` are the same.
+Fixing any of them would have tuned the suite to one run, which is the exact
+failure the second run exists to prevent.
+
+What survives is the real list. These 10 fail in both runs and are the corpus or
+the test rather than luck:
+
+| Test | Fact never stated |
+| --- | --- |
+| `multi-ipsec-policy-nesting` | `proposal` |
+| `multi-fiber-connection-who-writes-it` | `NCT` |
+| `multi-route-sources` | `dynamic` |
+| `multi-controller-card-vs-card` | `capability` |
+| `multi-otdr-locate-fiber-damage` | `automatic-otdr` |
+| `multi-protection-which-member-is-live` | `y-cable` |
+| `multi-restart-card-consequences` | `auto-in-service`, `controller card` |
+| `multi-l1-encryption-prerequisites` | `X509v3`, `digital identity` |
+| `comm-eth-lldp-and-negotiation` | `operational-rate` |
+| `config-as-restore-script` | `non-default` |
+
+Eight of the ten are multi-command tests, so that is where the remaining signal
+lives. The two single-command entries are exactly the two the run-01 audit
+called genuine, now confirmed against an independent run rather than resting on
+one. Before treating any of the eight as a documentation gap, apply the rule the
+run-01 audit established: decide what the test requires from **its question**,
+not from what the reference answer happens to mention.
+
+Run 02's agents also found nine more source-document defects, verified and
+recorded in `../README.md`, plus one candidate that was checked and rejected.
+Three of them turned out to be classes with members already on that list.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete. The planned multi-command set
@@ -417,9 +474,11 @@ exercises. Layer 3 remains unimplemented by choice.
 of what an agent would do, and layers 0 and 1 being green says nothing about
 whether an answer is any good. What the tests have bought is a gap-finding
 instrument: around 70 real vocabulary gaps in the index, found and fixed, and
-now one scored model run. Read the run as diagnostic rather than as a grade.
-84% is a number about this fact list and this model on this day, and the section
-above shows a third of the misses are the fact list's fault.
+now two scored model runs. Read the runs as diagnostic rather than as a grade.
+A single run is a number about this fact list and this model on that day; the
+run-01 audit showed a third of its misses were the fact list's fault, and run 02
+showed that four of the tests it blamed on the corpus were noise. Quote the
+10-test persistent set and the 95.7-96.8% spread, not either headline figure.
 
 ## What batch 1 found
 

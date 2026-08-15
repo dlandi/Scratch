@@ -1,0 +1,14 @@
+{
+  "label": "run-02",
+  "date": "2026-08-15",
+  "model": "claude-opus-5",
+  "answers": 441,
+  "mean_answer_chars": 816,
+  "method": "Identical to run-01, deliberately. One agent per shard of 25 questions, 18 shards, dispatched from runs/prompt.md verbatim with only the shard path and output path substituted. Each agent was given the question ids and text only, plus the path to R9_1_GX_CLI_Reference/, and was forbidden to read anything under tools/ so the expected facts and reference answers could not leak. Each was told to answer as if to an operator, in roughly 400-800 characters, using the guide's own spelling for identifiers and values.",
+  "corpus_commit": "bdd4dee",
+  "corpus_note": "Corpus and tests are at the same commit for this run, unlike run-01. This run read index/topics.md after the precision fix at 1708f63, which added revocation / signing request / distribution point and removed 'what can' and 'stop'. Run-01 read the pre-fix index.",
+  "tests_commit_at_run": "bdd4dee",
+  "score_at_run": {"overall": "422/441", "single": "not split at run time, see compare_runs.py"},
+  "score_note": "Scored against the tests at the same commit the answers were produced at, so no test-repair gap separates this number from the run. Compare with run-01 only via compare_runs.py, which rescores every stored run against the working tree.",
+  "dispatch_note": "All 18 shards dispatched concurrently. No agent reported an unanswerable question. Several reported apparent source-document defects while reading; those are candidates for the list in ../../README.md and were not repaired in the answers."
+}

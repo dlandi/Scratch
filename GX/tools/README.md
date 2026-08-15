@@ -150,9 +150,25 @@ section it ended rather than the one it opened.
 - Image references point at `images/figure-p*.png`, which does not exist beside
   the source either. The paths were already dangling.
 
-Seven more surfaced when agents read the corpus to answer the LLM unit tests,
-recorded here so nobody spends the afternoon deciding they are conversion bugs.
-They are in the source and they stay:
+Sixteen more surfaced when agents read the corpus to answer the LLM unit tests,
+seven in run 01 and nine in run 02, recorded here so nobody spends the afternoon
+deciding they are conversion bugs. They are in the source and they stay.
+
+Three of them are classes rather than one-offs, which only became visible once
+run 02 rediscovered them independently. Expect more members of each, and check
+which class a new find belongs to before writing it up as novel:
+
+- **The syntax line lists an attribute the parameter table omits.** Four
+  instances below. An answer about such an attribute can state that it exists
+  and nothing else, which is a real limit on what the corpus can support.
+- **A table row is carried in from an unrelated table.** Three instances. The
+  giveaway is a values column of `true, false` under a description that plainly
+  describes something else.
+- **A table default contradicts the section's own worked example.** Two
+  instances. Neither side is checkable against the other by any script here, so
+  these are found only by reading.
+
+Found by run 01:
 
 - `095-est.md` lists `eccp251` among the key algorithms, where the sequence and
   every other entry imply `eccp521`.
@@ -172,6 +188,42 @@ They are in the source and they stay:
 - `148-key-replacement-package.md` has the descriptions of `key-length` and
   `key-payload` swapped: `key-length` reads "Key Payload (hex format)" and
   `key-payload` reads "Key length in bits".
+
+Found by run 02. Every one was checked against the split file before being
+listed here; a tenth candidate was rejected, see below.
+
+- `280-security-policies.md` lists `disable-user-lockout` in the syntax at both
+  the `set` and `show` forms, but gives it no parameter row, so no values and no
+  default are documented.
+- `273-sc-rx.md` and `274-sc-tx.md` both list `association-number`,
+  `key-identifier` and `next-packet-number` in the `show` syntax and omit all
+  three from the parameter table.
+- `173-mka-policy.md` gives `macsec-cipher-suite` the values `true, false`, and
+  `confidentiality-offset` the values `allowed, inhibited` under a description
+  that says it specifies a number of octets sent in plain text.
+- `313-stm.md` gives `expected-mapping-mode` the values `true, false` under a
+  description saying the possible values depend on the hardware.
+- `172-macsec-mka.md` merges two parameters into one row named
+  `psk-lifetimepsk-expiration-warning`, so the separate `psk-lifetime` range is
+  not recoverable; the syntax lists them as two attributes.
+- `098-eth-zr.md` gives `fdd-threshold` the default `0.0195 avg BER` and
+  `fed-threshold` `0.0206 avg BER`, where its own sample output shows
+  `0.011250000` and `0.011870000`. The two clear-thresholds agree.
+- `023-apply-template.md` prints the `template-type` default as
+  `serdes-templage`.
+- `009-activate-snapshot.md` names the attribute `db-paraphrase` in the syntax
+  and `paraphrase` in the parameter table.
+- `008-activate.md` notes that the `timeout` parameter "does not take effect in
+  1830 GX G30 R5.1" and directs the reader to `terminate` instead. A stale
+  cross-release reference inside an R9.1 guide, not a conversion fault.
+
+**Rejected, do not re-report:** `252-protection-switch.md` was flagged for a
+worked example that passes the group name positionally rather than as
+`protection-group=`. It is correct. The syntax reads
+`[operation-type=]<value> [switch-target=]<value> [protection-group=]<value>`,
+where the brackets make the *label* optional, so the example matches its own
+syntax. Optional-label syntax is easy to misread as a defect; check the bracket
+placement before writing one up.
 
 **Curated is not extracted.** Domain and topic assignments in `curated.py` were
 made by reading all 374 command descriptions. They are editorial judgement, and
