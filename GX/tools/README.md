@@ -154,12 +154,12 @@ section it ended rather than the one it opened.
 - Image references point at `images/figure-p*.png`, which does not exist beside
   the source either. The paths were already dangling.
 
-Twenty-three more surfaced when agents read the corpus to answer the LLM unit
-tests, seven in run 01, nine in run 02, four in run 03 and three in run 04,
-recorded here so nobody spends the afternoon deciding they are conversion bugs.
-They are in the source and they stay.
+Twenty-six more surfaced when agents read the corpus to answer the LLM unit
+tests, seven in run 01, nine in run 02, four in run 03, three in run 04 and
+three in run 06, recorded here so nobody spends the afternoon deciding they are
+conversion bugs. They are in the source and they stay.
 
-Four of them are classes rather than one-offs, which only became visible once
+Five of them are classes rather than one-offs, which only became visible once
 later runs rediscovered them independently. Expect more members of each, and
 check which class a new find belongs to before writing it up as novel:
 
@@ -168,12 +168,17 @@ check which class a new find belongs to before writing it up as novel:
   the reverse. Five instances below. An answer about such an attribute can state
   that it exists and nothing else, which is a real limit on what the corpus can
   support.
-- **A table row is carried in from an unrelated table.** Three instances. The
-  giveaway is a values column of `true, false` under a description that plainly
-  describes something else.
+- **Content is carried in from an unrelated command.** Five instances. Usually a
+  table row, where the giveaway is a values column of `true, false` under a
+  description that plainly describes something else. Run 06 extended this class
+  in two directions: to a *description* alone, where the parameter name is
+  correct and only its gloss is foreign, and to a whole *Examples block*.
 - **A table default contradicts the section's own worked example.** Two
   instances. Neither side is checkable against the other by any script here, so
   these are found only by reading.
+- **A stated default is not one of that row's own stated values**, by
+  capitalisation. Ten instances, all on `alarm-report-control`. Cosmetic, listed
+  because it looks like a contradiction until you count.
 
 Found by run 01:
 
@@ -263,6 +268,36 @@ Found by run 04. Three, all verified against the split file.
   with no unit or range, which is not a value at all, and `rsc-power-tx` is also
   missing its "used in" verb where `rsc-power-rx` has `show`.
 
+Found by run 06. Three, all verified against the split file.
+
+- `041-carrier-neighbor.md` describes `age` as "Hardware version of this FRU."
+  The command shows a discovered neighbour node and has no FRU in it; `age`
+  sits directly beside `last-update` and plainly means the age of the discovery
+  record. The parameter name is right, since it appears in the syntax block, and
+  only the description is foreign, which makes this a quieter member of the
+  carried-in class than `324-supported-gain-range.md`: the values column reads
+  `string`, which is consistent with a hardware version, so nothing but the
+  description gives it away.
+- `107-fiber-connection.md` **carries an entire Examples block belonging to
+  `super-channel`.** The prose says it "shows how to add a super channel in 1830
+  GX G40 node", and the command line
+  `add fiber-connection-1-6-L2-1 carriers 1-6-L2-1 carrier-mode 800E.96P` passes
+  `carriers` and `carrier-mode`, which are `super-channel`'s two mandatory add
+  attributes and appear nowhere in this command's parameter table; the table
+  documents `label`, `src-port`, `dst-port` and `fiber-connection-type`. Only
+  the AID prefix was rewritten. `319-super-channel.md` has no Examples section
+  at all, so the block did not merely get copied, it got moved. The sentence
+  also opens "This example This example", the only such duplication in the
+  corpus, and the same duplication artefact as `370-validate.md` stating its
+  description twice.
+- **A capitalised default is not one of its own listed values.** `040-card.md`
+  gives `alarm-report-control` the values `allowed, inhibited` and the default
+  `Inhibited`; the same mismatch is in `047-chassis.md`,
+  `129-ikev2-local-instance.md`, `130-ikev2-peer.md`, `171-macsec-entity.md`,
+  `172-macsec-mka.md`, `277-secure-entity.md`, and `255-pump.md` with `Allowed`.
+  Two more rows have no usable default at all: `201-oc.md` gives `n/a` and
+  `319-super-channel.md` leaves the cell empty while documenting both values.
+
 **Rejected, do not re-report:** `252-protection-switch.md` was flagged for a
 worked example that passes the group name positionally rather than as
 `protection-group=`. It is correct. The syntax reads
@@ -270,6 +305,15 @@ worked example that passes the group name positionally rather than as
 where the brackets make the *label* optional, so the example matches its own
 syntax. Optional-label syntax is easy to misread as a defect; check the bracket
 placement before writing one up.
+
+**Rejected, do not re-report:** `040-card.md` defaulting `alarm-report-control`
+to inhibited was flagged in run 06 as contradicting the facility pages, which
+default to allowed. It does not. The default legitimately varies by object:
+counting the whole corpus, 47 rows default to allowed and 11 to inhibited,
+including `chassis`, `protection-group`, `protection-unit`, `dial-out-server`
+and the IKEv2 and MACsec objects. A per-object difference is not a
+contradiction. Count the corpus before calling a default inconsistent; the only
+real defect in that row is the capitalisation above.
 
 **Curated is not extracted.** Domain and topic assignments in `curated.py` were
 made by reading all 374 command descriptions. They are editorial judgement, and
