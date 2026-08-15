@@ -210,7 +210,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## DNS and DHCP
 
-*Search terms:* `dns`, `dhcp`, `domain name`, `relay`
+*Search terms:* `dns`, `dhcp`, `domain name`, `relay`, `name server`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -234,7 +234,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Database backup, snapshot and restore
 
-*Search terms:* `snapshot`, `database`, `recovery`, `migrate`, `replacement controller`, `chassis storage`, `restore`
+*Search terms:* `snapshot`, `database`, `recovery`, `migrate`, `replacement controller`, `chassis storage`, `restore`, `backup`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -382,7 +382,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Inventory and capabilities
 
-*Search terms:* `inventory`, `capabilit`, `supported`, `part number`, `card type`, `chassis type`, `form factor`, `breakout`, `phy mode`, `blank`, `compatib`, `redundancy supported`, `capable of`, `what can`
+*Search terms:* `inventory`, `capabilit`, `supported`, `supports`, `part number`, `card type`, `chassis type`, `form factor`, `breakout`, `phy mode`, `blank`, `compatib`, `redundancy supported`, `capable of`, `what can`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -655,7 +655,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## SSH keys and known hosts
 
-*Search terms:* `ssh`, `key pair`, `known host`, `host key`, `authorized key`, `public key`, `log in with`
+*Search terms:* `ssh`, `key pair`, `known host`, `host key`, `authorized key`, `public key`, `log in with`, `keygen`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -808,7 +808,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Syslog and logging
 
-*Search terms:* `log`, `syslog`, `facility`, `severity`, `console`, `informational`, `debug`, `collector`, `forward`, `message`
+*Search terms:* `log`, `syslog`, `facility`, `severity`, `console`, `informational`, `debug`, `collector`, `forward`, `message`, `rotation`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -823,7 +823,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Telemetry and subscriptions
 
-*Search terms:* `telemetry`, `subscription`, `dial-out`, `call home`, `dial out`, `management system`, `retry timer`
+*Search terms:* `telemetry`, `subscri`, `stream`, `dial-out`, `call home`, `dial out`, `management system`, `retry timer`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -852,7 +852,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Topology and fiber connections
 
-*Search terms:* `topology`, `fiber`, `fibre`, `cable`, `link`, `connection`
+*Search terms:* `topology`, `fiber`, `fibre`, `cable`, `link`, `connection`, `connectiv`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -863,6 +863,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 | `supporting-fiber-connection` | The commands described in this section are used to show the list of fiber connections | [330-supporting-fiber-connection.md](../06-operation-commands/330-supporting-fiber-connection.md) |
 | `connection-ports` | This command is used to show connection ports | [059-connection-ports.md](../06-operation-commands/059-connection-ports.md) |
 | `submarine-link` | The commands described in this section are used to add or delete `submarine-link` object and set or... | [315-submarine-link.md](../06-operation-commands/315-submarine-link.md) |
+| `nct-connection` | This command is used to show NCT connectivity information, providing existing links between NCT... | [185-nct-connection.md](../06-operation-commands/185-nct-connection.md) |
 
 ## Users, passwords and user groups
 

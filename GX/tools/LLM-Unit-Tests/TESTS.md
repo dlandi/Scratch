@@ -1,6 +1,6 @@
 # GX CLI Reference - LLM unit tests
 
-376 single-command and 5 multi-command tests. Generated for reading; the machine-readable source is in `tests/`.
+376 single-command and 65 multi-command tests. Generated for reading; the machine-readable source is in `tests/`.
 
 ## Single-command tests
 
@@ -3774,7 +3774,7 @@ Source: `06-operation-commands/362-update.md`
 
 **A.** Four objects take part. pm-parameter identifies the counter itself and tells you whether it is a counter or a gauge and its units. pm-threshold sets the actual limit on one instance, addressed as pm-threshold-<resource>/<period>/<direction>/<location>/<parameter> with low-threshold and high-threshold; both default to na. pm-threshold-profile holds the per resource-type view and is where the system's own default-low-threshold, default-high-threshold, min-value and max-value are visible. pm-control-entry carries tca-supervision for that resource, period, direction and location, which is what enables threshold crossing supervision; the matching default for newly created resources of a type comes from pm-profile-entry's default-tca-supervision. All of these are available in operational and candidate configuration mode.
 
-Source: `06-operation-commands/244-pm-threshold.md`, `06-operation-commands/245-pm-threshold-profile.md`, `06-operation-commands/239-pm-control-entry.md`, `06-operation-commands/240-pm-parameter.md`
+Source: `06-operation-commands/244-pm-threshold.md`, `06-operation-commands/245-pm-threshold-profile.md`, `06-operation-commands/242-pm-profile-entry.md`, `06-operation-commands/239-pm-control-entry.md`, `06-operation-commands/240-pm-parameter.md`
 
 Not stated by the document: The guide documents each object separately and does not state an ordering for configuring them. Any sequence given in an answer is inferred, not documented.
 
@@ -3808,7 +3808,7 @@ Source: `06-operation-commands/252-protection-switch.md`, `06-operation-commands
 
 **A.** Manual time setting is only possible when the node is not synchronising from NTP: set-time is only applicable when time-source is manual, that is when NTP is not enabled. Check show clock, whose time-source attribute reads ntp or manual; if it reads ntp, the node is under NTP control and set-time does not apply. Check the ntp object's ntp-enabled flag, and ntp-server-status for whether the configured server is actually being reached, where reach 377 means all recent probes were answered. If you do set the time by hand, the format is ISO 8601 derived, for example 2021-02-06T11:16:58Z with Z for UTC or an explicit +/-hh:mm offset, and the time command reads the value back in the system configured timezone rather than the one you typed. Note also that show clock can take up to 2 minutes to respond if DNS is not properly configured, and that clock exposes last-time-jump, which records jumps larger than 10 seconds.
 
-Source: `06-operation-commands/289-set-time.md`, `06-operation-commands/052-clock.md`, `06-operation-commands/195-ntp.md`, `06-operation-commands/351-time.md`
+Source: `06-operation-commands/289-set-time.md`, `06-operation-commands/052-clock.md`, `06-operation-commands/195-ntp.md`, `06-operation-commands/198-ntp-server-status.md`, `06-operation-commands/351-time.md`
 
 Not stated by the document: The causal link (NTP enabled therefore set-time rejected) is stated in set-time's description; the specific error text the CLI returns is not documented.
 
@@ -3823,3 +3823,683 @@ Not stated by the document: The causal link (NTP enabled therefore set-time reje
 Source: `06-operation-commands/186-ne.md`, `06-operation-commands/312-status.md`, `06-operation-commands/365-uptime.md`, `06-operation-commands/265-restart.md`
 
 Not stated by the document: The guide does not prescribe a pre-reboot checklist. Grouping these four commands as a sequence is editorial.
+
+### multi-card-containment-hierarchy
+
+*equipment-inventory / enumeration*
+
+**Q.** Something is plugged into slot 2 of my chassis. What objects hang off it in the addressing scheme, and where do I read the FRU inventory for the pluggable itself?
+
+**A.** The AID key paths carry the containment. card-<name> is the parent, and port-<card-name>-<port-name>, tom-<card-name>-<port-name>, usb-<card-name>-<port-name> and comm-eth-<card-name>-<port-name> are all keyed by the card holding them. sub-component-<card-name>/<sub-component-name> shows the card's own sub-components, described as the sub-component details or card resources. inventory carries the FRU data and is addressed three ways: inventory-<card-name>-<port-name> for a pluggable, inventory-<chassis-name>-<slot-name> for a slotted FRU, and inventory-<name>. Note the pluggable is not fully manual: the Tributary Port termination point is auto-created when the TOM is created and deleted with it, so you do not add that port separately.
+
+Source: `06-operation-commands/040-card.md`, `06-operation-commands/246-port.md`, `06-operation-commands/352-tom.md`, `06-operation-commands/314-sub-component.md`, `06-operation-commands/137-inventory.md`
+
+Not stated by the document: The guide states each object's AID form in its own section but never draws them as a containment tree. Reading the key paths as a hierarchy is inference.
+
+### multi-card-type-vs-installed-card
+
+*equipment-inventory / disambiguation*
+
+**Q.** How do I find out what a particular model of card is capable of taking, as opposed to what the one already sitting in my chassis is currently doing?
+
+**A.** Two different families, told apart by what keys them. The objects keyed by <card-type> describe the model: supported-card shows the capability information for a supported card, including grid-mode-support, console-port-support and supported-bands; supported-port shows the capabilities of each port on that card including its default-tom and whether it allows-auto-migration; supported-slot shows the capability of each slot within each supported chassis; supported-tom shows the supported pluggables in the scope of a particular card; and subtype-constraint shows the software subtype constraints with min-capacity and max-capacity. Objects keyed by an installed unit rather than by a type answer the other question, what is actually provisioned right now, and none of these five do that.
+
+Source: `06-operation-commands/321-supported-card.md`, `06-operation-commands/325-supported-port.md`, `06-operation-commands/327-supported-slot.md`, `06-operation-commands/328-supported-tom.md`, `06-operation-commands/318-subtype-constraint.md`
+
+Not stated by the document: The contrast between type-keyed and instance-keyed objects is read off the AID forms; the guide does not state it as a rule.
+
+### multi-ospf-adjacency-prerequisites
+
+*ip-networking / pre-condition*
+
+**Q.** My OSPF adjacency never comes up on a new link. What has to already exist before it can, and where do I look to see how far it got?
+
+**A.** The objects nest under the routing instance and each states its own pre-condition. ospf-area cannot be added until the OSPF instance is created. ospf-interface needs both the instance and the area present before it can be added. Only then can ospf-neighbor appear: its stated pre-condition is that the NEs have OSPF instances, areas and interfaces configured and are properly connected with DCN interface bridges, and an OSPF neighbor is deleted when the OSPF interface goes down. To see how far it got, read ospf-neighbor's state, which climbs through down, init, 2-way, exstart, exchange, loading and full, along with role, address and priority. ospf-interface carries the timers that must agree, hello-interval defaulting to 10 and router-dead-interval to 40. ospf-area-range is a separate concern and applies to Area Border Routers only.
+
+Source: `06-operation-commands/220-ospf-interface.md`, `06-operation-commands/217-ospf-area.md`, `06-operation-commands/221-ospf-neighbor.md`, `06-operation-commands/218-ospf-area-range.md`
+
+Not stated by the document: Each pre-condition is stated per command. Chaining them into a single ordering is inference; the guide gives no bring-up procedure.
+
+### multi-software-load-components
+
+*software-firmware-files / which-commands-together*
+
+**Q.** What software is on each controller card, and how do I see the individual components and the firmware that came bundled with it?
+
+**A.** These objects are keyed by location, so each one can be asked per controller. software-load shows the software load present in the system and is addressed either as software-load-<location-id>/<swload-state> or by state alone, so show software-load-active reports the running one. Below it, sw-component shows the software load component details with a state of installed, not-installed, installation-failed or unknown, and sw-subcomponent shows the subcomponent details beneath a named component. packaged-fw shows the firmware version included in that software load, and the guide notes versions for the same firmware can differ per equipment-type, so it is read per type rather than once for the node.
+
+Source: `06-operation-commands/301-software-load.md`, `06-operation-commands/332-sw-component.md`, `06-operation-commands/337-sw-subcomponent.md`, `06-operation-commands/232-packaged-fw.md`
+
+### multi-lldp-per-port-visibility
+
+*topology-discovery / troubleshooting*
+
+**Q.** The far end of a link is not appearing in my discovery output. What can I check per port to work out whether we are sending, receiving, or neither?
+
+**A.** Everything here keys off <lldp-port> plus a direction, and the guide states the egress direction is not supported, so these are read on ingress. lldp-neighbor shows the remote system discovered by that lldp-port, so an empty result means nothing is being received. lldp-port-statistics gives the frame reception statistics for that port and direction, which separates nothing arriving from arriving and being discarded; the guide notes entries shall not be deleted upon expiration of TTL timing counters associated with the LLDP neighbor information, so a stale entry can persist. custom-tlv lists the Organizational Specific TLVs seen. management-address and management-address-local show the address the far end advertises versus the one this node advertises about itself.
+
+Source: `06-operation-commands/157-lldp-neighbor.md`, `06-operation-commands/158-lldp-port-statistics.md`, `06-operation-commands/069-custom-tlv.md`, `06-operation-commands/174-management-address.md`, `06-operation-commands/175-management-address-local.md`
+
+Not stated by the document: Treating an empty lldp-neighbor result as evidence of a receive-side fault is diagnostic inference; the guide documents the objects but no fault tree.
+
+### multi-slot-occupancy-and-firmware
+
+*equipment-inventory / enumeration*
+
+**Q.** For each position in the chassis, what does the inventory show, and what firmware level is whatever is installed running?
+
+**A.** Three objects, all keyed beneath the chassis. slot shows the equipment holder details for slot-<chassis-name>-<slot-name>, which is the position itself whether or not anything occupies it. inventory shows the inventory data for a present FRU and is reachable as inventory-<chassis-name>-<slot-name> for a slotted unit, carrying sw-support-revision and an fw-status of not-applicable, current, not-current or unavailable. current-fw lists the current firmware available in the cards, addressed as current-fw-<chassis-name>-<slot-name>/<fw-name>, for example show current-fw-1-3/DCO_1. So slot tells you the position exists, inventory tells you what is in it, and current-fw tells you the firmware on that unit.
+
+Source: `06-operation-commands/295-slot.md`, `06-operation-commands/137-inventory.md`, `06-operation-commands/067-current-fw.md`
+
+### multi-manifest-package-contents
+
+*software-firmware-files / which-commands-together*
+
+**Q.** After pulling a package onto the node, how do I check what it actually contains and whether each piece got installed?
+
+**A.** All three key off the manifest file. manifest shows the downloaded manifest file and its information, and splits into manifest-component-<manifest-file>/<equipment-type>/<name>, which carries a state of installed, not-installed, installation-failed or unknown alongside version and description, and manifest-firmware-<manifest-file>/<equipment-type>/<fw-name> for the firmware side. downloaded-image reports on the downloaded image files themselves as downloaded-image-<manifest-file>/<name>, including the signature. fru-info displays the packaged FRU information associated with a particular equipment-type. So the manifest tells you what should be there and what state it reached, the image tells you what actually landed, and fru-info resolves it per equipment type.
+
+Source: `06-operation-commands/176-manifest.md`, `06-operation-commands/087-downloaded-image.md`, `06-operation-commands/114-fru-info.md`
+
+### multi-resource-type-defaults
+
+*performance-monitoring / default*
+
+**Q.** When a new resource of some type appears on the node, where do the defaults for its alarm severity and its performance monitoring come from?
+
+**A.** Three objects are keyed by <resource-type>, which is what makes them type-wide defaults rather than per-instance settings. pm-profile-entry holds the PM configuration per resource type, keyed by resource-type, direction, location and period, and its default-data-supervision governs whether newly created resources of that type have PM data supervision automatically enabled, with default-tca-supervision doing the same for threshold crossing supervision. pm-threshold-profile holds the per-parameter view for that resource type and carries the system defined default values for low and high threshold. alarm-severity-entry, keyed by resource-type, alarm-type, direction and location, allows the severity for one particular alarm to be configured. Direction and location both default to all on the PM objects.
+
+Source: `06-operation-commands/242-pm-profile-entry.md`, `06-operation-commands/245-pm-threshold-profile.md`, `06-operation-commands/017-alarm-severity-entry.md`
+
+Not stated by the document: Grouping these as 'the type-level defaults' is editorial; the guide documents each object separately and does not name the group.
+
+### multi-ipsec-policy-nesting
+
+*encryption-ipsec-macsec / which-commands-together*
+
+**Q.** On a management IPsec tunnel, which object decides that a given flow gets protected rather than passed, and what hangs underneath that decision?
+
+**A.** The decision lives in the Security Policy Database entry, added as ipsec-spd-entry-<local-instance>/<peer>/<name> with a priority and an action, for example add ipsec-spd-entry-ipsec/GX2/dns priority 1 action protect. Everything else nests beneath that key. ipsec-traffic-selector, keyed by the same path plus a selector name, is what narrows which traffic the entry matches. ipsec-sa-proposal, keyed by the spd entry plus a number, gives the cipher terms for the child SA, for example dh-group dhe-3072 with integrity-algorithm hmac-sha2-512-256. ike-sa-proposal sits one level up, keyed by local instance and peer only, because it covers the IKEv2 exchange rather than one policy. security-policy-database ties a peer to its associated-secure-entity.
+
+Source: `06-operation-commands/141-ipsec-spd-entry.md`, `06-operation-commands/142-ipsec-traffic-selector.md`, `06-operation-commands/139-ipsec-sa-proposal.md`, `06-operation-commands/127-ike-sa-proposal.md`, `06-operation-commands/281-security-policy-database.md`
+
+Not stated by the document: The nesting is read off the AID key paths. The guide states each key form but never says which object 'decides' the outcome.
+
+### multi-certificate-role-disambiguation
+
+*certificates-pki / disambiguation*
+
+**Q.** Four objects with nearly the same name hold X509 material. Which one is the CA I trust, which is this node's own identity, and which is the far end's?
+
+**A.** They divide by role, and the certificate command is the one that names the roles: it deletes already imported local, trusted and peer X509v3 certificates and shows the current certificates and revocations, with type taking trusted, local or peer. trusted-certificate holds the X509v3 CA, root and intermediate, trusted by the system, so that is the one you load a CA into. local-certificate holds the end-entity certificate representing one of various secure application identities, which is this node presenting itself. peer-certificate holds the end-entity certificate for a trusted remote peer, specifically for the L1 encryption secure application, so it is the far end's. All three carry version, fixed at v3. import-certificate is the way material gets in, in PEM format.
+
+Source: `06-operation-commands/045-certificate.md`, `06-operation-commands/359-trusted-certificate.md`, `06-operation-commands/159-local-certificate.md`, `06-operation-commands/234-peer-certificate.md`, `06-operation-commands/131-import-certificate.md`
+
+Not stated by the document: The guide says trusted-certificate holds the CA trusted by the system. Concluding that this is where an operator loads a CA is inference about the write path, which the guide does not describe.
+
+### multi-certificate-import-and-removal
+
+*certificates-pki / how-to*
+
+**Q.** How does X509 material get onto the node in the first place, and how do I take one back off once it is no longer wanted?
+
+**A.** Import and removal are different commands from the ones that hold the attributes. import-certificate allows one or more certificates in PEM format to be imported into the NE. Removal goes through certificate, which deletes already imported local, trusted and peer certificates and also lists the current certificates and certificate revocations; the form is clear certificate <type> <name>, for example clear certificate local certX. Both are operational mode only, unlike local-certificate and trusted-certificate, which are also available in candidate configuration mode because they carry settable attributes rather than performing an action. So you import with one command, read and set attributes with another, and delete with a third.
+
+Source: `06-operation-commands/131-import-certificate.md`, `06-operation-commands/045-certificate.md`, `06-operation-commands/159-local-certificate.md`
+
+Not stated by the document: Describing this as an import-then-delete lifecycle is editorial; the guide documents each command on its own.
+
+### multi-access-rule-object-disambiguation
+
+*security-access-control / disambiguation*
+
+**Q.** Several rule objects have nearly identical names. Which one decides whether traffic is permitted, which one sets the order they are evaluated in, and which has nothing to do with traffic at all?
+
+**A.** access-rule carries the decision: it holds the permit or deny action associated with that rule. access-rule-list is the ordering and grouping layer, processed in order as given by the sequence-id parameter, and it can reference a maximum of 20 user-groups. access-control-list is the read view that shows the access control list as a whole. sw-control-rule is unrelated despite the name: it adds service-specific custom rules that override the default action upon service failure, for example add sw-control-rule-xmm4-1-1_host_KeyManagement fail-action default-action, so it is about software service behaviour rather than packets.
+
+Source: `06-operation-commands/005-access-rule-list.md`, `06-operation-commands/004-access-rule.md`, `06-operation-commands/003-access-control-list.md`, `06-operation-commands/334-sw-control-rule.md`
+
+### multi-access-rule-ordering-limits
+
+*security-access-control / consequence*
+
+**Q.** If two access rules could both match the same traffic, which one takes effect, and how many user-groups can I attach to the list?
+
+**A.** Order decides it. The access-rule-list is processed in order, as given by the sequence-id parameter, so the first matching entry in sequence order is the one that applies and later entries covering the same traffic are not reached. The list can reference a maximum of 20 user-groups. The permit or deny outcome itself lives on access-rule, as the action associated with that rule, not on the list. access-control-list gives the assembled view for reading back what is in force.
+
+Source: `06-operation-commands/005-access-rule-list.md`, `06-operation-commands/004-access-rule.md`, `06-operation-commands/003-access-control-list.md`
+
+Not stated by the document: That the first match wins, and later overlapping entries are not reached, is inferred from 'processed in order'. The guide does not state the stopping behaviour.
+
+### multi-snmp-trap-community-location
+
+*management-protocols / troubleshooting*
+
+**Q.** I configured a community string but my trap receiver still rejects the traps. Where is the community string for traps actually set?
+
+**A.** On the target, not on the community. The guide states directly that the trap-community-string is located in the snmp-target object. snmp-target holds the list of trap listeners, each with a target-port defaulting to 162 and target-transport of udp, and that is where the community string sent with traps comes from. snmp-community is a different thing: it defines a community for ordinary access, for example add snmp-community-mycommunity community-string public community-string-access read-only enabled true, where community-string-access is read-only. The snmp object itself holds the protocol-wide configuration. So a community configured for access will not change what traps carry.
+
+Source: `06-operation-commands/299-snmp-target.md`, `06-operation-commands/298-snmp-community.md`, `06-operation-commands/297-snmp.md`
+
+### multi-fiber-connection-who-writes-it
+
+*topology-discovery / disambiguation*
+
+**Q.** Fiber links keep showing up in my topology that I never configured. Which of these connection objects gets filled in by something other than me?
+
+**A.** Two of them are not operator-driven. external-fiber-connection is set autonomously by TNMS, and although it is possible to configure it manually the guide says it is not recommended. nct-connection shows NCT connectivity between NCT ports in a multi-chassis NE, and those links are dynamically filled in by the system so the NCT topology can be derived and displayed. By contrast fiber-connection is the one you add yourself: it is the physical link representation of a connection between two distinct ports, or two distinct sub-ports, in the same NE, within an OADM or ILA topology. supporting-fiber-connection is purely a read view, showing the list of fiber connections.
+
+Source: `06-operation-commands/104-external-fiber-connection.md`, `06-operation-commands/107-fiber-connection.md`, `06-operation-commands/185-nct-connection.md`, `06-operation-commands/330-supporting-fiber-connection.md`
+
+### multi-address-objects-disambiguation
+
+*ip-networking / disambiguation*
+
+**Q.** I want to give this node an ipv4 address on its management interface. Two other objects have management address in the name and are not for that at all. Which is which?
+
+**A.** Only two of the four configure this node's addressing. ipv4-address adds an IPv4 address on an interface, for example add ipv4-address-1-AUX-1/200.20.20.186 netmask '255.255.240.0', and a static IPv4 address cannot be configured when DHCP is enabled on that interface. ipv6-address is the same idea with prefix-length instead of netmask, as in add ipv6-address-1-AUX-1/AAAA::186 prefix-length 10. The other two belong to LLDP and are keyed by lldp-port: management-address retrieves the management address information a neighbour advertises about a particular chassis component, and management-address-local is the corresponding information this node advertises about itself. Neither assigns anything.
+
+Source: `06-operation-commands/143-ipv4-address.md`, `06-operation-commands/145-ipv6-address.md`, `06-operation-commands/174-management-address.md`, `06-operation-commands/175-management-address-local.md`
+
+### multi-static-address-dhcp-conflict
+
+*ip-networking / pre-condition*
+
+**Q.** Adding a static ipv4 address to an interface is being refused. What would stop it, and how do I see which interfaces are even available?
+
+**A.** The stated pre-condition is that a static IPv4 address cannot be configured when DHCP is enabled on that interface, so the interface has to come out of DHCP first. To see what you can address, the guide points at contextual help rather than a listing command: use ? after ipv4-address- and the system displays the object completion options; ipv6-address documents the same trick. The interface object itself is where interfaces are added, set, shown and deleted, and carries attributes such as if-description. The IPv6 equivalent takes prefix-length where the IPv4 one takes netmask.
+
+Source: `06-operation-commands/143-ipv4-address.md`, `06-operation-commands/145-ipv6-address.md`, `06-operation-commands/134-interface.md`
+
+Not stated by the document: That the interface must be taken out of DHCP before the add will succeed is inferred from the pre-condition; the guide does not give the remediation step.
+
+### multi-route-sources
+
+*ip-networking / which-command*
+
+**Q.** Where do I see every route the node is actually using, including the ones nobody typed in by hand, and where do the hand-typed ones get added?
+
+**A.** route is the combined read view: it shows the list of system routes from various sources, such as dynamic protocols and static route, so it is the one that includes routes nobody entered. The hand-entered ones are added per address family. ipv4-static-route adds, shows and deletes IPv4 static routes on an interface, for example add ipv4-static-route-10.220.0.0/16/MGMT next-hop-address 10.220.225.165, where the key carries the prefix and the interface and next-hop-address carries the gateway. ipv6-static-route is the IPv6 equivalent, and the guide notes static routes can be added with DCN-B interface when DCN is operating in active-active mode.
+
+Source: `06-operation-commands/269-route.md`, `06-operation-commands/144-ipv4-static-route.md`, `06-operation-commands/146-ipv6-static-route.md`
+
+### multi-ports-objects-unrelated
+
+*encryption-ipsec-macsec / disambiguation*
+
+**Q.** Three objects end in ports and they appear to be unrelated. Which ones belong to a security tunnel and which one is about connectivity?
+
+**A.** Two of the three are IPsec traffic selector components, keyed by the local instance, peer and spd entry rather than by any physical port. local-ports adds or shows the local port range for a selector, as in add local-ports-ipsec/GX2/tacacs/ts1/all, and remote-ports is the far-side equivalent, as in add remote-ports-ipsec/GX2/protect1/ts1/all; the trailing all is the port range covered. connection-ports is unrelated and is a plain read command, shown with show connection-ports*, reporting connection ports rather than anything to do with IPsec. So the name ending is coincidental: two are policy scoping, one is connectivity.
+
+Source: `06-operation-commands/160-local-ports.md`, `06-operation-commands/262-remote-ports.md`, `06-operation-commands/059-connection-ports.md`
+
+Not stated by the document: Reading the trailing 'all' in the key as the port range covered is inference from the AID form; the guide does not gloss that segment here.
+
+### multi-database-snapshot-roundtrip
+
+*config-datastore / which-commands-together*
+
+**Q.** I want to roll the database back to a copy I made earlier. Which command makes the copy, which one puts it back, and why might making one be refused?
+
+**A.** take-snapshot creates a local database snapshot, and it is the one that can be refused: the system will only accept it if the db-passphrase, used for DB snapshot encryption, is configured, either globally as part of the security-policies or locally as a parameter of the command. It also overwrites silently, since if a snapshot of that name already exists the command will overwrite the existing file. activate-snapshot is the other direction and activates an available database snapshot. The generic activate command is separate and covers software image, database, location LED test, firmware and Key Replacement Package activation, where a successful swimage activation implies a system restart.
+
+Source: `06-operation-commands/009-activate-snapshot.md`, `06-operation-commands/342-take-snapshot.md`, `06-operation-commands/008-activate.md`
+
+Not stated by the document: Calling this a roll-back pairing is editorial. The guide documents take-snapshot and activate-snapshot separately and gives no restore procedure.
+
+### multi-activate-overloaded-verb
+
+*software-firmware-files / disambiguation*
+
+**Q.** The activate command seems to do several unrelated things depending on what I pass it. What are they, and is there a separate command for the database case?
+
+**A.** activate is overloaded by parameter. It activates a software image, activates a database, activates the location LED test, activates a new firmware image in a given resource, or activates and installs a Key Replacement Package. Two of those carry stated consequences: a successful swimage activation implies a system restart, and only a single location led test can be running at a time. The guide also notes the timeout parameter does not take effect in 1830 GX G30 R5.1 and that LED location and lamp test functions are terminated with the terminate command instead. The database snapshot case has its own command, activate-snapshot, which activates an available database snapshot. The led object itself exists even if the FRU is not physically present.
+
+Source: `06-operation-commands/008-activate.md`, `06-operation-commands/009-activate-snapshot.md`, `06-operation-commands/152-led.md`
+
+### multi-capabilities-scope-disambiguation
+
+*equipment-inventory / disambiguation*
+
+**Q.** Three objects are called capabilities. One is per card, one is about the photonic layer and one is about add and drop. Which is which?
+
+**A.** They differ by scope. capabilities retrieves information about a card's capabilities, so it is the per-card view. l0-capabilities shows the capabilities details related to the node's Layer 0 functions, which is the photonic layer taken as a whole rather than any one card. oadm-capabilities shows the OADM capabilities and is read with show oadm-capabilities [max-degrees] [max-adgs], so it reports the add and drop structure of the node in terms of degrees and ADGs. None of the three is keyed by an installed instance the way card is; they answer what this node or this card type can do rather than what is currently provisioned.
+
+Source: `06-operation-commands/039-capabilities.md`, `06-operation-commands/151-l0-capabilities.md`, `06-operation-commands/200-oadm-capabilities.md`
+
+### multi-controller-card-vs-card
+
+*equipment-inventory / disambiguation*
+
+**Q.** How do I see the configuration of just the controller, as opposed to any card in the shelf, or what a given model of card supports?
+
+**A.** Three different questions, three objects. controller-card displays the configuration of a controller card specifically. card is the general equipment object, used to add, edit, show or delete a card-base object, addressed as card-<name>, and it is where provisioning happens, for example add card-1-4 required-type CHM1R chassis-name 1 slot-name 2; it carries admin-state defaulting to unlock, category, and alarm-report-control. supported-card is neither of those: it is keyed by card type and shows the capability information for a supported card, including grid-mode-support and console-port-support, so it describes a model rather than an installed unit.
+
+Source: `06-operation-commands/061-controller-card.md`, `06-operation-commands/040-card.md`, `06-operation-commands/321-supported-card.md`
+
+### multi-secure-entity-vs-macsec-entity
+
+*encryption-ipsec-macsec / disambiguation*
+
+**Q.** Two encryption objects have almost the same shape, one for macsec on Ethernet and one for the optical line. Which is which, and where do the cipher terms live?
+
+**A.** They are distinguished by what they sit on, visible in supporting-facility. macsec-entity is added against an Ethernet facility, as in add macsec-entity-6-3-3 supporting-facility ethernet-6-3-3. secure-entity is the L1 optical case and is added against an optical carrier, as in add secure-entity-NE202-1-4-L1-1 supporting-facility optical-carrier-1-4-L1-1 remote-secure-entity '1-4-L1-1' re-key-fail-policy kill-traffic, so it also names its remote peer and what to do if re-keying fails, with kill-traffic among the choices. The cipher terms for the L1 case are not on the entity itself: secure-entity-sa-proposal is a separate object showing the sa proposal attributes.
+
+Source: `06-operation-commands/277-secure-entity.md`, `06-operation-commands/171-macsec-entity.md`, `06-operation-commands/278-secure-entity-sa-proposal.md`
+
+### multi-ase-idler-service-vs-source
+
+*optical-layer0 / disambiguation*
+
+**Q.** What is the difference between ase-idler-service and ase-idler-source, and does sw-service belong with them at all?
+
+**A.** The two ase-idler objects differ by what they control. ase-idler-service is the service-level switch, set per instance with ase-idler-enable, as in set ase-idler-service-1-8 ase-idler-enable enabled, and it can be added and deleted as well as set. ase-idler-source is the generating side and carries the optical settings, as in set ase-idler-source-1-3.1-ase pump-enable 'enabled' target-output-power '15.00', so pump-enable and target-output-power live there rather than on the service. sw-service shares only the word: it shows the software services running in the system, displaying information about software services and containers on the node, and has nothing to do with ASE idlers.
+
+Source: `06-operation-commands/024-ase-idler-service.md`, `06-operation-commands/025-ase-idler-source.md`, `06-operation-commands/336-sw-service.md`
+
+### multi-mode-commands-consequences
+
+*software-firmware-files / consequence*
+
+**Q.** Several commands end in -mode. change-ztp-mode and recover-mode sound harmless next to the carrier-mode ones. Are they?
+
+**A.** No. change-ztp-mode toggles Zero Touch Provisioning, deactivating or reactivating it, and the guide states it reverts the database to the factory default and triggers a system reboot, so it destroys configuration. recover-mode is cleared with clear recover-mode, and the guide warns that as such it may be traffic impacting. The carrier-mode objects are read-only by comparison: supported-carrier-mode displays a list of supported carrier modes, and golden-carrier-mode is keyed by card type and carrier mode and retrieves configuration information such as actual-carrier-mode, capacity, client-mode, baud-rate and compatibility-id. So the shared -mode ending groups two disruptive actions with two harmless queries.
+
+Source: `06-operation-commands/046-change-ztp-mode.md`, `06-operation-commands/260-recover-mode.md`, `06-operation-commands/322-supported-carrier-mode.md`, `06-operation-commands/120-golden-carrier-mode.md`
+
+Not stated by the document: Ranking these by how disruptive they are is editorial. The guide states each consequence separately and does not compare them.
+
+### multi-third-party-app-objects
+
+*management-protocols / disambiguation*
+
+**Q.** A third-party-app is stuck on this node. Which object shows its state, which shows the firmware side, and which one clears it?
+
+**A.** Three objects split the job. third-party-app sets or shows a third party application and carries the state, which is running, stopped or failed, defaulting to stopped, plus an enable flag defaulting to false; it is also addressable per location as third-party-app-info-<location-id>/<app-name>. third-party-fw is the firmware counterpart and shows third-party firmware information. app is the action: the clear app command clears third party apps, and being a clear command it is operational mode only, unlike the other two which are also available in candidate configuration mode. So you read state on one, read firmware on another, and clear with the third.
+
+Source: `06-operation-commands/349-third-party-app.md`, `06-operation-commands/350-third-party-fw.md`, `06-operation-commands/021-app.md`
+
+### multi-cli-and-config-scope
+
+*cli-and-session / disambiguation*
+
+**Q.** I want more rows on my terminal for this login only, not for everyone. Which object is per-session, which is the protocol as a whole, and which two are about system configuration?
+
+**A.** cli-session-config is the per-session one, keyed by the session's address and port, for example set cli-session-config-10.19.204.27:52361 cli-lines 30, which sets the number of cli rows used for display to 30. cli is the protocol-wide object, setting or showing the configuration of the CLI management protocol rather than one login. The other two are about the system's configuration, not the terminal: show config displays the system's configuration, and the guide suggests show config | display commands as a way to create a CLI script to restore it later. extended-config is separate again and introduces exceptional behaviour globally in the system.
+
+Source: `06-operation-commands/051-cli-session-config.md`, `06-operation-commands/050-cli.md`, `06-operation-commands/056-config.md`, `06-operation-commands/103-extended-config.md`
+
+### multi-set-prefixed-commands
+
+*cli-and-session / disambiguation*
+
+**Q.** Some commands are set, some start with set- and one ends in -set. Which is the generic attribute assignment, and which are separate operations such as the ones for alarm state and for time?
+
+**A.** set on its own is the generic one: it assigns values to the specified attributes of any object, as in set ne-location London, and the guide suggests using ? for hints on the expected value type for a given attribute. The hyphenated ones are their own commands rather than uses of set. set-alarm-state changes the operator state of an alarm and takes a list of alarm-ids, from 1 up to 10 alarm ids. set-time sets the node clock and is only applicable when time-source is manual. named-value-set is not a set command at all despite the ending: it adds, sets, shows and deletes named-value-set attributes. time reads the clock back in the system configured timezone.
+
+Source: `06-operation-commands/287-set.md`, `06-operation-commands/288-set-alarm-state.md`, `06-operation-commands/289-set-time.md`, `06-operation-commands/184-named-value-set.md`, `06-operation-commands/351-time.md`
+
+### multi-media-channel-variants
+
+*optical-layer0 / disambiguation*
+
+**Q.** Four channel objects differ by only a letter or two. What separates a media channel from a network media channel, and what are the filler variants for?
+
+**A.** They differ by layer and by whether they are provisioned or reported. mc is the Media Channel and is added with a frequency window, as in add mc-<name> parent-oms <value> lower-frequency <value> upper-frequency <value>, so it is bounded by a lower and upper edge and hangs off a parent OMS. nmc is the Network Media Channel and is added with a centre and a width instead, as in add nmc-cdc-1-4_192800000-34000 center-frequency 192800000 width 34000 parent-facility oms-1-4-ad1. The two filler objects are read-only: mc-f shows the Media Channel Filler facility attributes including supporting-facilities and its frequency edges, and nmc-f shows the Network Media Channel Filler attributes, as in show nmc-f-1-3-dwdm-line-58.
+
+Source: `06-operation-commands/193-nmc.md`, `06-operation-commands/178-mc.md`, `06-operation-commands/179-mc-f.md`, `06-operation-commands/194-nmc-f.md`
+
+### multi-otdr-locate-fiber-damage
+
+*optical-layer0 / troubleshooting*
+
+**Q.** Span loss jumped on one line and I want to find where the fibre is damaged. What actually runs the scan, where do I tune how it scans, and where does the answer come out?
+
+**A.** Three objects split the job. otdr is the function itself and reports progress: otdr-state moves through not-available, idle, measuring, finished and fail, with otdr-measurement-port and otdr-measurement-direction saying what is being scanned and otdr-ongoing-measurement-profile selecting none, short, medium, long or one of the raman-precheck profiles. otdr-ptp holds the measurement settings, most of which default to auto, for example set otdr-ptp-114-3.1-2 launching-fiber-length 20 otdr-fiber-type auto otdr-measurement-speed high-precision otdr-pulse-width auto otdr-range 100; otdr-fiber-break-distance on that object is where the located break comes out. ots-r-auto-otdr governs the unattended case with automatic-otdr enabled or disabled and auto-otdr-state reporting pass, in-progress, fail or aborted. ots-diagnostics is unrelated to distance measurement and covers trail trace, with a name auto generated by the system on line card provisioning.
+
+Source: `06-operation-commands/223-otdr.md`, `06-operation-commands/224-otdr-ptp.md`, `06-operation-commands/228-ots-r-auto-otdr.md`, `06-operation-commands/226-ots-diagnostics.md`
+
+Not stated by the document: The guide documents each object separately and gives no measurement procedure. Reading otdr-fiber-break-distance as 'the answer' to a span loss problem is diagnostic inference.
+
+### multi-dns-dhcp-origin-and-relay
+
+*ip-networking / pre-condition*
+
+**Q.** A name server entry I deleted keeps coming back, and a relay I configured does nothing at all. What decides where these values come from?
+
+**A.** Two separate mechanisms. On the naming side, dns carries assignment-method with manual, dhcp or both, defaulting to both, alongside enabled which defaults to true; while dhcp is included, entries can be supplied by the network. dns-server records provenance per entry in its origin attribute, which is dhcp for an address assigned by a DHCP server and manual otherwise, so add dns-server-10.100.210.243 origin dhcp is an entry the node did not invent. On the relay side there are two switches and both must be on: dhcp-relay carries the relay mode, which is disabled, ipv4 or ipv6 and defaults to disabled, and if-dhcp-relay carries dhcp-relay-enabled per interface, defaulting to false.
+
+Source: `06-operation-commands/085-dns-server.md`, `06-operation-commands/084-dns.md`, `06-operation-commands/078-dhcp-relay.md`, `06-operation-commands/126-if-dhcp-relay.md`
+
+Not stated by the document: Attributing the reappearing entry to assignment-method including dhcp is inference. The guide documents the attribute and the origin values but does not describe entries being restored. That both the global mode and the per-interface flag must be set is inferred from the two defaults; the guide does not state the dependency.
+
+### multi-factory-reset-what-survives
+
+*system-node-time / consequence*
+
+**Q.** Before I hand this node back, what is the difference between the factory reset options, and which one leaves the logs and performance data behind?
+
+**A.** They differ in how much they destroy. On system, factory-reset resets the system or a particular equipment to factory configuration, while full-wipe cleans the entire system and reinstalls the software on the controller and the line-cards, so full-wipe is the one that removes the software load as well. The narrower option is on database, which the guide says does not wipe logs, PM data and other non-configuration data, so that is the one that leaves them behind. Any of these goes through clear, which in all cases requires a user confirmation, and the guide notes clear system factory-reset with the shutdown option is not supported on the L0 cards. Before doing any of it, take-snapshot creates a local database snapshot, and recovery reports restore-from-chassis-storage along with backup-status and last-backup.
+
+Source: `06-operation-commands/340-system.md`, `06-operation-commands/072-database.md`, `06-operation-commands/049-clear.md`, `06-operation-commands/261-recovery.md`, `06-operation-commands/342-take-snapshot.md`
+
+Not stated by the document: Ordering these as a decommissioning sequence, and the advice to snapshot first, is editorial. The guide states each command's effect and no procedure.
+
+### multi-multichassis-shelf-not-accepted
+
+*equipment-inventory / enumeration*
+
+**Q.** A new chassis was cabled into the node but nothing in it is usable yet. What can I read to see whether the node controller has taken it in?
+
+**A.** unprovisioned-inventory is the direct answer: it lists detected inventory not yet accepted by the Node Controller in Multi-Chassis configuration, so anything sitting there has been seen but not adopted. chassis carries the surrounding state, including chassis-role of unknown, main-chassis or sub-chassis, is-node-controller, equipment-discovery-ready which stays false until discovery finishes, active-controller-slot and passive-shelf-detection. nct-connection shows the connectivity itself, reporting existing links between NCT ports in a multi-chassis NE, and those links are dynamically filled in by the system rather than configured, so an absent link points at cabling rather than at configuration.
+
+Source: `06-operation-commands/361-unprovisioned-inventory.md`, `06-operation-commands/047-chassis.md`, `06-operation-commands/185-nct-connection.md`
+
+Not stated by the document: Reading an absent nct-connection as a cabling fault rather than a configuration fault is inference; the guide says only that the links are filled in dynamically.
+
+### multi-amplifier-gain-control-mode
+
+*optical-layer0 / parameter-values*
+
+**Q.** On an amplifier, which attribute decides whether the system holds the gain itself or I set it by hand, and what would stop it putting out any power at all?
+
+**A.** control-mode is the one, taking auto-max-pw or manual and defaulting to auto-max-pw, and what a given card will accept is bounded by amp-control-support, where auto means both manual and auto-max-pw are supported and manual-only means just the one. Gain range is controlled separately by gain-range-control, auto or manual, with gain-range-target and gain-range-actual reading standard, low or high and gain-target running 0 to 40 dB. Several things independently keep it dark: amplifier-enable defaults to disabled, forced-shutdown is a hard override defaulting to false, and olos-shutdown-disable together with olos-shutdown-soak-timer governs shutdown on loss of signal. Around it, spectrum-control sets attenuation-target and target-output-power per centre frequency, profile-control reads or writes per-slice power or attenuation profiles, and supported-power-profile is per card-type and affects the power estimation for the system.
+
+Source: `06-operation-commands/019-amplifier.md`, `06-operation-commands/304-spectrum-control.md`, `06-operation-commands/248-profile-control.md`, `06-operation-commands/326-supported-power-profile.md`
+
+Not stated by the document: Grouping amplifier-enable, forced-shutdown and the OLOS attributes as 'reasons it stays dark' is editorial; each is documented on its own.
+
+### multi-protection-which-member-is-live
+
+*protection-redundancy / enumeration*
+
+**Q.** In a protected pair, how do I tell which member is carrying traffic at this moment, and what settings decide how a switch behaves when one happens?
+
+**A.** protection-unit answers the first part: its state reads active, standby, available or unknown, and its role reads working or protection, so the member that is both role working and state active is the one carrying traffic, and a role protection unit reading active means the pair has already switched. protection-group holds the behaviour: protection-type is y-cable or snc-n, defaulting to y-cable, switching-mode is unidirectional or bidirectional, defaulting to unidirectional, hold-off-timer runs 0 to 10000 milliseconds and defaults to 0, and switch-failure-reason records why a switch did not complete. protection is the summary read across the whole feature.
+
+Source: `06-operation-commands/253-protection-unit.md`, `06-operation-commands/251-protection-group.md`, `06-operation-commands/250-protection.md`
+
+Not stated by the document: The reading that role working plus state active identifies the live member, and that an active protection unit means the pair has switched, is inference. The guide lists the values without interpreting the combination.
+
+### multi-cableid-confirm-patching
+
+*topology-discovery / how-to*
+
+**Q.** How do I confirm the fibre I patched is the one the node believes it is, and how do I watch the progress while the check runs?
+
+**A.** verify triggers CableID-based fiber connections verification for the ports contained in the cable-id entity, run as verify fiber-connection port-1-6-ade11. Its allow-switching parameter defaults to false, so by default the check will not move traffic to complete, and the command supports the -f flag to run without the confirmation prompt. While it runs, cable-id-status reports cable-id-state as idle, running-incl-switching or running-no-switching together with test-progress, and the guide states a user is allowed to issue the show cable-id cable-id-status command anytime to query the progress. cable-id lists the entities and is also how a running test is stopped, with terminate cable-id. cid-ptp is the underlying facility, created when a card supporting CableID function is created and managed-by system by default.
+
+Source: `06-operation-commands/371-verify.md`, `06-operation-commands/035-cable-id-status.md`, `06-operation-commands/033-cable-id.md`, `06-operation-commands/048-cid-ptp.md`
+
+Not stated by the document: Reading allow-switching false as 'the check will not move traffic' is inference from the parameter name; the guide does not describe what switching means here.
+
+### multi-aaa-radius-not-reached
+
+*security-access-control / troubleshooting*
+
+**Q.** Logins against our RADIUS box are failing and the box says it never saw the request. What on the node decides where authentication is sent, and what governs what happens when it does not answer?
+
+**A.** aaa-server defines each server and is where the addressing lives. protocol-supported takes RADIUS or TACACSPLUS and defaults to RADIUS, but the ports differ: server-port defaults to 49, while server-port-authentication defaults to 1812 and server-port-accounting to 1813. server-priority orders them, enabled defaults to true, timeout defaults to 5 seconds and retry controls repeats. A silent failure is often the secret rather than the address: the maximum length of shared-secret is 64 characters and any value more than 64 characters is denied with an error message. role-supported splits accounting, authentication and authorization. What happens once a user is in is authorization, whose mode is static-only, static+rules or rules-only, defaulting to static+rules, with read-default permit, write-default deny and exec-default permit, and counters denied-operations, denied-data-writes and denied-notifications. cert-to-name is the certificate path, mapping an X.509 client certificate to a user identity by a prioritized set of rules.
+
+Source: `06-operation-commands/001-aaa-server.md`, `06-operation-commands/027-authorization.md`, `06-operation-commands/044-cert-to-name.md`
+
+Not stated by the document: Attributing a request the server never saw to the shared secret or the port is diagnostic inference; the guide documents the attributes and no failure modes.
+
+### multi-ssh-which-object-holds-which-key
+
+*certificates-pki / how-to*
+
+**Q.** I need ssh key-based login for an automation account, and the node also has to trust a remote host it copies files to. Which object holds which key?
+
+**A.** Three different keys in three places. ssh-keygen generates the node's own identity, a private and public key pair, with -t taking rsa, ecdsa or ed25519 and defaulting to rsa and -b the key length, 2048, 3072 or 4096 for RSA, 256, 384 or 521 for ECDSA and 256 for ED25519; the guide warns the existing keys in the system will be replaced with newly generated private/public key pair, and notes ED25519 support is available starting R9.0. ssh-authorized-key is the inbound direction, where each authorized key entry contains a trusted public key for SSHv2 user authentication, which is what an automation account logs in with. ssh-known-host is the outbound direction, recording a host this node trusts, for example add ssh-known-host-Server_243 address 10.100.210.243 public-key-algorithm ecdsa-sha2-nistp256 public-key. The ssh object itself is the service, whose enabled defaults to false, on port 8022.
+
+Source: `06-operation-commands/309-ssh-keygen.md`, `06-operation-commands/307-ssh-authorized-key.md`, `06-operation-commands/310-ssh-known-host.md`, `06-operation-commands/306-ssh.md`
+
+Not stated by the document: Calling ssh-authorized-key the inbound direction and ssh-known-host the outbound one is a reading of their descriptions; the guide does not frame them as a pair.
+
+### multi-macsec-key-agreement-settings
+
+*encryption-ipsec-macsec / parameter-values*
+
+**Q.** For macsec on an Ethernet port, where does the key agreement policy live, what sets how often the session key rolls over, and where do I watch the channels themselves?
+
+**A.** mka-policy is the policy object, described as the MACsec Key Agreement (MKA) policy referenced by the macsec entity related to ethernet facility. It carries macsec-cipher-suite, confidentiality-offset and sak-rekey-interval, and sak-rekey-interval is the one that governs how often the secure association key is replaced. macsec-mka is the per-instance object where the key material and role are set, for example set macsec-mka-6-3-3 connectivity-association-key followed by the key, alongside is-key-server which defaults to false and psk-configured-timestamp. The channels are read rather than configured: sc-rx shows the Receiving Secure Channel attributes and sc-tx shows the Transmitting Secure Channel attributes, so a session that is negotiating but not passing traffic shows up as a difference between the two.
+
+Source: `06-operation-commands/173-mka-policy.md`, `06-operation-commands/172-macsec-mka.md`, `06-operation-commands/273-sc-rx.md`, `06-operation-commands/274-sc-tx.md`
+
+Not stated by the document: Reading a difference between sc-rx and sc-tx as a negotiating-but-not-passing session is diagnostic inference, not something the guide states.
+
+### multi-northbound-protocol-defaults
+
+*management-protocols / comparison*
+
+**Q.** We want to drive this node programmatically over netconf or gnmi. Which ports do the interfaces use by default, and is any of them off out of the box?
+
+**A.** Most are on, one is not. netconf is enabled by default on port 830, with hello-timeout defaulting to 2 seconds and annotate-cli-name to false. restconf is enabled by default but splits by transport: http-enabled defaults to false while https-enabled defaults to true, on http-port 8080 and https-port 8181, and cookie-timeout defaults to 5 minutes, changed with set restconf cookie-timeout 10. grpc covers gNMI and gRPC, enabled by default on port 50051, with gnmi-get-encoding-granularity of per-path or per-object defaulting to per-object. The exception is data-model, which exposes the available YANG data models for loading and unloading and whose enabled defaults to false, so the models are not loaded until you say so. convert is an aid rather than an interface: it turns a CLI command into a request for another northbound protocol, as in convert restconf-python 'ping 1.23.151.23'.
+
+Source: `06-operation-commands/266-restconf.md`, `06-operation-commands/188-netconf.md`, `06-operation-commands/121-grpc.md`, `06-operation-commands/070-data-model.md`, `06-operation-commands/062-convert.md`
+
+Not stated by the document: Reading data-model's enabled default of false as 'models are not loaded until you say so' extends the attribute description; the guide does not state the consequence.
+
+### multi-restart-card-consequences
+
+*system-node-time / consequence*
+
+**Q.** If I reboot one card, what exactly happens by default, and can I assume every card in the shelf behaves the same way?
+
+**A.** No, you cannot assume it: the guide states plainly that not all cards support all restart types. restart takes a type of cold, warm or shutdown, and if the type parameter is not provided a warm start is done by default. resource-id takes the AID of a card or of a tom, and if resource is not mentioned in the command argument, then it will restart the active controller card, which is very unlikely to be the card you meant. A list of card sub-components can be viewed with show card resources, which is how you see what a given card is made of before restarting it. Afterwards, recovery describes what the system does on its own: restore-from-chassis-storage is disabled, auto-restore or auto-in-service and defaults to auto-in-service, with restore-status and backup-status reporting progress. recover-mode is a separate flag, cleared with clear recover-mode, and the guide warns that as such it may be traffic impacting.
+
+Source: `06-operation-commands/265-restart.md`, `06-operation-commands/040-card.md`, `06-operation-commands/261-recovery.md`, `06-operation-commands/260-recover-mode.md`
+
+Not stated by the document: Sequencing these as check-then-restart-then-recover is editorial. The guide documents each command and gives no reboot procedure.
+
+### multi-serdes-template-auto-apply
+
+*equipment-inventory / pre-condition*
+
+**Q.** We keep plugging in third party toms and hand-tuning the serdes each time. What has to be in place for the node to do that configuration by itself?
+
+**A.** Three things line up. serdes-template auto-configures serdes for third party TOMs, and the guide states the templates are created by the user per tom-part-number and apply to all line cards that support serdes, so that when a TOM is plugged-in with that part-number, the template will be automatically applied. That means the part number has to match the template key exactly for anything to happen. ports-applicable narrows where it applies, taking all or a list of up to 20 port names. serdes-template-entry supplies the content, its commands being composed of a serdes parameter name and associated value, so an empty template applies nothing. equipment-templates is the switch that has to be on, used to enable and view the serdes templates setting associated with equipment.
+
+Source: `06-operation-commands/283-serdes-template.md`, `06-operation-commands/284-serdes-template-entry.md`, `06-operation-commands/094-equipment-templates.md`
+
+Not stated by the document: That the part number must match exactly, and that an empty template applies nothing, are inferences from the descriptions rather than stated conditions.
+
+### multi-optical-section-layers
+
+*optical-layer0 / comparison*
+
+**Q.** The line side stacks ots, oms, ops and osc facilities on top of each other. What does each one represent, and which carries the supervisory traffic?
+
+**A.** Four section layers, distinguished by what they span. ots is the Optical Transport Section facility, the whole fibre section between two nodes. oms is the Optical Multiplex Section, the multiplexed band riding on it, and it is where attenuation control appears, read as show oms-1-1-dwdm-line attenuation-control-mode-tx. ops is the Optical Physical Section, and it carries a role of tributary, multi-carrier, general-purpose, ase-input or active-multi-carrier, defaulting to general-purpose. osc is the Optical Supervisory Channel, which is the one carrying supervisory traffic between nodes rather than payload. All four take admin-state of lock, unlock or maintenance defaulting to unlock, and all four are available in operational and candidate configuration mode.
+
+Source: `06-operation-commands/225-ots.md`, `06-operation-commands/209-oms.md`, `06-operation-commands/210-ops.md`, `06-operation-commands/215-osc.md`
+
+Not stated by the document: Describing the four as a stack, and OTS as spanning the whole fibre section, is inference from their names. The guide defines each facility without relating them.
+
+### multi-client-failure-laser-action
+
+*transport-layer1 / consequence*
+
+**Q.** If a client signal fails on a tributary port, what does the node do to the laser, and where is that behaviour configured?
+
+**A.** trib-ptp is the tributary client physical termination layer, sitting between the transceiver equipment and the immediate protocol layer, and it carries tributary-disable-action, set as set trib-ptp-1-5-T2 tributary-disable-action laser-shut-off. Two cautions attach to it. Its add works in merge mode only: using the -m flag performs a merge, a best effort add, creating the entity if it does not exist and updating it if it does, so an add will not fail the way it would elsewhere. Separately, operation of the ZXS-QDZRZZZZ-00 above 40 degrees C is not supported, and in that case the module is placed in low power mode and a CFG-MSMT alarm is raised, which looks like a client fault but is thermal. optical-carrier is the corresponding optical side object, brought up with set optical-carrier-group1 admin-state unlock, and fc is the fibre channel client facility with its own attributes.
+
+Source: `06-operation-commands/358-trib-ptp.md`, `06-operation-commands/211-optical-carrier.md`, `06-operation-commands/106-fc.md`
+
+Not stated by the document: That a thermal low-power event can be mistaken for a client fault is inference; the guide states the behaviour but draws no such comparison.
+
+### multi-otn-layers-auto-created
+
+*transport-layer1 / enumeration*
+
+**Q.** Among the OTN layers, which do I have to create by hand and which appear on their own, and what has to exist before I can add the rest?
+
+**A.** odu is partly automatic: the high order ODU is automatically created when an SCH is created, so it appears without being added, and the guide advises that when a CHM6 has an OTU configured on it you use show odu to determine whether the ODU exists. Low order ODUs are not automatic and carry an explicit pre-condition, that the super-channel must be added before Low Order ODUs can be added. otu is created explicitly with add, set and delete, and carries loopback of none, facility or terminal alongside alarm-report-control, as in set otu-OTUC4 alarm-report-control enabled. ethernet is the client facility above them, with its own admin-state of lock, unlock or maintenance and its own loopback.
+
+Source: `06-operation-commands/207-odu.md`, `06-operation-commands/229-otu.md`, `06-operation-commands/099-ethernet.md`
+
+### multi-prove-circuit-with-test-signals
+
+*transport-layer1 / troubleshooting*
+
+**Q.** I need to prove a client circuit before handing it over. What runs a bit error rate test, where do I inject a test pattern, and what loops the signal back?
+
+**A.** bert runs the test itself, starting, stopping, getting and deleting Bit Error Rate Test operations. Its test-id is system generated, and the guide states the test-id attribute is mandatory for the bert stop command, so capture it when you start. test-duration defaults to 0, which implies an indefinite test. The pattern is injected on the facility rather than on bert: ethernet carries test-signal-type with values including PRBS31Q, PRBS13Q, scrambled-idles, PRBS9 and PRBS31, with test-signal-direction defaulting to egress, and it carries loopback of none, facility or terminal, which is what loops the signal. odu-diagnostics offers the same test-signal-type set at the ODU layer, but its test-signal-direction defaults to ingress rather than egress and test-signal-monitoring defaults to false. otu-diagnostics covers the OTU layer, with tti-style and tti-mismatch-alarm-reporting, set as set otu-diagnostics-1-1-1-OTUC1/ingress tti-mismatch-alarm-reporting SAPI.
+
+Source: `06-operation-commands/028-bert.md`, `06-operation-commands/099-ethernet.md`, `06-operation-commands/208-odu-diagnostics.md`, `06-operation-commands/230-otu-diagnostics.md`
+
+Not stated by the document: The advice to capture test-id at start follows from it being mandatory to stop, but the guide does not give a test procedure. The opposite direction defaults on ethernet and odu-diagnostics are stated per object; treating the difference as a trap is editorial.
+
+### multi-l1-encryption-prerequisites
+
+*encryption-ipsec-macsec / pre-condition*
+
+**Q.** Before layer 1 encryption will come up on a link, what has to already be in place at each end?
+
+**A.** Identity comes first. secure-application is the binding: a secured application represents an application which uses X509v3 certificate as its digital identity, so the application cannot be secured until a certificate exists for it. That certificate is local-certificate, the X.509v3 end-entity certificate that represents one of various secure application identities, with version fixed at v3. The link itself is secure-entity, added against the optical carrier it protects and naming its far end, as in add secure-entity-NE202-1-4-L1-1 supporting-facility optical-carrier-1-4-L1-1 remote-secure-entity '1-4-L1-1' re-key-fail-policy kill-traffic, where re-key-fail-policy decides what happens if re-keying fails and kill-traffic is one of the choices. data-path-encryption is the read view over the datapath encryption attributes.
+
+Source: `06-operation-commands/276-secure-application.md`, `06-operation-commands/159-local-certificate.md`, `06-operation-commands/277-secure-entity.md`, `06-operation-commands/071-data-path-encryption.md`
+
+Not stated by the document: Ordering this as certificate first, then application, then entity is inference. The guide states the dependency on a certificate but gives no bring-up order.
+
+### multi-telemetry-persistent-vs-dynamic
+
+*management-protocols / comparison*
+
+**Q.** What are the two kinds of streaming we can set up here, and how do I see what is currently subscribed and what each one is watching?
+
+**A.** telemetry is the configuration point and names the two kinds directly: it is used to configure persistent and dynamic telemetry. subscriptions is the read view, showing the list of subscriptions currently in place. subscription-path is the finer view, retrieving information about the subscription-paths, which is what identifies the data each subscription is actually watching. So the split is telemetry for configuring, subscriptions for what exists, and subscription-path for what each one covers.
+
+Source: `06-operation-commands/344-telemetry.md`, `06-operation-commands/317-subscriptions.md`, `06-operation-commands/316-subscription-path.md`
+
+Not stated by the document: The guide names persistent and dynamic telemetry but does not define either, so any account of how they differ, such as one surviving restart or one being client-created, is inference.
+
+### multi-database-protection-before-copy
+
+*config-datastore / pre-condition*
+
+**Q.** What protects the configuration database at rest, and what has to be configured before I can take a copy of it?
+
+**A.** db-protection-scheme shows the scheme currently in force. Changing it goes through db-migrate, run as db-migrate -f encryption-with-integrity, so the protection level is migrated rather than set in place. Taking a copy has its own precondition: take-snapshot creates a local database snapshot, but the system will only accept the command if the db-passphrase, used for DB snapshot encryption, is configured, either globally as part of the security-policies or locally as a parameter of the command. It also overwrites without asking, since if a snapshot of that name already exists the command overwrites the existing file. database is the surrounding read view listing the databases in the system, and the guide notes it does not wipe logs, PM data and other non-configuration data.
+
+Source: `06-operation-commands/074-db-protection-scheme.md`, `06-operation-commands/073-db-migrate.md`, `06-operation-commands/342-take-snapshot.md`, `06-operation-commands/072-database.md`
+
+Not stated by the document: Reading db-migrate as the way the protection scheme is changed is inference from the command name and its example; the guide describes it as showing attributes.
+
+### multi-prefix-not-forwarding
+
+*ip-networking / troubleshooting*
+
+**Q.** A prefix I added is not being used for forwarding. Where do I look to see whether it reached the forwarding table and which instance it landed in?
+
+**A.** rib is the first place: it shows RIB entries and is read per address family, as show rib-IPv4. The guide states that all routes in a RIB belong to the same address family, so an IPv6 prefix will never appear in the IPv4 RIB and an empty result may just mean you asked the wrong one. vrf shows the Virtual Routing and Forwarding instance, read as show vrf-MGMT, which is how you tell which instance a route landed in when more than one exists. next-hop shows the next hop in a route, which is where an unresolved gateway shows up. route is the combined view, listing system routes from various sources such as dynamic protocols and static route, so a prefix present there but absent from the RIB has been learned but not installed.
+
+Source: `06-operation-commands/267-rib.md`, `06-operation-commands/372-vrf.md`, `06-operation-commands/192-next-hop.md`, `06-operation-commands/269-route.md`
+
+Not stated by the document: Reading 'present in route but absent from rib' as learned-but-not-installed is diagnostic inference; the guide describes each view without relating them.
+
+### multi-password-rejected-and-locked-out
+
+*security-access-control / troubleshooting*
+
+**Q.** A user says their new password was rejected, and now they cannot log in at all. Which policy settings govern that, and how do I clear their stuck session?
+
+**A.** security-policies holds the rules. minimum-password-length defaults to 8 within a range of 1 to 200, strict-password-check defaults to true, and reuse is blocked by enforce-password-history-check, true by default, with password-history-size defaulting to 5, described as the number of passwords to store for password reuse checking. Login itself is governed elsewhere in the same object: ssh-authentication-method takes password or public-key and defaults to password, aaa-authentication-method defaults to local-only, and secure-mode defaults to true. password is how a user changes their own, and the guide notes this is supported only for local users and that a password may contain up to 200 characters. user-group determines what they can then do, since each user will be associated with a list of groups, and will derive its permissions from them. kill-session closes any established session independently of its type, as kill-session 10.24.11.25:56212.
+
+Source: `06-operation-commands/280-security-policies.md`, `06-operation-commands/233-password.md`, `06-operation-commands/369-user-group.md`, `06-operation-commands/149-kill-session.md`
+
+Not stated by the document: Connecting the rejected password to the history or length policy, and the lockout to the authentication method, is diagnostic inference. The guide documents the attributes and no failure behaviour.
+
+### multi-logging-defaults-and-rotation
+
+*fault-alarms-logging / default*
+
+**Q.** What are the logging defaults on a node nobody has touched, how many files are kept before rotation, and what single switch turns off everything remote?
+
+**A.** log-file holds the local side: number-of-files defaults to 10, max-file-size defaults to 30 and is described as the maximum file size before rotation in megabytes, source-facilities defaults to all, and by default severity is set to informational and above. The guide also notes the default system log file cannot be edited or deleted. log-server holds each remote destination: transport is tcp, udp or tls defaulting to udp, the port defaults to 514, message-format is rfc3164 or rfc5424 defaulting to rfc5424, enabled defaults to true, message-coalescence defaults to true, and origin records whether the address came from dhcp or was set manually. The single switch is on syslog: remote-logging-switch defaults to true and, if false, disables all remote logging destinations. syslog also carries source-address defaulting to localhost and assignment-method defaulting to both. log retrieves the files themselves, and the guide warns that due to system restrictions the security log may not be cleared.
+
+Source: `06-operation-commands/166-log-file.md`, `06-operation-commands/168-log-server.md`, `06-operation-commands/339-syslog.md`, `06-operation-commands/163-log.md`
+
+### multi-alarm-clearing-and-inhibit
+
+*fault-alarms-logging / disambiguation*
+
+**Q.** Some alarms clear themselves and some do not. Which object lists what is raised now, which lets me clear one by hand, and what decides whether inhibiting reporting drops the ones already up?
+
+**A.** alarm is the manual side: it clears alarms that have no auto criteria to be cleared and shows currently raised alarms. The guide explains that in the majority of cases alarms have an automatic raise criteria and equally a clear criteria, and the exceptions require user to acknowledge and clear the alarm manually; those can be listed with show alarm-inventory can-be-cleared-by-user=true. It also notes this mechanism applies only to system alarms not associated with any particular resource. current-alarms is the plain list of currently raised alarms, carrying a timestamp of the last change in the current alarm list, either a raise or clear event. alarm-control decides the inhibit question: arc-behavior takes leave-alarms or clear-alarms and defaults to leave-alarms, so when ARC is set to inhibit it leaves current alarms in a raised mode, and alarm-soaking-behavior is automatic or no-soak. alarm-severity-entry is separate again and configures the severity for one particular alarm.
+
+Source: `06-operation-commands/014-alarm.md`, `06-operation-commands/066-current-alarms.md`, `06-operation-commands/015-alarm-control.md`, `06-operation-commands/017-alarm-severity-entry.md`
+
+### multi-card-running-hot
+
+*system-node-time / troubleshooting*
+
+**Q.** A card is reported to be running hot. Which dashboard shows the temperature sensors, how do I narrow it to one slot, and what else reflects the state physically?
+
+**A.** status displays multiple dashboard-type outputs, and the equipment view is the one covering temperature sensors, narrowed by argument as status equipment 5. Its filter has a documented limit: wildcards in the middle of the AID are not supported and the asterisk needs to be at the end or right side of the AID filter field, so filter from the right. led reflects the same state physically, showing the representation of a LED in a FRU with values such as green, flashing-green, red and amber, and the object exists even if FRU is not physically present, so an entry there is not proof of presence. card carries admin-state, oper-state, avail-state and alarm-report-control for the unit itself. chassis carries the environment around it, including the ambient temperature, where for a Native ZR TOM the user needs to set the chassis ambient temperature to 40C, plus expected-fan-type, filter-maintenance-interval and actual-power-draw-alarm-threshold.
+
+Source: `06-operation-commands/312-status.md`, `06-operation-commands/152-led.md`, `06-operation-commands/040-card.md`, `06-operation-commands/047-chassis.md`
+
+Not stated by the document: Treating a led entry as not proving presence follows from the stated behaviour, but the guide does not offer it as diagnostic advice.
+
+### multi-span-loss-drift
+
+*optical-layer0 / troubleshooting*
+
+**Q.** The span loss on one line has drifted upward over months. Which objects tell me what the line is doing and what the amplifier is compensating with?
+
+**A.** ots is the Optical Transport Section facility, the line section object itself, with admin-state defaulting to unlock. The compensation shows on amplifier: span-loss-control defaults to enabled, gain-target runs 0 to 40 dB while gain-operating and gain-adjustment report what is actually being applied, input-power-mon and output-power-mon give the measured powers either side, and control-state reads unknown, not-applicable, stopped, converged, fine-tuning or adjusting, so a gain that keeps climbing with control-state converged is the amplifier absorbing the drift. otdr-ptp holds the settings that characterise the fibre itself, including otdr-range, otdr-pulse-width, otdr-resolution and otdr-last-measurement, which dates the last characterisation. optical-carrier is the carrier riding the line.
+
+Source: `06-operation-commands/225-ots.md`, `06-operation-commands/019-amplifier.md`, `06-operation-commands/224-otdr-ptp.md`, `06-operation-commands/211-optical-carrier.md`
+
+Not stated by the document: Reading rising gain with a converged control-state as the amplifier absorbing span loss drift is diagnostic inference; the guide documents the attributes only.
+
+### chain-client-service-down-to-line
+
+*optical-layer0 / comparison*
+
+**Q.** Following one client service down towards the wavelength it rides on the line, which objects does it pass through, and where does the digital domain hand over to the optical one?
+
+**A.** Three objects mark the layers. ethernet is the client facility at the top, carrying admin-state of lock, unlock or maintenance plus its own loopback and test-signal-type, so it is where the customer's traffic is framed. odu is the digital transport layer beneath it, and it is partly automatic: the high order ODU is automatically created when an SCH is created, while low order ODUs need the super-channel added first. optical-carrier is the optical side, added and set directly, for example set optical-carrier-group1 admin-state unlock. Everything at or above the ODU is digital framing and everything at the optical carrier and below is optical, so the optical carrier is where the handover sits.
+
+Source: `06-operation-commands/211-optical-carrier.md`, `06-operation-commands/207-odu.md`, `06-operation-commands/099-ethernet.md`
+
+Not stated by the document: The layering itself, and locating the digital-to-optical handover at the optical carrier, is inference. The guide documents each facility independently and never presents a service path. Calling ethernet 'the top' and optical-carrier 'the bottom' is an ordering the guide does not state.
+
+### chain-threshold-versus-severity
+
+*performance-monitoring / disambiguation*
+
+**Q.** I want to be told when a counter crosses a limit, and separately I want to change how loudly an existing fault is reported. These feel like the same knob. Are they?
+
+**A.** No, they are two mechanisms that meet only at the point an event is emitted. pm-threshold is the limit itself, set per instance with low-threshold and high-threshold, where the high one is the configured high threshold value for resources that have this parameter, and both default to na, meaning no limit. Whether crossing that limit is even watched is pm-control-entry, whose tca-supervision is a true or false flag for that resource, period, direction and location. Neither has anything to do with how a fault is reported. That is alarm-severity-entry, keyed by resource-type, alarm-type, direction and location, which allows the severity for one particular alarm to be configured. So the PM objects decide whether an event happens at all, and the alarm object decides how an alarm that already exists is graded.
+
+Source: `06-operation-commands/244-pm-threshold.md`, `06-operation-commands/239-pm-control-entry.md`, `06-operation-commands/017-alarm-severity-entry.md`
+
+Not stated by the document: That the two mechanisms 'meet at the point an event is emitted' is inference. The guide documents the PM objects and the alarm severity object in separate chapters and never relates them. Reading a threshold default of na as 'no limit' extends the value; the guide gives na without a gloss.
+
+### chain-quiet-a-card-for-maintenance
+
+*equipment-inventory / troubleshooting*
+
+**Q.** I am about to work on a card and I do not want it generating noise for the NOC. How do I stop it reporting, and what happens to the alarms it has already raised?
+
+**A.** On the card itself, alarm-report-control takes allowed or inhibited, and admin-state takes lock, maintenance or unlock, so maintenance is the state that says work is in progress rather than that the card is out of service. What happens to alarms that are already up is not decided on the card: alarm-control holds arc-behavior, which takes leave-alarms or clear-alarms and defaults to leave-alarms, so by default when ARC is set to inhibit it leaves current alarms in a raised mode and the NOC keeps seeing them. alarm-soaking-behavior, automatic or no-soak, governs whether new ones are held before being reported. current-alarms is how you check what is actually raised, with a timestamp of the last change in the current alarm list, either a raise or clear event. led still reflects physical state regardless, and the object exists even if FRU is not physically present.
+
+Source: `06-operation-commands/040-card.md`, `06-operation-commands/015-alarm-control.md`, `06-operation-commands/066-current-alarms.md`, `06-operation-commands/152-led.md`
+
+Not stated by the document: Reading admin-state maintenance as 'work in progress rather than out of service' is interpretation; the guide lists the value without defining the distinction. The guide does not describe a maintenance procedure. Presenting these as the steps for quieting a card is editorial.
+
+### chain-certificate-behind-encrypted-app
+
+*certificates-pki / pre-condition*
+
+**Q.** Which certificate does an encrypted application actually present to the far end, and what has to be imported before it will come up?
+
+**A.** secure-application is the link between the two areas: a secured application represents an application which uses X509v3 certificate as its digital identity. The certificate it presents is local-certificate, the X.509v3 end-entity certificate that represents one of various secure application identities, with version fixed at v3. For the far end's certificate to be accepted, the issuing authority has to be present, which is trusted-certificate, holding the X509v3 CA, root and intermediate, trusted by the system. certificate is the inventory and removal view over all of them: it deletes already imported local, trusted and peer certificates and shows the list of current certificates and certificate revocations, with type taking trusted, local or peer, and removal follows the form clear certificate local certX.
+
+Source: `06-operation-commands/159-local-certificate.md`, `06-operation-commands/276-secure-application.md`, `06-operation-commands/359-trusted-certificate.md`, `06-operation-commands/045-certificate.md`
+
+Not stated by the document: That the CA must be present before the far end's certificate is accepted is standard PKI behaviour, not something this guide states. Ordering this as import CA, then local certificate, then bind the application is inference; the guide gives no sequence.

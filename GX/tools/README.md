@@ -166,5 +166,5 @@ to its command; domain counts match their tables; and every number written into
 prose in `INDEX.md`, `index/README.md`, `index/parameters.md` and
 `index/access-control.md` matches the data. If you change a generator, run it.
 
-Current state: 30 of 30 assertions pass, 2,142 links resolve, and the split
+Current state: 30 of 30 assertions pass, 2,221 links resolve, and the split
 reassembles byte-identically to the source.

@@ -55,7 +55,7 @@ One JSON object per line, 395 lines.
 - 395 commands, 3800 parameter rows, 1787 distinct parameter names
 - 294 commands address a named entity; 101 are action commands
 - 47 commands carry explicit execution-access rules; 70 objects carry model access rules
-- 57 topics, 486 topic-to-command associations
+- 57 topics, 487 topic-to-command associations
 - `tables.tsv` covers 857 tables and 7 figures. The source gives Figure 7 no
   caption line (it is listed in the List of Figures and its image reference
   exists), so it has no row.

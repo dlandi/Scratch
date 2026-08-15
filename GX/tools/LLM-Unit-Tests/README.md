@@ -9,33 +9,41 @@ states.
 ```bash
 python run_tests.py              # validate the tests, then score retrieval
 python run_tests.py -v           # show every test, not just failures
+python run_tests.py --prose      # list identifiers in answers to hand-check
 python run_tests.py --render     # regenerate TESTS.md for human reading
+python _clusters.py              # candidate clusters for multi-command tests
 ```
+
+`_dump.py` prints the substance of a domain's sections, `_clusters.py` proposes
+clusters, and `_authoring.py` builds a batch with the conventions enforced.
 
 No third-party packages, no model required for the default run.
 
 ## Status
 
 **Chapter 6 is complete: all 374 operation commands have at least one test.**
-376 single-command tests across 14 batches, plus the 5 pilot multi-command
-tests, which stay parked until the single-command set is signed off.
+376 single-command tests across 14 batches, plus 65 multi-command tests: 5
+pilots, 30 in batch 1 from the AID-ancestry and confusable-name bases, and 30 in
+batch 2 from the topic clusters and four cross-layer chains. The multi tests
+cite 187 distinct command files and reach all 16 domains.
 
 | Measure | Value |
 | --- | --- |
 | Chapter 6 coverage | 374 / 374 commands |
 | Single-command tests | 376 |
-| Multi-command tests | 5 (pilot) |
-| Validate against the document | 381 / 381 |
-| Route correctly from the index | 380 / 380 scored, 1 excluded as compound |
-| Question does not name its command | 356 / 376 (94%) |
-| Distinct archetypes | 15 |
+| Multi-command tests | 65 |
+| Validate against the document | 441 / 441 |
+| Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
+| Question does not name its command | 356 / 376 single, 55 / 65 multi |
+| Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 30 |
-| Average reference answer | 468 characters |
-| Verbatim evidence quotes | 403 |
+| Average reference answer | 468 characters single, 775 multi |
+| Verbatim evidence quotes | 610 |
+| Multi tests needing decomposition | 1 of 65 (2%) |
 
-Batches are one file each in `tests/`, named `single-NN-<domains>.jsonl`, so a
-batch stays separately reviewable and the runner picks up every `.jsonl` in the
-directory.
+Batches are one file each in `tests/`, named `single-NN-<domains>.jsonl` or
+`multi-NN-<basis>.jsonl`, so a batch stays separately reviewable and the runner
+picks up every `.jsonl` in the directory.
 
 ## What a test looks like
 
@@ -77,9 +85,11 @@ fails. This is what stops a test from asserting something the guide never said.
 expected file? The runner reproduces what an agent does: match the question
 against `topics.md` search terms, command names in `INDEX.md`, parameter names
 in `parameters.md` and AID prefixes in `entities.md`. Deterministic, no model.
-Single-command tests must reach their one file; multi-command tests must reach
-at least half the cluster, because no single query realistically surfaces every
-member.
+Single-command tests must reach their one file. Multi-command tests must reach
+their `primary` file, the one the question centres on, **plus** half of the rest
+of the cluster. No single query realistically surfaces every member, but
+accepting any half is too weak a bar: it lets a test pass while the query misses
+the very thing the question was about.
 
 **Layer 2, facts.** Supply candidate answers as JSONL of `{"id":…, "answer":…}`
 and pass `--answers`; each answer must contain every string in `expect.facts`.
@@ -87,6 +97,23 @@ and pass `--answers`; each answer must contain every string in `expect.facts`.
 Layer 3, judging prose against `approximate_answer`, is intentionally not
 implemented. It needs a model at run time. The reference answers are written for
 that purpose when you want it.
+
+**What no layer checks.** Nothing validates the prose of `approximate_answer`.
+Layer 0 covers the evidence quotes and the `facts` strings, so a fabricated
+*quote* cannot pass, but a fabricated *sentence* can. Reviewing batch 1 found
+exactly that: an answer asserted a parameter named `default-pm-supervision`,
+which does not exist. The real ones are `default-data-supervision` and
+`default-tca-supervision`, so the invention read perfectly next to them and
+passed every layer. `--prose` exists to make that class visible: it lists
+hyphenated identifiers used in an answer but absent from the files that answer
+cites. It is an authoring aid, not a gate, because separating a corpus
+identifier from an English compound needs judgement.
+
+Read its output with the test type in mind. Multi-command tests cite a whole
+cluster, so almost anything they mention should be in one of those files and the
+signal is sharp: 3 flags across 35 tests. Single-command tests cite one file and
+legitimately mention neighbouring commands, so they average 0.79 flags each and
+most are cross-references rather than errors.
 
 ## What the batches found
 
@@ -143,6 +170,10 @@ them.
 - **`weak: true`**: the source section is too thin to support a substantial
   question (13 commands in Chapter 6 have two or fewer parameters and no
   examples). Marked rather than padded into looking substantial.
+- **`primary`** on multi-command tests: the one file the question centres on.
+  Required by layer 0, and layer 1 will not pass a test that misses it. Choose
+  it before writing the question; if no single file is the centre, the question
+  is probably compound and belongs under `requires_decomposition`.
 - **`inference_flags`** on multi-command tests: anything the answer says that
   the document does not state. The guide contains **no procedures**, so any
   ordering ("first do A, then B") is inference and must be flagged.
@@ -156,18 +187,108 @@ a quote that is not verbatim or a fact absent from the cited files, so a
 fabricated test cannot pass silently. Write the question first from the
 operator's point of view, then find the answer in the file, not the reverse.
 
-Multi-command clusters are drawn from the 16 curated domains, the topics in
-`index/topics.md`, and the AID containment hierarchy. `cluster_basis` records
-which of those the cluster came from.
+Multi-command clusters are not chosen by hand. `python _clusters.py` derives
+candidates from three independent bases and prints them; `cluster_basis` records
+which one a test came from.
+
+| Basis | Clusters | What it groups |
+| --- | --- | --- |
+| `hierarchy:<root>` | 10 | Commands whose instance key path descends from another entity, so the cluster answers "what addresses a card, and what does a card hold" |
+| `confusable:<name>` | 17 | Names close enough to reach for by mistake. Feeds `disambiguation` questions |
+| `topic:<title>` | 53 | The curated topics in `index/topics.md`, grouped by subject rather than structure |
+
+Clusters outside 3 to 8 members are printed but flagged: below that a question
+does not need several sections, above it the cluster is a subject area rather
+than a question. Oversized ones are never dropped silently, since an oversized
+component is a real family needing a hand split, not an absence of candidates.
 
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete. What is left:
 
-- **Multi-command tests**: 5 of a planned ~60. Held until the single-command
-  set is reviewed, as agreed.
+The planned multi-command set is complete: 65 against a target of about 60,
+across all five cluster bases. What is left:
+
 - **Chapters 3, 4 and 5**: the 21 auxiliary, navigation and piped commands have
-  no tests. They are indexed and routable, just not covered here.
+  no tests. They are indexed and routable, just not covered here. This is now
+  the largest gap.
 - **Second tests for rich commands**: `show`, `set`, `download`, `status` and
-  `activate` each carry far more behaviour than one question exercises. Only
-  `activate` and `optical-carrier` currently have two.
+  `activate` each carry far more behaviour than one question exercises. The
+  multi batches now exercise `set`, `activate` and `status`, but none has a
+  second single-command test.
+- **Layer 2 and 3**: no candidate answer set has been run through `--answers`,
+  and layer 3 remains unimplemented by choice.
+
+## What batch 1 found
+
+Three retrieval gaps, all fixed in `../curated.py`:
+
+- `nct-connection` sat only in the multi-chassis topic, so a question about
+  links in the topology could not reach it despite it being in the
+  `topology-discovery` domain. Fixed by topic membership, not by a new term.
+- `connectivity` reached nothing: every term used `connection`, which is not a
+  substring of it.
+- `supports` reached nothing. The inventory topic had `supported`, so "what is
+  supported" routed and "what a card supports" did not. Only the missing
+  inflection was added, not the stem `support`, which would also fire on
+  `supporting-facility` questions and drag 14 capability commands into optical
+  and encryption queries.
+
+Five multi tests still reach only part of their cluster, and that is correct
+rather than a gap. A cluster is a structural fact about the corpus; a question
+is one operator's phrasing of one intent. `multi-access-rule-object-disambiguation`
+cannot reach `sw-control-rule` because the ACL vocabulary is all packet-shaped
+and `sw-control-rule` is about service failure. Putting it in the ACL topic to
+make the number look better would corrupt ACL routing to no benefit.
+
+**Batch 1 is skewed toward one archetype.** 15 of its 30 tests are
+`disambiguation`, because a cluster of confusable names almost forces that
+question shape: if the members are alike, the useful question is which is which.
+Batch 2 was planned archetype-first to correct it, choosing the target spread
+before choosing clusters, and landed at 8 `troubleshooting`, 5 `pre-condition`,
+4 `comparison`, 3 each of `consequence` and `enumeration`, 2 each of
+`parameter-values`, `how-to` and `disambiguation`, and 1 `default`.
+
+## What batch 2 found
+
+One retrieval gap, in the telemetry topic. It had `subscription` but not the
+verb form, so "what is currently subscribed" reached nothing, and it had no term
+for `streaming` at all, which is what operators call this feature. Fixed by
+replacing `subscription` with the stem `subscri` and adding `stream`.
+
+Two other failures were the question's fault rather than the index's, and are
+worth recording because the distinction matters. A question about "the reset
+options" missed because the topic carries `factory reset`, and one about an
+amplifier that would not turn on missed because it never said "power" although
+its own answer was entirely about power. Both were reworded to what an operator
+would actually type. Adding bare `reset` would have been the wrong fix: it would
+pull `clear` and `database` into every PM-counter and password question, and the
+harness measures recall only, so nothing here would have caught the damage.
+
+**Reviewing a batch written with `_authoring.py` needs different checks.** The
+script enforces the conventions at write time, so re-running them proves
+nothing; a review has to go where the tooling cannot. Two checks earned their
+keep on batch 2, neither of them cheap to automate permanently:
+
+- **Attribution.** The prose check concatenates every cited file, so an
+  attribute credited to the wrong object in the cluster passes. Checking it
+  needs the answer segmented by which command each sentence is about. Beware two
+  traps: `\botdr\b` matches inside `otdr-ptp`, so match whole hyphenated tokens
+  only; and command names that are ordinary nouns, `database` and `password`,
+  produce false segment boundaries. Batch 2 had 0 real errors and 7 such
+  artifacts.
+- **Every stated default against the parameter record.** 51 of batch 2's
+  default claims verified; the 15 flagged were nearly all the match window
+  spilling into the next clause. The one real defect it found is the kind
+  nothing else would catch: an answer that said `restart` with no resource-id
+  "acts on the default target", where the record says it restarts the active
+  controller card. Not false, but it dropped the actual consequence from a
+  `consequence` test.
+
+`_authoring.py` encodes this README's conventions as assertions. It derives
+`cluster` and `names_command` from the corpus rather than accepting typed
+values, refuses any fact appearing in more than a quarter of the files, and
+writes nothing unless every record in the batch passes. It rejected two records
+while batch 2 was being written: a fact of `RIB`, which matches as a substring
+of "describe" and "attribute" and so appears in 217 of 395 files, and an
+invented identifier in an answer.

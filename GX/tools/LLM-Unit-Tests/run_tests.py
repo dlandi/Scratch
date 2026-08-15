@@ -3,6 +3,7 @@
     python run_tests.py                 # validate + retrieval (no model needed)
     python run_tests.py --validate      # only check the tests themselves
     python run_tests.py --answers a.jsonl   # also score key facts in answers
+    python run_tests.py --prose         # list identifiers in answers to hand-check
     python run_tests.py --render        # write TESTS.md for human reading
     python run_tests.py -v              # show every test, not just failures
 
@@ -16,7 +17,9 @@ Three layers, in increasing cost:
                 expected file? Simulates what an agent does: match the question
                 against topics.md search terms, INDEX.md command names,
                 parameters.md parameter names and entities.md AID prefixes.
-                Deterministic, no model required.
+                Deterministic, no model required. A single-command test must
+                reach its one file; a multi-command test must reach its
+                `primary` file plus half of the rest of the cluster.
   2. FACTS      Given a candidate answer, does it contain the required facts?
                 Needs an answers file: JSONL of {"id": ..., "answer": ...}.
 
@@ -73,6 +76,14 @@ def validate(tests):
         for field in ("question", "approximate_answer", "expect", "evidence"):
             if not t.get(field):
                 problems.append((tid, f"missing {field}"))
+        # multi tests name the file the question centres on, so scoring can
+        # require it rather than accepting any half of the cluster
+        if t.get("type") == "multi":
+            primary = t.get("primary")
+            if not primary:
+                problems.append((tid, "multi test missing primary"))
+            elif primary not in t.get("expect", {}).get("files", []):
+                problems.append((tid, f"primary not in expect.files: {primary}"))
         for rel in t.get("expect", {}).get("files", []):
             if not os.path.exists(os.path.join(DOCS, rel.replace("/", os.sep))):
                 problems.append((tid, f"expected file missing: {rel}"))
@@ -97,6 +108,46 @@ def validate(tests):
             if fact.lower() not in bodies.lower():
                 problems.append((tid, f"fact not present in expected files: {fact!r}"))
     return problems
+
+
+# ------------------------------------------------- authoring aid: prose check
+# English compounds that look like corpus identifiers but are not. Kept small
+# and explicit: anything added here stops being checked, so add a word only
+# after confirming the corpus really has no such identifier.
+PROSE_STOP = {
+    "read-only", "read-write", "far-side", "operator-driven", "type-keyed",
+    "instance-keyed", "add-and-drop", "end-entity", "service-level", "per-card",
+    "per-instance", "per-session", "per-type", "per-node", "per-parameter",
+    "type-wide", "protocol-wide", "well-known", "roll-back", "hand-entered",
+    "multi-chassis", "zero-touch", "self-contained", "non-standard", "x509v3",
+    "sub-ports", "sub-components",
+}
+
+
+def prose(tests):
+    """Flag identifiers asserted in approximate_answer but absent from the cited files.
+
+    Layer 0 validates evidence quotes and the `facts` strings, but never the
+    reference answer's prose. That gap is real: batch 1 shipped a fabricated
+    parameter name, `default-pm-supervision`, which reads plausibly next to the
+    genuine `default-data-supervision` and passed every layer. This is an
+    authoring aid rather than a gate, because distinguishing a corpus identifier
+    from an English compound needs judgement and a false failure here would be
+    worse than the miss.
+    """
+    hits = []
+    for t in tests:
+        bodies = " ".join(read(f) for f in t["expect"]["files"]
+                          if os.path.exists(os.path.join(DOCS, f.replace("/", os.sep)))).lower()
+        toks = {m.group(0) for m in
+                re.finditer(r"\b[a-z][a-z0-9]*(?:-[a-z0-9]+)+\b",
+                            t.get("approximate_answer", "").lower())}
+        for tok in sorted(toks):
+            # a trailing plural of a real identifier is prose, not a claim
+            if tok in PROSE_STOP or tok in bodies or tok.rstrip("s") in bodies:
+                continue
+            hits.append((t["id"], tok))
+    return hits
 
 
 # --------------------------------------------------------------- layer 1
@@ -162,10 +213,21 @@ def retrieval(tests, idx, verbose):
         want = set(t["expect"]["files"])
         got, why = idx.route(t["question"])
         found = want & got
-        # single: the one file must be reachable. multi: at least half the
-        # cluster, since no single query realistically surfaces every member.
-        need = len(want) if t["type"] == "single" else max(1, (len(want) + 1) // 2)
-        ok = len(found) >= need
+        # single: the one file must be reachable. multi: the primary file, the
+        # one the question centres on, plus half of the rest. No single query
+        # realistically surfaces every member, but reaching any half is too weak
+        # a bar: it passes when the query misses the very thing it asked about.
+        if t["type"] == "single":
+            ok, detail = len(found) >= len(want), ""
+        else:
+            primary = t["primary"]
+            rest = want - {primary}
+            got_primary = primary in got
+            got_rest = len(found & rest)
+            need_rest = (len(rest) + 1) // 2
+            ok = got_primary and got_rest >= need_rest
+            detail = (f" primary={'hit' if got_primary else 'MISS'}"
+                      f" rest={got_rest}/{len(rest)} need {need_rest}")
         if not ok and t.get("requires_decomposition"):
             decomp.append(t["id"])
             if verbose:
@@ -175,7 +237,8 @@ def retrieval(tests, idx, verbose):
         passed, failed = (passed + ok, failed + (not ok))
         if verbose or not ok:
             mark = "PASS" if ok else "FAIL"
-            print(f"  [{mark}] {t['id']}  ({len(found)}/{len(want)} via {','.join(why) or 'nothing'})")
+            print(f"  [{mark}] {t['id']}  ({len(found)}/{len(want)} via "
+                  f"{','.join(why) or 'nothing'}){detail}")
             if not ok:
                 print(f"         Q: {t['question'][:96]}")
                 for miss in sorted(want - got):
@@ -242,6 +305,13 @@ def main():
     print(f"  {len(tests) - len({p[0] for p in problems})}/{len(tests)} tests valid")
     if problems:
         return 1
+
+    if "--prose" in sys.argv:
+        print("\n== authoring aid: identifiers in answers, not in the cited files ==")
+        hits = prose(tests)
+        for tid, tok in hits:
+            print(f"  [CHECK] {tid}: {tok!r}")
+        print(f"  {len(hits)} to review by hand (not a pass/fail gate)")
 
     if "--render" in sys.argv:
         render(tests)
