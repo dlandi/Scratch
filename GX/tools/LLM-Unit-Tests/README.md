@@ -12,6 +12,7 @@ python run_tests.py -v           # show every test, not just failures
 python run_tests.py --prose      # list identifiers in answers to hand-check
 python run_tests.py --render     # regenerate TESTS.md for human reading
 python precision.py              # what the index drags in, and which term did it
+python compare_runs.py           # score every stored model run, and compare them
 python _clusters.py              # candidate clusters for multi-command tests
 ```
 
@@ -122,8 +123,11 @@ in both directions. It fires when it should not, since `oc` occurs inside
 so `reboot` still matches "reboots". And it fails when it should not, since the
 guide writes `software-load` and `next-hop` where an answer writes "software
 load" and "next hop", so a fact spanning more than one token also matches with
-its separators flattened. One run is stored in `runs/`, so the tests can be
-re-scored against it after an edit without paying for the model again.
+its separators flattened. Runs are stored under `runs/run-NN/`, so the tests can
+be re-scored against them after an edit without paying for the model again;
+`compare_runs.py` scores every stored run against the working tree and separates
+a test that every run fails from one that merely came out badly once. See
+`runs/README.md`.
 
 Layer 3, judging prose against `approximate_answer`, is intentionally not
 implemented. It needs a model at run time. The reference answers are written for

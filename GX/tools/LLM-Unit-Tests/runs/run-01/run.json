@@ -1,0 +1,13 @@
+{
+  "label": "run-01",
+  "date": "2026-08-14",
+  "model": "claude-opus-5",
+  "answers": 441,
+  "mean_answer_chars": 810,
+  "method": "One agent per shard of 25 questions, 18 shards. Each agent was given the question ids and text only, plus the path to R9_1_GX_CLI_Reference/, and was forbidden to read anything under tools/ so the expected facts and reference answers could not leak. Each was told to answer as if to an operator, in roughly 400-800 characters, using the guide's own spelling for identifiers and values.",
+  "corpus_commit": "1724b59",
+  "corpus_note": "The command files are byte-exact slices of the source and have never changed. index/topics.md has changed since, at 1708f63, which added revocation / signing request / distribution point and removed 'what can' and 'stop'. A rerun therefore reads a slightly better index than this run did.",
+  "tests_commit_at_run": "1724b59",
+  "score_at_run": {"overall": "371/441", "single": "343/376", "multi": "28/65"},
+  "score_note": "Scored 427/441 against the tests at 1708f63. The difference is entirely test repair, not answer quality: the facts were demanding material the questions never asked for. Compare runs only at the same tests commit, which is what compare_runs.py does by scoring every run against the working tree."
+}
