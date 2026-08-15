@@ -133,9 +133,11 @@ guide writes `software-load` and `next-hop` where an answer writes "software
 load" and "next hop", so a fact spanning more than one token also matches with
 its separators flattened. Runs are stored under `runs/run-NN/`, so the tests can
 be re-scored against them after an edit without paying for the model again;
-`compare_runs.py` scores every stored run against the working tree and separates
-a test that every run fails from one that merely came out badly once. See
-`runs/README.md`.
+`compare_runs.py` scores every stored run against the working tree and reports
+each test's failure rate as a sequence in run order, because `X X . . X` and
+`X X . X .` are the same rate and not the same finding. It also reports which
+index each run read, so a rate assembled from two different corpora is visible
+as one. See `runs/README.md`.
 
 Layer 3, judging prose against `approximate_answer`, is intentionally not
 implemented. It needs a model at run time. The reference answers are written for
@@ -720,9 +722,10 @@ at four runs than at three. The distribution is the honest picture:
 `multi-ipsec-policy-nesting` is the case that makes the point. It failed runs 01
 and 02, passed run 03, failed run 04. Run 03 removed it from the persistent list
 as noise; at 3 of 4 it is now the joint most consistent failure in the suite.
-**A test is not persistent-or-noise, it has a failure rate**, and
-`compare_runs.py` currently reports only the binary. Reporting the rate is the
-obvious next improvement to it.
+**A test is not persistent-or-noise, it has a failure rate.** `compare_runs.py`
+reported only the binary at the time; it reports the rate now, and shows it in
+run order, which is what later exposed the second half of this same test's
+story below.
 
 Read `sub-component-view` and `multi-ipsec-policy-nesting` as the current best
 candidates for a real gap, and triage them from their questions as before.
@@ -791,16 +794,76 @@ candidates: `chain-certificate-behind-encrypted-app`, `csr-gen-pending-import`,
 the five are certificate-related, which may be a cluster rather than four
 independent misses.
 
+### The 3 of 5 is stale, and the tool now says so
+
+`multi-ipsec-policy-nesting` should not have been left in that list of five at
+all. Its three failures are runs 01, 02 and 04, every one of them produced
+against an index without the Containment section. Only run 05 read the fixed
+index, and it passed. The honest count is one run since the fix and one pass.
+
+Rescoring does not catch this. It repairs the tests side of a comparison and can
+do nothing about the corpus side, because a stored answer is frozen text: a run
+cannot retroactively benefit from an index built after it. So a failure rate can
+be assembled from two different corpora and look entirely current, which is what
+this one did for a full session.
+
+Two changes, neither of which touches scoring:
+
+- **The rate is shown in run order.** `X X . X .` and `X X . . X` are both 3 of
+  5 and are not the same finding. The set of labels this replaced made them look
+  identical, and made them look identical hardest on the one test the fix had
+  been built for.
+- **Each run records the index it read.** `prepare_run.py --collect` writes
+  `corpus.json`, a digest of `index/`, `INDEX.md` and `NAVIGATION.md`, per file
+  and overall; `compare_runs.py` reports where that changed and which file moved.
+  The content slices are excluded because `step1` proves them byte-exact on every
+  build, so they cannot drift without the source revision changing.
+
+It reads the files rather than git, because an agent environment need not have a
+repository. `run.json` has carried a hand-typed `corpus_commit` since run 01 and
+nothing ever read it; measured metadata is the point. Runs 01 to 05 cannot be
+backfilled, since reconstructing an old index needs an old checkout, so the
+signal starts at run 06.
+
+**The flag it prints is about evidence, not causation.** A test whose failures
+all predate the change gets marked whether or not the change had anything to do
+with it, so the count of runs since is printed beside it. At one run since, that
+is nearly nothing, and the mark should be read as "this rate is out of date",
+never as "this was fixed".
+
+One related defect found while checking the test itself: its required fact is
+the bare string `proposal`, which also matches `ike-sa-proposal`. That object
+sits one level *up* from the spd entry, keyed by local instance and peer, so an
+answer naming only it would contradict the question's "what hangs underneath"
+and still pass. No stored run exploited the loophole and both passing runs name
+`ipsec-sa-proposal` explicitly, so tightening the fact costs no verdict.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. Triage the five tests at 3 of 5**, starting with the three
-certificate-related ones, which may share a cause rather than being independent.
+**1. Triage the four live tests at 3 of 5.** `multi-ipsec-policy-nesting` is the
+fifth and is not a candidate: its rate is stale, as above, and only a sixth run
+moves it. Of the four, the three certificate ones share a cause. Each fails on
+one fact its own question never asks for, harvested from the reference answer's
+volunteered tail: `end-entity` describing a certificate rather than naming one,
+`sha256` from a defaults list, `trust-chain` from a list of read-only reporting
+attributes. That is the prose class for the sixth time.
 
-**2. The nine tests failing 2 of 4.** Meaningless as a group under the old
+`multi-controller-card-vs-card` is a different shape and worth separating. Its
+missing fact `capability` *is* on-question, since the question's third clause
+asks what a model of card supports; it is encoded as guide prose rather than as
+a typed token, so the three failing runs answered correctly using "supports" and
+the two passing runs happened to write "capability". Re-encode it to a token
+from the `supported-card` parameter table, chosen from the question rather than
+from what the runs said, and flag that this makes a 3-of-5 failure pass. The
+same test's `required-type` comes from a provisioning example while the question
+asks how to *see* configuration, and it passes 5 of 5, which makes it the
+class-sweep candidate.
+
+**2. The nine tests failing 2 of 5.** Meaningless as a group under the old
 binary, legible now that the rate is reported. Expect mostly test defects of the
 class found five times, and expect one or two real.
 
