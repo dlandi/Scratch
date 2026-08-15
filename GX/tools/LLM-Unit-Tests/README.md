@@ -207,17 +207,38 @@ component is a real family needing a hand split, not an absence of candidates.
 Single-command coverage of Chapter 6 is complete. What is left:
 
 The planned multi-command set is complete: 65 against a target of about 60,
-across all five cluster bases. What is left:
+across all five cluster bases. What is left, in the order agreed:
 
-- **Chapters 3, 4 and 5**: the 21 auxiliary, navigation and piped commands have
-  no tests. They are indexed and routable, just not covered here. This is now
-  the largest gap.
-- **Second tests for rich commands**: `show`, `set`, `download`, `status` and
-  `activate` each carry far more behaviour than one question exercises. The
-  multi batches now exercise `set`, `activate` and `status`, but none has a
-  second single-command test.
-- **Layer 2 and 3**: no candidate answer set has been run through `--answers`,
-  and layer 3 remains unimplemented by choice.
+**1. Run layer 2 against a real model.** It has never been run once, which makes
+the `facts` fields on all 441 tests an untested asset. Expect it to expose weak
+facts immediately: 75 of the 1,259 facts in the single tests appear in more than
+a quarter of all 395 files, so 63 of 376 single tests would be satisfied by an
+answer that says almost nothing. The 65 multi tests are clean at 0, because
+`_authoring.py` refuses such facts; the single tests predate that check.
+
+**2. Measure precision, not just recall.** Layer 1 scores recall only, and about
+70 vocabulary additions have been made to `curated.py` without one of them being
+measured for collateral damage. A term that also drags in fifty irrelevant
+commands makes tests pass while quietly degrading routing. Until something
+measures this, every future `curated.py` edit is unfalsifiable. The sketch is to
+sample queries that should *not* reach a topic and count false hits; the design
+is open.
+
+**3. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
+no tests. They are indexed and routable, just not covered here. Note that
+`_authoring.py` builds multi-command tests only, so a single-command batch needs
+a different path or an extension to it.
+
+Lower value: second single-command tests for `show`, `set`, `download`, `status`
+and `activate`, each of which carries far more behaviour than one question
+exercises. Layer 3 remains unimplemented by choice.
+
+**What this suite is and is not.** No LLM has ever been run against it. Layer 1
+is a deterministic lexical simulation of what an agent would do. What the tests
+have bought so far is a gap-finding instrument for the index, and that paid:
+around 70 real vocabulary gaps found and fixed. Their demonstrated value is
+diagnostic, not evaluative, so do not read a green run as proof that the
+documentation answers questions well.
 
 ## What batch 1 found
 
