@@ -4146,7 +4146,7 @@ Source: `06-operation-commands/299-snmp-target.md`, `06-operation-commands/298-s
 
 *topology-discovery / disambiguation*
 
-**Q.** Fiber links keep showing up in my topology that I never configured. Which of these connection objects gets filled in by something other than me?
+**Q.** Fiber links keep showing up in my topology that I never configured. Which connection object gets filled in by something other than me?
 
 **A.** Two of them are not operator-driven. external-fiber-connection is set autonomously by TNMS, and although it is possible to configure it manually the guide says it is not recommended. nct-connection shows NCT connectivity between NCT ports in a multi-chassis NE, and those links are dynamically filled in by the system so the NCT topology can be derived and displayed. By contrast fiber-connection is the one you add yourself: it is the physical link representation of a connection between two distinct ports, or two distinct sub-ports, in the same NE, within an OADM or ILA topology. supporting-fiber-connection is purely a read view, showing the list of fiber connections.
 

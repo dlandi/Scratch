@@ -41,7 +41,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, three runs | 427 / 441, 422 / 441, 442 / 457. **7** tests fail in all three; 22 fail in some |
+| Carry the required facts, Claude Opus 5, three runs | 434 / 441, 428 / 441, 448 / 457 after the triage below. 0 fail in all three, 24 in some. Read the triage section before quoting the 0 |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -598,21 +598,64 @@ does, as against `up` and `top`, is take absolute or relative ids. That choice
 also happens to make the test pass, so it is recorded here rather than left
 silent.
 
+## Triaging the 7, and why the resulting 0 is not a victory
+
+The seven that failed all three runs were read against their own questions. All
+seven turned out to be the defect both earlier audits found, arriving once more:
+**a fact the question never asked for.** After repair, scores are 434/441,
+428/441 and 448/457, and the set failing in every run is **0**.
+
+**Do not quote that 0 as evidence the corpus answers everything.** The persistent
+set was *defined* by the three runs, and this pass edited exactly that set. An
+instrument adjusted after seeing which cases it flagged cannot then be cited as
+clearing them. What the 0 honestly means is narrower: no test in the suite is
+now failed by all three stored runs. The real check is a **fourth run against
+the repaired tests**; if it produces new persistent failures, that is the
+signal. Two of the seven do still fail in some run
+(`multi-l1-encryption-prerequisites` in run 03,
+`multi-restart-card-consequences` in run 02), so the repair did not simply
+delete the evidence.
+
+This pass is also weaker methodologically than the batch 15 audit, and the
+difference is worth naming. There, the whole class was audited and 7 passing
+tests were changed alongside the failures. Here only the failing seven were
+edited. The mitigation is that the broad class, off-question facts in multi
+tests, was already swept twice, and that one class check was run over
+non-failing tests: three tests use a value of the `avail-state` enumeration as a
+fact, and the two outside the seven were examined and left alone as legitimate.
+
+| Test | Fact removed | Why the question does not ask for it |
+| --- | --- | --- |
+| `multi-fiber-connection-who-writes-it` | `NCT` | The question is about *fiber* links appearing unconfigured. `nct-connection` is NCT port connectivity in a multi-chassis NE, a different object class. Cluster-member fact. |
+| `multi-otdr-locate-fiber-damage` | `automatic-otdr` | The question has three parts: what runs the scan, where to tune it, where the answer comes out. `automatic-otdr` is the auto-scan enable, a fourth thing. |
+| `multi-protection-which-member-is-live` | `y-cable` | Asks which member is live and what settings govern switch *behaviour*. `y-cable` is a value of `protection-type`, i.e. which scheme, not how a switch behaves. |
+| `multi-restart-card-consequences` | `auto-in-service` | One value in the `avail-state` enumeration carried by 49 files, lifted from the `recovery` cluster member. |
+| `comm-eth-lldp-and-negotiation` | `operational-rate` | Straight from the reference answer's volunteered tail. The question asks what speed the ports negotiate, which `auto-negotiation` and `rate` answer. |
+| `config-as-restore-script` | `non-default` | Prose inside the `show config` description, not a parameter and not something an operator types. |
+| `multi-l1-encryption-prerequisites` | `X509v3`, `digital identity` → `local-certificate` | Both came from one descriptive sentence. What must "be in place", and what an operator acts on, is the certificate object. |
+
+**A trap worth keeping.** `auto-in-service` is both a generic `avail-state` value
+in 49 files *and* the default of `restore-from-chassis-storage` in `recovery`,
+where `recovery-from-chassis-storage` asks exactly that and the fact is right.
+The same token being generic in one command and precise in another is why the
+frequency number alone can never decide a fact; the question decides it.
+
+Teeth after the pass: worst fact set matches 4 of 377 files, mean 1.08, no test
+passed by an empty answer.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. Triage the 7 persistent failures.** Five are multi tests. Decide what each
-requires from **its question** before touching the corpus, since both prior
-audits found that pattern was usually the test's fault rather than the
-documentation's.
+**1. A fourth run.** This is now the highest-value thing left, and its purpose
+has changed. The triage repaired exactly the seven tests the three runs
+defined, so the resulting "0 failed by every run" cannot be self-certified. A
+fourth run against the repaired tests is the only way to find out whether 0 is
+real or an artifact of fitting the instrument to its own output.
 
-**2. A fourth run, if the 7 matter enough.** Three runs moved the persistent set
-from 10 to 7 and are the reason we know two were not enough. A fourth would
-mostly test whether 7 is itself still soft; the returns are visibly
-diminishing, and triaging the 7 is worth more.
+**2. Whatever run 4 surfaces**, triaged from the question as before.
 
 Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question
