@@ -184,6 +184,24 @@ them.
 
 ## Conventions
 
+- **The id is hyphenated and none of its words are decoration.** They all
+  matter. `equipment-show-filter` promises three things: the object, the verb,
+  and the option that narrows the listing to one card. A fact set covering the
+  first two lets an answer pass having answered two thirds of its own question,
+  which is what happened until `card-1-1` was added. Read the id as the
+  test's contract and check the facts against every word of it, including the
+  words that look like grammar: the `not` in `default-not-everything-resets` is
+  the entire answer, the `vs` in `file-operation-vs-file` is what makes it a
+  contrast, and the `requires` in `set-time-requires-manual-source` names the
+  precondition the answer has to state.
+
+  Some id words name a thing the facts must contain, others name the shape of
+  the question and constrain what the facts have to do. Only the first kind is
+  checkable as a string, so layer 0 checks the strongest instance of it: **the
+  reference answer must name the command the test is about.** 27 answers did
+  not, describing a command's attributes without ever saying which command
+  carried them, so nothing separated a right answer from one about a different
+  object. The rest of the id is a reviewer's job.
 - **`names_command`**: false means the question avoids the command's name, which
   is the harder and more realistic retrieval case. Roughly 60% of tests should
   be false; a suite of questions that name their own answer proves little.

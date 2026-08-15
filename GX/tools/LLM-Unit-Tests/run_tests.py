@@ -65,9 +65,11 @@ KNOWN_FILES = {json.loads(l)["file"] for l in
 
 # every command body, lowercased, for the discrimination checks below
 CORPUS = {}
+COMMAND_OF = {}
 for _l in open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"), encoding="utf-8"):
     _r = json.loads(_l)
     CORPUS[_r["name"]] = read(_r["file"]).lower()
+    COMMAND_OF.setdefault(_r["file"], _r["name"])
 NFILES = len(CORPUS)
 
 MAX_MATCHING = 4        # files a whole fact set may match: 1% of the corpus
@@ -152,6 +154,19 @@ def validate(tests):
             if missing:
                 problems.append((tid, f"reference answer does not contain its own "
                                       f"facts: {missing}"))
+        # A test id is hyphenated and none of its words are decoration:
+        # `equipment-show-filter` promises the object, the verb and the option
+        # that narrows the listing, and an answer covering two of the three has
+        # answered two thirds of the question. The first word is the one that
+        # can be checked mechanically. 27 answers described a command's
+        # attributes without ever naming the command, so nothing in the test
+        # separated a right answer from one about a different object.
+        key = t.get("primary") if t.get("type") == "multi" \
+            else (t.get("expect", {}).get("files") or [None])[0]
+        name = COMMAND_OF.get(key)
+        if name and not carries(name, t.get("approximate_answer", "")):
+            problems.append((tid, f"reference answer never names the command it is "
+                                  f"about: {name}"))
     return problems
 
 
