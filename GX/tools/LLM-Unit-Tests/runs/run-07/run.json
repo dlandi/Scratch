@@ -1,0 +1,15 @@
+{
+  "label": "run-07",
+  "date": "2026-08-15",
+  "model": "claude-opus-5",
+  "answers": 457,
+  "mean_answer_chars": 804,
+  "method": "Identical to runs 01 to 06. One agent per shard of 25 questions, 19 shards, dispatched from runs/prompt.md verbatim with only the shard path and output path substituted. Each agent was given the question ids and text only, plus the path to R9_1_GX_CLI_Reference/, and was forbidden to read anything under tools/. Sixteen dispatched first and the last three as slots freed.",
+  "corpus_note": "Same index digest as run 06, a17e9318fabc, and compare_runs.py reports it as unchanged. First time two runs are known to have read the same corpus by measurement rather than by assertion.",
+  "score_at_run": {"overall": "446/457"},
+  "purpose": "Falsification of the seventh sweep. Ten tests had their facts changed against the six stored runs, which cannot check them; four of those ten were passing every run before the edit, so a weakened test would show up here as a new failure.",
+  "result_note": "All ten pass. Nine of them now pass all seven runs, and multi-route-sources passes here too, leaving its three failures in runs 01, 02 and 06. No edit weakened a test in a way this run can detect. The same caveat as run 06 applies: an edit that made a test easier would also pass, and what this rules out is having fitted the tests to the stored answer sets.",
+  "score_note": "446/457 is the lowest of the seven and the spread widens to 97.6-99.3%. That is not the sweep: every edited test passes. Nine tests that passed run 06 fail here, on pm-threshold-profile, NCT, controller card, secure-application, high order ODU plus Super-channel, clear system, total-ageouts, trap-community-string and attribute-value pair. Mostly identifiers rather than prose, so this reads as ordinary variance rather than a class.",
+  "dispatch_note": "No shard failed. Shards 01 and 02, the all-multi pair that delegated and wrote nothing in run 03 and twice in run 05, completed at 97 and 82 tool calls over seven minutes each. All 19 answer files were verified present with matching ids before collecting. Shard 01 again reported using the entities.md Containment table unprompted, naming the card and ipsec-spd-entry hierarchies; that is the third independent report of it being load-bearing.",
+  "defects_note": "New candidates, none verified yet: optical-carrier giving frequency the default 'm0' and cd-range-high the same default as cd-range-low; the tic/toc table in the auxiliary-commands file with descriptions offset by a row; custom-tlv listing direction as ingress and egress where lldp-neighbor states egress is unsupported. A second agent independently reported card's alarm-report-control default as an inconsistency, which run 06's verification already rejected: the default varies by object and only the capitalisation is a defect."
+}

@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, six runs | 435/441, 433/441, 452/457, 450/457, 454/457, 452/457. Nothing fails above 50%. `compare_runs.py` reports the rate in run order |
+| Carry the required facts, Claude Opus 5, seven runs | 435/441, 433/441, 452/457, 450/457, 454/457, 452/457, 446/457. Spread 97.6 to 99.3%; nothing fails above 43%. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -1096,22 +1096,55 @@ Runs after the pass: 435, 433, 452, 450, 454, 452, spread 98.2 to 99.3%. Teeth:
 worst fact set 4 of 377, mean 1.09, nothing passed by an empty, generic or
 command-name-only answer, and the same 7 on the command name alone.
 
+## Run 07: the sweep survives, and the score drops anyway
+
+446/457. Seven runs: 98.6, 98.2, 98.9, 98.5, 99.3, 98.9, 97.6%, spread 97.6 to
+99.3%. Mean answer 804 characters. No shard failed, and the all-multi pair
+completed at 97 and 82 tool calls.
+
+**All ten tests edited in the seventh sweep pass.** Nine now pass all seven
+runs, and `multi-route-sources` passes here too, leaving its three failures in
+runs 01, 02 and 06. Four of the ten were passing before the edit, so a weakened
+test was the specific thing this run could have caught, and it did not.
+
+**This is also the lowest score of the seven, and that is not the sweep.** Nine
+tests that passed run 06 fail here: on `pm-threshold-profile`, `NCT`,
+`controller card`, `secure-application`, `high order ODU` with `Super-channel`,
+`clear system`, `total-ageouts`, `trap-community-string` and `attribute-value
+pair`. Mostly identifiers rather than prose, spread across unrelated domains,
+which reads as ordinary variance. **The honest reading of seven runs is the
+spread, not the best or the latest number.**
+
+**A third detector gap.** `attribute-value pair` is prose by any reading, and
+the shape detector excluded it because it contains a hyphen. The filter treats a
+hyphen as evidence of a typed identifier, and a hyphenated English compound
+defeats that. Position missed prose in an opening sentence; shape misses prose
+containing a hyphen. Neither detector is complete, and both are cheap, so run
+both and read the union.
+
+Run 07 is also the first run whose corpus digest could be compared with another:
+it matches run 06 and is reported as unchanged, which is what makes the two
+directly comparable rather than merely assumed to be.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. A seventh run.** Ten tests were edited in the sweep above against the six
-stored runs, and none of those runs can falsify the edits. The same argument
-that justified run 06 applies again.
-
-**2. The tests at 2 of 6.** `app-clear-third-party`, `database-clear-scope`,
-`delete-best-effort-flag`, `multi-card-type-vs-installed-card`,
+**1. The seven tests at 3 of 7.** `database-clear-scope`,
+`delete-best-effort-flag`, `multi-ipsec-policy-nesting`,
 `multi-l1-encryption-prerequisites`, `multi-resource-type-defaults`,
-`multi-restart-card-consequences`, `xcon-create-and-protection`. Two of those
-are on the negation limitation described above rather than the off-question
-class.
+`multi-restart-card-consequences`, `multi-route-sources`. Three of those are
+already characterised above and should not be re-triaged from scratch:
+`database-clear-scope` and `delete-best-effort-flag` are the negation limit and
+the discrimination-gate case, and `multi-route-sources` is the brittle one-word
+encoding. `multi-ipsec-policy-nesting` has not failed since the Containment
+section landed, so its rate is still carrying three pre-fix runs.
+
+**2. Both fact detectors, run together.** Position misses prose in an opening
+sentence and shape misses prose containing a hyphen, as `attribute-value pair`
+showed. Neither is complete; the union is cheap.
 
 **3. `corpus_hits` still matches raw substrings,** so `tic` registers in 187
 files. Needs the separator flattening `carries()` has; a naive word-boundary fix
