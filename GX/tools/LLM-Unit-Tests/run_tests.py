@@ -379,12 +379,22 @@ def carries(fact, answer):
     `next-hop`, an answer writes "software load" and "next hop", and the fact
     is stated either way. So a fact spanning more than one token also matches
     with its separators flattened.
+
+    It also fails when an answer quotes the guide's own syntax and that syntax
+    carries an optional flag: the guide writes `clear [-f] database`, so an
+    answer being precise puts `[-f]` between the two words of the fact `clear
+    database` and the fact goes missing. That cost six verdicts across three
+    tests, every one of them an answer stating the command correctly. A single
+    bracketed or bare flag token between words is therefore skipped. Only a
+    flag: anything else between the words is a different phrase.
     """
     if _boundary(fact, answer):
         return True
     if not re.search(r"[^A-Za-z0-9]", fact.strip()):
         return False
     if _boundary(fact, answer, flat=True):
+        return True
+    if _with_flag(fact, answer):
         return True
     # ... and a value written against its unit closes up either way: the guide
     # writes `-23dBm`, an answer writes "-23 dBm", and flattening leaves
@@ -393,6 +403,23 @@ def carries(fact, answer):
     # short token by gluing it to its neighbour.
     squash = lambda s: re.sub(r"[^a-z0-9]+", "", s.lower())
     return len(squash(fact)) >= 5 and squash(fact) in squash(answer)
+
+
+def _with_flag(fact, answer):
+    """`clear database` against "clear [-f] database".
+
+    Only a CLI flag may sit in the gap, bracketed or bare, and only one. The
+    words either side still have to land on word boundaries, so this widens the
+    matcher by exactly the shape the guide's syntax lines use and nothing else.
+    """
+    words = _flat(fact).split()
+    if len(words) < 2:
+        return False
+    gap = r"\s+(?:\[\s*-{1,2}[A-Za-z0-9-]+\s*\]|-{1,2}[A-Za-z0-9-]+)\s+"
+    pattern = ("(?<![A-Za-z0-9])"
+               + gap.join(re.escape(w) for w in words)
+               + r"s?(?![A-Za-z0-9])")
+    return bool(re.search(pattern, answer.lower()))
 
 
 def _boundary(fact, answer, flat=False):

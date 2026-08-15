@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, seven runs | 435/441, 433/441, 452/457, 450/457, 454/457, 452/457, 446/457. Spread 97.6 to 99.3%; nothing fails above 43%. `compare_runs.py` reports the rate in run order |
+| Carry the required facts, Claude Opus 5, seven runs | 435/441, 434/441, 454/457, 451/457, 456/457, 454/457, 450/457. Spread 98.4 to 99.8%; nothing fails above 43%. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -1126,23 +1126,107 @@ Run 07 is also the first run whose corpus digest could be compared with another:
 it matches run 06 and is reported as unchanged, which is what makes the two
 directly comparable rather than merely assumed to be.
 
+## Triaging the seven at 3 of 7, and a matcher bug behind three of them
+
+Seven tests sat at 3 of 7 after run 07. Triaging them found one matcher defect,
+one test pointed at the wrong command, one brittle encoding, and three that
+should be left alone.
+
+### The matcher was losing `clear database`
+
+`database-clear-scope` was failing on the fact `clear database` while its
+answers said, correctly, ``clear [-f] database`` — the guide's own syntax. The
+fact needs its two words adjacent, and the optional flag sits between them, so
+an answer was penalised for being precise.
+
+Scanning the suite for two-token command-form facts found 29, of which exactly
+three had ever been missed, and all three are `clear`, the verb the guide writes
+as `clear [-f] <object>`: `clear database` 3 of 7, `clear app` 2 of 7, `clear
+system` 1 of 7. Every one of those six failures had the bracketed flag in it.
+
+`carries()` now skips a single CLI flag between the words of a multi-token fact,
+bracketed or bare, and nothing else. This is the same kind of accommodation as
+the separator flattening already there: the guide writes `software-load` where
+an answer writes "software load", and it writes `clear [-f] database` where the
+fact says `clear database`. Verified across 7 runs and 1,733 facts, it changes
+**exactly those six fact verdicts and nothing else**, and the three tests drop
+to 0 failures.
+
+That is a matcher repair, not a relaxation, and the distinction is worth
+keeping: the answers already stated the fact, in the guide's own notation.
+
+### `multi-l1-encryption-prerequisites` was pointed at the wrong command
+
+Its question is "before layer 1 encryption will come up on a link, what has to
+already be in place at each end?", and it required `secure-application`. The
+corpus does not support that. `secure-application` covers an application using
+an X509v3 certificate as its digital identity; `277-secure-entity.md` is the L1
+object, and its parameter table names no certificate. **Neither file
+cross-references the other.** The dependency was the reference answer's
+inference, and its own `inference_flags` admitted the ordering was inferred
+while the relevance never was.
+
+The failing fact was a symptom: `secure-application` was the test's `primary`,
+and the convention is that a test names its primary command. So the fix is
+structural, not a fact edit. The test now points at `277-secure-entity.md` and
+requires `secure-entity`, `remote-secure-entity`, `supporting-facility`, which
+is what the question asks and what the guide states. The reference answer was
+rewritten to drop the unsupported precondition and keep the other objects as
+context, and an `inference_flags` entry records what was removed and why.
+
+This is the first test found to be **asking a good question of the wrong file**,
+as against a bad fact on the right one. Worth looking for again: the tell is a
+reference answer whose opening sentence asserts a dependency the cited files
+never state.
+
+### `multi-restart-card-consequences`: the guide says it both ways
+
+Required `controller card`; three runs answered "node controller". Both phrases
+are in `265-restart.md`, which writes "the active controller card" in the
+`resource-id` row and "node controller" in its description. The test picked one
+of the guide's two names for the same thing. Re-encoded to `controller`, which
+is what the question actually needs the answer to distinguish and is neutral
+between the guide's own phrasings.
+
+### Left alone, with reasons
+
+- **`multi-ipsec-policy-nesting`.** Its three failures are runs 01, 02 and 04,
+  all before the Containment section. It has passed 3 of 3 since. The rate is
+  stale and only decays as runs accumulate.
+- **`delete-best-effort-flag`.** `sub-level objects` is off-question, but
+  dropping it takes the set from 1 file to 5, past the discrimination gate. Same
+  as `multi-certificate-role-disambiguation`.
+- **`multi-resource-type-defaults`.** `pm-threshold-profile` is
+  on-question and correctly encoded: it is keyed by `<resource-type>` and holds
+  `default-low-threshold` and `default-high-threshold`, described as "System
+  defined default value". The question asks where a new resource's performance
+  monitoring defaults come from, and that is the object. Three runs answer with
+  `pm-profile-entry` and `pm-control-entry` and stop. **This is the most
+  interesting failure left in the suite**, because the test looks right and the
+  answers look reasonable.
+- **`multi-route-sources`** stays as characterised above: a brittle one-word
+  encoding, not a corpus gap.
+
+Two of the four repairs turn a 3-of-7 failure into a pass, which is flagged here
+as with every previous pass. Runs after triage: 435, 434, 454, 451, 456, 454,
+450, spread 98.4 to 99.8%. Teeth unchanged: worst set 4 of 377, mean 1.09,
+nothing passed by an empty, generic or command-name-only answer.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. The seven tests at 3 of 7.** `database-clear-scope`,
-`delete-best-effort-flag`, `multi-ipsec-policy-nesting`,
-`multi-l1-encryption-prerequisites`, `multi-resource-type-defaults`,
-`multi-restart-card-consequences`, `multi-route-sources`. Three of those are
-already characterised above and should not be re-triaged from scratch:
-`database-clear-scope` and `delete-best-effort-flag` are the negation limit and
-the discrimination-gate case, and `multi-route-sources` is the brittle one-word
-encoding. `multi-ipsec-policy-nesting` has not failed since the Containment
-section landed, so its rate is still carrying three pre-fix runs.
+**1. An eighth run.** Four tests were repaired against the seven stored runs and
+the matcher was widened; none of that can be falsified by the runs it was
+derived from. Two of the repairs turn a 3-of-7 failure into a pass, which is
+exactly the shape a new run should check.
 
-**2. Both fact detectors, run together.** Position misses prose in an opening
+**2. `multi-resource-type-defaults`**, the one remaining failure where the test
+looks right and the answers look reasonable. See the triage section above.
+
+**3. Both fact detectors, run together.** Position misses prose in an opening
 sentence and shape misses prose containing a hyphen, as `attribute-value pair`
 showed. Neither is complete; the union is cheap.
 
