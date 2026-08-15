@@ -34,6 +34,7 @@ cite 187 distinct command files and reach all 16 domains.
 | Multi-command tests | 65 |
 | Validate against the document | 441 / 441 |
 | Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
+| Carry the required facts, Claude Opus 5, 2026-08-14 | 371 / 441 |
 | Question does not name its command | 356 / 376 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 30 |
@@ -81,6 +82,24 @@ expected file exists, every required fact appears somewhere in the expected
 files, and ids are unique. Runs first; nothing downstream is trusted if it
 fails. This is what stops a test from asserting something the guide never said.
 
+It also checks that the facts are worth checking, which is a different question
+from whether they are true:
+
+- **The fact set must discriminate.** At most 4 of the 395 command files may
+  contain every fact in a test. A set that half the corpus satisfies is passed
+  by an answer that says almost nothing.
+- **One fact must be specific**, appearing in fewer than 5% of files. Otherwise
+  the test measures general fluency about the platform rather than whether the
+  answer found the right command.
+- **The reference answer must pass its own test.** It is the one answer known
+  to be correct, so if it does not contain its own facts, no candidate answer
+  will either.
+
+Measure the set rather than each fact. Per-fact frequency, which is what
+`_authoring.py` enforces at write time, is a blunt instrument used alone: it
+condemns `false` and `30` when they are the entire answer to a default
+question, and it acquits `equipment`, a single fact that 88 files satisfy.
+
 **Layer 1, retrieval.** Given only the question text, can the index reach the
 expected file? The runner reproduces what an agent does: match the question
 against `topics.md` search terms, command names in `INDEX.md`, parameter names
@@ -93,6 +112,11 @@ the very thing the question was about.
 
 **Layer 2, facts.** Supply candidate answers as JSONL of `{"id":…, "answer":…}`
 and pass `--answers`; each answer must contain every string in `expect.facts`.
+A fact of more than one token also matches with its separators flattened, so an
+answer writing "software load" satisfies `software-load` and one writing
+"time-to-live" satisfies `time to live`. Single tokens keep the strict test, or
+`-f` would match a stray "f". One run is stored in `runs/`, so the tests can be
+re-scored against it after an edit without paying for the model again.
 
 Layer 3, judging prose against `approximate_answer`, is intentionally not
 implemented. It needs a model at run time. The reference answers are written for
@@ -202,19 +226,59 @@ does not need several sections, above it the cluster is a subject area rather
 than a question. Oversized ones are never dropped silently, since an oversized
 component is a real family needing a hand split, not an absence of candidates.
 
+## What the first layer 2 run found
+
+Run on 2026-08-14 against Claude Opus 5. Each of the 441 questions went to an
+agent with the corpus and nothing else: no test file, no expected facts, no
+reference answer. Answers averaged 809 characters. Stored in
+`runs/2026-08-14-answers.jsonl`.
+
+| | Score |
+| --- | --- |
+| Single-command | 343 / 376 (91%) |
+| Multi-command, every fact in the cluster | 28 / 65 (43%) |
+| Multi-command, facts in the primary file only | 52 / 65 (80%) |
+| Overall as scored | 371 / 441 (84%) |
+
+**The multi-command number is measuring the test, not the answer.** Of the 46
+facts a multi answer missed, 31 live only in a peripheral cluster member rather
+than in the `primary` file the question centres on. Layer 1 already concedes
+this point: it requires the primary file plus half the rest, because no single
+query surfaces every member. Layer 2 has no such allowance and demands the lot,
+so a multi test fails when the answer covers what was asked and omits an aside
+about a neighbouring command. Both numbers are in the table because they measure
+different things, and the gap between them is the finding.
+
+Concrete cases. `multi-ssh-which-object-holds-which-key` asks which object holds
+which key, and fails on `8022`, the SSH port, which the question never asks
+about. `port-types-and-usage` asks what kinds of port exist, and fails on
+`port-usage` and `connected-to`, which are configurable attributes rather than
+kinds. `multi-client-failure-laser-action` asks what happens to the laser, and
+fails on `merge mode` and `CFG-MSMT`, two asides in the reference answer. In
+each case the answer addressed the question and the fact list did not.
+
+The single-command failures are different and mostly real: an attribute the
+guide states and the answer omitted, such as `secure-mode` on security-policies,
+`max-sessions` on user, `grid-spacing` on optical-carrier, `raman-state` on
+amplifier-raman. Those 33 are worth reading one by one, since each is either an
+answer that stopped early or a fact that is genuinely peripheral to its
+question.
+
+**Do not close this gap by relaxing the facts that this run failed.** That tunes
+the suite to one model's output and destroys the instrument. The defensible fix
+is the one layer 1 already made: decide what a multi test requires from the
+question rather than from everything the reference answer happens to mention.
+
 ## Remaining work
 
-Single-command coverage of Chapter 6 is complete. What is left:
+Single-command coverage of Chapter 6 is complete. The planned multi-command set
+is complete: 65 against a target of about 60, across all five cluster bases.
+What is left, in the order agreed:
 
-The planned multi-command set is complete: 65 against a target of about 60,
-across all five cluster bases. What is left, in the order agreed:
-
-**1. Run layer 2 against a real model.** It has never been run once, which makes
-the `facts` fields on all 441 tests an untested asset. Expect it to expose weak
-facts immediately: 75 of the 1,259 facts in the single tests appear in more than
-a quarter of all 395 files, so 63 of 376 single tests would be satisfied by an
-answer that says almost nothing. The 65 multi tests are clean at 0, because
-`_authoring.py` refuses such facts; the single tests predate that check.
+**1. Decide what a multi-command test requires.** See the run above. Either
+scope each multi test's facts to its primary file, or give layer 2 the partial
+credit layer 1 already gives. This is a design decision about what the suite
+measures, so make it deliberately rather than by editing whichever tests failed.
 
 **2. Measure precision, not just recall.** Layer 1 scores recall only, and about
 70 vocabulary additions have been made to `curated.py` without one of them being
@@ -233,12 +297,13 @@ Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question
 exercises. Layer 3 remains unimplemented by choice.
 
-**What this suite is and is not.** No LLM has ever been run against it. Layer 1
-is a deterministic lexical simulation of what an agent would do. What the tests
-have bought so far is a gap-finding instrument for the index, and that paid:
-around 70 real vocabulary gaps found and fixed. Their demonstrated value is
-diagnostic, not evaluative, so do not read a green run as proof that the
-documentation answers questions well.
+**What this suite is and is not.** Layer 1 is a deterministic lexical simulation
+of what an agent would do, and layers 0 and 1 being green says nothing about
+whether an answer is any good. What the tests have bought is a gap-finding
+instrument: around 70 real vocabulary gaps in the index, found and fixed, and
+now one scored model run. Read the run as diagnostic rather than as a grade.
+84% is a number about this fact list and this model on this day, and the section
+above shows a third of the misses are the fact list's fault.
 
 ## What batch 1 found
 

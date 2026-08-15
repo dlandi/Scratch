@@ -63,6 +63,27 @@ KNOWN_FILES = {json.loads(l)["file"] for l in
                open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"),
                     encoding="utf-8")}
 
+# every command body, lowercased, for the discrimination checks below
+CORPUS = {}
+for _l in open(os.path.join(gxpaths.INDEX_DIR, "commands.jsonl"), encoding="utf-8"):
+    _r = json.loads(_l)
+    CORPUS[_r["name"]] = read(_r["file"]).lower()
+NFILES = len(CORPUS)
+
+MAX_MATCHING = 4        # files a whole fact set may match: 1% of the corpus
+ANCHOR_MAX = NFILES // 20   # one fact must be rarer than 5% of the corpus
+
+
+def corpus_hits(facts):
+    """How many command files contain every fact. The discrimination measure."""
+    low = [f.lower() for f in facts]
+    return sum(1 for b in CORPUS.values() if all(f in b for f in low))
+
+
+def fact_freq(fact):
+    f = fact.lower()
+    return sum(1 for b in CORPUS.values() if f in b)
+
 
 # --------------------------------------------------------------- layer 0
 def validate(tests):
@@ -102,11 +123,35 @@ def validate(tests):
                 problems.append((tid, f"evidence quote not found verbatim in {rel}: "
                                       f"{quote[:60]!r}"))
         # a fact that appears in no expected file is almost certainly wrong
-        for fact in t.get("expect", {}).get("facts", []):
+        facts = t.get("expect", {}).get("facts", [])
+        for fact in facts:
             bodies = " ".join(read(r) for r in t["expect"]["files"]
                               if os.path.exists(os.path.join(DOCS, r.replace("/", os.sep))))
             if fact.lower() not in bodies.lower():
                 problems.append((tid, f"fact not present in expected files: {fact!r}"))
+        # ... and a fact set that half the corpus satisfies proves nothing when
+        # a candidate answer contains it. Measure the set, not each fact: the
+        # per-fact frequency `_authoring.py` checks calls `false` and `30` weak
+        # when they are the whole answer to a default question, and passes
+        # `show equipment`, whose single fact 88 of 395 files satisfy.
+        if facts:
+            hits = corpus_hits(facts)
+            if hits > MAX_MATCHING:
+                problems.append((tid, f"fact set does not discriminate: {hits} of "
+                                      f"{NFILES} command files satisfy all of {facts}"))
+            rarest = min(fact_freq(f) for f in facts)
+            if rarest > ANCHOR_MAX:
+                problems.append((tid, f"no fact is specific to this command: the rarest "
+                                      f"appears in {rarest} of {NFILES} files"))
+            # the reference answer is the one answer known to be right, so it
+            # must pass the test's own layer 2. 22 of them did not: the guide
+            # writes a range as `1..110` and the answer as "1 to 110", which
+            # would have failed every candidate answer too.
+            missing = [f for f in facts
+                       if f.lower() not in t.get("approximate_answer", "").lower()]
+            if missing:
+                problems.append((tid, f"reference answer does not contain its own "
+                                      f"facts: {missing}"))
     return problems
 
 
@@ -250,6 +295,26 @@ def retrieval(tests, idx, verbose):
 
 
 # --------------------------------------------------------------- layer 2
+def _flat(s):
+    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+
+
+def carries(fact, answer):
+    """Does this answer state this fact?
+
+    Plain substring, except that a fact spanning more than one token is also
+    matched with its separators flattened. The guide writes `software-load`,
+    `next-hop` and `time to live`; an answer that writes "software load",
+    "next hop" or "time-to-live" has stated the same fact and used to be scored
+    as a miss. The flattened form is only tried for multi-token facts, so a
+    single token keeps the strict test: `-f` must not match a stray "f", and
+    `830` must not match "8300".
+    """
+    if fact.lower() in answer.lower():
+        return True
+    return bool(re.search(r"[^A-Za-z0-9]", fact.strip())) and _flat(fact) in _flat(answer)
+
+
 def facts(tests, answers, verbose):
     passed = failed = skipped = 0
     for t in tests:
@@ -257,8 +322,7 @@ def facts(tests, answers, verbose):
         if ans is None:
             skipped += 1
             continue
-        low = ans.lower()
-        missing = [f for f in t["expect"]["facts"] if f.lower() not in low]
+        missing = [f for f in t["expect"]["facts"] if not carries(f, ans)]
         ok = not missing
         passed, failed = (passed + ok, failed + (not ok))
         if verbose or not ok:

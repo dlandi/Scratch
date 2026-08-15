@@ -77,6 +77,22 @@ class Batch:
             elif corpus_freq(f) > NFILES * FACT_MAX:
                 self.problems.append(
                     f"{id}: fact {f!r} too common ({corpus_freq(f)}/{NFILES})")
+        # per-fact frequency is a blunt instrument on its own: it condemns `30`
+        # and `false` when they are the answer, and acquits a set of ordinary
+        # words that together still match a fifth of the corpus. run_tests.py
+        # gates on these three; check them here so a batch fails at write time.
+        if facts:
+            hits = sum(1 for b in BODIES.values()
+                       if all(f.lower() in b for f in facts))
+            if hits > 4:
+                self.problems.append(
+                    f"{id}: fact set does not discriminate, {hits}/{NFILES} files satisfy it")
+            if min(corpus_freq(f) for f in facts) > NFILES // 20:
+                self.problems.append(f"{id}: no fact is specific to this command")
+            for f in facts:
+                if f.lower() not in answer.lower():
+                    self.problems.append(
+                        f"{id}: reference answer does not contain its own fact {f!r}")
         for ev_file, quote in evidence:
             body = open(os.path.join(gxpaths.DOCS, (C + ev_file).replace("/", os.sep)),
                         encoding="utf-8").read()
