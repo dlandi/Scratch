@@ -1,0 +1,25 @@
+{"id": "multi-activate-overloaded-verb", "question": "The activate command seems to do several unrelated things depending on what I pass it. What are they, and is there a separate command for the database case?"}
+{"id": "multi-capabilities-scope-disambiguation", "question": "Three objects are called capabilities. One is per card, one is about the photonic layer and one is about add and drop. Which is which?"}
+{"id": "multi-controller-card-vs-card", "question": "How do I see the configuration of just the controller, as opposed to any card in the shelf, or what a given model of card supports?"}
+{"id": "multi-secure-entity-vs-macsec-entity", "question": "Two encryption objects have almost the same shape, one for macsec on Ethernet and one for the optical line. Which is which, and where do the cipher terms live?"}
+{"id": "multi-ase-idler-service-vs-source", "question": "What is the difference between ase-idler-service and ase-idler-source, and does sw-service belong with them at all?"}
+{"id": "multi-mode-commands-consequences", "question": "Several commands end in -mode. change-ztp-mode and recover-mode sound harmless next to the carrier-mode ones. Are they?"}
+{"id": "multi-third-party-app-objects", "question": "A third-party-app is stuck on this node. Which object shows its state, which shows the firmware side, and which one clears it?"}
+{"id": "multi-cli-and-config-scope", "question": "I want more rows on my terminal for this login only, not for everyone. Which object is per-session, which is the protocol as a whole, and which two are about system configuration?"}
+{"id": "multi-set-prefixed-commands", "question": "Some commands are set, some start with set- and one ends in -set. Which is the generic attribute assignment, and which are separate operations such as the ones for alarm state and for time?"}
+{"id": "multi-media-channel-variants", "question": "Four channel objects differ by only a letter or two. What separates a media channel from a network media channel, and what are the filler variants for?"}
+{"id": "multi-otdr-locate-fiber-damage", "question": "Span loss jumped on one line and I want to find where the fibre is damaged. What actually runs the scan, where do I tune how it scans, and where does the answer come out?"}
+{"id": "multi-dns-dhcp-origin-and-relay", "question": "A name server entry I deleted keeps coming back, and a relay I configured does nothing at all. What decides where these values come from?"}
+{"id": "multi-factory-reset-what-survives", "question": "Before I hand this node back, what is the difference between the factory reset options, and which one leaves the logs and performance data behind?"}
+{"id": "multi-multichassis-shelf-not-accepted", "question": "A new chassis was cabled into the node but nothing in it is usable yet. What can I read to see whether the node controller has taken it in?"}
+{"id": "multi-amplifier-gain-control-mode", "question": "On an amplifier, which attribute decides whether the system holds the gain itself or I set it by hand, and what would stop it putting out any power at all?"}
+{"id": "multi-protection-which-member-is-live", "question": "In a protected pair, how do I tell which member is carrying traffic at this moment, and what settings decide how a switch behaves when one happens?"}
+{"id": "multi-cableid-confirm-patching", "question": "How do I confirm the fibre I patched is the one the node believes it is, and how do I watch the progress while the check runs?"}
+{"id": "multi-aaa-radius-not-reached", "question": "Logins against our RADIUS box are failing and the box says it never saw the request. What on the node decides where authentication is sent, and what governs what happens when it does not answer?"}
+{"id": "multi-ssh-which-object-holds-which-key", "question": "I need ssh key-based login for an automation account, and the node also has to trust a remote host it copies files to. Which object holds which key?"}
+{"id": "multi-macsec-key-agreement-settings", "question": "For macsec on an Ethernet port, where does the key agreement policy live, what sets how often the session key rolls over, and where do I watch the channels themselves?"}
+{"id": "multi-northbound-protocol-defaults", "question": "We want to drive this node programmatically over netconf or gnmi. Which ports do the interfaces use by default, and is any of them off out of the box?"}
+{"id": "multi-restart-card-consequences", "question": "If I reboot one card, what exactly happens by default, and can I assume every card in the shelf behaves the same way?"}
+{"id": "multi-serdes-template-auto-apply", "question": "We keep plugging in third party toms and hand-tuning the serdes each time. What has to be in place for the node to do that configuration by itself?"}
+{"id": "multi-optical-section-layers", "question": "The line side stacks ots, oms, ops and osc facilities on top of each other. What does each one represent, and which carries the supervisory traffic?"}
+{"id": "multi-client-failure-laser-action", "question": "If a client signal fails on a tributary port, what does the node do to the laser, and where is that behaviour configured?"}

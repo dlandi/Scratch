@@ -1,0 +1,25 @@
+{"id": "multi-otn-layers-auto-created", "question": "Among the OTN layers, which do I have to create by hand and which appear on their own, and what has to exist before I can add the rest?"}
+{"id": "multi-prove-circuit-with-test-signals", "question": "I need to prove a client circuit before handing it over. What runs a bit error rate test, where do I inject a test pattern, and what loops the signal back?"}
+{"id": "multi-l1-encryption-prerequisites", "question": "Before layer 1 encryption will come up on a link, what has to already be in place at each end?"}
+{"id": "multi-telemetry-persistent-vs-dynamic", "question": "What are the two kinds of streaming we can set up here, and how do I see what is currently subscribed and what each one is watching?"}
+{"id": "multi-database-protection-before-copy", "question": "What protects the configuration database at rest, and what has to be configured before I can take a copy of it?"}
+{"id": "multi-prefix-not-forwarding", "question": "A prefix I added is not being used for forwarding. Where do I look to see whether it reached the forwarding table and which instance it landed in?"}
+{"id": "multi-password-rejected-and-locked-out", "question": "A user says their new password was rejected, and now they cannot log in at all. Which policy settings govern that, and how do I clear their stuck session?"}
+{"id": "multi-logging-defaults-and-rotation", "question": "What are the logging defaults on a node nobody has touched, how many files are kept before rotation, and what single switch turns off everything remote?"}
+{"id": "multi-alarm-clearing-and-inhibit", "question": "Some alarms clear themselves and some do not. Which object lists what is raised now, which lets me clear one by hand, and what decides whether inhibiting reporting drops the ones already up?"}
+{"id": "multi-card-running-hot", "question": "A card is reported to be running hot. Which dashboard shows the temperature sensors, how do I narrow it to one slot, and what else reflects the state physically?"}
+{"id": "multi-span-loss-drift", "question": "The span loss on one line has drifted upward over months. Which objects tell me what the line is doing and what the amplifier is compensating with?"}
+{"id": "chain-client-service-down-to-line", "question": "Following one client service down towards the wavelength it rides on the line, which objects does it pass through, and where does the digital domain hand over to the optical one?"}
+{"id": "chain-threshold-versus-severity", "question": "I want to be told when a counter crosses a limit, and separately I want to change how loudly an existing fault is reported. These feel like the same knob. Are they?"}
+{"id": "chain-quiet-a-card-for-maintenance", "question": "I am about to work on a card and I do not want it generating noise for the NOC. How do I stop it reporting, and what happens to the alarms it has already raised?"}
+{"id": "chain-certificate-behind-encrypted-app", "question": "Which certificate does an encrypted application actually present to the far end, and what has to be imported before it will come up?"}
+{"id": "pm-export-csv", "question": "How can I get 15-minute performance counters out of the node in a form I can open in a spreadsheet?"}
+{"id": "pm-catalog-lookup", "question": "I have a counter name and want to know what it measures. Where do I look it up?"}
+{"id": "pm-control-disable-resource", "question": "How do I stop the node collecting real-time performance data for one particular card?"}
+{"id": "pm-control-entry-scope", "question": "Can I turn threshold-crossing supervision on for only the 15-minute ingress near-end counters of one resource?"}
+{"id": "pm-parameter-units-type", "question": "How do I tell whether a performance parameter is a counter or a gauge, and what units it reports?"}
+{"id": "pm-profile-global-supervision", "question": "Is there a way to switch performance data collection on everywhere at once instead of resource by resource?"}
+{"id": "pm-profile-entry-defaults", "question": "How do I make newly created facilities of a given type come up with performance monitoring already enabled?"}
+{"id": "pm-resource-last-reset", "question": "How can I find out when a port's real-time performance counters were last cleared?"}
+{"id": "pm-threshold-set-one-instance", "question": "How do I put a high limit on errored seconds for one specific facility?"}
+{"id": "pm-threshold-profile-defaults", "question": "Where can I see the system's own default limits for a performance parameter, and the range I am allowed to configure?"}

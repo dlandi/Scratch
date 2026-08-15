@@ -1,0 +1,25 @@
+{"id": "ocm-channel-detected-carriers", "question": "How do I see which carriers the monitor is actually detecting inside a cross connection?"}
+{"id": "ocm-mp-enabled-by-default", "question": "Is optical channel monitoring on by default at a monitoring point?"}
+{"id": "ocm-ptp-ws04s-scope", "question": "Which cards get a dedicated optical channel monitor, and is it enabled out of the box?"}
+{"id": "oms-monitoring-mode-and-grid", "question": "What spectral grid does a multiplex section use by default, and what does its monitoring mode change?"}
+{"id": "ops-role-and-psd-profile", "question": "What can I actually configure on an optical physical section?"}
+{"id": "optical-carrier-frequency-and-power", "question": "What frequency range and transmit power can I set on a coherent carrier, and can I trim the frequency slightly?"}
+{"id": "optical-carrier-shutdown-propagation", "question": "Can I make the transmit laser shut down when the service in that direction fails?"}
+{"id": "optical-channel-limited-config", "question": "What can I change on an optical-channel object?"}
+{"id": "optical-ptp-laser-and-attenuation", "question": "How do I check whether the laser on a DWDM port is on, and can I add fixed pad on the receive side?"}
+{"id": "optical-switch-los-thresholds", "question": "At what received power does an optical protection switch decide the path has failed, and can I change it?"}
+{"id": "osc-configurable-attributes", "question": "What can I actually configure on the supervisory channel?"}
+{"id": "otdr-scan-state", "question": "How do I tell whether a fibre scan is running, finished or failed?"}
+{"id": "otdr-ptp-measurement-settings", "question": "What can I tune about how far and how finely an OTDR measures?"}
+{"id": "ots-span-and-fiber", "question": "Where do I tell the node what fibre is on a span and how lossy it is?"}
+{"id": "ots-diagnostics-auto-name", "question": "I did not create the OTS diagnostics object. Where does its name come from?"}
+{"id": "ots-r-fiber-type-default", "question": "What fibre type does the reduced-scope transport section assume, and what else can I declare about the receive span?"}
+{"id": "ots-r-auto-otdr-greenfield", "question": "Does the node run OTDR automatically, and does that depend on whether the site is new?"}
+{"id": "oxcon-create-and-activation", "question": "How do I create an optical cross connection between two media channels, and will it come up on its own?"}
+{"id": "profile-control-card-scope", "question": "Which cards can I read or write per-slice power profiles on?"}
+{"id": "pump-readonly-attributes", "question": "What does the pump command let me change?"}
+{"id": "pump-power-target-and-limits", "question": "How do I set the power of an individual Raman pump and find out how high it is allowed to go?"}
+{"id": "raman-calibration-state", "question": "How do I check whether the Raman calibration on a span is current or stale?"}
+{"id": "rsc-pilot-tone", "question": "What is the rsc facility and what does it report?"}
+{"id": "spectrum-when-instantiated", "question": "There is no spectrum object on my node. Why not?"}
+{"id": "spectrum-control-per-slice", "question": "How do I set an attenuation or power target for one slice of spectrum in one direction?"}

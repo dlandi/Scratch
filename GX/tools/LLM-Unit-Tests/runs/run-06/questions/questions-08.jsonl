@@ -1,0 +1,25 @@
+{"id": "spectrum-monitoring-readings", "question": "How do I read the measured power and spectral density for a slice of spectrum?"}
+{"id": "super-channel-contention-check", "question": "When I create a super channel, how do I know whether it clashed with something already in the spectrum?"}
+{"id": "super-channel-group-merge-flag", "question": "The example for creating a super channel group uses a -m flag. What does that do?"}
+{"id": "supported-carrier-mode-lookup", "question": "How do I find out which carrier modes a particular card supports and what capacity each gives?"}
+{"id": "supported-gain-range-values", "question": "How do I find the actual gain limits behind the low, standard and high gain range settings?"}
+{"id": "supported-power-profile-purpose", "question": "Why would a card have more than one power profile, and what does choosing one change?"}
+{"id": "bgp-instance-router-id", "question": "When I create a BGP instance, where does its router ID come from?"}
+{"id": "bgp-neighbor-timers-and-auth", "question": "What are the default BGP timers, and can I authenticate a peering session?"}
+{"id": "bgp-network-advertise-requires-igp", "question": "I configured a network to advertise to our upstream AS but it is not being announced. What am I missing?"}
+{"id": "comm-channel-mtu-differs-by-platform", "question": "What MTU can a communications channel take?"}
+{"id": "comm-eth-lldp-and-negotiation", "question": "Is LLDP running on the management Ethernet ports by default, and what speed do they negotiate?"}
+{"id": "dhcp-relay-modes", "question": "How do I turn on DHCP relay and point it at a server?"}
+{"id": "dns-assignment-method", "question": "Can the node take its name servers from DHCP as well as from what we configure?"}
+{"id": "dns-server-origin", "question": "How do I add a name server, and how can I tell which ones came from DHCP?"}
+{"id": "if-dhcp-relay-per-interface", "question": "How do I enable DHCP relay on just one interface?"}
+{"id": "interface-address-assignment", "question": "When I create a management interface, is it static or DHCP addressed, and is it protected?"}
+{"id": "ip-monitoring-withdraw-route", "question": "Can the node pull a static route automatically when the far end stops answering?"}
+{"id": "ipv4-address-add-netmask", "question": "How do I put an IPv4 address on a management port?"}
+{"id": "ipv4-static-route-distance-and-blackhole", "question": "What administrative distance does a static route get, and how do I create a discard route?"}
+{"id": "ipv6-address-prefix-length", "question": "Is adding an IPv6 address the same as IPv4 on this platform?"}
+{"id": "ipv6-static-route-dcn-b", "question": "Can I point a static route out of the secondary DCN interface?"}
+{"id": "management-address-remote", "question": "How do I see the management addresses a neighbour is advertising to us?"}
+{"id": "management-address-local-vs-remote", "question": "What is the difference between management-address and management-address-local?"}
+{"id": "networking-use-as-source", "question": "Is there a setting that picks which address the node uses as its source?"}
+{"id": "networking-services-list", "question": "Which command lists the network services the node is running?"}

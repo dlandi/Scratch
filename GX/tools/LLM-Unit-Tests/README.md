@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, five runs | 435/441, 432/441, 451/457, 447/457, 450/457. One test still shows 3 of 5 and its rate is stale; everything live is at 2 of 5 or lower. `compare_runs.py` reports the rate in run order |
+| Carry the required facts, Claude Opus 5, six runs | 435/441, 432/441, 451/457, 447/457, 450/457, 448/457. Nothing fails above 50%. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -948,21 +948,73 @@ After this pass the worst rate in the suite belongs to
 `multi-ipsec-policy-nesting`, whose 3 of 5 is the stale one described above.
 Everything genuinely live sits at 2 of 5 or lower.
 
+## Run 06: the falsification run
+
+448/457. Six runs: 98.6, 98.0, 98.7, 97.8, 98.5, 98.0%, spread 97.8 to 98.7%.
+Mean answer 817 characters against 810, 816, 821, 830, 819 for runs 01 to 05, so
+the method held. No shard failed, and both all-multi shards, the shape that
+delegated and wrote nothing in run 03 and twice in run 05, completed normally at
+around 97 tool calls and nine minutes each.
+
+This run existed to check three changes that were all made against runs 01 to
+05, and therefore could not be checked by them. An edit fitted to the stored
+runs passes those runs by construction.
+
+**All three survived.**
+
+- **`multi-ipsec-policy-nesting` passes.** Post-containment it is now 2 of 2,
+  against 1 of 4 before. Run 05 alone could not distinguish the section working
+  from one lucky answer; a second independent pass is a real, if small, result.
+- **All eight edited certificate tests pass**, as does
+  `multi-certificate-role-disambiguation`, the one the sweep deliberately left
+  alone.
+- **`multi-controller-card-vs-card` passes on `card-type`.**
+
+**What that does and does not show.** A test made easier would also pass here.
+The argument for each edit was that its question demanded the change, and that
+argument was made and written down before this run existed. What run 06 rules
+out is the specific failure of having fitted the tests to five particular
+answer sets.
+
+### What it turned up instead
+
+Nothing fails above 50%, and the 3-of-6 tier is mostly the same class a seventh
+time. Four of the six are facts their own questions never ask for:
+
+| Test | Missing | Why it is off-question |
+| --- | --- | --- |
+| `console-baud-rate-default` | `local-switch` | the question asks the baud rate and whether it auto-senses |
+| `equipment-policies-auto-migration` | `cable-id-control` | a third thing beyond the subtype and degree questions asked |
+| `facilities-overview` | `system facilities` | prose, where `facilities` and `show facilities` are already required |
+| `multi-access-rule-ordering-limits` | `permit` | the question asks which rule wins and how many groups attach, not the action |
+
+The first two now fail every run since 03 and the third every run but one, which
+is what the rate view is for: under the old binary they were invisible.
+
+`facilities-overview` is worth a note. `system facilities` was named as a
+contested prose fact by the per-fact agreement analysis described at the end of
+this file, which was proposed and declined. That analysis identified it without
+looking at pass or fail, three runs before it became a consistent failure.
+
+**`multi-route-sources` is the one candidate that is not this class.** Its
+question asks where to see every route the node is using "including the ones
+nobody typed in by hand", so `dynamic` is squarely on-question. It fails runs
+01, 02 and 06 and passes 03, 04, 05. Triage it from the corpus, not from the
+fact list.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. A sixth run.** It is now the only thing that can move
-`multi-ipsec-policy-nesting`, the one test still showing 3 of 5, and it is the
-only way to test whether the Containment section holds against answers it was
-not fitted to. It would also give the certificate sweep and the `card-type`
-re-encoding an independent check, since both were made against the five stored
-runs and neither can be falsified by them.
+**1. The four off-question facts run 06 exposed**, listed above. Sweep the
+class rather than the four, as the certificate pass did: detect by position in
+the reference answer, audit tests that currently pass, and expect to change
+some of them.
 
-**2. The tests failing 2 of 5.** Now the top of the live list. Expect mostly
-test defects of the class found six times, and expect one or two real.
+**2. `multi-route-sources`**, the one 3-of-6 failure that is not a test defect.
+`dynamic` is what its question asks for, so this is a corpus question.
 
 **3. `corpus_hits` still matches raw substrings,** so `tic` registers in 187
 files. Needs the separator flattening `carries()` has; a naive word-boundary fix
