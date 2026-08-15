@@ -154,12 +154,12 @@ section it ended rather than the one it opened.
 - Image references point at `images/figure-p*.png`, which does not exist beside
   the source either. The paths were already dangling.
 
-Twenty-six more surfaced when agents read the corpus to answer the LLM unit
-tests, seven in run 01, nine in run 02, four in run 03, three in run 04 and
-three in run 06, recorded here so nobody spends the afternoon deciding they are
-conversion bugs. They are in the source and they stay.
+Twenty-nine more surfaced when agents read the corpus to answer the LLM unit
+tests, seven in run 01, nine in run 02, four in run 03, three in run 04, three
+in run 06 and three in run 07, recorded here so nobody spends the afternoon
+deciding they are conversion bugs. They are in the source and they stay.
 
-Five of them are classes rather than one-offs, which only became visible once
+Seven of them are classes rather than one-offs, which only became visible once
 later runs rediscovered them independently. Expect more members of each, and
 check which class a new find belongs to before writing it up as novel:
 
@@ -168,17 +168,31 @@ check which class a new find belongs to before writing it up as novel:
   the reverse. Five instances below. An answer about such an attribute can state
   that it exists and nothing else, which is a real limit on what the corpus can
   support.
-- **Content is carried in from an unrelated command.** Five instances. Usually a
-  table row, where the giveaway is a values column of `true, false` under a
+- **Content is carried in from an unrelated command.** Seven instances. Usually
+  a table row, where the giveaway is a values column of `true, false` under a
   description that plainly describes something else. Run 06 extended this class
   in two directions: to a *description* alone, where the parameter name is
-  correct and only its gloss is foreign, and to a whole *Examples block*.
+  correct and only its gloss is foreign, and to a whole *Examples block*. Run 07
+  added a second description and a fragment of one.
 - **A table default contradicts the section's own worked example.** Two
   instances. Neither side is checkable against the other by any script here, so
   these are found only by reading.
 - **A stated default is not one of that row's own stated values**, by
   capitalisation. Ten instances, all on `alarm-report-control`. Cosmetic, listed
   because it looks like a contradiction until you count.
+- **Unconverted DITA markup left in the body.** Two instances,
+  `065-current-advanced-parameter.md` and `086-download.md`. Enumerate with
+  `grep -c codeblock` over the command files.
+- **A token garbled by the PDF conversion.** Four instances: `eccp251` for
+  `eccp521`, `failk` for `failed`, `serdes-templage` for `serdes-template`, and
+  `m0` for `0`. Always a value or a default, never a parameter name, and always
+  recognisable from the surrounding row rather than from any check.
+- **A table's row structure is mangled.** Two instances:
+  `172-macsec-mka.md` merges two parameters into `psk-lifetimepsk-expiration-warning`,
+  and the `tic`/`toc` table in `03-auxiliary-and-help-commands` puts each
+  description one row above the command it belongs to. `check_consistency.py`
+  checks column counts only in the *generated* tables, and these are in the
+  byte-exact slices, so nothing here can catch them.
 
 Found by run 01:
 
@@ -298,6 +312,46 @@ Found by run 06. Three, all verified against the split file.
   Two more rows have no usable default at all: `201-oc.md` gives `n/a` and
   `319-super-channel.md` leaves the cell empty while documenting both values.
 
+Found by run 07. Three, all verified against the split file, plus one rejected
+and one flagged below.
+
+- `211-optical-carrier.md` gives `frequency` the default **`m0`**. Its own
+  description says "Zero means not configured" and its values column reads
+  `Frequency (range: 0 \| 191275000..196125000 MHz)`, so the default is 0 and
+  `m0` is the garbled-token class again.
+- The **`tic`/`toc` table** in
+  `03-auxiliary-and-help-commands/03-auxiliary-and-help-commands.md` has its
+  descriptions one row above the command names: the first row has an empty
+  Commands cell with the "Starts a timer" description, the second row reads
+  `tic` with an empty description, and the same offset repeats for `toc`. Both
+  commands are documented and neither is documented *beside its own name*.
+- `069-custom-tlv.md` describes its `direction` parameter as "Direction
+  associated with lldp statistics", which is `158-lldp-port-statistics.md`'s
+  wording verbatim; `custom-tlv` shows Organizational Specific TLVs, not
+  statistics. The same table's `subtype` description ends "...in the scope of
+  the OUI The firmware name", where the last three words are a fragment from
+  somewhere else. Two carried-in descriptions in one four-row table.
+
+**Rejected, do not re-report:** `069-custom-tlv.md` giving `direction` the
+values `ingress, egress` was flagged as contradicting the "The egress direction
+is not supported" tip in `157-lldp-neighbor.md` and
+`158-lldp-port-statistics.md`. It does not. Those tips are each scoped to their
+own object, and a custom TLV can reasonably be associated with a transmitted as
+well as a received direction. The argument that settles it: if the values had
+been copied from `lldp-port-statistics` along with the description, they would
+read `ingress` alone, which is what that file says. They differ from it, so they
+are `custom-tlv`'s own. This is the same trap as the `alarm-report-control`
+rejection below, and it is worth stating as a rule: **a sibling object stating
+something narrower is not a contradiction.**
+
+**Flagged, weaker than the entries above:** `211-optical-carrier.md` gives
+`cd-range-low` and `cd-range-high` the identical default `-45000 ps/nm`, which
+makes the search range degenerate and looks like a dropped sign on the high
+end. It is not listed as confirmed because both cells carry the caveat "the
+default value depends on the configured service type", so the guide is already
+disclaiming the number, and no other file in the corpus states a chromatic
+dispersion range to corroborate a `+45000`.
+
 **Rejected, do not re-report:** `252-protection-switch.md` was flagged for a
 worked example that passes the group name positionally rather than as
 `protection-group=`. It is correct. The syntax reads
@@ -306,9 +360,10 @@ where the brackets make the *label* optional, so the example matches its own
 syntax. Optional-label syntax is easy to misread as a defect; check the bracket
 placement before writing one up.
 
-**Rejected, do not re-report:** `040-card.md` defaulting `alarm-report-control`
-to inhibited was flagged in run 06 as contradicting the facility pages, which
-default to allowed. It does not. The default legitimately varies by object:
+**Rejected, do not re-report, and flagged twice now:** `040-card.md` defaulting
+`alarm-report-control` to inhibited was reported in run 06 as contradicting the
+facility pages, which default to allowed, and reported again independently in
+run 07. It does not. The default legitimately varies by object:
 counting the whole corpus, 47 rows default to allowed and 11 to inhibited,
 including `chassis`, `protection-group`, `protection-unit`, `dial-out-server`
 and the IKEv2 and MACsec objects. A per-object difference is not a
