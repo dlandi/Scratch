@@ -1,0 +1,25 @@
+{"id": "clock-timezone-and-source", "question": "How do I change the node's timezone, and how can I check whether it is taking its time from NTP or from itself?"}
+{"id": "ne-node-type-change", "question": "Can I convert a G34c node from an in-line amplifier into an add/drop node, and does anything have to be cleared first?"}
+{"id": "ne-function-list", "question": "Which command lists the node's directions and amplifiers in one place?"}
+{"id": "ntp-enable-with-auth", "question": "How do I turn on time synchronisation and require it to be authenticated?"}
+{"id": "ntp-key-algorithms", "question": "What hash algorithms are available for NTP authentication keys, and what are the limits on key id and key value?"}
+{"id": "ntp-server-dhcp-to-manual", "question": "Our time server was handed to the node by DHCP. Can I keep it but manage it ourselves?"}
+{"id": "ntp-server-status-reachability", "question": "How can I tell whether the node is actually reaching its time server?"}
+{"id": "restart-warm-vs-cold", "question": "What is the difference between a warm and a cold reboot of a card, and which one happens if I don't say?"}
+{"id": "set-time-requires-manual-source", "question": "Why is the node refusing to let me set the clock by hand?"}
+{"id": "status-equipment-dashboard", "question": "Is there one command that summarises temperature and power for all the equipment in the node?"}
+{"id": "system-factory-reset", "question": "How do I wipe a node back to factory configuration, and what are the limits on that?"}
+{"id": "time-current", "question": "What is the quickest way to print the node's current date and time?"}
+{"id": "uptime-load-average", "question": "The node reports a load average. How do I know whether the number is bad?"}
+{"id": "manual-switchover-impact", "question": "If I switch over to the standby controller, will I lose my management session?"}
+{"id": "protection-show", "question": "Which command shows the node's protection container?"}
+{"id": "protection-group-timers", "question": "What are the default switching mode and wait-to-restore time on a protection group, and what range can the timer take?"}
+{"id": "protection-switch-force", "question": "How do I force traffic onto the protection path of a group?"}
+{"id": "protection-unit-which-is-active", "question": "How do I tell which member of a protected pair is currently carrying the traffic?"}
+{"id": "alarm-manual-clear", "question": "A few alarms are stuck up and never clear by themselves. How do I get rid of them?"}
+{"id": "alarm-control-arc-behavior", "question": "When we inhibit alarm reporting on something, do the alarms that are already raised disappear or stay up?"}
+{"id": "alarm-inventory-meaning", "question": "I have an alarm code I do not recognise. Where do I find out what it means and what to do about it?"}
+{"id": "alarm-severity-entry-change", "question": "Can I downgrade one particular alarm on one card type without touching anything else?"}
+{"id": "alarm-severity-profile-set", "question": "How does alarm-severity-profile differ from setting the severity entry by entry?"}
+{"id": "current-alarms-count", "question": "How do I get a quick count of how many alarms are up right now and when the list last changed?"}
+{"id": "get-conditions-hidden-alarms", "question": "I expected an alarm to be raised but it is not in the alarm list. Where else should I look?"}

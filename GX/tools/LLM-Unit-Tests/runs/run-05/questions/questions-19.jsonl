@@ -1,0 +1,7 @@
+{"id": "display-config-as-replayable-commands", "question": "I want the current configuration back out as a CLI script I can replay later. Can the node emit that directly?"}
+{"id": "begin-until-retrieve-subset", "question": "An output is enormous and I only want the part starting from one line and ending at another. Is that possible in one go?"}
+{"id": "more-must-be-last-in-the-chain", "question": "Can I page through a filtered listing one screen at a time, and does it matter where in the chain the pager goes?"}
+{"id": "sort-ignores-unknown-attribute-and-inverts", "question": "If I reorder a listing by an attribute name I got slightly wrong, does it fail? And can I flip the order round?"}
+{"id": "exclude-case-insensitive-and-regex", "question": "When I filter lines out of an output, does capitalisation matter, and can I give a pattern rather than a literal word?"}
+{"id": "highlight-phrase-vs-separate-words", "question": "Can I make several terms stand out in one listing, and how do I mark up a whole phrase rather than the individual words?"}
+{"id": "linenum-number-the-output", "question": "Is there a quick way to put line numbers on the output of a command?"}

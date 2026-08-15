@@ -1,0 +1,25 @@
+{"id": "adg-numbering-and-duplication", "question": "How many add/drop groups can a node have, and can the same wavelength appear twice in one of them?"}
+{"id": "amplifier-gain-and-tilt-control", "question": "What gain can an amplifier be asked for, and does the system control tilt by itself?"}
+{"id": "amplifier-raman-gain-target", "question": "What Raman gain can I ask for, and how do I know how many pumps the card has?"}
+{"id": "ase-idler-service-enable", "question": "How do I switch on ASE loading, and how can I see whether it actually came up?"}
+{"id": "ase-idler-source-output-power", "question": "What output power can the ASE source be set to, and is its pump on by default?"}
+{"id": "calibrate-raman-gain", "question": "How do I kick off a Raman gain calibration, and how do I stop one?"}
+{"id": "degree-grid-granularity", "question": "How many degrees can a node have, and what spectral granularity does a degree use?"}
+{"id": "direction-index-assignment", "question": "On a multi-rail in-line amplifier node, why do the directions come in odd and even pairs?"}
+{"id": "dsc-managed-by-system", "question": "What can I configure on a dsc facility, and what does its managed-by attribute tell me?"}
+{"id": "dsc-group-q-thresholds", "question": "What signal degrade thresholds can I set on a carrier group, before and after FEC?"}
+{"id": "gadt-application-descriptions", "question": "Where do I look up the golden carrier application information the node supports?"}
+{"id": "gapt-per-card-type", "question": "What does the gapt command list and how is it scoped?"}
+{"id": "gcmt-carrier-mode-lookup", "question": "How do I look up the details of a specific golden carrier mode such as 800M.95P?"}
+{"id": "golden-carrier-mode-status", "question": "How do I tell whether a carrier mode is fully supported or only experimental?"}
+{"id": "l0-capabilities-view", "question": "Which command summarises what the node can do at the photonic layer?"}
+{"id": "mc-create-frequency-bounds", "question": "What do I have to supply to carve out a media channel?"}
+{"id": "mc-f-filler-readonly", "question": "Can I configure the media channel filler, or is it read only?"}
+{"id": "modules-adg-slots", "question": "How many cards can I put into one add/drop group, and is channel monitoring on by default?"}
+{"id": "modules-degree-attach-card", "question": "How do I associate a line card with a degree?"}
+{"id": "monitored-channel-power", "question": "How do I read the measured power of one channel at a monitoring point?"}
+{"id": "nmc-frequency-range-and-width", "question": "What frequency range and channel width can a network media channel take?"}
+{"id": "nmc-f-default-bandwidth", "question": "What bandwidth does a network media channel filler occupy by default, and is it monitored?"}
+{"id": "oadm-capabilities-limits", "question": "How do I find the maximum number of degrees and add/drop groups this node supports?"}
+{"id": "oc-loopback-and-test-signal", "question": "What loopbacks and test patterns can I put on an optical carrier?"}
+{"id": "ochm-ila-derivation", "question": "On an in-line amplifier node, where does the optical channel monitoring information come from?"}

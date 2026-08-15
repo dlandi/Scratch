@@ -1,0 +1,15 @@
+{
+  "label": "run-05",
+  "date": "2026-08-15",
+  "model": "claude-opus-5",
+  "answers": 457,
+  "mean_answer_chars": 819,
+  "method": "Identical to runs 01 to 04. One agent per shard of 25 questions, 19 shards, dispatched from runs/prompt.md verbatim with only the shard path and output path substituted.",
+  "corpus_commit": "856590c",
+  "corpus_note": "First run made AFTER entities.md gained its Containment section. That is the only corpus change since run 04, and it is why this run exists.",
+  "tests_commit_at_run": "856590c",
+  "score_at_run": {"overall": "446/457"},
+  "purpose": "To test one prediction, not to refine a number. The Containment section was added because multi-ipsec-policy-nesting failed 3 of 4 runs: 141-ipsec-spd-entry.md never says 'proposal', so the nesting was discoverable child-to-parent and invisible parent-to-child. The prediction was that if the next run answered that question and its failure rate fell, the index change was the cause.",
+  "result_note": "The prediction held. multi-ipsec-policy-nesting PASSES in run 05, taking it from 3/4 to 3/5. Independently corroborated: the shard 01 agent reported unprompted that 'the containment table in index\\entities.md was the key to the hierarchy questions', naming ipsec-spd-entry -> ipsec-sa-proposal/ipsec-traffic-selector, without knowing the section was new or why. One run is one run, but the mechanism was observed, not merely inferred from the score.",
+  "dispatch_note": "Shard 02 failed twice by delegating to five sub-agents and returning without writing a file, then succeeded on the third identical attempt. Its 25 questions are all multi-command, which is the decomposable shape that invites the split. The failed attempts ended in ~2 minutes and ~12 tool calls; successful shards on this material take 5-7 minutes and 70-100 calls. The orphaned sub-agent output was discarded rather than stitched in, because a shard produced by a five-agent split would not be comparable with the other 18 or with runs 01 to 04. The prompt was NOT amended to forbid delegation, since that would measure a different prompt."
+}
