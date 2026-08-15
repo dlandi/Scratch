@@ -41,7 +41,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, four runs | 434/441, 428/441, 448/457, 444/457. 1 test fails 3 of 4, 9 fail 2 of 4, 18 fail once. `compare_runs.py` reports the rate |
+| Carry the required facts, Claude Opus 5, five runs | 434/441, 429/441, 449/457, 445/457, 446/457. Nothing fails above 60%; 5 tests sit at 3 of 5. `compare_runs.py` reports the rate |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -722,12 +722,22 @@ here; it makes `ipsec-sa-proposal` a child of `ikev2-local-instance` and leaves
 `ipsec-spd-entry` with no children at all, preserving the very gap being closed.
 Reusing that function unchanged would have looked correct and fixed nothing.
 
-**The stored runs cannot show whether this worked.** Their answers were written
-against an index that had no Containment section, so `multi-ipsec-policy-nesting`
-still fails run 04 and still sits at 3 of 4. Only a future run can tell us
-whether the fix does what it was meant to, and that makes it the clearest
-prediction this project has to test: if the next run answers that question and
-the rate drops, the index change is what did it.
+**Run 05 tested that prediction, and it held.** `multi-ipsec-policy-nesting`
+passes, 3 of 4 becoming 3 of 5. The corroboration is worth more than the score:
+the shard 01 agent reported unprompted that "the containment table in
+`index\entities.md` was the key to the hierarchy questions", naming
+`ipsec-spd-entry -> ipsec-sa-proposal/ipsec-traffic-selector`, without knowing
+the section was new or why it existed. That is the mechanism observed rather
+than inferred.
+
+**Read it with the caveat.** One pass is one bit of evidence, and the rate
+falling from 75% to 60% is arithmetic rather than independent confirmation. A
+sixth run is what would settle it. After run 05 nothing in the suite fails above
+60%, and five tests share that mark, four of which are the next triage
+candidates: `chain-certificate-behind-encrypted-app`, `csr-gen-pending-import`,
+`local-certificate-revocation-mode`, `multi-controller-card-vs-card`. Three of
+the five are certificate-related, which may be a cluster rather than four
+independent misses.
 
 ## Remaining work
 
@@ -735,11 +745,8 @@ Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. A fifth run, to test one prediction.** The Containment section was added
-because `multi-ipsec-policy-nesting` failed 3 of 4, but the stored answers
-predate it, so nothing here can show whether it worked. If the next run answers
-that question and the rate falls, the index change is what did it. That is the
-first falsifiable prediction this project has made about a fix.
+**1. Triage the five tests at 3 of 5**, starting with the three
+certificate-related ones, which may share a cause rather than being independent.
 
 **2. The nine tests failing 2 of 4.** Meaningless as a group under the old
 binary, legible now that the rate is reported. Expect mostly test defects of the
