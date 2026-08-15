@@ -44,7 +44,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, five runs | 434/441, 429/441, 449/457, 445/457, 446/457. Nothing fails above 60%; 5 tests sit at 3 of 5. `compare_runs.py` reports the rate |
+| Carry the required facts, Claude Opus 5, five runs | 435/441, 432/441, 451/457, 447/457, 450/457. One test still shows 3 of 5 and its rate is stale; everything live is at 2 of 5 or lower. `compare_runs.py` reports the rate in run order |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -908,34 +908,61 @@ Teeth after the pass: worst fact set matched by 4 of 377 files, mean 1.07, no
 test passed by an empty or generic answer, and the same 7 tests as before pass
 on the command name alone, all of them sections too thin to support more.
 
+### `multi-controller-card-vs-card` was a different defect
+
+The fourth test at 3 of 5 was not off-question. Its missing fact `capability`
+**is** what the question's third clause asks for, and it was encoded as guide
+prose lifted from the description sentence "show the capability information for
+supported card". The three failing runs answered correctly using "supports" and
+"supported"; the two passing runs happened to write the noun. `carries()` allows
+only a trailing plural `s`, so even "capabilities" would have failed. Nothing
+about the corpus was involved.
+
+Re-encoded to **`card-type`**. The question contrasts three things: the
+controller, any card in the shelf, and a given *model* of card. `card-type` is
+the key `supported-card` is addressed by, so it is what makes that object
+model-scoped rather than a unit in a slot, and it is a typed token rather than a
+description. The obvious alternative, naming a specific capability attribute
+like `grid-mode-support` or `console-port-support`, was rejected as the same
+defect in a new costume: the question asks what a model supports in general and
+never asks about grid modes, so requiring one would be off-question.
+
+**Two hazards worth recording.** `supported-card-mode` is the one candidate all
+five runs state, and it is absent from the reference answer, so the gate
+requiring a reference answer to pass its own test ruled it out. That gate did
+real work here, because measuring candidates against the runs at all is how a
+test gets fitted to a model. And this change makes a 3-of-5 failure pass, the
+same flag carried by `sub-component-view` and `edit-vs-up-vs-top-navigation`.
+
+**`required-type` on the same test was suspected and cleared.** It looked
+off-question, since it comes from a provisioning example while the question asks
+how to *see* configuration. On inspection it is the only workable discriminator
+for the "any card in the shelf" clause: bare `card` appears in 147 files and
+matches inside `controller-card`, `card-name` is not in the cited files at all,
+and `admin-state` is in 56. At 8 files `required-type` is the sharpest thing
+that names the general card object, and characterising it as the object where
+provisioning happens is a fair reading of the contrast the question draws. Left
+alone.
+
+After this pass the worst rate in the suite belongs to
+`multi-ipsec-policy-nesting`, whose 3 of 5 is the stale one described above.
+Everything genuinely live sits at 2 of 5 or lower.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. Triage the four live tests at 3 of 5.** `multi-ipsec-policy-nesting` is the
-fifth and is not a candidate: its rate is stale, as above, and only a sixth run
-moves it. Of the four, the three certificate ones share a cause. Each fails on
-one fact its own question never asks for, harvested from the reference answer's
-volunteered tail: `end-entity` describing a certificate rather than naming one,
-`sha256` from a defaults list, `trust-chain` from a list of read-only reporting
-attributes. That is the prose class for the sixth time.
+**1. A sixth run.** It is now the only thing that can move
+`multi-ipsec-policy-nesting`, the one test still showing 3 of 5, and it is the
+only way to test whether the Containment section holds against answers it was
+not fitted to. It would also give the certificate sweep and the `card-type`
+re-encoding an independent check, since both were made against the five stored
+runs and neither can be falsified by them.
 
-`multi-controller-card-vs-card` is a different shape and worth separating. Its
-missing fact `capability` *is* on-question, since the question's third clause
-asks what a model of card supports; it is encoded as guide prose rather than as
-a typed token, so the three failing runs answered correctly using "supports" and
-the two passing runs happened to write "capability". Re-encode it to a token
-from the `supported-card` parameter table, chosen from the question rather than
-from what the runs said, and flag that this makes a 3-of-5 failure pass. The
-same test's `required-type` comes from a provisioning example while the question
-asks how to *see* configuration, and it passes 5 of 5, which makes it the
-class-sweep candidate.
-
-**2. The nine tests failing 2 of 5.** Meaningless as a group under the old
-binary, legible now that the rate is reported. Expect mostly test defects of the
-class found five times, and expect one or two real.
+**2. The tests failing 2 of 5.** Now the top of the live list. Expect mostly
+test defects of the class found six times, and expect one or two real.
 
 **3. `corpus_hits` still matches raw substrings,** so `tic` registers in 187
 files. Needs the separator flattening `carries()` has; a naive word-boundary fix
