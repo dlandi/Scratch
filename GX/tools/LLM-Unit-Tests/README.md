@@ -841,6 +841,73 @@ is now `ipsec-sa-proposal` at no cost: all five runs score identically and every
 sequence in the rate table is unchanged. It is also the narrower fact, in 5 of
 377 files where the whole set is still satisfied by none.
 
+## The certificate sweep, and the sixth appearance of the prose class
+
+The three certificate tests at 3 of 5 shared one cause, and it was the class
+already found five times: a required fact the question never asks for, taken
+from the reference answer's volunteered tail. `end-entity` describes a
+certificate rather than naming one, `sha256` came from a "defaults worth
+knowing" list, `trust-chain` from a list of read-only reporting attributes. In
+each case the failing runs had answered the question correctly.
+
+**The class was detected by position, not by failure.** Locating each fact
+inside its own reference answer and flagging the ones in the last 40% turned up
+ten candidates across the 27 certificate tests, of which seven were passing 5 of
+5. That ordering matters: the previous triage at `e4c274a` looked only at
+failures and was weaker for it.
+
+Position only nominates, though. The question decides, and it cleared three of
+the ten: `priority` on `cert-to-name-mapping` sits late but is how the node
+picks between matching rules, `peer-certificate` late in
+`multi-certificate-role-disambiguation` is the "which is the far end's" the
+question asks for, and `ssh-known-host` is the remote host the question names.
+
+Eight tests were edited, five of them passing at the time:
+
+| Test | Dropped | Why |
+| --- | --- | --- |
+| `cdp-auto-refresh` | `last-update-result` | question asks whether it fetches on a schedule, not how the last one went |
+| `csr-gen-pending-import` | `sha256`, `eccp256` | signature and key defaults; the question asks what state the node is in |
+| `est-server-port-default` | `path-segment` | neither the port nor the multiplicity the question asks about |
+| `isk-in-use-flags` | `KRK-name` | the signing root, not the in-use flags |
+| `ssh-keygen-replaces-keys` | `show ssh-host-key` | how to view them after, not what happens to them |
+| `local-certificate-revocation-mode` | `trust-chain` | a reporting attribute, not forcing revocation |
+| `key-replacement-package-view` | `key replacement package` | redundant: `carries()` flattens separators, so the hyphenated fact already matches the spaced form |
+
+`chain-certificate-behind-encrypted-app` was restructured rather than trimmed.
+It required `local-certificate`, `digital identity`, `end-entity` and `X509v3`,
+and **nothing in that set answered the second half of its own question**: what
+has to be imported before the application comes up is `trusted-certificate`,
+which was not required at all. Now `local-certificate`, `secure-application`,
+`trusted-certificate`, which is the question's three objects and no prose.
+
+**One candidate was examined and deliberately left alone.**
+`multi-certificate-role-disambiguation` requires `end-entity certificate`, the
+same prose token dropped from the chain test, and dropping it here takes the
+fact set from 3 files to 5, past the discrimination gate. Every replacement is
+prose as well, because what separates those four objects is descriptive:
+`white-listed` is not in the reference answer and would fail the gate that a
+reference answer must pass its own test, and rewriting the reference answer to
+fit the instrument is not a repair. The token is also more defensible here than
+in the chain test, where the question never asked about a certificate's position
+in a hierarchy; this question explicitly asks which object is the node's own
+identity as against the CA, and end-entity is the distinction. Left as it is,
+and recorded rather than buried.
+
+**Read the score movement with the caveat.** Runs now score 434, 431, 451, 447,
+449, up from 434, 429, 449, 445, 446. Three tests that were failing had the
+facts they failed on removed, which is an instrument adjusted after seeing what
+it flagged and cannot clear itself. What makes it repair rather than tuning is
+that five of the eight edits were to tests nothing had flagged, and that the
+detection ran over all 27 certificate tests before any verdict was consulted.
+The additions to the chain test are supplied by all five runs, so they
+strengthen the test's coverage of its question and not its difficulty against
+this model.
+
+Teeth after the pass: worst fact set matched by 4 of 377 files, mean 1.07, no
+test passed by an empty or generic answer, and the same 7 tests as before pass
+on the command name alone, all of them sections too thin to support more.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
