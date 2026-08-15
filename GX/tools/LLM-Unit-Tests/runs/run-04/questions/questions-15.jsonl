@@ -1,0 +1,25 @@
+{"id": "ssh-host-key-per-algorithm", "question": "Where does the node's own SSH host key come from, and can there be more than one?"}
+{"id": "ssh-keygen-replaces-keys", "question": "If I regenerate the SSH keys, what happens to the existing ones?"}
+{"id": "ssh-known-host-algorithms", "question": "How do I pre-trust a server the node will connect out to over SSH?"}
+{"id": "trusted-certificate-scope", "question": "Which object holds the CA certificates the node trusts?"}
+{"id": "cable-id-terminate-test", "question": "How do I stop a CableID verification that is already running?"}
+{"id": "cable-id-path-cards", "question": "Which cards can source or terminate a CableID signal?"}
+{"id": "cable-id-status-progress", "question": "Can I check how far a fibre verification has got while it is running?"}
+{"id": "carrier-neighbor-discovery-limit", "question": "How many nodes can one carrier discover?"}
+{"id": "connection-ports-per-degree", "question": "How do I see which ports carry a given degree's connections?"}
+{"id": "custom-tlv-organizational", "question": "How do I see vendor-specific LLDP TLVs received on a port?"}
+{"id": "external-fiber-connection-tnms", "question": "Should I configure fibre connections between nodes by hand?"}
+{"id": "fiber-connection-within-ne", "question": "What is the difference between a fiber-connection and an external-fiber-connection?"}
+{"id": "icdp-global-switch", "question": "Is the carrier discovery protocol on by default?"}
+{"id": "inci-enabled-default", "question": "What is INCI and is it running by default?"}
+{"id": "inci-neighbor-discovered-name", "question": "How do I tell whether the far end of an INCI link is the node I expected?"}
+{"id": "interface-neighbor-discovery-timers", "question": "How often does the node look for a neighbour on a management interface, and how long before it gives up?"}
+{"id": "links-dynamic", "question": "Do I have to configure the links shown under topology?"}
+{"id": "lldp-hold-on-timer", "question": "How long does the node keep LLDP information before ageing it out?"}
+{"id": "lldp-local-info-system-string", "question": "What does this node advertise about itself over LLDP?"}
+{"id": "lldp-neighbor-egress-unsupported", "question": "Can I look at LLDP neighbours in the egress direction?"}
+{"id": "lldp-port-statistics-persistence", "question": "Do the LLDP frame counters reset when a neighbour ages out?"}
+{"id": "nct-connection-chassis-state", "question": "In a multi-chassis node, how do I see which shelf is the controller and which are not yet provisioned?"}
+{"id": "sndp-enabled-default", "question": "What does the sndp command control?"}
+{"id": "submarine-link-attributes", "question": "What do I have to supply to describe a subsea link, and how long can it be?"}
+{"id": "supporting-fiber-connection-list", "question": "What does supporting-fiber-connection show?"}

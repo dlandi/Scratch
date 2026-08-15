@@ -1,0 +1,25 @@
+{"id": "file-operations-and-access", "question": "Can I rename or delete any file on the node from the CLI?"}
+{"id": "file-operation-vs-file", "question": "There is a file command and a file-operation command. What is the difference?"}
+{"id": "file-server-protocols", "question": "What transfer protocols can I configure a file server with, and what do I have to supply?"}
+{"id": "file-type-last-transfer", "question": "How do I see when a particular kind of file was last transferred and whether it worked?"}
+{"id": "http-file-server-ports", "question": "Is plain HTTP available for file transfer off the node, and on what ports?"}
+{"id": "manifest-component-state", "question": "How do I see what a downloaded software manifest contains and whether each part installed?"}
+{"id": "packaged-fw-per-equipment", "question": "Does a software load carry one firmware version for everything?"}
+{"id": "prepare-upgrade-validate-then-apply", "question": "Is there a way to check a software label before committing to it?"}
+{"id": "recover-mode-clear-traffic-impact", "question": "The node is in recover mode. What does clearing that flag actually do?"}
+{"id": "software-load-states", "question": "How do I see which software load is active and which is waiting to be used?"}
+{"id": "software-location-per-slot", "question": "How do I look at software on one particular slot?"}
+{"id": "subtype-constraint-capacity", "question": "Where do I find the capacity limits and supported applications for a card subtype?"}
+{"id": "sw-component-state", "question": "How do I tell whether a part of the software load failed to install?"}
+{"id": "sw-container-resource-usage", "question": "How do I see how much CPU and memory the node's containers are using?"}
+{"id": "sw-control-rule-fail-action", "question": "Can I change what the node does when a particular software service dies?"}
+{"id": "sw-management-overview", "question": "Is there one command that shows software locations, downloads and load state together?"}
+{"id": "sw-service-restart-count", "question": "How can I tell whether a software service has been restarting repeatedly?"}
+{"id": "sw-subcomponent-detail", "question": "What does sw-subcomponent add over sw-component?"}
+{"id": "swversion-quick-check", "question": "What is the quickest way to see what software the node is running and what it could run?"}
+{"id": "third-party-fw-validity", "question": "How do I check that a third-party firmware file on the node is intact and which equipment it applies to?"}
+{"id": "transfer-http-proxy", "question": "Our node has to go through a proxy to reach external servers. Where do I set that?"}
+{"id": "transfer-status-progress", "question": "How do I watch how far along a file transfer is?"}
+{"id": "upgrade-status-levels", "question": "An upgrade partly failed. How do I find out where and at which step?"}
+{"id": "upload-debug-log-and-certs", "question": "How do I get diagnostic logs off the node, and is exporting certificates any different?"}
+{"id": "ztp-state-machine", "question": "How do I check how far zero touch provisioning has got?"}

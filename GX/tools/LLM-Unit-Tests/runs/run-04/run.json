@@ -1,0 +1,14 @@
+{
+  "label": "run-04",
+  "date": "2026-08-15",
+  "model": "claude-opus-5",
+  "answers": 457,
+  "mean_answer_chars": 830,
+  "method": "Identical to runs 01 to 03. One agent per shard of 25 questions, 19 shards, dispatched from runs/prompt.md verbatim with only the shard path and output path substituted. Each agent was given the question ids and text only, plus the path to R9_1_GX_CLI_Reference/, and was forbidden to read anything under tools/. Dispatched 16 first and the last 3 as slots freed, to stay inside the 20-agent concurrency cap that bit run 03.",
+  "corpus_commit": "e4c274a",
+  "corpus_note": "Same commit as the tests. This is the first run made AFTER the triage of the seven persistent failures and after batch 15's facts were re-encoded, so it is the first set of answers those repairs were not written against.",
+  "tests_commit_at_run": "e4c274a",
+  "score_at_run": {"overall": "444/457"},
+  "purpose": "Falsification, not measurement. The triage repaired exactly the seven tests that runs 01 to 03 had defined as persistent, which made the resulting '0 failed by every run' unfalsifiable from those runs alone. This run is the independent check: any test failing here that passed in all three prior runs is the signal.",
+  "score_note": "Scored against the tests at the commit the answers were produced at. Compare with the other runs only via compare_runs.py, which rescores every stored run against the working tree."
+}

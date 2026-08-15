@@ -41,7 +41,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, three runs | 434 / 441, 428 / 441, 448 / 457 after the triage below. 0 fail in all three, 24 in some. Read the triage section before quoting the 0 |
+| Carry the required facts, Claude Opus 5, four runs | 434/441, 428/441, 448/457, 444/457. None fail in all four; 2 fail 3 of 4, 9 fail 2 of 4. Quote the failure rate, not the binary |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -643,19 +643,51 @@ frequency number alone can never decide a fact; the question decides it.
 Teeth after the pass: worst fact set matches 4 of 377 files, mean 1.08, no test
 passed by an empty answer.
 
+## What the fourth run found
+
+Run on 2026-08-15 against the repaired tests, same model, same prompt.
+**444/457.** Stored in `runs/run-04/`.
+
+**Its purpose was falsification, and the triage survived it.** Run 04's answers
+were produced after the triage and had no part in writing it, so it is the
+independent check the previous section said was needed. Of the seven triaged
+tests only `multi-l1-encryption-prerequisites` fails, and on `secure-application`,
+a fact the triage never touched. All 16 batch 15 tests pass, so the
+prose-to-identifier re-encoding holds against answers it was not fitted to.
+
+**And it showed the binary metric is misleading.** "Failed by every run" gets
+mechanically harder to satisfy with each run added, so 0 is a weaker statement
+at four runs than at three. The distribution is the honest picture:
+
+| Failed in | Tests |
+| --- | --- |
+| 3 of 4 runs | 2: `sub-component-view`, `multi-ipsec-policy-nesting` |
+| 2 of 4 runs | 9 |
+| 1 of 4 runs | 18 |
+
+`multi-ipsec-policy-nesting` is the case that makes the point. It failed runs 01
+and 02, passed run 03, failed run 04. Run 03 removed it from the persistent list
+as noise; at 3 of 4 it is now the joint most consistent failure in the suite.
+**A test is not persistent-or-noise, it has a failure rate**, and
+`compare_runs.py` currently reports only the binary. Reporting the rate is the
+obvious next improvement to it.
+
+Read `sub-component-view` and `multi-ipsec-policy-nesting` as the current best
+candidates for a real gap, and triage them from their questions as before.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. A fourth run.** This is now the highest-value thing left, and its purpose
-has changed. The triage repaired exactly the seven tests the three runs
-defined, so the resulting "0 failed by every run" cannot be self-certified. A
-fourth run against the repaired tests is the only way to find out whether 0 is
-real or an artifact of fitting the instrument to its own output.
+**1. Report a failure rate in `compare_runs.py`,** not the persistent/unstable
+binary. Run 04 showed the binary hides the most consistent failure in the
+suite: `multi-ipsec-policy-nesting` sits at 3 of 4 yet run 03 had cleared it as
+noise. This is a small change to the one tool everyone reads results from.
 
-**2. Whatever run 4 surfaces**, triaged from the question as before.
+**2. Triage `sub-component-view` and `multi-ipsec-policy-nesting`,** the two at
+3 of 4, from their questions as before.
 
 Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question
