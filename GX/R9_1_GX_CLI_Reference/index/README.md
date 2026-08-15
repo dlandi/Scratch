@@ -16,6 +16,7 @@ themselves are unmodified slices of that document.
 | "who is allowed to run X", user groups, privileges | [access-control.md](access-control.md) |
 | A page citation from the text, "(p. 934)" | [pages.tsv](pages.tsv) |
 | "Table 93", "Figure 5" | [tables.tsv](tables.tsv) |
+| An acronym you do not recognise ("OPSM", "GFP", "OLS") | [../99-acronyms/99-acronyms.md](../99-acronyms/99-acronyms.md) |
 | Anything programmatic: filtering, joins, bulk analysis | [commands.jsonl](commands.jsonl) |
 | Browsing the document in reading order | [../NAVIGATION.md](../NAVIGATION.md) |
 
@@ -31,6 +32,11 @@ themselves are unmodified slices of that document.
 - The guide covers four chassis variants (G31, G32, G34c, G42). Parameter ranges
   and supported cards differ per variant; check the parameter table rather than
   assuming.
+- `topics.md` search terms carry the acronyms operators type, but only the ones
+  someone thought to add. The source's own list of 797 acronyms is the
+  fallback, and it is the only place the vendor-specific ones are expanded at
+  all: `OPSM` is Optical Protection Switch Module, `INCI` is Inter-NE
+  Communication Infrastructure. Nothing routes to it, so look there directly.
 
 ## commands.jsonl fields
 

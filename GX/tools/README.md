@@ -56,7 +56,7 @@ GX/
 | `step4_build_index.py` | `INDEX.md` and everything in `index/` |
 | `step5_navigation.py` | Source table of contents to `NAVIGATION.md` |
 | **`curated.py`** | **The only file meant to be edited by hand.** Domains and topics. |
-| `check_consistency.py` | 30 assertions: every stated number matches reality |
+| `check_consistency.py` | 34 assertions: every stated number matches reality |
 | `check_index_links.py` | Every link and JSONL record resolves |
 | `check_navigation.py` | Every `NAVIGATION.md` link resolves |
 
@@ -278,7 +278,7 @@ stated them.
 
 ## What the checks prove
 
-`check_consistency.py` is the important one. It verifies, among 30 assertions:
+`check_consistency.py` is the important one. It verifies, among 34 assertions:
 all 1,358 pages map and all 332 cited pages resolve; indexed tables match the
 List of Tables exactly; for all 374 commands the recorded verbs, table numbers,
 page citations and example flags match the section body; no command loses more
@@ -287,5 +287,5 @@ to its command; domain counts match their tables; and every number written into
 prose in `INDEX.md`, `index/README.md`, `index/parameters.md` and
 `index/access-control.md` matches the data. If you change a generator, run it.
 
-Current state: 30 of 30 assertions pass, 2,245 links resolve, and the split
+Current state: 34 of 34 assertions pass, 2,246 links resolve, and the split
 reassembles byte-identically to the source.

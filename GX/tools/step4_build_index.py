@@ -358,6 +358,18 @@ W("access-control.md", "\n".join(out))
 
 # ------------------------------------------------------------------- README.md
 tot_params = sum(len(r["parameters"]) for r in recs)
+
+# The acronym list is a slice of the source like any other, but nothing pointed
+# at it, so an agent meeting `OPSM` or `GFP` in a parameter description had no
+# way to learn it is defined anywhere in the corpus. Routing it is the whole
+# fix: feeding the expansions into `curated.py` as search terms was prototyped
+# and rejected, because the acronyms with a search term are the well-known ones
+# whose expansion a model already knows. See the test README.
+_acr = open(os.path.join(BASE, "99-acronyms", "99-acronyms.md"),
+            encoding="utf-8").read()
+n_acronyms = len([1 for ln in _acr.split("\n")
+                  if (m := re.match(r"^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$", ln))
+                  and m.group(1) not in ("Acronym", "---") and m.group(2) != "---"])
 out = f"""# Index - retrieval guide
 
 Machine-oriented index over the split GX CLI Reference Guide. Everything here is
@@ -376,6 +388,7 @@ themselves are unmodified slices of that document.
 | "who is allowed to run X", user groups, privileges | [access-control.md](access-control.md) |
 | A page citation from the text, "(p. 934)" | [pages.tsv](pages.tsv) |
 | "Table 93", "Figure 5" | [tables.tsv](tables.tsv) |
+| An acronym you do not recognise ("OPSM", "GFP", "OLS") | [../99-acronyms/99-acronyms.md](../99-acronyms/99-acronyms.md) |
 | Anything programmatic: filtering, joins, bulk analysis | [commands.jsonl](commands.jsonl) |
 | Browsing the document in reading order | [../NAVIGATION.md](../NAVIGATION.md) |
 
@@ -391,6 +404,11 @@ themselves are unmodified slices of that document.
 - The guide covers four chassis variants (G31, G32, G34c, G42). Parameter ranges
   and supported cards differ per variant; check the parameter table rather than
   assuming.
+- `topics.md` search terms carry the acronyms operators type, but only the ones
+  someone thought to add. The source's own list of {n_acronyms} acronyms is the
+  fallback, and it is the only place the vendor-specific ones are expanded at
+  all: `OPSM` is Optical Protection Switch Module, `INCI` is Inter-NE
+  Communication Infrastructure. Nothing routes to it, so look there directly.
 
 ## commands.jsonl fields
 

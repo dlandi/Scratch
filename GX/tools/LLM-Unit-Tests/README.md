@@ -241,6 +241,55 @@ Ranked next are ordinary domain words: `card`, `channel`, `default`, `carrier`.
 They fire because questions genuinely say them, and they are the price of topic
 routing rather than a defect. Do not chase the ranking to zero.
 
+### The acronym list, and a prototype that was measured and rejected
+
+`99-acronyms/99-acronyms.md` is a slice of the source like any other, 797
+entries, and nothing routes to it. Feeding those expansions into `curated.py`
+as search terms was built, measured and **rejected**. Recorded here because the
+negative result cost more to obtain than the change would have.
+
+The rule was narrow: attach an expansion only to a topic that already carries
+its acronym as a search term, so the expansion routes exactly where the acronym
+does, nothing new becomes reachable and recall cannot fall. 850 definition
+pairs reduced to 50 terms. Rebuilt, **every precision figure was identical to
+baseline** and `run_tests.py` was unchanged at 457/457 and 456/456.
+
+**It was rejected despite costing nothing, because it also bought nothing.**
+The consumer of `topics.md` is a model, and an acronym earns a curated search
+term precisely because someone recognised it as vocabulary operators type,
+which makes it one of the well-known ones. So the 50 were `border gateway
+protocol`, `secure shell`, `simple network management protocol`: expansions any
+model already knows. The filter that rejected 770 of 850 was "no anchored
+search term", and that bucket is where the acronyms needing help actually live.
+`OPSM`, `GFP`, `OLS` and `AID` still route to zero files. Only three of the 49
+were vendor-specific, and those were added by hand: `intelligent carrier
+discovery protocol`, `inter-ne communication infrastructure`, `nodal control
+and timing`. `index/README.md` now carries a row pointing at the acronym list
+for the rest, which is discovery rather than routing.
+
+Two findings are worth more than the change:
+
+- **Anchor on a search term, never on a command name.** The first version
+  accepted both. A command name is an object identifier, and its spelled-out
+  form is usually the ordinary phrase the guide already uses everywhere, so it
+  behaves like `card` and `channel`: `media channel`, from the `mc` command,
+  added **124 irrelevant files across 6 questions**, and `NE` produced `network
+  engineer`. Three of the seven command-anchored terms were the worst in the
+  batch.
+- **An ambiguous acronym drags unrelated vocabularies into one topic.** `PM` is
+  performance monitoring here, and also phase modulation and preventive
+  maintenance; `SPD` is a security policy database and a surge protective
+  device. Requiring the expansion to share a content word with the topic caught
+  these, at the cost of also dropping `ASE = Amplified Spontaneous Emission`.
+
+**What could and could not be measured.** `precision.py` prices the cost, not
+the benefit, because every question in the suite uses acronyms rather than
+expansions, so the added terms are invisible to it by construction. The benefit
+figures, 46 of 49 expansions reaching a superset of their acronym and 10
+reaching nothing beforehand, come from queries written for the purpose. That is
+the same blind spot as the rest of the suite, and it is why a result showing
+zero cost is not on its own a reason to ship.
+
 ## One honest limitation
 
 **Compound questions.** `multi-node-identity-and-restart` asks three things at

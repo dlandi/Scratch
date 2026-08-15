@@ -157,6 +157,13 @@ check(m2.groups() == (str(len(ents)), str(len(rs) - len(ents))), "README entity 
 m3 = re.search(r"median (\d+) lines", rd)
 ops = sorted(r["line_count"] for r in rs if r["category"] == "operation")
 check(m3.group(1) == str(ops[len(ops) // 2]), "README median line count current")
+m5 = re.search(r"list of (\d+) acronyms", rd)
+acr = R("99-acronyms/99-acronyms.md")
+n_acr = len([1 for ln in acr.split("\n")
+             if (mm := re.match(r"^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|$", ln))
+             and mm.group(1) not in ("Acronym", "---") and mm.group(2) != "---"])
+check(m5 and m5.group(1) == str(n_acr), "README acronym count current",
+      f"{m5.group(1) if m5 else None} vs {n_acr}")
 ac = R("index/access-control.md")
 m4 = re.search(r"(\d+) commands have an explicit execution-access entry", ac)
 n_exec = len({r["name"] for r in rs if "execute" in r["user_groups"]})

@@ -403,7 +403,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## LLDP and neighbor discovery
 
-*Search terms:* `lldp`, `neighbor`, `neighbour`, `discovery`, `tlv`, `icdp`, `sndp`, `management address`, `advertising`, `inci`, `discover`, `far end`, `stale`
+*Search terms:* `lldp`, `neighbor`, `neighbour`, `discovery`, `tlv`, `icdp`, `sndp`, `management address`, `advertising`, `inci`, `discover`, `far end`, `stale`, `intelligent carrier discovery protocol`, `inter-ne communication infrastructure`
 
 | Command | What it does | File |
 | --- | --- | --- |
@@ -464,7 +464,7 @@ Maps the words people actually use to the commands that implement them. Each ent
 
 ## Multi-chassis and node controller
 
-*Search terms:* `multi-chassis`, `node controller`, `nct`, `chassis`
+*Search terms:* `multi-chassis`, `node controller`, `nct`, `chassis`, `nodal control and timing`
 
 | Command | What it does | File |
 | --- | --- | --- |

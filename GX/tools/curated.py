@@ -266,7 +266,14 @@ TOPICS = [
     ("LLDP and neighbor discovery",
      ["lldp", "neighbor", "neighbour", "discovery", "tlv", "icdp", "sndp",
       "management address", "advertising", "inci", "discover", "far end",
-      "stale"],
+      "stale",
+      # Spelled-out forms of two vendor-specific acronyms. Added because a
+      # model cannot expand these from general knowledge the way it expands
+      # OSPF or SNMP, so an operator who writes them out reaches nothing.
+      # This is the deliberately small residue of the acronym-alias prototype;
+      # see the test README for why the other 47 were rejected.
+      "intelligent carrier discovery protocol",
+      "inter-ne communication infrastructure"],
      ["lldp", "lldp-local-info", "lldp-neighbor", "lldp-port-statistics",
       "custom-tlv", "icdp", "sndp", "carrier-neighbor", "interface-neighbor",
       "inci", "inci-neighbor", "management-address",
@@ -373,7 +380,8 @@ TOPICS = [
      ["ne", "ne-function", "system", "status", "uptime", "restart", "resources",
       "chassis"]),
     ("Multi-chassis and node controller",
-     ["multi-chassis", "node controller", "nct", "chassis"],
+     ["multi-chassis", "node controller", "nct", "chassis",
+      "nodal control and timing"],
      ["nct-connection", "unprovisioned-inventory", "chassis",
       "management-address", "management-address-local"]),
     ("Laser shutdown and transmit control",
