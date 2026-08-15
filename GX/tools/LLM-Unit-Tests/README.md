@@ -41,7 +41,7 @@ it is 16 tests and not 21, and why `?` is deliberately not among them.
 | Multi-command tests | 65 |
 | Validate against the document | 457 / 457 |
 | Route correctly from the index | 456 / 456 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, four runs | 434/441, 428/441, 448/457, 444/457. None fail in all four; 2 fail 3 of 4, 9 fail 2 of 4. Quote the failure rate, not the binary |
+| Carry the required facts, Claude Opus 5, four runs | 434/441, 428/441, 448/457, 444/457. 1 test fails 3 of 4, 9 fail 2 of 4, 18 fail once. `compare_runs.py` reports the rate |
 | Question does not name its command | 372 / 392 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 31 |
@@ -675,19 +675,64 @@ obvious next improvement to it.
 Read `sub-component-view` and `multi-ipsec-policy-nesting` as the current best
 candidates for a real gap, and triage them from their questions as before.
 
+## The first real gap the suite has found
+
+Triaging the two tests at 3 of 4 gave two different answers, and the second is
+the first failure in this project that is neither a test defect nor noise.
+
+**`sub-component-view` was a test defect**, the same prose class again. Its
+fact `card resources` came from the description sentence "show the
+sub-component details or card resources"; that is prose, not a command form,
+and the question asks how to list the sub-components **of a card**, so
+`card-name` is the on-question key. Re-encoded to `sub-component`, `card-name`.
+This makes a 3-of-4 failure pass, which is flagged rather than buried.
+
+**`multi-ipsec-policy-nesting` is real, and it is an index gap.** The question
+asks which object decides a flow is protected and **what hangs underneath that
+decision**. Answers consistently name `ipsec-spd-entry`, `protect`, `priority`
+and `ipsec-traffic-selector`, and consistently miss `ipsec-sa-proposal`. The
+reason is structural: **`141-ipsec-spd-entry.md` never mentions "proposal" at
+all.** The nesting exists only in the child's own key path,
+`ipsec-sa-proposal-<...>/<ipsec-spd-entry-name>/<number>`, so it is discoverable
+from the child upward and invisible from the parent downward.
+
+That is not something to fix by editing the test or the source. It is a missing
+index view:
+
+- `entities.md` maps an AID prefix to its command and explicitly defers
+  containment, pointing at the source's MO relationship section and the `tree`
+  output. There is no "what lives under X" lookup.
+- The relation is nonetheless derivable from the data already in
+  `commands.jsonl`: a child's full AID pattern contains its parent's key name.
+  Finding it today means scanning all 294 entity patterns for your key.
+- `_clusters.py` **already derives exactly this**, as its `hierarchy:<root>`
+  basis over AID key-path ancestry. The derivation exists and is simply not
+  emitted into the index.
+
+So the actionable item is to emit parent/child containment into `entities.md`
+from the ancestry `_clusters.py` computes. Any question of the form "what hangs
+under X" currently cannot be answered from the natural entry point, and this is
+the first evidence that costs a real answer rather than a test.
+
 ## Remaining work
 
 Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. Report a failure rate in `compare_runs.py`,** not the persistent/unstable
-binary. Run 04 showed the binary hides the most consistent failure in the
-suite: `multi-ipsec-policy-nesting` sits at 3 of 4 yet run 03 had cleared it as
-noise. This is a small change to the one tool everyone reads results from.
+**1. Emit parent/child containment into `entities.md`,** from the AID key-path
+ancestry `_clusters.py` already derives. This is the one open item backed by a
+failing test rather than by tidiness: see "The first real gap the suite has
+found" above. It changes generated output, so `check_consistency.py` numbers
+move with it.
 
-**2. Triage `sub-component-view` and `multi-ipsec-policy-nesting`,** the two at
-3 of 4, from their questions as before.
+**2. The nine tests failing 2 of 4.** Meaningless as a group under the old
+binary, legible now that the rate is reported. Expect mostly test defects of the
+class found five times, and expect one or two real.
+
+**3. `corpus_hits` still matches raw substrings,** so `tic` registers in 187
+files. Needs the separator flattening `carries()` has; a naive word-boundary fix
+drops 50 tests' facts to zero.
 
 Lower value: second single-command tests for `show`, `set`, `download`, `status`
 and `activate`, each of which carries far more behaviour than one question

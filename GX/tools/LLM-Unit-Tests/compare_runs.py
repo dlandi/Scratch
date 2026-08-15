@@ -5,8 +5,15 @@
 
 A single run gives a point estimate and no idea of its error bar. Storing runs
 under `runs/run-NN/` and scoring them together is what turns "97%" into a range,
-and separates a test the corpus consistently fails from one that merely came out
-badly once.
+and shows how often each test fails rather than whether it ever did.
+
+**A test has a failure rate, not a persistent/noise label.** This tool used to
+split "failed by every run" from "failed by some", and that binary was wrong in
+both directions. `multi-ipsec-policy-nesting` failed runs 01 and 02, passed run
+03 and so was reported as noise, then failed run 04, which puts it among the
+most consistent failures in the suite. And "failed by every run" gets harder to
+satisfy with each run added, so it says less the more evidence there is. The
+rate is reported instead, over the runs that answered each test.
 
 **Every run is scored against the working tree**, never against whatever the
 tests looked like on the day it was produced. That is deliberate. Run 01 scored
@@ -89,22 +96,52 @@ def main():
         return 0
 
     names = [n for n, _, _ in runs]
-    always = [t for t, who in missing_by_test.items() if len(who) == len(names)]
-    sometimes = {t: who for t, who in missing_by_test.items() if len(who) < len(names)}
     p = [passed / answered for _, _, passed, answered in scores]
     print(f"\n  spread: {min(p)*100:.1f}% to {max(p)*100:.1f}% "
           f"over {len(names)} runs")
-    print(f"  failed by every run:   {len(always)}   (the corpus or the test, not luck)")
-    print(f"  failed by some runs:   {len(sometimes)}   (unstable, and the error bar)")
 
-    if sometimes:
-        print("\n== unstable, worth reading before trusting either verdict ==")
-        for t, who in sorted(sometimes.items()):
-            print(f"   {t}: failed in {', '.join(who)}")
-    if "-v" in sys.argv and always:
-        print("\n== failed by every run ==")
-        for t in sorted(always):
-            print(f"   {t}")
+    # A failure rate, not a persistent/unstable label. The binary this replaced
+    # called `multi-ipsec-policy-nesting` noise after it failed runs 01 and 02
+    # and passed run 03; it then failed run 04, making it the joint most
+    # consistent failure in the suite. "Failed by every run" also gets
+    # mechanically harder to satisfy with each run added, so it says less the
+    # more evidence you have, which is backwards.
+    #
+    # The denominator is runs that ANSWERED the test, not runs. Batch 15
+    # postdates runs 01 and 02, so a batch 15 test failing both runs that
+    # answered it is at 100%, and that is not the same evidence as 4 of 4.
+    rates = []
+    for t in tests:
+        tid = t["id"]
+        answered_by = sum(1 for _, _, rows in runs if tid in rows)
+        failed_by = len(missing_by_test.get(tid, []))
+        if failed_by:
+            rates.append((failed_by / answered_by, failed_by, answered_by, tid))
+    rates.sort(key=lambda r: (-r[0], -r[2], r[3]))
+
+    if not rates:
+        print("  no test failed in any run")
+        return 0
+
+    hard = [r for r in rates if r[0] >= 0.75]
+    mid = [r for r in rates if 0.25 < r[0] < 0.75]
+    once = [r for r in rates if r[0] <= 0.25]
+    print(f"  {len(rates)} tests failed at least once: "
+          f"{len(hard)} at 75% or more, {len(mid)} in between, {len(once)} at 25% or less")
+    print("  Rate is failures / runs that answered the test. Read the top of "
+          "this list as\n  the real candidates and the bottom as noise; there is "
+          "no clean line between them.")
+
+    print("\n== failure rate, worst first ==")
+    shown = rates if "-v" in sys.argv else rates[:15]
+    for rate, failed, answered, tid in shown:
+        who = ", ".join(missing_by_test[tid])
+        print(f"   {rate*100:3.0f}%  {failed}/{answered}  {tid}")
+        if rate < 1.0:
+            print(f"              failed in {who}")
+    if len(shown) < len(rates):
+        print(f"   ... and {len(rates) - len(shown)} more at or below "
+              f"{shown[-1][0]*100:.0f}%; pass -v for all")
     return 0
 
 

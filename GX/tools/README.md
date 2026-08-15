@@ -150,17 +150,20 @@ section it ended rather than the one it opened.
 - Image references point at `images/figure-p*.png`, which does not exist beside
   the source either. The paths were already dangling.
 
-Sixteen more surfaced when agents read the corpus to answer the LLM unit tests,
-seven in run 01 and nine in run 02, recorded here so nobody spends the afternoon
-deciding they are conversion bugs. They are in the source and they stay.
+Twenty-three more surfaced when agents read the corpus to answer the LLM unit
+tests, seven in run 01, nine in run 02, four in run 03 and three in run 04,
+recorded here so nobody spends the afternoon deciding they are conversion bugs.
+They are in the source and they stay.
 
-Three of them are classes rather than one-offs, which only became visible once
-run 02 rediscovered them independently. Expect more members of each, and check
-which class a new find belongs to before writing it up as novel:
+Four of them are classes rather than one-offs, which only became visible once
+later runs rediscovered them independently. Expect more members of each, and
+check which class a new find belongs to before writing it up as novel:
 
-- **The syntax line lists an attribute the parameter table omits.** Four
-  instances below. An answer about such an attribute can state that it exists
-  and nothing else, which is a real limit on what the corpus can support.
+- **The syntax block and the parameter table disagree**, in either direction:
+  usually the syntax lists an attribute the table omits, but `227-ots-r.md` is
+  the reverse. Five instances below. An answer about such an attribute can state
+  that it exists and nothing else, which is a real limit on what the corpus can
+  support.
 - **A table row is carried in from an unrelated table.** Three instances. The
   giveaway is a values column of `true, false` under a description that plainly
   describes something else.
@@ -237,6 +240,24 @@ above, which is the main reason to trust them; only these four were new.
   than a content error. `grep -c codeblock` over the command files finds one
   other, `086-download.md`, so the class has two known members and that grep is
   the way to enumerate it.
+
+Found by run 04. Three, all verified against the split file.
+
+- `364-upload.md` **contradicts itself on whether private keys leave the node.**
+  The note says "Only the public part is exported. Private keys are not
+  exported. The output files are in P7 pem format", while the `filetype` table
+  describes `local-certificate` and `peer-certificate` as "PKCS#12 bundle that
+  contains x509v3 ... certificate plus password protected private key". This is
+  the most consequential entry on this list: an operator reading only the table
+  would believe key material is being exported, and one reading only the note
+  would believe it cannot be. The guide does not resolve it.
+- `227-ots-r.md` documents `target-power-setting` (manual/auto, default auto) in
+  its parameter table but never in its syntax block. This is the **mirror** of
+  the syntax-lists-what-the-table-omits class above, so that class is better
+  described as "syntax and parameter table disagree", in either direction.
+- `271-rsc.md` gives `rsc-power-rx` and `rsc-power-tx` a values column of `99`
+  with no unit or range, which is not a value at all, and `rsc-power-tx` is also
+  missing its "used in" verb where `rsc-power-rx` has `show`.
 
 **Rejected, do not re-report:** `252-protection-switch.md` was flagged for a
 worked example that passes the group name positionally rather than as
