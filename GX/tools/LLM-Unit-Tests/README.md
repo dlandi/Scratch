@@ -831,12 +831,15 @@ with it, so the count of runs since is printed beside it. At one run since, that
 is nearly nothing, and the mark should be read as "this rate is out of date",
 never as "this was fixed".
 
-One related defect found while checking the test itself: its required fact is
-the bare string `proposal`, which also matches `ike-sa-proposal`. That object
-sits one level *up* from the spd entry, keyed by local instance and peer, so an
-answer naming only it would contradict the question's "what hangs underneath"
-and still pass. No stored run exploited the loophole and both passing runs name
-`ipsec-sa-proposal` explicitly, so tightening the fact costs no verdict.
+One related defect was found while checking the test itself, and fixed. Its
+required fact was the bare string `proposal`, which also matches
+`ike-sa-proposal`. That object sits one level *up* from the spd entry, keyed by
+local instance and peer, so an answer naming only it would contradict the
+question's "what hangs underneath" and still pass. No stored run exploited the
+loophole and both passing runs name `ipsec-sa-proposal` explicitly, so the fact
+is now `ipsec-sa-proposal` at no cost: all five runs score identically and every
+sequence in the rate table is unchanged. It is also the narrower fact, in 5 of
+377 files where the whole set is still satisfied by none.
 
 ## Remaining work
 
