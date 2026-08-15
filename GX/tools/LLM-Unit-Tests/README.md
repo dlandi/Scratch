@@ -34,7 +34,7 @@ cite 187 distinct command files and reach all 16 domains.
 | Multi-command tests | 65 |
 | Validate against the document | 441 / 441 |
 | Route correctly from the index | 440 / 440 scored, 1 excluded as compound |
-| Carry the required facts, Claude Opus 5, 2026-08-14 | 402 / 441 (374/376 single) |
+| Carry the required facts, Claude Opus 5, 2026-08-14 | 427 / 441 (374/376 single, 53/65 multi) |
 | Question does not name its command | 356 / 376 single, 55 / 65 multi |
 | Distinct archetypes | 17 overall, 11 across the multi tests |
 | Marked `weak` (thin source section) | 30 |
@@ -267,9 +267,9 @@ reference answer. Answers averaged 809 characters. Stored in
 | --- | --- |
 | Single-command, as first scored | 343 / 376 (91%) |
 | Single-command, after the off-question facts were removed | 374 / 376 (99%) |
-| Multi-command, every fact in the cluster | 28 / 65 (43%) |
-| Multi-command, facts in the primary file only | 52 / 65 (80%) |
-| Overall, after that repair | 402 / 441 (91%) |
+| Multi-command, as first scored | 28 / 65 (43%) |
+| Multi-command, after the off-question facts were removed | 53 / 65 (82%) |
+| Overall, after that repair | 427 / 441 (97%) |
 
 The command name was then made a required fact on all 441 tests and the matcher
 tightened to word boundaries. **Re-scoring the same answers gives exactly the
@@ -277,22 +277,26 @@ same 371, with an identical failing set:** not one test changed verdict. The
 agent had already named the actionable command in all 248 cases where the test
 had not been asking for it, so the 84% was not resting on the omission.
 
-**The multi-command number is measuring the test, not the answer.** Of the 46
-facts a multi answer missed, 31 live only in a peripheral cluster member rather
-than in the `primary` file the question centres on. Layer 1 already concedes
-this point: it requires the primary file plus half the rest, because no single
-query surfaces every member. Layer 2 has no such allowance and demands the lot,
-so a multi test fails when the answer covers what was asked and omits an aside
-about a neighbouring command. Both numbers are in the table because they measure
-different things, and the gap between them is the finding.
+**The multi-command number was measuring the test, not the answer**, and the
+same audit fixed it. It first looked like a scoring problem: 31 of the 46
+missed facts lived only in a peripheral cluster member rather than in the
+`primary` file, so the obvious move was to give layer 2 the partial credit
+layer 1 already gives. That would have been the wrong fix. Auditing all 65
+questions against their facts found the real cause was the same one as in the
+single tests, arriving by a different route: **facts taken from cluster members
+the question never touches.** `multi-ssh-which-object-holds-which-key` asks
+which object holds which key and required `8022`, the SSH port.
+`multi-card-running-hot` asks which dashboard shows temperature and required
+`expected-fan-type`. `multi-aaa-radius-not-reached` asks what decides where
+authentication is sent and required `static+rules`, an authorization mode.
 
-Concrete cases. `multi-ssh-which-object-holds-which-key` asks which object holds
-which key, and fails on `8022`, the SSH port, which the question never asks
-about. `port-types-and-usage` asks what kinds of port exist, and fails on
-`port-usage` and `connected-to`, which are configurable attributes rather than
-kinds. `multi-client-failure-laser-action` asks what happens to the laser, and
-fails on `merge mode` and `CFG-MSMT`, two asides in the reference answer. In
-each case the answer addressed the question and the fact list did not.
+30 off-question facts were removed across 30 multi tests, four of them tests
+that were passing, and 6 more facts were re-encoded from a prose phrase to the
+identifier an operator would actually type: `location-led` rather than "location
+led test", `sc-rx` rather than "Secure Channel", `show config` rather than
+"display commands". **Multi went 28/65 to 53/65 with the pass rule untouched**,
+so the primary-versus-cluster allowance is not needed and layer 2 keeps
+demanding every fact.
 
 ### Reading the 33 single-command failures
 
@@ -345,12 +349,7 @@ Single-command coverage of Chapter 6 is complete. The planned multi-command set
 is complete: 65 against a target of about 60, across all five cluster bases.
 What is left, in the order agreed:
 
-**1. Decide what a multi-command test requires.** See the run above. Either
-scope each multi test's facts to its primary file, or give layer 2 the partial
-credit layer 1 already gives. This is a design decision about what the suite
-measures, so make it deliberately rather than by editing whichever tests failed.
-
-**2. Measure precision, not just recall.** Layer 1 scores recall only, and about
+**1. Measure precision, not just recall.** Layer 1 scores recall only, and about
 70 vocabulary additions have been made to `curated.py` without one of them being
 measured for collateral damage. A term that also drags in fifty irrelevant
 commands makes tests pass while quietly degrading routing. Until something
@@ -358,7 +357,7 @@ measures this, every future `curated.py` edit is unfalsifiable. The sketch is to
 sample queries that should *not* reach a topic and count false hits; the design
 is open.
 
-**3. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
+**2. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
 no tests. They are indexed and routable, just not covered here. Note that
 `_authoring.py` builds multi-command tests only, so a single-command batch needs
 a different path or an extension to it.
