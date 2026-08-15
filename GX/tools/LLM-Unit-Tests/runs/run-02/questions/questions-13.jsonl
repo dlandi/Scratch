@@ -1,0 +1,25 @@
+{"id": "template-entry-definition", "question": "How do I make the node use my own default value for an attribute on newly created objects?"}
+{"id": "template-group-enabled-exclusive", "question": "Can I have two template groups active at the same time?"}
+{"id": "templates-overview", "question": "Which command gives the overall view of the templates configured on the node?"}
+{"id": "unlock-only-owner", "question": "Someone locked the database and went home. Can I unlock it from my session?"}
+{"id": "validate-command-string", "question": "Can I check that a configuration command is valid without actually applying it?"}
+{"id": "additional-key-exchange-rounds", "question": "How many post-quantum key exchange rounds can I add to an IKE association, and what happens if the two ends disagree?"}
+{"id": "data-path-encryption-view", "question": "Which command shows the datapath encryption settings?"}
+{"id": "encryption-algorithm-choices", "question": "Which ciphers and key lengths can I propose for an IPsec association?"}
+{"id": "ike-sa-proposal-required", "question": "What has to be specified when proposing IKEv2 parameters?"}
+{"id": "ikev2-san-id-match", "question": "What does the top-level ikev2 object actually configure?"}
+{"id": "ikev2-local-instance-scope", "question": "How do I tell whether a card can do encryption, and how is the local IKE address chosen?"}
+{"id": "ikev2-peer-rekey-vs-reauth", "question": "What re-key and re-authentication intervals should I use on an IKE peer, and is there a rule about them?"}
+{"id": "ipsec-sa-proposal-esp", "question": "What do I supply when proposing the child IPsec association parameters?"}
+{"id": "ipsec-sa-re-key-limits", "question": "Can I make an IPsec association re-key on volume rather than on time?"}
+{"id": "ipsec-spd-entry-action", "question": "What can a security policy entry do with matching traffic, and does it tunnel by default?"}
+{"id": "ipsec-traffic-selector-purpose", "question": "How do I say which addresses and ports an IPsec policy applies to?"}
+{"id": "local-ports-range-keys", "question": "Why can I not edit a local port range on a traffic selector, only add and delete it?"}
+{"id": "local-subnet-prefix-key", "question": "How do I add the local network that an IPsec tunnel should carry?"}
+{"id": "macsec-entity-must-secure", "question": "If MACsec fails to come up on a link, does traffic still pass?"}
+{"id": "macsec-mka-cak", "question": "How do I configure the pre-shared key for MACsec key agreement, and how do I know which end is the key server?"}
+{"id": "mka-policy-attributes", "question": "Where do I set the MACsec cipher suite and how often the session key is refreshed?"}
+{"id": "re-auth-on-demand", "question": "How do I force an IKE peer to re-authenticate right now?"}
+{"id": "re-key-three-targets", "question": "What can I force a re-key on?"}
+{"id": "remote-ports-all-keyword", "question": "How do I match every port on the far side of an IPsec traffic selector?"}
+{"id": "remote-subnet-add", "question": "How do I declare the far-end network for an IPsec policy?"}

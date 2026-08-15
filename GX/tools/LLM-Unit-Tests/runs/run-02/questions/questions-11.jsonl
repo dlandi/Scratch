@@ -1,0 +1,25 @@
+{"id": "capabilities-per-card", "question": "How do I see what one particular installed card is capable of?"}
+{"id": "card-provision-required-type", "question": "What do I have to supply to provision a card into a slot?"}
+{"id": "chassis-ambient-temperature-zr", "question": "A Native ZR pluggable will not provision and I am getting a port config mismatch alarm. What is wrong?"}
+{"id": "console-baud-rate-default", "question": "What baud rate does the craft console use, and can it work it out by itself?"}
+{"id": "controller-card-redundancy", "question": "How do I check that the standby controller is synchronised and ready to take over?"}
+{"id": "equipment-show-filter", "question": "How do I list the equipment installed in the node, or just one card?"}
+{"id": "equipment-policies-auto-migration", "question": "Will the node update a pluggable's subtype by itself when I swap hardware, and are degrees assigned automatically?"}
+{"id": "equipment-templates-serdes-switch", "question": "Are SerDes templates applied automatically, or do I have to enable that?"}
+{"id": "fru-info-packaged", "question": "Where do I find the packaged FRU information for a given equipment type?"}
+{"id": "inventory-serial-and-clei", "question": "Where do I get the serial number and CLEI code of an installed module?"}
+{"id": "led-status-values", "question": "What colours and states can a module LED report, and does the object exist if the card is missing?"}
+{"id": "port-types-and-usage", "question": "What kinds of port exist on this platform and where are they found?"}
+{"id": "resources-switch-bandwidth", "question": "How do I see how much switching bandwidth is left on a card?"}
+{"id": "serdes-parameter-status", "question": "I set a SerDes parameter. How do I know it actually took effect?"}
+{"id": "serdes-template-scope", "question": "How do SerDes templates decide which pluggables and ports they apply to?"}
+{"id": "serdes-template-entry-structure", "question": "How do I put an individual parameter into a SerDes template?"}
+{"id": "serial-console-global-timeout", "question": "Is there a system-wide switch and idle timeout for the serial consoles?"}
+{"id": "slot-current-equipment", "question": "How do I find out what is currently sitting in a given slot and what could go there?"}
+{"id": "sub-component-view", "question": "How do I list the sub-components of a card?"}
+{"id": "supported-card-node-compatibility", "question": "How do I check whether a card type can be used on an in-line amplifier node before I order it?"}
+{"id": "supported-chassis-redundancy", "question": "How do I tell whether a chassis type supports controller redundancy and how many slots it has?"}
+{"id": "supported-port-auto-migration", "question": "How do I find out what a port on a given card type is for, and whether it is configured by me or by the system?"}
+{"id": "supported-slot-blank-required", "question": "Do empty slots need a blank fitted, and which cards can go where?"}
+{"id": "supported-tom-phy-modes", "question": "How do I find which breakout modes a pluggable supports on a given card and port?"}
+{"id": "supported-tom-power-class", "question": "How much power is a pluggable allowed to draw in a given port?"}

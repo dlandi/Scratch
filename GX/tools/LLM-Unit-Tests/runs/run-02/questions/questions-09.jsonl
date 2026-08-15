@@ -1,0 +1,25 @@
+{"id": "next-hop-per-rib", "question": "Why is next hop information organised per RIB rather than just per route?"}
+{"id": "ospf-clear-instance", "question": "How do I restart an OSPF process, and does the command wait for it to finish?"}
+{"id": "ospf-area-type-limited", "question": "Can I configure a stub or NSSA area?"}
+{"id": "ospf-area-range-abr-only", "question": "How do I summarise routes out of an OSPF area, and does it work on any router?"}
+{"id": "ospf-instance-version", "question": "Does this platform run OSPFv3, and how is the router id chosen?"}
+{"id": "ospf-interface-timers", "question": "What are the default OSPF hello and dead timers on an interface, and can I authenticate the adjacency?"}
+{"id": "ospf-neighbor-states", "question": "My OSPF adjacency is stuck. What states can it be in and what do the roles mean?"}
+{"id": "ospfv3-ipsec-sa-algorithms", "question": "How do I secure OSPFv3, and what integrity algorithms are available?"}
+{"id": "ping-options", "question": "How do I test reachability from a particular interface or VRF?"}
+{"id": "protocols-list", "question": "Which management protocols does the node expose, and how do I check them in one place?"}
+{"id": "rib-address-family", "question": "How do I look at the routing information base for one address family?"}
+{"id": "route-source-protocol", "question": "How do I tell whether a route came from OSPF, BGP or static configuration?"}
+{"id": "routing-overview", "question": "Is there a single command that gives the routing overview?"}
+{"id": "supporting-interface-reference", "question": "What does supporting-interface tell me?"}
+{"id": "traceroute-defaults", "question": "How many hops does a trace follow by default, and which VRF does it use?"}
+{"id": "vrf-instance-view", "question": "How do I see the routing instances on the node and which chassis each belongs to?"}
+{"id": "activate-swimage-db-action", "question": "What happens to the database when I activate a new software image, and does the node restart?"}
+{"id": "activate-location-led-limits", "question": "Can I flash the locator LED on two cards at once, and how do I turn it off?"}
+{"id": "bootstrap-neighbor-over-osc", "question": "How do I create the first admin account on a brand new neighbour node that has no users yet?"}
+{"id": "cancel-upgrade-simple", "question": "An upgrade is running and I need to stop it. What do I type?"}
+{"id": "change-ztp-mode-destructive", "question": "What actually happens if I re-enable zero touch provisioning on a node that is already in service?"}
+{"id": "current-fw-status", "question": "How do I tell whether a card is running the firmware it is supposed to be running?"}
+{"id": "download-filetypes-and-storage", "question": "What kinds of file can I pull onto the node, and where do they end up?"}
+{"id": "downloaded-image-signature", "question": "How do I check the signature of an image that has been downloaded to the node?"}
+{"id": "downloads-list", "question": "Which command lists what has been downloaded to the node?"}

@@ -1,0 +1,16 @@
+{"id": "export-session-variables", "question": "Can I define variables to reuse in CLI commands, and do they survive logout?"}
+{"id": "gshell-guest-container", "question": "What is the difference between the shell and gshell commands?"}
+{"id": "kill-session-not-own", "question": "Can I use kill-session to log myself out?"}
+{"id": "message-broadcast-target", "question": "How do I warn everyone logged into the node that I am about to reboot it?"}
+{"id": "property-fast-client-recovery", "question": "What card-level properties can I set, and what are they for?"}
+{"id": "run-task-or-script", "question": "How do I execute a saved script or a defined task on demand?"}
+{"id": "scheduled-task-vs-task", "question": "There is a task command and a scheduled-task command. How do they differ?"}
+{"id": "session-visibility-by-role", "question": "Can I see everyone else's sessions on the node?"}
+{"id": "set-wildcard-forms", "question": "Can I change an attribute on several objects at once?"}
+{"id": "shell-user-group-limit", "question": "Who is allowed to drop to a Linux shell on the node?"}
+{"id": "show-output-limit", "question": "Is there a limit on how much a single show command can return?"}
+{"id": "simulate-triggers", "question": "Can I fake a card insertion or an alarm for testing?"}
+{"id": "sleep-floating-point", "question": "Can I pause a script for a fraction of a second?"}
+{"id": "task-scheduling-fields", "question": "How do I schedule a database backup to run once at a specific time?"}
+{"id": "terminate-what-can-stop", "question": "Which long-running operations can I stop, and how do I confirm one has stopped?"}
+{"id": "update-type-values", "question": "What does the update command do that set does not?"}

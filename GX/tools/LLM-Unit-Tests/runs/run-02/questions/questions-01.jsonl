@@ -1,0 +1,25 @@
+{"id": "multi-pm-threshold-crossing-chain", "question": "I want the node to raise a threshold crossing alert when errored seconds on one port go above a limit. Which commands are involved and what does each one contribute?"}
+{"id": "multi-ntp-authenticated-setup", "question": "What does the node need in place to synchronise its clock from an authenticated time server, and how would I check it is working?"}
+{"id": "multi-protection-switch-vs-switchover", "question": "There seem to be two different switch commands. Which one do I use to move traffic to the protection path, and which one moves the controller?"}
+{"id": "multi-time-source-troubleshooting", "question": "The node's time is wrong and my attempt to set it by hand is rejected. What is going on and what should I check?"}
+{"id": "multi-node-identity-and-restart", "question": "Before I reboot a card on an unfamiliar node, how do I find out what the node is, what is in it, and what the reboot will cost me?"}
+{"id": "multi-card-containment-hierarchy", "question": "Something is plugged into slot 2 of my chassis. What objects hang off it in the addressing scheme, and where do I read the FRU inventory for the pluggable itself?"}
+{"id": "multi-card-type-vs-installed-card", "question": "How do I find out what a particular model of card is capable of taking, as opposed to what the one already sitting in my chassis is currently doing?"}
+{"id": "multi-ospf-adjacency-prerequisites", "question": "My OSPF adjacency never comes up on a new link. What has to already exist before it can, and where do I look to see how far it got?"}
+{"id": "multi-software-load-components", "question": "What software is on each controller card, and how do I see the individual components and the firmware that came bundled with it?"}
+{"id": "multi-lldp-per-port-visibility", "question": "The far end of a link is not appearing in my discovery output. What can I check per port to work out whether we are sending, receiving, or neither?"}
+{"id": "multi-slot-occupancy-and-firmware", "question": "For each position in the chassis, what does the inventory show, and what firmware level is whatever is installed running?"}
+{"id": "multi-manifest-package-contents", "question": "After pulling a package onto the node, how do I check what it actually contains and whether each piece got installed?"}
+{"id": "multi-resource-type-defaults", "question": "When a new resource of some type appears on the node, where do the defaults for its alarm severity and its performance monitoring come from?"}
+{"id": "multi-ipsec-policy-nesting", "question": "On a management IPsec tunnel, which object decides that a given flow gets protected rather than passed, and what hangs underneath that decision?"}
+{"id": "multi-certificate-role-disambiguation", "question": "Four objects with nearly the same name hold X509 material. Which one is the CA I trust, which is this node's own identity, and which is the far end's?"}
+{"id": "multi-certificate-import-and-removal", "question": "How does X509 material get onto the node in the first place, and how do I take one back off once it is no longer wanted?"}
+{"id": "multi-access-rule-object-disambiguation", "question": "Several rule objects have nearly identical names. Which one decides whether traffic is permitted, which one sets the order they are evaluated in, and which has nothing to do with traffic at all?"}
+{"id": "multi-access-rule-ordering-limits", "question": "If two access rules could both match the same traffic, which one takes effect, and how many user-groups can I attach to the list?"}
+{"id": "multi-snmp-trap-community-location", "question": "I configured a community string but my trap receiver still rejects the traps. Where is the community string for traps actually set?"}
+{"id": "multi-fiber-connection-who-writes-it", "question": "Fiber links keep showing up in my topology that I never configured. Which of these connection objects gets filled in by something other than me?"}
+{"id": "multi-address-objects-disambiguation", "question": "I want to give this node an ipv4 address on its management interface. Two other objects have management address in the name and are not for that at all. Which is which?"}
+{"id": "multi-static-address-dhcp-conflict", "question": "Adding a static ipv4 address to an interface is being refused. What would stop it, and how do I see which interfaces are even available?"}
+{"id": "multi-route-sources", "question": "Where do I see every route the node is actually using, including the ones nobody typed in by hand, and where do the hand-typed ones get added?"}
+{"id": "multi-ports-objects-unrelated", "question": "Three objects end in ports and they appear to be unrelated. Which ones belong to a security tunnel and which one is about connectivity?"}
+{"id": "multi-database-snapshot-roundtrip", "question": "I want to roll the database back to a copy I made earlier. Which command makes the copy, which one puts it back, and why might making one be refused?"}

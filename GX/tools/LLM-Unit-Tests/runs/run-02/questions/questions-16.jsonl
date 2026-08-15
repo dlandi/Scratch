@@ -1,0 +1,25 @@
+{"id": "topology-clear-targets", "question": "How do I wipe stale neighbour information, and what exactly can I clear?"}
+{"id": "verify-allow-switching", "question": "How do I trigger a CableID fibre check, and will it disturb traffic?"}
+{"id": "bert-start-stop", "question": "How do I run a bit error rate test on a client port and then stop it?"}
+{"id": "cid-ptp-auto-created", "question": "Where does the CableID facility come from and can I create one?"}
+{"id": "eth-zr-fec-and-degrade", "question": "What FEC does a 400ZR interface use, and how are degrade thresholds set?"}
+{"id": "ethernet-max-packet-length", "question": "What is the largest frame an Ethernet client will accept?"}
+{"id": "facilities-overview", "question": "Which command lists the facilities configured on the node?"}
+{"id": "fc-laser-toggling-tts", "question": "What Fibre Channel specific settings does the node expose?"}
+{"id": "flexo-foic-and-mode", "question": "What FlexO interface types are available and what does resource-mode change?"}
+{"id": "flexo-group-mandatory", "question": "What do I need to supply to create a FlexO group?"}
+{"id": "high-speed-monitoring-port", "question": "What does high-speed-monitoring configure?"}
+{"id": "interlaken-capacity", "question": "What is the Interlaken facility for and what can I change on it?"}
+{"id": "line-ptp-valid-signal-time", "question": "How does auto-in-service work on a line termination point?"}
+{"id": "network-xconnect-list", "question": "What is the difference between network-xconnect and nw-xconnect?"}
+{"id": "nw-xconnect-types", "question": "How do I bridge a management channel between a GCC and an OSC?"}
+{"id": "odu-high-order-auto", "question": "Do I have to create the high order ODU myself?"}
+{"id": "odu-diagnostics-tti-per-direction", "question": "Can I set a different trace identifier for each direction on an ODU?"}
+{"id": "otu-fec-defaults", "question": "Is FEC on by default on an OTU, and which type?"}
+{"id": "otu-diagnostics-tim-reporting", "question": "How do I make the node alarm only on a mismatched source trace rather than the whole trace string?"}
+{"id": "stm-types-supported", "question": "Which SDH rates does the platform terminate?"}
+{"id": "trib-ptp-disable-action", "question": "What does the node do to a client port when the service behind it fails?"}
+{"id": "xcon-create-and-protection", "question": "How do I create a Layer 1 cross connect and what protection types can it have?"}
+{"id": "l2-bridge-attributes", "question": "What can I configure on an L2-bridge, and what identifies one?"}
+{"id": "app-clear-third-party", "question": "How do I remove a third-party application from the node?"}
+{"id": "appctl-control-target", "question": "How do I send a control command to a third-party application?"}

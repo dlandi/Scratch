@@ -1,0 +1,25 @@
+{"id": "set-alarm-state-bulk-ack", "question": "How do I acknowledge a batch of alarms and leave a note saying who looked at them?"}
+{"id": "statistics-clear-scope", "question": "Can I reset the event counters on the node, and what can actually be reset?"}
+{"id": "log-read-last-entries", "question": "How do I read just the last few entries of the security log in something more readable than CSV?"}
+{"id": "log-console-enable", "question": "Nothing is being logged to the console. Is that expected?"}
+{"id": "log-console-filter-severity", "question": "How do I stop the console filling up with informational messages and show only serious ones?"}
+{"id": "log-file-rotation", "question": "How much local log history does the node keep before it starts throwing entries away?"}
+{"id": "log-file-facility-filter-scope", "question": "Can I make one of our local log files carry only authentication messages?"}
+{"id": "log-server-remote-forwarding", "question": "We want to ship logs to a remote collector over TLS. What port and message format does the node use unless I say otherwise?"}
+{"id": "log-server-facility-filter-limit", "question": "Can I filter what gets forwarded to one particular remote collector, and can that filter widen what it sends?"}
+{"id": "syslog-disable-remote", "question": "How do I switch off all remote logging in one go without deleting the collectors we have configured?"}
+{"id": "aaa-server-shared-secret-length", "question": "How long can the shared secret for an authentication server be?"}
+{"id": "aaa-statistics-counter-jump", "question": "Our TACACS+ authentication request counter goes up by two for a single login attempt. Is that a bug?"}
+{"id": "ace-default-action-and-limits", "question": "If I add a packet filter rule and do not specify what to do with a match, what happens, and how many rules can I have?"}
+{"id": "acl-interfaces-and-type", "question": "Which management interfaces can I attach a packet filter to, and does it handle IPv6?"}
+{"id": "access-control-list-view", "question": "Is there a single command that shows the access control lists on the node?"}
+{"id": "access-rule-deny-path", "question": "How do I write a rule that stops a group from writing to one part of the data model?"}
+{"id": "access-rule-list-order", "question": "If I have several rule lists, which one wins, and how do I say which groups a list applies to?"}
+{"id": "auth-key-is-ospf-scoped", "question": "The auth-key command sounds generic. What is it actually for?"}
+{"id": "authorization-rules-only-mode", "question": "How do I make the node obey only the access rules we have written, and deny anything they do not cover?"}
+{"id": "password-change-own-vs-reset", "question": "How does a user change their own password, and how would an administrator reset someone else's?"}
+{"id": "security-container-view", "question": "Which command shows the top level security settings container?"}
+{"id": "security-policies-password-rules", "question": "What is the minimum password length on this platform, and how many old passwords does it remember?"}
+{"id": "user-lockout-thresholds", "question": "How many failed logins lock an account here, and how long does it stay locked?"}
+{"id": "user-data-view", "question": "What does the user-data command give me?"}
+{"id": "user-group-create", "question": "How do I create a group to hang permissions off, and what are the limits on the name?"}
