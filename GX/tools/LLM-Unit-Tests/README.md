@@ -11,6 +11,7 @@ python run_tests.py              # validate the tests, then score retrieval
 python run_tests.py -v           # show every test, not just failures
 python run_tests.py --prose      # list identifiers in answers to hand-check
 python run_tests.py --render     # regenerate TESTS.md for human reading
+python precision.py              # what the index drags in, and which term did it
 python _clusters.py              # candidate clusters for multi-command tests
 ```
 
@@ -172,13 +173,63 @@ case-insensitive, a test citing `170-L2-bridge.md` when the file is
 `170-l2-bridge.md` passed validation locally while never matching a record;
 layer 0 now checks the path case against the corpus, so that cannot recur.
 
-## Two honest limitations
+## Precision
 
-**Recall only.** Layer 1 checks that the right file is reachable. It cannot
-detect an over-broad search term that also drags in fifty irrelevant commands.
-Adding a generic word like "node" to a topic would make tests pass while
-quietly degrading precision, and nothing here would catch it. Add search terms
-that an operator would actually type, and keep them specific.
+```bash
+python precision.py            # headline numbers and the worst terms
+python precision.py --terms    # every search term, ranked by the noise it adds
+python precision.py --dead     # terms no test question fires
+```
+
+Layer 1 scores recall. `precision.py` scores what the index drags in alongside
+the answer, which is what an over-broad term in `curated.py` costs. It needs no
+new data: each of the 441 questions is a real query with a known answer, so
+`|expected ∩ routed| / |routed|` is a precision figure, and each routed file can
+be attributed to the term, command name, parameter or AID that produced it.
+
+**It makes a `curated.py` edit falsifiable.** A term is `necessary` when some
+test has an expected file it alone reaches, so deleting it would cost recall.
+A term that is never necessary and adds noise is a candidate for review. Read
+that honestly: `necessary` means "needed by a question someone wrote", not
+"needed". Terms exist to catch phrasings the suite does not contain, so `fibre`
+is unnecessary here and still earns its keep against real operators.
+
+**The first run found the measurement mattered more than any single term.**
+Topic terms were matched as bare substrings, so `ca`, added for Certificate
+Authority, fired inside "card", "scan" and "because" on 197 of the 441
+questions and dragged the whole PKI topic in each time; `est` fired inside
+"test", `ace` inside "interface", `led` inside "enabled". That is not only a
+precision problem. **13 tests were scored as reaching the right file through a
+term that had matched a fragment of an unrelated word**, so recall was partly
+counterfeit.
+
+Topic terms now match at the start of a word, which keeps the deliberate
+stemming working (`protect` still catches "protection"), and terms under four
+characters must match the whole word, since prefix matching does not save `ca`
+from "card". Ten of the thirteen tests kept their recall honestly. The other
+three were real vocabulary gaps hiding behind the accident: questions about
+revocation lists and signing requests reached the PKI topic only through `ca`
+firing on some unrelated word, so `revocation`, `signing request` and
+`distribution point` were added. Each of those already sat in the tests'
+`route_terms` field, which nothing had ever read.
+
+| | Before | After |
+| --- | --- | --- |
+| Files returned per question, median | 30 | 19 |
+| Questions returning more than 25 files | 60% | 30% |
+| Mean precision | 0.065 | 0.099 |
+| Recall | 440 / 440, 13 of them accidental | 440 / 440 |
+
+Two terms were then removed on the tool's evidence: `what can`, a question form
+rather than vocabulary, which fired on 12 questions and pulled in 14 commands
+each time, and `stop`, which fired on "stop the node collecting performance
+data" and pulled in the 29 CLI navigation commands. Neither cost any recall.
+
+Ranked next are ordinary domain words: `card`, `channel`, `default`, `carrier`.
+They fire because questions genuinely say them, and they are the price of topic
+routing rather than a defect. Do not chase the ranking to zero.
+
+## One honest limitation
 
 **Compound questions.** `multi-node-identity-and-restart` asks three things at
 once ("what is this node", "what is in it", "what will a reboot cost"). Single
@@ -349,15 +400,7 @@ Single-command coverage of Chapter 6 is complete. The planned multi-command set
 is complete: 65 against a target of about 60, across all five cluster bases.
 What is left, in the order agreed:
 
-**1. Measure precision, not just recall.** Layer 1 scores recall only, and about
-70 vocabulary additions have been made to `curated.py` without one of them being
-measured for collateral damage. A term that also drags in fifty irrelevant
-commands makes tests pass while quietly degrading routing. Until something
-measures this, every future `curated.py` edit is unfalsifiable. The sketch is to
-sample queries that should *not* reach a topic and count false hits; the design
-is open.
-
-**2. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
+**1. Chapters 3, 4 and 5.** The 21 auxiliary, navigation and piped commands have
 no tests. They are indexed and routable, just not covered here. Note that
 `_authoring.py` builds multi-command tests only, so a single-command batch needs
 a different path or an extension to it.

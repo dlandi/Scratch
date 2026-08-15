@@ -211,6 +211,28 @@ def prose(tests):
 
 
 # --------------------------------------------------------------- layer 1
+def topic_pattern(term):
+    """A topic search term matches at the start of a word, never inside one.
+
+    The terms in `curated.py` are deliberately stemmed, so `protect` has to go
+    on catching "protection" and "protected" and `subscri` has to catch
+    "subscription" and "subscribed". That is why this matches a word prefix
+    rather than a whole word.
+
+    Terms shorter than four characters must be the whole word, because prefix
+    matching does not save them: `ca`, added for Certificate Authority, fired
+    inside "card", "carrier", "scan" and "because" on 197 of the 441 test
+    questions and dragged the entire PKI topic in each time. `est` fired inside
+    "test" and "latest", `ace` inside "interface", `led` inside "enabled".
+    Matching topic terms as bare substrings cost 13 tests their honesty: they
+    were scored as reaching the right file through a term that had fired on a
+    fragment of an unrelated word.
+    """
+    t = re.escape(term.lower())
+    tail = r"(?![a-z0-9])" if len(term) < 4 else ""
+    return r"(?<![a-z0-9])" + t + tail
+
+
 class Index:
     """The retrieval surface an agent actually has."""
 
@@ -240,7 +262,7 @@ class Index:
         hits = set()
         why = []
         for terms, cmds in self.topics:                    # topic vocabulary
-            if any(t.lower() in q for t in terms):
+            if any(re.search(topic_pattern(t), q) for t in terms):
                 for c in cmds:
                     if c in self.by_name:
                         hits.add(self.by_name[c]["file"])

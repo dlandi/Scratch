@@ -197,7 +197,12 @@ TOPICS = [
       "pm-profile", "pm-profile-entry", "pm-resource", "pm-threshold",
       "pm-threshold-profile", "statistics", "high-speed-monitoring"]),
     ("Certificates and PKI",
-     ["certificate", "x509", "csr", "crl", "ocsp", "est", "ca"],
+     # "revocation", "signing request" and "distribution point" are what an
+     # operator types; the three-letter acronyms only reached these questions
+     # while topic terms were matched as bare substrings, where `ca` fired
+     # inside "card" and "because" on 197 of the 441 test questions.
+     ["certificate", "x509", "csr", "crl", "ocsp", "est", "ca",
+      "revocation", "signing request", "distribution point"],
      ["certificate", "local-certificate", "trusted-certificate", "peer-certificate",
       "import-certificate", "display-cert", "csr-gen", "cert-gen", "crl", "cdp",
       "ocsp-server", "est", "est-ca", "est-server", "cert-to-name"]),
@@ -325,7 +330,7 @@ TOPICS = [
     ("Inventory and capabilities",
      ["inventory", "capabilit", "supported", "supports", "part number", "card type",
       "chassis type", "form factor", "breakout", "phy mode", "blank",
-      "compatib", "redundancy supported", "capable of", "what can"],
+      "compatib", "redundancy supported", "capable of"],
      ["inventory", "unprovisioned-inventory", "capabilities", "supported-card",
       "supported-chassis", "supported-slot", "supported-port", "supported-tom",
       "supported-tom-power", "tom-type", "fru-info", "l0-capabilities",
@@ -404,7 +409,7 @@ TOPICS = [
      ["navigat", "prompt", "help", "pipe", "filter", "tree", "terminal",
       "rows", "columns", "cli session", "logged into", "broadcast",
       "alarm columns", "create entity", "managed entity", "confirmation",
-      "hop to", "long-running", "stop", "which entities", "creatable"],
+      "hop to", "long-running", "which entities", "creatable"],
      ["edit", "top", "up", "tree", "history", "alias", "unalias", "help", "?",
       "begin", "display", "exclude", "grep", "highlight", "include", "linenum",
       "more", "sort", "until", "tic", "toc", "cli", "cli-session-config",
