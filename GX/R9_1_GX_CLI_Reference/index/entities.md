@@ -4,7 +4,7 @@ Managed entities are addressed by an AID (Access Identifier) such as `card-1-1`,
 
 294 of 395 commands address a named entity; the remaining 101 are action commands (see the `kind` field in `commands.jsonl`).
 
-Containment hierarchy (what lives under what) is documented in the source: see [1.3.6 Managed Objects (MO) Relationship](../01-introduction/01-introduction.md#136-managed-objects-mo-relationship) and the `tree` command output in [4.5. tree](../04-navigation-and-display-commands/04-navigation-and-display-commands.md#45-tree).
+**What lives under what** is in [Containment](#containment) below, derived from the AID key paths. The source also describes it in [1.3.6 Managed Objects (MO) Relationship](../01-introduction/01-introduction.md#136-managed-objects-mo-relationship) and shows it live in the `tree` command output, [4.5. tree](../04-navigation-and-display-commands/04-navigation-and-display-commands.md#45-tree).
 
 | AID prefix | Full pattern | Command | Domain | File |
 | --- | --- | --- | --- | --- |
@@ -302,6 +302,65 @@ Containment hierarchy (what lives under what) is documented in the source: see [
 | `vrf` | `vrf-<name>` | `vrf` | ip-networking | [372-vrf.md](../06-operation-commands/372-vrf.md) |
 | `xcon` | `xcon-<name>` | `xcon` | transport-layer1 | [373-xcon.md](../06-operation-commands/373-xcon.md) |
 | `ztp` | `ztp` | `ztp` | software-firmware-files | [374-ztp.md](../06-operation-commands/374-ztp.md) |
+
+## Containment
+
+87 parent-to-child links across 50 parent entities, derived from the AID key paths rather than stated in the source. Read a row as: an instance of the parent has these beneath it, so `show <child>-<parent-key>/...` addresses one.
+
+A parent here need not be a command. `swload-state` and `location` key real levels that nothing addresses directly. Where the parent is a command it is linked.
+
+| Parent entity | Nested beneath it |
+| --- | --- |
+| [`access-rule-list`](../06-operation-commands/005-access-rule-list.md) | `access-rule` |
+| `address-subtype` | `management-address`, `management-address-local` |
+| `adg-number` | `modules-adg` |
+| `algorithm` | `encryption-algorithm` |
+| [`card`](../06-operation-commands/040-card.md) | `comm-eth`, `inventory`, `port`, `property`, `sub-component`, `tom`, `usb` |
+| `card-type` | `golden-advanced-parameter`, `golden-carrier-mode`, `subtype-constraint`, `supported-port`, `supported-power-profile`, `supported-slot` |
+| [`chassis`](../06-operation-commands/047-chassis.md) | `inventory`, `slot` |
+| `chassis-serial-number` | `unprovisioned-inventory` |
+| `chassis-type` | `supported-slot` |
+| `db-entry` | `named-value-set` |
+| `degree-number` | `connection-ports`, `modules-degree` |
+| `destination-prefix` | `next-hop` |
+| [`direction`](../06-operation-commands/081-direction.md) | `alarm-severity-entry`, `pm-control-entry`, `spectrum-control`, `spectrum-monitoring` |
+| `equipment-type` | `manifest`, `packaged-fw` |
+| `filetype` | `transfer-status` |
+| `if` | `ipv4-address`, `ipv6-address` |
+| [`ikev2-local-instance`](../06-operation-commands/129-ikev2-local-instance.md) | `ikev2-peer`, `security-policy-database` |
+| [`ikev2-peer`](../06-operation-commands/130-ikev2-peer.md) | `ike-sa-proposal`, `ipsec-sa-re-key`, `ipsec-spd-entry` |
+| `instance` | `bgp-neighbor`, `ospf-area` |
+| [`ipsec-spd-entry`](../06-operation-commands/141-ipsec-spd-entry.md) | `ipsec-sa-proposal`, `ipsec-traffic-selector` |
+| [`ipsec-traffic-selector`](../06-operation-commands/142-ipsec-traffic-selector.md) | `local-subnet`, `remote-subnet` |
+| `ipv4-destination-prefix` | `ipv4-static-route` |
+| `ipv6-destination-prefix` | `ipv6-static-route` |
+| `lldp-port` | `lldp-neighbor`, `lldp-port-statistics` |
+| `location` | `led`, `pm-profile-entry`, `pm-threshold`, `software-load`, `third-party-app` |
+| [`log-file`](../06-operation-commands/166-log-file.md) | `log-file-facility-filter` |
+| [`log-server`](../06-operation-commands/168-log-server.md) | `log-server-facility-filter` |
+| `lower-frequency` | `ocm-channel` |
+| `manifest-file` | `downloaded-image`, `fru-info` |
+| `number` | `additional-key-exchange` |
+| [`optical-carrier`](../06-operation-commands/211-optical-carrier.md) | `current-advanced-parameter` |
+| [`ospf-area`](../06-operation-commands/217-ospf-area.md) | `ospf-area-range`, `ospf-interface` |
+| `ospf-if` | `auth-key`, `ospf-neighbor`, `ospfv3-ipsec-security-association` |
+| `oui` | `custom-tlv` |
+| `period` | `pm-threshold-profile` |
+| [`port`](../06-operation-commands/246-port.md) | `current-fw`, `serdes`, `supported-tom-power` |
+| [`protection-group`](../06-operation-commands/251-protection-group.md) | `protection-unit` |
+| `remote-address` | `bgp-network` |
+| [`rib`](../06-operation-commands/267-rib.md) | `route` |
+| [`serdes-template`](../06-operation-commands/283-serdes-template.md) | `serdes-template-entry` |
+| [`serdes-template-entry`](../06-operation-commands/284-serdes-template-entry.md) | `serdes-template-entry` |
+| [`slot`](../06-operation-commands/295-slot.md) | `current-fw` |
+| `src-port` | `nct-connection` |
+| `start` | `local-ports`, `remote-ports` |
+| `subscription` | `subscription-path` |
+| [`sw-component`](../06-operation-commands/332-sw-component.md) | `sw-subcomponent` |
+| `swload-state` | `sw-component` |
+| [`template-group`](../06-operation-commands/346-template-group.md) | `template` |
+| [`tom-type`](../06-operation-commands/353-tom-type.md) | `supported-tom` |
+| [`user`](../06-operation-commands/367-user.md) | `ssh-authorized-key` |
 
 ## Sub-command keywords
 

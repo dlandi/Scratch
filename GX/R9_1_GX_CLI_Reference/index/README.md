@@ -12,6 +12,7 @@ themselves are unmodified slices of that document.
 | Domain vocabulary, no command name ("wavelength", "upgrade", "loopback", "MACsec") | [topics.md](topics.md) |
 | An attribute or parameter name ("admin-state", "tx-power") | [parameters.md](parameters.md) |
 | An AID or entity string ("card-1-1", "port-1-1-DCN") | [entities.md](entities.md) |
+| "what lives under X", "what does a card hold" | [entities.md](entities.md), the Containment section |
 | "who is allowed to run X", user groups, privileges | [access-control.md](access-control.md) |
 | A page citation from the text, "(p. 934)" | [pages.tsv](pages.tsv) |
 | "Table 93", "Figure 5" | [tables.tsv](tables.tsv) |

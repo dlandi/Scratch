@@ -709,10 +709,25 @@ index view:
   basis over AID key-path ancestry. The derivation exists and is simply not
   emitted into the index.
 
-So the actionable item is to emit parent/child containment into `entities.md`
-from the ancestry `_clusters.py` computes. Any question of the form "what hangs
-under X" currently cannot be answered from the natural entry point, and this is
-the first evidence that costs a real answer rather than a test.
+**Fixed in the index**, not in the test or the source. `entities.md` now carries
+a Containment section, 87 parent-to-child links across 50 parent entities,
+derived from the AID key paths, and `index/README.md` routes "what lives under
+X" to it. `ipsec-spd-entry` now lists `ipsec-sa-proposal` and
+`ipsec-traffic-selector`.
+
+One derivation subtlety, since it is easy to get wrong: **the immediate parent
+is the second-to-last placeholder, not the first.** `_clusters.py` roots a key
+path at its first placeholder, which is right for grouping a family and wrong
+here; it makes `ipsec-sa-proposal` a child of `ikev2-local-instance` and leaves
+`ipsec-spd-entry` with no children at all, preserving the very gap being closed.
+Reusing that function unchanged would have looked correct and fixed nothing.
+
+**The stored runs cannot show whether this worked.** Their answers were written
+against an index that had no Containment section, so `multi-ipsec-policy-nesting`
+still fails run 04 and still sits at 3 of 4. Only a future run can tell us
+whether the fix does what it was meant to, and that makes it the clearest
+prediction this project has to test: if the next run answers that question and
+the rate drops, the index change is what did it.
 
 ## Remaining work
 
@@ -720,11 +735,11 @@ Single-command coverage of Chapter 6 is complete, the multi-command set is
 complete at 65 across all five cluster bases, and chapters 3 to 5 are now
 covered by batch 15. What is left:
 
-**1. Emit parent/child containment into `entities.md`,** from the AID key-path
-ancestry `_clusters.py` already derives. This is the one open item backed by a
-failing test rather than by tidiness: see "The first real gap the suite has
-found" above. It changes generated output, so `check_consistency.py` numbers
-move with it.
+**1. A fifth run, to test one prediction.** The Containment section was added
+because `multi-ipsec-policy-nesting` failed 3 of 4, but the stored answers
+predate it, so nothing here can show whether it worked. If the next run answers
+that question and the rate falls, the index change is what did it. That is the
+first falsifiable prediction this project has made about a fix.
 
 **2. The nine tests failing 2 of 4.** Meaningless as a group under the old
 binary, legible now that the rate is reported. Expect mostly test defects of the

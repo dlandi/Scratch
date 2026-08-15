@@ -184,10 +184,11 @@ out = ["# Entity / AID index", "",
        f"{len(recs) - len(ents)} are action commands (see the `kind` field in "
        "`commands.jsonl`).",
        "",
-       "Containment hierarchy (what lives under what) is documented in the source: "
-       "see [1.3.6 Managed Objects (MO) Relationship]"
+       "**What lives under what** is in [Containment](#containment) below, "
+       "derived from the AID key paths. The source also describes it in "
+       "[1.3.6 Managed Objects (MO) Relationship]"
        "(../01-introduction/01-introduction.md#136-managed-objects-mo-relationship) "
-       "and the `tree` command output in "
+       "and shows it live in the `tree` command output, "
        "[4.5. tree](../04-navigation-and-display-commands/"
        "04-navigation-and-display-commands.md#45-tree).",
        "",
@@ -197,6 +198,56 @@ for r in ents:
     pat = r["entity_ids"][0]
     out.append(f"| `{esc(r['aid_prefix'])}` | `{esc(pat)}` | `{esc(r['name'])}` | "
                f"{r['domain']} | [{r['file'].split('/')[-1]}]({link(r, "../")}) |")
+
+# Containment, parent -> children, derived from the AID key paths.
+#
+# This exists because a layer 2 test found the gap it fills. An agent asked what
+# hangs underneath `ipsec-spd-entry` could not find out: `141-ipsec-spd-entry.md`
+# never says "proposal", and the nesting lives only inside the child's own key
+# path. So the relation was discoverable child-to-parent, by reading one full
+# pattern, and invisible parent-to-child without scanning all of them.
+#
+# The immediate parent is the SECOND TO LAST placeholder, not the first.
+# `_clusters.py` roots a path at its first placeholder, which is right for
+# grouping a family but wrong here: it makes `ipsec-sa-proposal` a child of
+# `ikev2-local-instance` and leaves `ipsec-spd-entry` with no children at all.
+# Only `-name` and `-id` are stripped, for the reason `_clusters.py` gives:
+# `-type` is meaning-bearing and stripping it merges `<card-type>`, which keys
+# what a model of card supports, into `<card>`, which keys one installed card.
+GENERIC_KEYS = {"name", "index", "id"}
+
+
+def _immediate_parent(pattern):
+    ph = re.findall(r"<([^>]+)>", pattern)
+    if len(ph) < 2:
+        return None
+    parent = re.sub(r"-(name|id)$", "", ph[-2])
+    return None if parent in GENERIC_KEYS else parent
+
+
+children = defaultdict(set)
+for r in recs:
+    for e in r["entity_ids"] or []:
+        parent = _immediate_parent(e)
+        if parent:
+            children[parent].add(r["name"])
+
+by_name = {r["name"]: r for r in recs}
+out += ["", "## Containment", "",
+        f"{sum(len(v) for v in children.values())} parent-to-child links across "
+        f"{len(children)} parent entities, derived from the AID key paths rather "
+        "than stated in the source. Read a row as: an instance of the parent has "
+        "these beneath it, so `show <child>-<parent-key>/...` addresses one.",
+        "",
+        "A parent here need not be a command. `swload-state` and `location` key "
+        "real levels that nothing addresses directly. Where the parent is a "
+        "command it is linked.", "",
+        "| Parent entity | Nested beneath it |", "| --- | --- |"]
+for parent in sorted(children):
+    kids = ", ".join(f"`{esc(k)}`" for k in sorted(children[parent]))
+    rec = by_name.get(parent)
+    label = (f"[`{esc(parent)}`]({link(rec, '../')})" if rec else f"`{esc(parent)}`")
+    out.append(f"| {label} | {kids} |")
 
 kw = [r for r in recs if r["sub_keywords"]]
 out += ["", "## Sub-command keywords", "",
@@ -321,6 +372,7 @@ themselves are unmodified slices of that document.
 | Domain vocabulary, no command name ("wavelength", "upgrade", "loopback", "MACsec") | [topics.md](topics.md) |
 | An attribute or parameter name ("admin-state", "tx-power") | [parameters.md](parameters.md) |
 | An AID or entity string ("card-1-1", "port-1-1-DCN") | [entities.md](entities.md) |
+| "what lives under X", "what does a card hold" | [entities.md](entities.md), the Containment section |
 | "who is allowed to run X", user groups, privileges | [access-control.md](access-control.md) |
 | A page citation from the text, "(p. 934)" | [pages.tsv](pages.tsv) |
 | "Table 93", "Figure 5" | [tables.tsv](tables.tsv) |
