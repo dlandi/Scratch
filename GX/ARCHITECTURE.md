@@ -8,7 +8,9 @@ The three existing READMEs each document one layer in depth:
 suite, and
 [`R9_1_GX_CLI_Reference/index/README.md`](R9_1_GX_CLI_Reference/index/README.md)
 for which index file answers which query shape. This document sits above them
-and explains the shape of the whole thing. Where a detail is settled elsewhere,
+and explains the shape of the whole thing.
+[`MEASUREMENT.md`](MEASUREMENT.md) sits beside it and covers one thing only: how
+the stored runs, the tests and the index feed back into each other. Where a detail is settled elsewhere,
 this document points at it rather than restating it.
 
 ## The problem
@@ -36,7 +38,7 @@ flowchart LR
     SRC["<b>1. Source guide</b><br/>R9_1_GX_CLI_Command_<br/>Reference_Guide_001P4.md<br/>28,634 lines, read-only"]
     SPLIT["<b>2. Split corpus</b><br/>386 byte-exact slices<br/>one file per command"]
     IDX["<b>3. Generated index</b><br/>INDEX.md, topics.md,<br/>parameters.md, entities.md,<br/>commands.jsonl, and more"]
-    TEST["<b>4. Test suite</b><br/>457 questions<br/>5 stored model runs"]
+    TEST["<b>4. Test suite</b><br/>457 questions<br/>8 stored model runs"]
     CUR["<b>curated.py</b><br/>the only file<br/>edited by hand"]
 
     SRC -->|step1_split.py| SPLIT
@@ -69,8 +71,8 @@ search term used the American spelling.
 
 The source document is read-only input. No script in the repository writes to
 it, and its defects are reproduced rather than repaired. `tools/README.md`
-carries a list of 23 confirmed source defects found while reading the corpus,
-grouped into four recurring classes, precisely so that nobody spends an
+carries a list of 29 confirmed source defects found while reading the corpus,
+grouped into seven recurring classes, precisely so that nobody spends an
 afternoon deciding they are conversion bugs.
 
 The contract that makes everything downstream trustworthy is byte-exactness.
@@ -214,7 +216,7 @@ Three check scripts run after the build and gate it.
 | Script | What it proves |
 | --- | --- |
 | `check_consistency.py` | 34 assertions. Every number written into prose in `INDEX.md`, `index/README.md`, `index/parameters.md` and `index/access-control.md` matches the data. Every advertised AID belongs to its command. No command loses more than three parameter rows to the parser. Indexed tables match the List of Tables exactly. |
-| `check_index_links.py` | 2,245 links and all 395 JSONL records resolve. |
+| `check_index_links.py` | 2,246 links and all 395 JSONL records resolve. |
 | `check_navigation.py` | All 463 `NAVIGATION.md` links resolve to a file and an anchor. |
 
 `build_all.py --check` runs all three without rebuilding, and exits non-zero on
@@ -252,7 +254,7 @@ flowchart TD
         F1 --> F2["each answer must contain every required fact,<br/>matched on word boundaries rather than raw substrings"]
     end
 
-    L2 --> STORE["runs/run-NN/answers.jsonl &nbsp;·&nbsp; 5 stored runs,<br/>re-scorable for free after any test edit"]
+    L2 --> STORE["runs/run-NN/answers.jsonl &nbsp;·&nbsp; 8 stored runs,<br/>re-scorable for free after any test edit"]
 
     L3["<i>Layer 3: judging prose against the reference answer.<br/>Deliberately not implemented; it needs a model at run time.</i>"]
 
@@ -265,10 +267,10 @@ flowchart TD
 Layer 0 is what stops a fabricated test from passing. Layer 1 is a deterministic
 lexical simulation of what an agent does, so it needs no model and can run on
 every commit. Layer 2 is the only layer that costs money, which is why every run
-is stored: `compare_runs.py` re-scores all five stored runs against the current
+is stored: `compare_runs.py` re-scores all eight stored runs against the current
 tests, so editing a test never means paying for the model again.
 
-### Why five runs
+### Why more than one run
 
 A single run is a point estimate, and it cannot tell a question the corpus
 genuinely cannot answer from one that happened to come out badly. Those want
@@ -276,17 +278,23 @@ opposite responses, so the distinction is the whole game.
 
 ```mermaid
 flowchart LR
-    R1["run-01<br/>98.4%"] --> C["compare_runs.py<br/>re-scores all five<br/>against the working tree"]
-    R2["run-02<br/>97.3%"] --> C
-    R3["run-03<br/>98.2%"] --> C
-    R4["run-04<br/>97.4%"] --> C
-    R5["run-05<br/>97.6%"] --> C
-    C --> OUT["failure rate per test<br/>= failures / runs that answered it"]
-    OUT --> A["5 tests at 3 of 5<br/>the triage candidates"]
-    OUT --> B["25 tests below that<br/>shading into noise"]
+    R["<b>runs 01 to 08</b><br/>one directory each,<br/>frozen answer text"] --> C["<b>compare_runs.py</b><br/>re-scores every stored run<br/>against the working tree"]
+    C --> OUT["<b>failure rate per test</b><br/>failures / runs that answered it,<br/>printed in run order"]
+    C --> SPREAD["<b>the spread</b><br/>the error bar on any<br/>single headline number"]
+    OUT --> A["the top of the list:<br/>the triage candidates"]
+    OUT --> B["the bottom:<br/>shading into noise"]
+    OUT --> STALE["<b>stale rates</b><br/>failures that all predate<br/>an index change"]
+
+    style STALE fill:#fff3cd,stroke:#856404
 ```
 
-Two findings from that history are worth keeping, because both reversed a
+Deliberately no per-run scores here. `compare_runs.py` re-scores every stored
+run against the working tree, so a score written into prose is out of date as
+soon as a test is edited, and only the tool's current output is quotable. At the
+time of writing there are eight runs spread across roughly two points, and 23 of
+the 457 tests have failed at least once.
+
+Three findings from that history are worth keeping, because each reversed a
 decision that had already been made:
 
 - **Two runs were not enough.** Three tests failed both run 01 and run 02 and
@@ -297,8 +305,16 @@ decision that had already been made:
   every run" gets mechanically harder to satisfy with each run added, so it says
   less the more evidence there is. `multi-ipsec-policy-nesting` failed 01 and
   02, passed 03, failed 04.
+- **A failure rate can mix two different corpora.** A stored answer is frozen
+  text and cannot benefit from an index built after it was written, so a rate
+  that pools runs from either side of an index change measures two things at
+  once. `prepare_run.py --collect` now records a digest of the index each run
+  read, and `compare_runs.py` flags such a rate as stale. Digests start at run
+  06; earlier runs cannot be backfilled.
 
 Quote the spread and the per-test rate, never a single headline number.
+[`MEASUREMENT.md`](MEASUREMENT.md) covers this loop on its own, including why a
+test edit is free and an index edit is not.
 
 ### What the suite is worth, stated honestly
 
@@ -311,11 +327,11 @@ The counterweight is that the suite has repeatedly been measuring itself. The
 run-01 audit found that a third of its misses were the fact list's fault, not
 the corpus's: reference answers habitually end in a tail of volunteered detail,
 and facts harvested from that tail demanded material no operator asked about.
-The same defect has now been found five separate times in different clothing.
+The same defect has now been found seven separate times in different clothing.
 Read the runs as diagnostic, not as a grade.
 
 The largest remaining limitation is that all 457 questions were written by the
-same process that wrote the expected facts. Five runs have measured the corpus
+same process that wrote the expected facts. Eight runs have measured the corpus
 against our own idea of what an operator asks.
 
 ## How an agent actually uses the corpus
@@ -330,7 +346,7 @@ flowchart TD
     Q --> D{"what does the<br/>question give you?"}
 
     D -->|"a command name"| I1["INDEX.md<br/>every command once,<br/>grouped by domain"]
-    D -->|"subject vocabulary<br/>'wavelength', 'MACsec'"| I2["index/topics.md<br/>57 topics,<br/>457 search terms"]
+    D -->|"subject vocabulary<br/>'wavelength', 'MACsec'"| I2["index/topics.md<br/>57 topics,<br/>460 search terms"]
     D -->|"a parameter name<br/>'admin-state', 'tx-power'"| I3["index/parameters.md<br/>1,787 names"]
     D -->|"an AID<br/>'card-1-1'"| I4["index/entities.md<br/>longest-prefix match"]
     D -->|"'what lives under X'"| I5["index/entities.md<br/>Containment section"]
@@ -432,11 +448,12 @@ falsifiable.
 python tools/LLM-Unit-Tests/compare_runs.py
 ```
 
-Score all five stored runs against the current tests and report each test's
-failure rate.
+Score all eight stored runs against the current tests and report each test's
+failure rate, in run order, and flag a rate whose failures all predate an index
+change.
 
 ```bash
-python tools/LLM-Unit-Tests/prepare_run.py run-06
+python tools/LLM-Unit-Tests/prepare_run.py run-09
 ```
 
 Shard the questions for a new model run and print the dispatch prompt. Add
@@ -450,5 +467,6 @@ Shard the questions for a new model run and print the dispatch prompt. Add
 | What are the known source-document defects? | [`tools/README.md`](tools/README.md), "Traps" |
 | How do I write or review a test batch? | [`tools/LLM-Unit-Tests/README.md`](tools/LLM-Unit-Tests/README.md) |
 | What did each model run find? | [`tools/LLM-Unit-Tests/README.md`](tools/LLM-Unit-Tests/README.md) |
+| How do the runs, the tests and the index relate? | [`MEASUREMENT.md`](MEASUREMENT.md) |
 | How do I produce another run? | [`tools/LLM-Unit-Tests/runs/README.md`](tools/LLM-Unit-Tests/runs/README.md) |
 | Which index file answers which query? | [`R9_1_GX_CLI_Reference/index/README.md`](R9_1_GX_CLI_Reference/index/README.md) |
